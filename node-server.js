@@ -22,18 +22,24 @@
 
   http.createServer(function (req, res) {
 
-//    res.writeHead(200, {'Content-Type': 'text/plain'});
-
     var url = require('url').parse(req.url)
     if (url.pathname === '/tab1') {
 
-      var templates = ['mainLayout.html', 'tabContent.html', 'tab1Content.html', 'tab2Content.html']
+      var templates = [
+        'public/mainLayout/mainLayout.html',
+        'public/tabContent/tabContent.html',
+        'public/tabContent/tab1Content.html',
+        'public/tabContent/tab2Content.html'
+      ];
       async.forEach(templates,
         // дело техники - компиляция и загрузка шаблонов
         function (file, callback) {
           fs.readFile(file, 'utf8', function (err, data) {
-            if (err) callback(err)
-            var name = file.split(".")[0]
+            if (err) callback(err);
+
+            var split = file.split('.')[0].split('/');
+            var name = split[split.length-1];
+
             dust.loadSource(dust.compile(data, name))
             callback(null)
           })
@@ -42,41 +48,15 @@
           if (err) throw err;
           res.writeHead(200, {'Content-Type': 'text/html'});
 
-//          // формирование контекста для виджета главного лейаута
-//          var ctx = {
-//            activeTab: 2,
-//            centralTabGroup: true
-//          }
-//
-//          // рендеринг шаблона виджета главного лейаута
-//          dust.render('mainLayout', ctx, function (err, output) {
-//            if (err) throw err
-//            res.end(output)
-//          })
-
-          var mainLayout = require('./mainLayout')
+          var MainLayout = require('./public/mainLayout/MainLayout');
+          var mainLayout = new MainLayout;
+          require('./public/widgetInitializer').setRootWidget(mainLayout);
 
           mainLayout.show({activeTabId: 1}, function (err, output) {
             res.end(output)
           })
-
         }
       )
-
-
-  //    fs.readFile('tab1.html', 'utf-8', function (err, data) {
-  //      if (err) throw err
-  //      res.writeHead(200, {'Content-Type': 'text/html'});
-  //
-  //			dust.loadSource(dust.compile(data, 'index'))
-  //			dust.render('index', {}, function (err, output) {
-  //				if (err) throw err
-  //				res.end(output)
-  //			})
-  //		})
-
-
-
     }
     else if (url.pathname === '/tab2') {
       content = 'tab2\n'

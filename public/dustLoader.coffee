@@ -17,7 +17,6 @@ define [
       fs.readFile path, 'utf8', (err, data) ->
         if err then throw err
         dust.loadSource(dust.compile data, name)
-        console.log "dust path read #{ path }"
         callback()
 
 

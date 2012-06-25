@@ -3,9 +3,8 @@
 define [
   'dustjs-linkedin'
   '../dustLoader'
-  'underscore'
   '../Widget'
-], (dust, dustLoader, _, Widget) ->
+], (dust, dustLoader, Widget) ->
 
   class Button extends Widget
 
