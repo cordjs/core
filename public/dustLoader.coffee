@@ -13,12 +13,8 @@ define [
     else
       name = if name then name else @_getAutoName path
 
-    console.log "preved"
-
     requirejs ['fs'], (fs) ->
-      console.log "medved"
       fs.readFile path, 'utf8', (err, data) ->
-        console.log "preved"
         if err then throw err
         dust.loadSource(dust.compile data, name)
         console.log "dust path read #{ path }"
