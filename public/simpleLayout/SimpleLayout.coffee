@@ -16,9 +16,4 @@ define [
       callback()
 
 
-    renderTemplate: (callback) ->
-      dust.render 'simpleLayout', @getBaseContext().push(@ctx), callback
-
-
-
   SimpleLayout

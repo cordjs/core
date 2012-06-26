@@ -16,8 +16,5 @@ define [
       @ctx.centralTabGroup = true
       callback()
 
-    renderTemplate: (callback) ->
-      dust.render 'mainLayout', @getBaseContext().push(@ctx), callback
-
 
   MainLayout

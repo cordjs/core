@@ -62,12 +62,11 @@
           </ul>
         {/centralTabGroup}
         <div class="tab-content">
-          {#widget class="tabContent/TabContent" name="tabContent" activeTabId="1"/}
-
-
-          {>"tab{activeTab}Content"/}
+          {#widget class="tabContent/TabContent" name="tabContent" activeTabId=activeTab /}
         </div>
       </div>
+
+      <br/><br/>
 
       <h1>Bootstrap starter template</h1>
       <p>Use this document as a way to quick start any new project.<br> All you get is this message and a barebones HTML document.</p>

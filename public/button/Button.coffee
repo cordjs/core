@@ -14,10 +14,5 @@ define [
       @ctx.number = params.number ? 1
       callback()
 
-    renderTemplate: (callback) ->
-      dustLoader.loadTemplate 'public/button/button.html', =>
-        console.log "button template loaded, number = #{ @ctx.number }"
-        dust.render 'button', @ctx, callback
-
 
   Button

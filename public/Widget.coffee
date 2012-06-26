@@ -4,7 +4,8 @@ define [
   'underscore'
   './widgetInitializer'
   'dustjs-linkedin'
-], (_, widgetInitializer, dust) ->
+  './dustLoader'
+], (_, widgetInitializer, dust, dustLoader) ->
 
   class Widget
 
@@ -69,6 +70,20 @@ define [
 
     renderJson: (callback) ->
       callback null, JSON.stringify(@ctx)
+
+
+    getTemplatePath: ->
+      className = @constructor.name
+      "public/#{ @path }#{ className.charAt(0).toUpperCase() + className.slice(1) }.html"
+
+    renderTemplate: (callback) ->
+      tmplPath = @getTemplatePath()
+      console.log "renderTemplate #{ tmplPath }"
+      if dust.cache[tmplPath]?
+        dust.render tmplPath, @getBaseContext().push(@ctx), callback
+      else
+        dustLoader.loadTemplate tmplPath, tmplPath, =>
+          @renderTemplate callback
 
 
     getInitCode: (parentId) ->

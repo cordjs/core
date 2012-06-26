@@ -16,9 +16,5 @@ define [
       @ctx.activeTab = params.activeTabId
       callback()
 
-    renderTemplate: (callback) ->
-      dustLoader.loadTemplate 'public/tabContent/tabContent.html', =>
-        dust.render 'tabContent', @getBaseContext().push(@ctx), callback
-
 
   TabContent
