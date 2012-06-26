@@ -49,7 +49,6 @@ define [
         widget = new WidgetClass ctx.id
         widget.loadContext ctx
 
-        console.log ctx.id
         @widgets[ctx.id] =
           'widget': widget
           'namedChilds': namedChilds
@@ -61,17 +60,14 @@ define [
             throw "Try to use uninitialized parent widget with id = #{ parentId }"
 
         @_loadingCount--
-        console.log @_loadingCount
         if @_loadingCount == 0 and @_initEnd
           @setupBindings()
 
 
     setupBindings: ->
-      console.log 'setupBindings'
       @bind(id) for id in @_widgetOrder.reverse()
 
     bind: (widgetId) ->
-      console.log @, @widgets[widgetId], @widgets.widget1, widgetId
       if @widgets[widgetId]?
         @widgets[widgetId].widget.initBehaviour()
       else

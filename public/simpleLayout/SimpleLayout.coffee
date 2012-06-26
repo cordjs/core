@@ -12,7 +12,7 @@ define [
     behaviourClass: false
 
     _defaultAction: (params, callback) ->
-      @ctx.activeTab = params.activeTabId if params.activeTabId?
+      @ctx.number = if params.number? then params.number else 0
       callback()
 
 
