@@ -9,7 +9,6 @@ define [
     constructor: (view) ->
       @view = view
       @id = view.ctx.id
-      console.log "behaviour constructor", @id
       @_setupBindings()
 
     _setupBindings: ->

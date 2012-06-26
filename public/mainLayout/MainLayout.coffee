@@ -9,7 +9,7 @@ define [
 
     path: 'mainLayout/'
 
-    behaviourClass: false
+    behaviourClass: null
 
     _defaultAction: (params, callback) ->
       @ctx.activeTab = params.activeTabId

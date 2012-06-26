@@ -13,9 +13,8 @@
 
   var http = require('http');
   var static = require('node-static');
-  var RouterClass = require('./public/Router');
+  var router = require('./public/ServerSideRouter');
 
-  var router = new RouterClass;
   router.addRoutes(require('./public/routes'));
 
   var file = new(static.Server)('./public/');

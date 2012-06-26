@@ -13,5 +13,8 @@ require.config
 
 require [
   'jquery'
-], ($) ->
+  './clientSideRouter'
+  './routes'
+], ($, router, routes) ->
 
+  router.addRoutes routes
