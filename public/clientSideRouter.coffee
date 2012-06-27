@@ -1,7 +1,9 @@
 define [
   './Router'
   'jquery'
-], (Router, $) ->
+  'postal'
+  './widgetInitializer'
+], (Router, $, postal, widgetInitializer) ->
 
   hashStrip = /^#*/
 
@@ -30,10 +32,30 @@ define [
         $(window).bind('hashchange', => @change)
       @change()
 
+
+    process: ->
+      postal.subscribe
+        topic: 'router.process'
+        callback: (route) ->
+          widgetPath = route.widget
+          action = route.action
+          params = route.params
+
+          console.log 'router postal callback'
+
+          require [widgetPath], (WidgetClass) ->
+            if widgetInitializer.rootWidget?
+              widget = widgetInitializer.rootWidget
+              widget.fireAction action, params
+            else
+              throw "root widget is undefined!"
+
+
+
     matchRoute: (path, options) ->
       for route in @routes
         if route.match(path, options)
-          #postal.publish
+          postal.publish 'router.process', route
           return route
 
     navigate: (args...) ->

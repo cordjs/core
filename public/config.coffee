@@ -5,10 +5,11 @@ require.config
 #  baseUrl: '/public'
 
   paths:
-    'dustjs-linkedin': './vendor/dustjs/dust-amd-adapter',
-    'jquery': './vendor/jquery/jquery-1.7.2.min',
-    'underscore': './vendor/underscore/underscore-min',
-    'requirejs': './vendor/requirejs/require',
+    'dustjs-linkedin': 'vendor/dustjs/dust-amd-adapter',
+    'jquery': 'vendor/jquery/jquery-1.7.2.min',
+    'underscore': 'vendor/underscore/underscore-amd-adapter',
+    'requirejs': 'vendor/requirejs/require',
+    'postal': 'vendor/postal/postal',
 
 
 require [
@@ -18,3 +19,4 @@ require [
 ], ($, router, routes) ->
 
   router.addRoutes routes
+  router.process()

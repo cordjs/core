@@ -12,8 +12,10 @@ define [
     behaviourClass: null
 
     _defaultAction: (params, callback) ->
-      @ctx.activeTab = params.activeTabId
-      @ctx.centralTabGroup = true
+      @ctx.set
+        activeTab: params.activeTabId
+        centralTabGroup: true
+
       callback()
 
 

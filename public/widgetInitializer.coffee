@@ -58,6 +58,8 @@ define [
             @widgets[parentId].widget.registerChild widget, @widgets[parentId].namedChilds[ctx.id] ? null
           else
             throw "Try to use uninitialized parent widget with id = #{ parentId }"
+        else
+          @rootWidget = widget
 
         @_loadingCount--
         if @_loadingCount == 0 and @_initEnd

@@ -5,7 +5,8 @@ define [
   './widgetInitializer'
   'dustjs-linkedin'
   './dustLoader'
-], (_, widgetInitializer, dust, dustLoader) ->
+  'postal'
+], (_, widgetInitializer, dust, dustLoader, postal) ->
 
   class Widget
 
@@ -30,12 +31,11 @@ define [
     constructor: (id) ->
       @children = []
       @childByName = {}
-      @ctx = {}
-      @ctx.id = id ? 'widget' + _.uniqueId()
+      @ctx = new Context(id ? 'widget' + _.uniqueId())
 
 
     loadContext: (ctx) ->
-      @ctx = ctx
+      @ctx = new Context(ctx)
 
     #
     # Main method to call if you want to show rendered widget template
@@ -56,6 +56,9 @@ define [
     jsonAction: (action, params, callback) ->
       @["_#{ action }Action"] params, =>
         @renderJson callback
+
+    fireAction: (action, params) ->
+      @["_#{ action }Action"] params, ->
 
 
     ###
@@ -153,6 +156,57 @@ define [
         widgetInitializer: (chunk, context, bodies, params) ->
           chunk.map (chunk) ->
             chunk.end widgetInitializer.getTemplateCode()
+
+
+  class Context
+
+    constructor: (arg) ->
+      if typeof arg is 'object'
+        for key, value of arg
+          console.log 'initial context', key, value
+          @[key] = value
+      else
+        @id = arg
+
+    set: (args...) ->
+      triggerChange = false
+      if args.length == 0
+        throw "Invalid number of arguments! Should be 1 or 2."
+      else if args.length == 1
+        pairs = args[0]
+        if typeof pairs is 'object'
+          for key, value of pairs
+            if @setSingle key, value
+              triggerChange = true
+        else
+          throw "Invalid argument! Single argument must be key-value pair (object)."
+      else if @setSingle args[0], args[1]
+        triggerChange = true
+
+      if triggerChange
+        postal.publish "widget.#{ @id }.someChange", {}
+
+
+    setSingle: (name, newValue) ->
+      triggerChange = false
+      if @[name]?
+        oldValue = @[name]
+        console.log name, oldValue, newValue
+        if oldValue != newValue
+          triggerChange = true
+      else
+        console.log 'trigger change on not exist', @, name, @centralTabGroup
+        triggerChange = true
+
+      @[name] = newValue
+
+      if triggerChange
+        console.log 'triggerChange', name, newValue
+        postal.publish "widget.#{ @id }.change.#{ name }",
+          name: name
+          value: newValue
+
+      triggerChange
 
 
   Widget
