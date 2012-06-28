@@ -55,12 +55,14 @@
     <div class="container">
 
       <div class="tabbable">
-        {#centralTabGroup}
+        {#deferred params="activeTab, centralTabGroup"}
+          {#centralTabGroup}
           <ul class="nav nav-tabs">
             <li id="tab1"{@if cond="('{activeTab}' == 1)"} class="active"{/if}><a href="/tab1">Tab 1</a></li>
             <li id="tab2"{@if cond="('{activeTab}' == 2)"} class="active"{/if}><a href="/tab2">Tab 2</a></li>
           </ul>
-        {/centralTabGroup}
+          {/centralTabGroup}
+        {/deferred}
         <div class="tab-content">
           {#widget class="tabContent/TabContent" name="tabContent" activeTabId="!activeTab" /}
         </div>

@@ -21,7 +21,6 @@ define [
       @rootWidget = widget
 
     getTemplateCode: ->
-  #    items = ("new #{ widget.constructor.name }(#{ JSON.stringify(widget.ctx) });" for widget in @widgets)
       """
       <script>
         require(['./widgetInitializer'],
@@ -42,8 +41,6 @@ define [
      # @browser-only
      ##
     init: (widgetPath, ctx, namedChilds, childBindings, parentId) ->
-      console.log widgetPath
-
       @_loadingCount++
       @_widgetOrder.push ctx.id
 

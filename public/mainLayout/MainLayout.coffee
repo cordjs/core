@@ -10,10 +10,10 @@ define [
     path: 'mainLayout/'
 
     _defaultAction: (params, callback) ->
-      @ctx.activeTab = 1
-      @ctx.centralTabGroup = true
+      @ctx.setDeferred 'activeTab'
+      @ctx.set
+        centralTabGroup: Widget.DEFERRED
       setTimeout =>
-        console.log "timeout worked", params.activeTabId
         @ctx.set
           activeTab: params.activeTabId
           centralTabGroup: true

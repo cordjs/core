@@ -10,6 +10,9 @@ define [
 
   class Widget
 
+    # @const
+    @DEFERRED = '__deferred_value__'
+
     # widget context
     ctx: null
 
@@ -150,7 +153,6 @@ define [
             @childByName[params.name] = widget if params.name?
 
             showCallback = ->
-              console.log 'showCallback'
               widget.show params, (err, output) ->
                 if err then throw err
                 chunk.end "<div id=\"#{ widget.ctx.id }\">#{ output }</div>"
@@ -165,15 +167,20 @@ define [
               if name != 'name' and name != 'class'
                 if value.charAt(0) == '!'
                   value = value.slice 1
-                  waitCounter++
                   bindings[value] = name
-                  postal.subscribe
-                    topic: "widget.#{ @ctx.id }.change.#{ value }"
-                    callback: (data) ->
-                      params[name] = data.value
-                      waitCounter--
-                      if waitCounter == 0 and waitCounterFinish
-                        showCallback()
+                  # if context value is deferred, than waiting asyncronously...
+                  if @ctx.isDeferred value
+                    waitCounter++
+                    postal.subscribe
+                      topic: "widget.#{ @ctx.id }.change.#{ value }"
+                      callback: (data) ->
+                        params[name] = data.value
+                        waitCounter--
+                        if waitCounter == 0 and waitCounterFinish
+                          showCallback()
+                  # otherwise just getting it's value syncronously
+                  else
+                    params[name] = @ctx[value]
 
             # todo: potentially not cross-browser code!
             if Object.keys(bindings).length != 0
@@ -182,6 +189,39 @@ define [
             waitCounterFinish = true
             if waitCounter == 0
               showCallback()
+
+
+        deferred: (chunk, context, bodies, params) =>
+          deferredKeys = params.params.split /[, ]/
+          needToWait = (name for name in deferredKeys when @ctx.isDeferred name)
+
+          # there are deferred params, handling block async...
+          if needToWait.length > 0
+            chunk.map (chunk) =>
+              waitCounter = 0
+              waitCounterFinish = false
+
+              for name in needToWait
+                if @ctx.isDeferred name
+                  waitCounter++
+                  postal.subscribe
+                    topic: "widget.#{ @ctx.id }.change.#{ name }"
+                    callback: (data) ->
+                      waitCounter--
+                      if waitCounter == 0 and waitCounterFinish
+                        showCallback()
+
+              waitCounterFinish = true
+              if waitCounter == 0
+                showCallback()
+
+              showCallback = ->
+                chunk.render bodies.block, context
+                chunk.end()
+          # no deffered params, parsing block immedialely
+          else
+            chunk.render bodies.block, context
+
 
 
         # widget initialization script generator
@@ -195,7 +235,6 @@ define [
     constructor: (arg) ->
       if typeof arg is 'object'
         for key, value of arg
-          console.log 'initial context', key, value
           @[key] = value
       else
         @id = arg
@@ -223,22 +262,26 @@ define [
       triggerChange = false
       if @[name]?
         oldValue = @[name]
-        console.log name, oldValue, newValue
         if oldValue != newValue
           triggerChange = true
       else
-        console.log 'trigger change on not exist', @, name, @centralTabGroup
         triggerChange = true
 
       @[name] = newValue
 
       if triggerChange
-        console.log 'triggerChange', name, newValue
         postal.publish "widget.#{ @id }.change.#{ name }",
           name: name
           value: newValue
 
       triggerChange
+
+
+    setDeferred: (args...) ->
+      (@[name] = Widget.DEFERRED) for name in args
+
+    isDeferred: (name) ->
+      @[name] is Widget.DEFERRED
 
 
   Widget
