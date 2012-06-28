@@ -9,12 +9,15 @@ define [
 
     path: 'mainLayout/'
 
-    behaviourClass: null
-
     _defaultAction: (params, callback) ->
-      @ctx.set
-        activeTab: params.activeTabId
-        centralTabGroup: true
+      @ctx.activeTab = 1
+      @ctx.centralTabGroup = true
+      setTimeout =>
+        console.log "timeout worked", params.activeTabId
+        @ctx.set
+          activeTab: params.activeTabId
+          centralTabGroup: true
+      , 500
 
       callback()
 

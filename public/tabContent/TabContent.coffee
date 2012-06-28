@@ -10,10 +10,8 @@ define [
 
     path: 'tabContent/'
 
-    behaviourClass: false
-
     _defaultAction: (params, callback) ->
-      @ctx.activeTab = params.activeTabId
+      @ctx.set 'activeTab', params.activeTabId
       callback()
 
 

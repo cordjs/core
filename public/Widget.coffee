@@ -31,6 +31,7 @@ define [
     constructor: (id) ->
       @children = []
       @childByName = {}
+      @childBindings = {}
       @ctx = new Context(id ? 'widget' + _.uniqueId())
 
 
@@ -77,7 +78,7 @@ define [
 
     getTemplatePath: ->
       className = @constructor.name
-      "public/#{ @path }#{ className.charAt(0).toUpperCase() + className.slice(1) }.html"
+      "/#{ @path }#{ className.charAt(0).toUpperCase() + className.slice(1) }.html"
 
     renderTemplate: (callback) ->
       tmplPath = @getTemplatePath()
@@ -97,7 +98,7 @@ define [
         namedChilds[widget.ctx.id] = name
 
       """
-      wi.init('#{ @getPath() }', #{ JSON.stringify @ctx }, #{ JSON.stringify namedChilds }#{ parentStr });
+      wi.init('#{ @getPath() }', #{ JSON.stringify @ctx }, #{ JSON.stringify namedChilds }, #{ JSON.stringify @childBindings }#{ parentStr });
       #{ widget.getInitCode(@ctx.id) for widget in @children }
       """
 
@@ -145,12 +146,43 @@ define [
             WidgetClass = require "./#{ params.class }"
             widget = new WidgetClass
 
-            @children.push(widget)
+            @children.push widget
             @childByName[params.name] = widget if params.name?
 
-            widget.show params, (err, output) ->
-              if err then throw err
-              chunk.end "<div id=\"#{ widget.ctx.id }\">#{ output }</div>"
+            showCallback = ->
+              console.log 'showCallback'
+              widget.show params, (err, output) ->
+                if err then throw err
+                chunk.end "<div id=\"#{ widget.ctx.id }\">#{ output }</div>"
+
+            waitCounter = 0
+            waitCounterFinish = false
+
+            bindings = {}
+
+            # waiting for parent's necessary context-variables availability before rendering widget...
+            for name, value of params
+              if name != 'name' and name != 'class'
+                if value.charAt(0) == '!'
+                  value = value.slice 1
+                  waitCounter++
+                  bindings[value] = name
+                  postal.subscribe
+                    topic: "widget.#{ @ctx.id }.change.#{ value }"
+                    callback: (data) ->
+                      params[name] = data.value
+                      waitCounter--
+                      if waitCounter == 0 and waitCounterFinish
+                        showCallback()
+
+            # todo: potentially not cross-browser code!
+            if Object.keys(bindings).length != 0
+              @childBindings[widget.ctx.id] = bindings
+
+            waitCounterFinish = true
+            if waitCounter == 0
+              showCallback()
+
 
         # widget initialization script generator
         widgetInitializer: (chunk, context, bodies, params) ->

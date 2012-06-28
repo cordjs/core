@@ -1,8 +1,8 @@
 `if (typeof define !== 'function') { var define = require('amdefine')(module) }`
 
 define [
-
-], ->
+  'postal'
+], (postal) ->
 
   class WidgetInitializer
     widgets: {}
@@ -15,6 +15,8 @@ define [
 
     _widgetOrder: []
 
+    _pushBindings: {}
+
     setRootWidget: (widget) ->
       @rootWidget = widget
 
@@ -25,7 +27,7 @@ define [
         require(['./widgetInitializer'],
         function (wi) {
           $(function() {
-            #{ @rootWidget.getInitCode()}
+            #{ @rootWidget.getInitCode() }
             wi.endInit();
           });
         });
@@ -39,15 +41,36 @@ define [
      #
      # @browser-only
      ##
-    init: (widgetPath, ctx, namedChilds, parentId) ->
+    init: (widgetPath, ctx, namedChilds, childBindings, parentId) ->
       console.log widgetPath
 
       @_loadingCount++
       @_widgetOrder.push ctx.id
 
+      for widgetId, bindingMap of childBindings
+        for ctxName, paramName of bindingMap
+          @_pushBindings[widgetId] ?= {}
+          @_pushBindings[widgetId][ctx.id] ?= {}
+          @_pushBindings[widgetId][ctx.id][ctxName] = paramName
+
+      console.log 'pushBindings', @_pushBindings
+
       require ["./#{ widgetPath }"], (WidgetClass) =>
         widget = new WidgetClass ctx.id
         widget.loadContext ctx
+
+        if @_pushBindings[ctx.id]?
+          for pId, bindingMap of @_pushBindings[ctx.id]
+            if pId != parentId
+              throw "parentId is not matching: #{ pId } != #{ parentId }!"
+            for ctxName, paramName of bindingMap
+              console.log 'widgetInitializer:subscribe', "widget.#{ pId }.change.#{ ctxName }", paramName
+              postal.subscribe
+                topic: "widget.#{ pId }.change.#{ ctxName }"
+                callback: (data) ->
+                  params = {}
+                  params[paramName] = data.value
+                  widget.fireAction 'default', params
 
         @widgets[ctx.id] =
           'widget': widget

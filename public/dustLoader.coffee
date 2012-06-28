@@ -6,12 +6,19 @@ define [
   'requirejs'
 ], (dust, _, requirejs) ->
 
+  isNode = false
+  if typeof module != 'undefined' and module.exports?
+    isNode = true
+  console.log 'isNode', isNode
+
   dust.onLoad = (tmplPath, callback) ->
-    requirejs ['fs'], (fs) ->
-      fs.readFile tmplPath, 'utf8', (err, tmplString) ->
-        callback err, tmplString
-#    require ["text!" + tmplPath], (tplString) ->
-#      callback null, tplString
+    if isNode
+      requirejs ['fs'], (fs) ->
+        fs.readFile 'public' + tmplPath, 'utf8', (err, tmplString) ->
+          callback err, tmplString
+    else
+      require ["text!" + tmplPath], (tplString) ->
+        callback null, tplString
 
   class DustLoader
 
@@ -22,11 +29,17 @@ define [
       else
         name = if name then name else @_getAutoName path
 
-      requirejs ['fs'], (fs) ->
-        fs.readFile path, 'utf8', (err, data) ->
-          if err then throw err
-          dust.loadSource(dust.compile data, name)
-          callback()
+      dustCompileCallback = (err, data) ->
+        if err then throw err
+        dust.loadSource(dust.compile data, name)
+        callback()
+
+      if isNode
+        requirejs ['fs'], (fs) ->
+          fs.readFile 'public' + path, 'utf8', dustCompileCallback
+      else
+        require ["text!" + path], (tplString) ->
+          dustCompileCallback null, tplString
 
 
     _getAutoName: (path) ->
