@@ -24,6 +24,10 @@ define [
 
     behaviourClass: null
 
+    # internals
+    _renderStarted: false
+    _childWidgetCounter: 0
+
     getPath: ->
       if @path?
         "#{ @path }#{ @constructor.name }"
@@ -85,9 +89,11 @@ define [
 
     renderTemplate: (callback) ->
       tmplPath = @getTemplatePath()
-      console.log "renderTemplate #{ tmplPath }"
       if dust.cache[tmplPath]?
+        console.log "renderTemplate #{ tmplPath }"
+        @markRenderStarted()
         dust.render tmplPath, @getBaseContext().push(@ctx), callback
+        @markRenderFinished()
       else
         dustLoader.loadTemplate tmplPath, tmplPath, =>
           @renderTemplate callback
@@ -126,11 +132,25 @@ define [
       behaviourClass = @getBehaviourClass()
       console.log 'initBehaviour', @constructor.name, behaviourClass
       if behaviourClass?
-        console.log "require", behaviourClass
         require [behaviourClass], (BehaviourClass) =>
-          console.log "loaded behaviour class #{ behaviourClass }"
           behaviour = new BehaviourClass @
 
+
+    markRenderStarted: ->
+      @_renderInProgress = true
+
+    markRenderFinished: ->
+      @_renderInProgress = false
+      if @_childWidgetCounter == 0
+        postal.publish "widget.#{ @ctx.id }.render.children.complete", {}
+
+    childWidgetAdd: ->
+      @_childWidgetCounter++
+
+    childWidgetComplete: ->
+      @_childWidgetCounter--
+      if @_childWidgetCounter == 0 and not @_renderInProgress
+        postal.publish "widget.#{ @ctx.id }.render.children.complete", {}
 
 
     # should not be used directly, use getBaseContext() for lazy loading
@@ -144,51 +164,57 @@ define [
 
         # widget-block
         widget: (chunk, context, bodies, params) =>
+          @childWidgetAdd()
           chunk.map (chunk) =>
 
-            WidgetClass = require "./#{ params.class }"
-            widget = new WidgetClass
+            # nodejs vs browser hacks
+            prefix = if window? then '' else 'public/'
+            requireFunction = if window? then require else require 'requirejs'
 
-            @children.push widget
-            @childByName[params.name] = widget if params.name?
+            requireFunction ["./#{ prefix }#{ params.class }"], (WidgetClass) =>
+              widget = new WidgetClass
 
-            showCallback = ->
-              widget.show params, (err, output) ->
-                if err then throw err
-                chunk.end "<div id=\"#{ widget.ctx.id }\">#{ output }</div>"
+              @children.push widget
+              @childByName[params.name] = widget if params.name?
 
-            waitCounter = 0
-            waitCounterFinish = false
+              showCallback = =>
+                widget.show params, (err, output) =>
+                  @childWidgetComplete()
+                  if err then throw err
+                  chunk.end "<div id=\"#{ widget.ctx.id }\">#{ output }</div>"
 
-            bindings = {}
+              waitCounter = 0
+              waitCounterFinish = false
 
-            # waiting for parent's necessary context-variables availability before rendering widget...
-            for name, value of params
-              if name != 'name' and name != 'class'
-                if value.charAt(0) == '!'
-                  value = value.slice 1
-                  bindings[value] = name
-                  # if context value is deferred, than waiting asyncronously...
-                  if @ctx.isDeferred value
-                    waitCounter++
-                    postal.subscribe
-                      topic: "widget.#{ @ctx.id }.change.#{ value }"
-                      callback: (data) ->
-                        params[name] = data.value
-                        waitCounter--
-                        if waitCounter == 0 and waitCounterFinish
-                          showCallback()
-                  # otherwise just getting it's value syncronously
-                  else
-                    params[name] = @ctx[value]
+              bindings = {}
 
-            # todo: potentially not cross-browser code!
-            if Object.keys(bindings).length != 0
-              @childBindings[widget.ctx.id] = bindings
+              # waiting for parent's necessary context-variables availability before rendering widget...
+              for name, value of params
+                if name != 'name' and name != 'class'
+                  if value.charAt(0) == '!'
+                    value = value.slice 1
+                    bindings[value] = name
+                    # if context value is deferred, than waiting asyncronously...
+                    if @ctx.isDeferred value
+                      waitCounter++
+                      postal.subscribe
+                        topic: "widget.#{ @ctx.id }.change.#{ value }"
+                        callback: (data) ->
+                          params[name] = data.value
+                          waitCounter--
+                          if waitCounter == 0 and waitCounterFinish
+                            showCallback()
+                    # otherwise just getting it's value syncronously
+                    else
+                      params[name] = @ctx[value]
 
-            waitCounterFinish = true
-            if waitCounter == 0
-              showCallback()
+              # todo: potentially not cross-browser code!
+              if Object.keys(bindings).length != 0
+                @childBindings[widget.ctx.id] = bindings
+
+              waitCounterFinish = true
+              if waitCounter == 0
+                showCallback()
 
 
         deferred: (chunk, context, bodies, params) =>
@@ -227,7 +253,10 @@ define [
         # widget initialization script generator
         widgetInitializer: (chunk, context, bodies, params) ->
           chunk.map (chunk) ->
-            chunk.end widgetInitializer.getTemplateCode()
+            postal.subscribe
+              topic: "widget.#{ widgetInitializer.rootWidget.ctx.id }.render.children.complete"
+              callback: ->
+                chunk.end widgetInitializer.getTemplateCode()
 
 
   class Context

@@ -12,6 +12,4 @@ define [
 
     onActiveTabChange: =>
       console.log "reRenderTemplate"
-      @widget.renderTemplate (err, output) =>
-        if err then throw err
-        $('#'+@widget.ctx.id).html output
+      @render()

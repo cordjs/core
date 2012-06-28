@@ -20,3 +20,9 @@ define [
         postal.subscribe
           topic: "widget.#{ @id }.change.#{ fieldName }"
           callback: @[callback]
+
+    render: ->
+      @widget.renderTemplate (err, output) =>
+        if err then throw err
+        $('#'+@widget.ctx.id).html output
+        @_setupBindings()

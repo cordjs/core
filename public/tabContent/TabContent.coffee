@@ -12,6 +12,12 @@ define [
 
     _defaultAction: (params, callback) ->
       @ctx.set 'activeTab', params.activeTabId
+      if params.activeTabId == '2'
+        @ctx.setDeferred 'buttonNumber'
+        setTimeout =>
+          @ctx.set
+            buttonNumber: Math.floor(Math.random() * 100)
+        , 200
       callback()
 
 

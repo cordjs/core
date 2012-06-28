@@ -6,9 +6,10 @@ define [
   'requirejs'
 ], (dust, _, requirejs) ->
 
-  isNode = false
-  if typeof module != 'undefined' and module.exports?
-    isNode = true
+#  isNode = false
+#  if typeof module != 'undefined' and module.exports?
+#    isNode = true
+  isNode = ! window?
   console.log 'isNode', isNode
 
   dust.onLoad = (tmplPath, callback) ->

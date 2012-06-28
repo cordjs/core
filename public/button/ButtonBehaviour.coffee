@@ -7,5 +7,6 @@ define [
 
     _setupBindings: ->
       $('#'+@id).click =>
-        alert "Button click #{ @view.ctx.number }!"
+        console.log 'button widget', @widget
+        alert "Button click #{ @widget.ctx.number }!"
 

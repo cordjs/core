@@ -10,9 +10,10 @@ define [
 
     process: (req, res) ->
       path = url.parse req.url
-      console.log "router.process #{ req.url } #{ path.pathname }"
 
       if (route = @matchRoute path.pathname)
+        console.log "router.process #{ req.url } #{ path.pathname }"
+
         rootWidgetPath = route.widget
         action = route.action
         params = route.params
