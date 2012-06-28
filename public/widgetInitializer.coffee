@@ -48,29 +48,22 @@ define [
       @_widgetOrder.push ctx.id
 
       for widgetId, bindingMap of childBindings
+        @_pushBindings[widgetId] = {}
         for ctxName, paramName of bindingMap
-          @_pushBindings[widgetId] ?= {}
-          @_pushBindings[widgetId][ctx.id] ?= {}
-          @_pushBindings[widgetId][ctx.id][ctxName] = paramName
-
-      console.log 'pushBindings', @_pushBindings
+          @_pushBindings[widgetId][ctxName] = paramName
 
       require ["./#{ widgetPath }"], (WidgetClass) =>
         widget = new WidgetClass ctx.id
         widget.loadContext ctx
 
         if @_pushBindings[ctx.id]?
-          for pId, bindingMap of @_pushBindings[ctx.id]
-            if pId != parentId
-              throw "parentId is not matching: #{ pId } != #{ parentId }!"
-            for ctxName, paramName of bindingMap
-              console.log 'widgetInitializer:subscribe', "widget.#{ pId }.change.#{ ctxName }", paramName
-              postal.subscribe
-                topic: "widget.#{ pId }.change.#{ ctxName }"
-                callback: (data) ->
-                  params = {}
-                  params[paramName] = data.value
-                  widget.fireAction 'default', params
+          for ctxName, paramName of @_pushBindings[ctx.id]
+            postal.subscribe
+              topic: "widget.#{ parentId }.change.#{ ctxName }"
+              callback: (data) ->
+                params = {}
+                params[paramName] = data.value
+                widget.fireAction 'default', params
 
         @widgets[ctx.id] =
           'widget': widget
