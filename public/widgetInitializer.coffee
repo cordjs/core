@@ -55,28 +55,39 @@ define [
 
         if @_pushBindings[ctx.id]?
           for ctxName, paramName of @_pushBindings[ctx.id]
-            postal.subscribe
+            subscription = postal.subscribe
               topic: "widget.#{ parentId }.change.#{ ctxName }"
               callback: (data) ->
                 params = {}
                 params[paramName] = data.value
+                console.log "(widgetInitializer) push binding event of parent (#{ parentId }) field #{ ctxName } for child widget #{ widget.constructor.name }::#{ widget.ctx.id }::#{ paramName }"
                 widget.fireAction 'default', params
+            widget.addSubscription subscription
 
         @widgets[ctx.id] =
           'widget': widget
           'namedChilds': namedChilds
 
+        completeFunc = =>
+          @_loadingCount--
+          if @_loadingCount == 0 and @_initEnd
+            @setupBindings()
+
         if parentId?
-          if @widgets[parentId]?
-            @widgets[parentId].widget.registerChild widget, @widgets[parentId].namedChilds[ctx.id] ? null
-          else
-            throw "Try to use uninitialized parent widget with id = #{ parentId }"
+          retryCounter = 0
+          timeoutFunc = =>
+            if @widgets[parentId]?
+              @widgets[parentId].widget.registerChild widget, @widgets[parentId].namedChilds[ctx.id] ? null
+              completeFunc()
+            else if retryCounter < 10
+              console.log "widget load timeout activated", retryCounter
+              setTimeout timeoutFunc, retryCounter++
+            else
+              throw "Try to use uninitialized parent widget with id = #{ parentId } - couldn't load parent widget within timeout!"
+          timeoutFunc()
         else
           @rootWidget = widget
-
-        @_loadingCount--
-        if @_loadingCount == 0 and @_initEnd
-          @setupBindings()
+          completeFunc()
 
 
     setupBindings: ->

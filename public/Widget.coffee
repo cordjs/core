@@ -35,15 +35,33 @@ define [
         throw "path is not defined for widget #{@constructor.name}"
 
 
-    constructor: (id) ->
+    resetChildren: ->
       @children = []
       @childByName = {}
+      @childById = {}
       @childBindings = {}
-      @ctx = new Context(id ? 'widget' + _.uniqueId())
+      @_dirtyChildren = false
 
+
+    constructor: (id) ->
+      @_subscriptions = []
+      @behaviour = null
+      @resetChildren()
+      @ctx = new Context(id ? (if window? then 'brow' else 'node') + '-wdt-' + _.uniqueId())
+
+    clean: ->
+      @cleanChildren()
+      if @behaviour?
+        @behaviour.clean()
+        delete @behaviour
+      subscription.unsubscribe() for subscription in @_subscriptions
+      @_subscriptions = []
 
     loadContext: (ctx) ->
       @ctx = new Context(ctx)
+
+    addSubscription: (subscription) ->
+      @_subscriptions.push subscription
 
     #
     # Main method to call if you want to show rendered widget template
@@ -87,11 +105,18 @@ define [
       className = @constructor.name
       "/#{ @path }#{ className.charAt(0).toUpperCase() + className.slice(1) }.html"
 
+
+    cleanChildren: ->
+      widget.clean() for widget in @children
+      @resetChildren()
+
     renderTemplate: (callback) ->
       tmplPath = @getTemplatePath()
       if dust.cache[tmplPath]?
         console.log "renderTemplate #{ tmplPath }"
         @markRenderStarted()
+        if @_dirtyChildren
+          @cleanChildren()
         dust.render tmplPath, @getBaseContext().push(@ctx), callback
         @markRenderFinished()
       else
@@ -120,8 +145,6 @@ define [
       if not @behaviourClass?
         @behaviourClass = "#{ @path }#{ @constructor.name }Behaviour"
 
-      console.log @behaviourClass
-
       if @behaviourClass == false
         null
       else
@@ -129,11 +152,36 @@ define [
 
     # @browser-only
     initBehaviour: ->
+      if @behaviour?
+        @behaviour.clean()
+        delete @behaviour
+
       behaviourClass = @getBehaviourClass()
       console.log 'initBehaviour', @constructor.name, behaviourClass
       if behaviourClass?
         require [behaviourClass], (BehaviourClass) =>
-          behaviour = new BehaviourClass @
+          @behaviour = new BehaviourClass @
+
+    #
+    # Almost copy of widgetInitializer::init but for client-side rendering
+    # @browser-only
+    #
+    browserInit: ->
+      for widgetId, bindingMap of @childBindings
+        for ctxName, paramName of bindingMap
+          subscription = postal.subscribe
+            topic: "widget.#{ @ctx.id }.change.#{ ctxName }"
+            callback: (data) =>
+              params = {}
+              params[paramName] = data.value
+              console.log "push binding event of parent #{ @constructor.name}(#{ @ctx.id }) field #{ ctxName } for child widget #{ @childById[widgetId].constructor.name }::#{ widgetId }::#{ paramName }"
+              @childById[widgetId].fireAction 'default', params
+          @childById[widgetId].addSubscription subscription
+
+      for childWidget in @children
+        childWidget.browserInit()
+
+      @initBehaviour()
 
 
     markRenderStarted: ->
@@ -141,6 +189,7 @@ define [
 
     markRenderFinished: ->
       @_renderInProgress = false
+      @_dirtyChildren = true
       if @_childWidgetCounter == 0
         postal.publish "widget.#{ @ctx.id }.render.children.complete", {}
 
@@ -176,6 +225,7 @@ define [
 
               @children.push widget
               @childByName[params.name] = widget if params.name?
+              @childById[widget.ctx.id] = widget
 
               showCallback = =>
                 widget.show params, (err, output) =>
@@ -284,7 +334,9 @@ define [
         triggerChange = true
 
       if triggerChange
-        postal.publish "widget.#{ @id }.someChange", {}
+        setTimeout =>
+          postal.publish "widget.#{ @id }.someChange", {}
+        , 0
 
 
     setSingle: (name, newValue) ->
@@ -299,9 +351,11 @@ define [
       @[name] = newValue
 
       if triggerChange
-        postal.publish "widget.#{ @id }.change.#{ name }",
-          name: name
-          value: newValue
+        setTimeout =>
+          postal.publish "widget.#{ @id }.change.#{ name }",
+            name: name
+            value: newValue
+        , 0
 
       triggerChange
 

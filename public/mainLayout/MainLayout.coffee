@@ -17,7 +17,7 @@ define [
         @ctx.set
           activeTab: params.activeTabId
           centralTabGroup: true
-      , 500
+      , 200
 
       callback()
 

@@ -17,7 +17,7 @@ define [
         setTimeout =>
           @ctx.set
             buttonNumber: Math.floor(Math.random() * 100)
-        , 200
+        , 100
       callback()
 
 

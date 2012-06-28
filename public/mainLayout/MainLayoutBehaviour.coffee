@@ -21,6 +21,5 @@ define [
           router.navigate href.slice(root.length), true
 
     onActiveTabChange: (data) =>
-      console.log 'onActiveTabChange', data
       $('.nav-tabs .active').removeClass('active')
       $('#tab'+data.value).addClass('active')
