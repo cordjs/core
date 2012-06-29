@@ -6,6 +6,7 @@ define [
 ], (Base, Model) ->
 #  console.log Model
 
+  console.log 'COOOORD'
   class Cord
 
     @records: {}
@@ -13,8 +14,4 @@ define [
     @Base = Base
     @Model = Model
 
-
-  #  a = new MVC
-#    console.log Cord.Model
-
-  new Cord.Model
+  Cord

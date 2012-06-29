@@ -4,7 +4,8 @@ define [
   'dustjs-linkedin'
   '../dustLoader'
   '../Widget'
-], (dust, dustLoader, Widget) ->
+  './Model'
+], (dust, dustLoader, Widget, Model) ->
 
   class TabContent extends Widget
 
@@ -19,6 +20,5 @@ define [
             buttonNumber: Math.floor(Math.random() * 100)
         , 100
       callback()
-
 
   TabContent

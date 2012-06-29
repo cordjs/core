@@ -11,7 +11,7 @@ require.config
     'jquery': 'vendor/jquery/jquery-1.7.2.min',
     'underscore': 'vendor/underscore/underscore-amd-adapter',
     'requirejs': 'vendor/requirejs/require',
-    'postal': 'vendor/postal/postal',
+    'postal': 'vendor/postal/postal'
 
     #plugins
     'text': 'vendor/requirejs/plugins/text'
