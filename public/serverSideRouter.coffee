@@ -4,7 +4,8 @@ define [
   'url'
   './widgetInitializer'
   './Router'
-], (url, widgetInitializer, Router) ->
+  './Cord/Cord'
+], (url, widgetInitializer, Router, Cord) ->
 
   class ServerSideRouter extends Router
 

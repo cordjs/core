@@ -3,7 +3,8 @@ define [
   'jquery'
   'postal'
   './widgetInitializer'
-], (Router, $, postal, widgetInitializer) ->
+  './Cord/Cord'
+], (Router, $, postal, widgetInitializer, Cord) ->
 
   hashStrip = /^#*/
 
