@@ -20,3 +20,4 @@ define [
 
     clickButton: ->
       @logClick.text( "click #{++@cntClick}, context #{ @widget.ctx.number }" )
+      @append '<div>test add </div>'

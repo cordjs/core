@@ -8,7 +8,9 @@ define [
 
     constructor: (widget) ->
       @widgetEvents =
-        'activeTab': 'onActiveTabChange'
+        'activeTab': (data) ->
+          $('.nav-tabs .active').removeClass('active')
+          $('#tab'+data.value).addClass('active')
       super widget
 
     _setupBindings: ->
@@ -19,7 +21,3 @@ define [
         if href and href.slice(0, root.length) == root and href.indexOf("javascript:") != 0
           evt.preventDefault()
           router.navigate href.slice(root.length), true
-
-    onActiveTabChange: (data) =>
-      $('.nav-tabs .active').removeClass('active')
-      $('#tab'+data.value).addClass('active')

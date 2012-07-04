@@ -34,19 +34,7 @@ define [
     delegateEvents: (events) ->
       for key, method of events
 
-        if typeof(method) is 'function'
-        # Always return true from event handlers
-          method = do (method) => =>
-            method.apply(this, arguments)
-            true
-        else
-          unless @[method]
-            throw new Error("#{method} doesn't exist")
-
-          method = do (method) => =>
-            @[method].apply(this, arguments)
-            true
-
+        method     = @_getMethod method
         match      = key.match(/^(\S+)\s*(.*)$/)
         eventName  = match[1]
         selector   = match[2]
@@ -55,6 +43,21 @@ define [
           @el.on(eventName, method)
         else
           @el.on(eventName, selector, method)
+
+    _getMethod: (method) ->
+      if typeof(method) is 'function'
+      # Always return true from event handlers
+        method = do (method) => =>
+          method.apply(this, arguments)
+          true
+      else
+        unless @[method]
+          throw new Error("#{method} doesn't exist")
+
+        method = do (method) => =>
+          @[method].apply(this, arguments)
+          true
+      method
 
     refreshElements: ->
       for key, value of @elements
@@ -99,10 +102,10 @@ define [
       # do nothing, should be overriden
 
     _setupWidgetBindings: ->
-      for fieldName, callback of @widgetEvents
+      for fieldName, method of @widgetEvents
         subscription = postal.subscribe
           topic: "widget.#{ @id }.change.#{ fieldName }"
-          callback: @[callback]
+          callback: @_getMethod method
         @_widgetSubscriptions.push subscription
 
     render: ->
