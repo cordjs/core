@@ -19,6 +19,9 @@ define [
       @el  = $(@el)
       @$el = @el
 
+      @el.addClass(@className) if @className
+      @el.attr(@attributes) if @attributes
+
       @events = @constructor.events unless @events
       @elements = @constructor.elements unless @elements
 
@@ -49,9 +52,9 @@ define [
         selector   = match[2]
 
         if selector is ''
-          @el.bind(eventName, method)
+          @el.on(eventName, method)
         else
-          @el.delegate(selector, eventName, method)
+          @el.on(eventName, selector, method)
 
     refreshElements: ->
       for key, value of @elements
@@ -60,6 +63,36 @@ define [
     clean: ->
       subscription.unsubscribe() for subscription in @_widgetSubscriptions
       @_widgetSubscriptions = []
+      @el.off().remove()
+
+    html: (element) ->
+      @el.html(element.el or element)
+      @refreshElements()
+      @el
+
+    append: (elements...) ->
+      elements = (e.el or e for e in elements)
+      @el.append(elements...)
+      @refreshElements()
+      @el
+
+    appendTo: (element) ->
+      @el.appendTo(element.el or element)
+      @refreshElements()
+      @el
+
+    prepend: (elements...) ->
+      elements = (e.el or e for e in elements)
+      @el.prepend(elements...)
+      @refreshElements()
+      @el
+
+    replace: (element) ->
+      [previous, @el] = [@el, $(element.el or element)]
+      previous.replaceWith(@el)
+      @delegateEvents(@events) if @events
+      @refreshElements()
+      @el
 
     _setupBindings: ->
       console.log "setup bindings", @constructor.name

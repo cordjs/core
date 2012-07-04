@@ -3,6 +3,7 @@ define [
 ], (Behaviour) ->
 
   class ButtonBehaviour extends Behaviour
+    className: 'initButton'
 
     el: '.b-button'
     cntClick: 0
