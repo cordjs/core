@@ -7,15 +7,15 @@ define [
     el: '.b-button'
     cntClick: 0
 
+    elements:
+      '.log-move': 'logMove'
+      '.log-click': 'logClick'
+
     events:
       'click .btn': 'clickButton'
       'mousemove .btn': (e) ->
 #        console.log 'a'
-        @Log.text( "coords #{e.clientX}x#{e.clientY}, context #{ @widget.ctx.number }" )
-
-    constructor: ->
-      super
-      @Log = @$('span')
+        @logMove.text( "coords #{e.clientX}x#{e.clientY}, context #{ @widget.ctx.number }" )
 
     clickButton: ->
-      @Log.text( "click #{++@cntClick}, context #{ @widget.ctx.number }" )
+      @logClick.text( "click #{++@cntClick}, context #{ @widget.ctx.number }" )

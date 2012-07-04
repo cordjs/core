@@ -20,13 +20,15 @@ define [
       @$el = @el
 
       @events = @constructor.events unless @events
+      @elements = @constructor.elements unless @elements
+
       @delegateEvents(@events) if @events
+      @refreshElements() if @elements
 
     $: (selector) ->
       $(selector, @el)
 
     delegateEvents: (events) ->
-      console.log 'delegate', events
       for key, method of events
 
         if typeof(method) is 'function'
@@ -41,7 +43,6 @@ define [
           method = do (method) => =>
             @[method].apply(this, arguments)
             true
-        console.log @el
 
         match      = key.match(/^(\S+)\s*(.*)$/)
         eventName  = match[1]
@@ -51,6 +52,10 @@ define [
           @el.bind(eventName, method)
         else
           @el.delegate(selector, eventName, method)
+
+    refreshElements: ->
+      for key, value of @elements
+        @[value] = @$(key)
 
     clean: ->
       subscription.unsubscribe() for subscription in @_widgetSubscriptions
