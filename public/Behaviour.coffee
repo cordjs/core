@@ -1,8 +1,11 @@
 define [
+  'jquery'
   'postal'
-], (postal) ->
+], ($, postal) ->
 
   class Behaviour
+
+    tag: 'div'
 
     constructor: (widget) ->
       @_widgetSubscriptions = []
@@ -11,6 +14,43 @@ define [
 #      @widgetEvents = {}
       @_setupBindings()
       @_setupWidgetBindings()
+
+      @el  = document.createElement(@tag) unless @el
+      @el  = $(@el)
+      @$el = @el
+
+      @events = @constructor.events unless @events
+      @delegateEvents(@events) if @events
+
+    $: (selector) ->
+      $(selector, @el)
+
+    delegateEvents: (events) ->
+      console.log 'delegate', events
+      for key, method of events
+
+        if typeof(method) is 'function'
+        # Always return true from event handlers
+          method = do (method) => =>
+            method.apply(this, arguments)
+            true
+        else
+          unless @[method]
+            throw new Error("#{method} doesn't exist")
+
+          method = do (method) => =>
+            @[method].apply(this, arguments)
+            true
+        console.log @el
+
+        match      = key.match(/^(\S+)\s*(.*)$/)
+        eventName  = match[1]
+        selector   = match[2]
+
+        if selector is ''
+          @el.bind(eventName, method)
+        else
+          @el.delegate(selector, eventName, method)
 
     clean: ->
       subscription.unsubscribe() for subscription in @_widgetSubscriptions

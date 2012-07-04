@@ -3,15 +3,13 @@
 define [
   './Base'
   './Model'
-], (Base, Model) ->
-#  console.log Model
+  './Controller'
+], (Base, Model, Controller) ->
 
-  console.log 'COOOORD'
   class Cord
 
-    @records: {}
-
-    @Base = Base
-    @Model = Model
+    @Base       = Base
+    @Model      = Model
+    @Controller = Controller
 
   Cord
