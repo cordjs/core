@@ -2,8 +2,11 @@
 
 define [
   '../Cord/Cord'
+  '../Cord/lib/Ajax'
 ], (Cord) ->
 
   class TabModel extends Cord.Model
 
-  TabModel
+    @url: "/users"
+
+  new TabModel
