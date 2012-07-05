@@ -4,8 +4,7 @@ define [
   'dustjs-linkedin'
   '../dustLoader'
   '../Widget'
-  './Model'
-], (dust, dustLoader, Widget, Model) ->
+], (dust, dustLoader, Widget) ->
 
   class TabContent extends Widget
 

@@ -5,8 +5,6 @@ define [
   './widgetInitializer'
 ], (Router, $, postal, widgetInitializer) ->
 
-  hashStrip = /^#*/
-
   class ClientSideRouter extends Router
 
     options:
@@ -50,6 +48,11 @@ define [
             else
               throw "root widget is undefined!"
 
+      that = @
+      postal.subscribe
+        topic: 'router.navigate'
+        callback: (args...) ->
+          that.navigate args...
 
 
     matchRoute: (path, options) ->
@@ -87,19 +90,6 @@ define [
         )
       else
         window.location.hash = @path
-
-    getPath: ->
-      path = window.location.pathname
-      if path.substr(0,1) isnt '/'
-        path = '/' + path
-      path
-
-    getHash: -> window.location.hash
-
-    getFragment: -> @getHash().replace(hashStrip, '')
-
-    getHost: ->
-      (document.location + '').replace(@getPath() + @getHash(), '')
 
     change: ->
       path = if @getFragment() isnt '' then @getFragment() else @getPath()

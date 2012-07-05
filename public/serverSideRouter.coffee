@@ -11,6 +11,8 @@ define [
     process: (req, res) ->
       path = url.parse req.url
 
+      @setPath req.url
+
       if (route = @matchRoute path.pathname)
         console.log "router.process #{ req.url } #{ path.pathname }"
 
@@ -31,6 +33,9 @@ define [
         true
       else
         false
+
+    setPath: (path) ->
+      @path = path
 
 
   new ServerSideRouter

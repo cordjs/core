@@ -11,6 +11,7 @@ define [
         'activeTab': (data) ->
           $('.nav-tabs .active').removeClass('active')
           $('#tab'+data.value).addClass('active')
+
       super widget
 
     _setupBindings: ->
