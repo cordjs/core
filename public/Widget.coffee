@@ -232,9 +232,13 @@ define [
 
               showCallback = =>
                 widget.show params, (err, output) =>
+
+                  classAttr = if params.class then params.class else if widget.cssClass then widget.cssClass else ""
+                  classAttr = if classAttr then "class=\"#{ classAttr }\"" else ""
+
                   @childWidgetComplete()
                   if err then throw err
-                  chunk.end "<#{ widget.rootTag } id=\"#{ widget.ctx.id }\"#{ if widget.cssClass then "class=\"#{ widget.cssClass }\"" else "" }>#{ output }</#{ widget.rootTag }>"
+                  chunk.end "<#{ widget.rootTag } id=\"#{ widget.ctx.id }\"#{ classAttr }>#{ output }</#{ widget.rootTag }>"
 
               waitCounter = 0
               waitCounterFinish = false
