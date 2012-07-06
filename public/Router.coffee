@@ -1,10 +1,14 @@
 `if (typeof define !== 'function') { var define = require('amdefine')(module) }`
 
-define [], ->
+define [
+  './RouterHelper'
+], (RouterHelper) ->
 
-  class Router
+  class Router extends RouterHelper
 
     constructor: ->
+      super
+
       @routes = []
 
     addRoutes: (routes) ->

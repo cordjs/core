@@ -5,8 +5,14 @@ define [
   class ButtonBehaviour extends Behaviour
     className: 'initButton'
 
-    el: '.b-button'
     cntClick: 0
+
+    constructor: ->
+      super
+
+      i = parseInt( Cord.Router.getURLParameter 'cntClick' )
+      @cntClick = i if i
+
 
     elements:
       '.log-move': 'logMove'
@@ -19,4 +25,6 @@ define [
         @logMove.text( "coords #{e.clientX}x#{e.clientY}, context #{ @widget.ctx.number }" )
 
     clickButton: ->
-      @logClick.text( "click #{++@cntClick}, context #{ @widget.ctx.number }" )
+      @logClick.text( "click #{++@cntClick}, context #{ @widget.ctx.number }, path: #{ Cord.Router.getPath() }" )
+      @append '<div>test add </div>'
+      Cord.Router.navigate "#{ Cord.Router.getPath() }?cntClick=#{@cntClick}&ctx=#{ @widget.ctx.number }", false

@@ -5,8 +5,6 @@ define [
   './widgetInitializer'
 ], (Router, $, postal, widgetInitializer) ->
 
-  hashStrip = /^#*/
-
   class ClientSideRouter extends Router
 
     options:
@@ -24,6 +22,13 @@ define [
       if (@options.history)
         @history = @historySupport && @options.history
 
+      #save current path
+      path = window.location.pathname
+      if path.substr(0,1) isnt '/'
+        path = '/' + path
+
+      @setPath path
+
       return if @options.shim
 
       if @history
@@ -32,6 +37,7 @@ define [
         $(window).bind('hashchange', => @change)
       @change()
 
+      @initNavigate()
 
     process: ->
       postal.subscribe
@@ -50,6 +56,11 @@ define [
             else
               throw "root widget is undefined!"
 
+      that = @
+      postal.subscribe
+        topic: 'router.navigate'
+        callback: (args...) ->
+          that.navigate args...
 
 
     matchRoute: (path, options) ->
@@ -88,18 +99,15 @@ define [
       else
         window.location.hash = @path
 
-    getPath: ->
-      path = window.location.pathname
-      if path.substr(0,1) isnt '/'
-        path = '/' + path
-      path
+    initNavigate: ->
+      that = @
+      $(document).on "click", "a:not([data-bypass])", (evt) ->
+        href = $(@).prop 'href'
+        root = location.protocol + '//' + location.host
 
-    getHash: -> window.location.hash
-
-    getFragment: -> @getHash().replace(hashStrip, '')
-
-    getHost: ->
-      (document.location + '').replace(@getPath() + @getHash(), '')
+        if href and href.slice(0, root.length) == root and href.indexOf("javascript:") != 0
+          evt.preventDefault()
+          that.navigate href.slice(root.length), true
 
     change: ->
       path = if @getFragment() isnt '' then @getFragment() else @getPath()

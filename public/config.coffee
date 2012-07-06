@@ -17,6 +17,7 @@ require.config
     'text': 'vendor/requirejs/plugins/text'
     'use': 'vendor/requirejs/plugins/use'
 
+Cord = {}
 
 require [
   'jquery'
@@ -24,5 +25,6 @@ require [
   './routes'
 ], ($, router, routes) ->
 
-  router.addRoutes routes
-  router.process()
+  Cord.Router = router
+  Cord.Router.addRoutes routes
+  Cord.Router.process()
