@@ -5,14 +5,8 @@ define [
   class ButtonBehaviour extends Behaviour
     className: 'initButton'
 
-    cntClick: 0
-
-    constructor: ->
-      super
-
-      i = parseInt( Cord.Router.getURLParameter 'cntClick' )
-      @cntClick = i if i
-
+    el: '.b-button'
+    cntClick: 0 if !parseInt(Cord.Router.getURLParameter 'cntClick')
 
     elements:
       '.log-move': 'logMove'

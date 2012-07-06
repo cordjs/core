@@ -15,7 +15,7 @@ define [
       @_setupBindings()
       @_setupWidgetBindings()
 
-      @el  = $('#' + @widget.ctx.id ) unless @el
+      @el  = document.createElement(@tag) unless @el
       @el  = $(@el)
       @$el = @el
 
