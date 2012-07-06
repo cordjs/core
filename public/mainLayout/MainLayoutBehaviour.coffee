@@ -11,6 +11,11 @@ define [
         'activeTab': 'onActiveTabChange'
       super widget
 
+    ###*
+     * Comment
+     * @author davojan
+     * @param int sdfsdf
+    ###
     _setupBindings: ->
       $(document).on "click", "a:not([data-bypass])", (evt) ->
         href = $(@).prop 'href'
