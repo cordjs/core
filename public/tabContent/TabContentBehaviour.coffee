@@ -5,11 +5,7 @@ define [
 
   class TabContentBehaviour extends Behaviour
 
-    constructor: (widget) ->
-      @widgetEvents =
-        'activeTab': 'onActiveTabChange'
-      super widget
-
-    onActiveTabChange: =>
-      console.log "reRenderTemplate"
-      @render()
+    widgetEvents:
+      'activeTab': ->
+        console.log "reRenderTemplate"
+        @render()

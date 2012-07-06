@@ -30,6 +30,7 @@ define [
         $(window).bind('hashchange', => @change)
       @change()
 
+      @initNavigate()
 
     process: ->
       postal.subscribe
@@ -90,6 +91,16 @@ define [
         )
       else
         window.location.hash = @path
+
+    initNavigate: ->
+      that = @
+      $(document).on "click", "a:not([data-bypass])", (evt) ->
+        href = $(@).prop 'href'
+        root = location.protocol + '//' + location.host
+
+        if href and href.slice(0, root.length) == root and href.indexOf("javascript:") != 0
+          evt.preventDefault()
+          that.navigate href.slice(root.length), true
 
     change: ->
       path = if @getFragment() isnt '' then @getFragment() else @getPath()

@@ -11,9 +11,6 @@ define [
       @_widgetSubscriptions = []
       @widget = widget
       @id = widget.ctx.id
-#      @widgetEvents = {}
-      @_setupBindings()
-      @_setupWidgetBindings()
 
       @el  = $('#' + @widget.ctx.id ) unless @el
       @el  = $(@el)
@@ -22,11 +19,13 @@ define [
       @el.addClass(@className) if @className
       @el.attr(@attributes) if @attributes
 
-      @events = @constructor.events unless @events
-      @elements = @constructor.elements unless @elements
+      @events       = @constructor.events unless @events
+      @widgetEvents = @constructor.widgetEvents unless @widgetEvents
+      @elements     = @constructor.elements unless @elements
 
-      @delegateEvents(@events) if @events
-      @refreshElements() if @elements
+      @delegateEvents(@events)          if @events
+      @initWidgetEvents(@widgetEvents)  if @widgetEvents
+      @refreshElements()                if @elements
 
     $: (selector) ->
       $(selector, @el)
@@ -43,6 +42,13 @@ define [
           @el.on(eventName, method)
         else
           @el.on(eventName, selector, method)
+
+    initWidgetEvents: (events) ->
+      for fieldName, method of events
+        subscription = postal.subscribe
+          topic: "widget.#{ @id }.change.#{ fieldName }"
+          callback: @_getMethod method
+        @_widgetSubscriptions.push subscription
 
     _getMethod: (method) ->
       if typeof(method) is 'function'
@@ -66,7 +72,7 @@ define [
     clean: ->
       subscription.unsubscribe() for subscription in @_widgetSubscriptions
       @_widgetSubscriptions = []
-      @el.off().remove()
+      @el.off()#.remove()
 
     html: (element) ->
       @el.html(element.el or element)
@@ -96,17 +102,6 @@ define [
       @delegateEvents(@events) if @events
       @refreshElements()
       @el
-
-    _setupBindings: ->
-      console.log "setup bindings", @constructor.name
-      # do nothing, should be overriden
-
-    _setupWidgetBindings: ->
-      for fieldName, method of @widgetEvents
-        subscription = postal.subscribe
-          topic: "widget.#{ @id }.change.#{ fieldName }"
-          callback: @_getMethod method
-        @_widgetSubscriptions.push subscription
 
     render: ->
       @widget.renderTemplate (err, output) =>

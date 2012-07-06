@@ -11,17 +11,19 @@
     nodeRequire: require
   });
 
+  Cord = {};
+
   var http = require('http');
   var static = require('node-static');
-  var router = require('./public/ServerSideRouter');
+  Cord.Router = require('./public/ServerSideRouter');
 
-  router.addRoutes(require('./public/routes'));
+  Cord.Router.addRoutes(require('./public/routes'));
 
   var file = new(static.Server)('./public/');
 
   http.createServer(function (req, res) {
 
-    if (!router.process(req, res)) {
+    if (!Cord.router.process(req, res)) {
       req.addListener('end', function () {
         file.serve(req, res)
       });
