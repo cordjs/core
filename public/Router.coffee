@@ -1,14 +1,12 @@
 `if (typeof define !== 'function') { var define = require('amdefine')(module) }`
 
-define [
-  './RouterHelper'
-], (RouterHelper) ->
+define [], ->
 
-  class Router extends RouterHelper
+  class Router
+
+    path: ''
 
     constructor: ->
-      super
-
       @routes = []
 
     addRoutes: (routes) ->
@@ -19,6 +17,16 @@ define [
       for route in @routes
         if route.match(path, options)
           return route
+
+    setPath: (path) ->
+      @path = path
+
+    getPath: ->
+      path = @path
+      #      path = window.location.pathname
+      if path.substr(0,1) isnt '/'
+        path = '/' + path
+      path.match(/[^#?\s]+/)[0] || '/'
 
 #    @add: (path, callback) ->
 #      if (typeof path is 'object' and path not instanceof RegExp)

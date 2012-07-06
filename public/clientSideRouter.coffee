@@ -5,6 +5,8 @@ define [
   './widgetInitializer'
 ], (Router, $, postal, widgetInitializer) ->
 
+  hashStrip = /^#*/
+
   class ClientSideRouter extends Router
 
     options:
@@ -100,20 +102,30 @@ define [
         window.location.hash = @path
 
     initNavigate: ->
-      that = @
+      route = @
       $(document).on "click", "a:not([data-bypass])", (evt) ->
-        href = $(@).prop 'href'
+        href = $(this).prop 'href'
         root = location.protocol + '//' + location.host
 
         if href and href.slice(0, root.length) == root and href.indexOf("javascript:") != 0
           evt.preventDefault()
-          that.navigate href.slice(root.length), true
+          route.navigate href.slice(root.length), true
 
     change: ->
       path = if @getFragment() isnt '' then @getFragment() else @getPath()
       return if path is @path
       @path = path
       @matchRoute(@path)
+
+    getHash: -> window.location.hash
+
+    getFragment: -> @getHash().replace(hashStrip, '')
+
+    getHost: ->
+      (document.location + '').replace(@getPath() + @getHash(), '')
+
+    getURLParameter: (name) ->
+      (RegExp(name + '=' + '(.+?)(&|$)').exec(location.search)||[null,null])[1]
 
 
   new ClientSideRouter
