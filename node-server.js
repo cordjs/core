@@ -23,7 +23,7 @@
 
   http.createServer(function (req, res) {
 
-    if (!Cord.router.process(req, res)) {
+    if (!Cord.Router.process(req, res)) {
       req.addListener('end', function () {
         file.serve(req, res)
       });

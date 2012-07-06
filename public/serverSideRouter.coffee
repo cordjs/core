@@ -34,8 +34,5 @@ define [
       else
         false
 
-    setPath: (path) ->
-      @path = path
-
 
   new ServerSideRouter

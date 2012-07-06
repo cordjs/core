@@ -25,6 +25,6 @@ define [
         @logMove.text( "coords #{e.clientX}x#{e.clientY}, context #{ @widget.ctx.number }" )
 
     clickButton: ->
-      @logClick.text( "click #{++@cntClick}, context #{ @widget.ctx.number }" )
+      @logClick.text( "click #{++@cntClick}, context #{ @widget.ctx.number }, path: #{ Cord.Router.getPath() }" )
       @append '<div>test add </div>'
       Cord.Router.navigate "#{ Cord.Router.getPath() }?cntClick=#{@cntClick}&ctx=#{ @widget.ctx.number }", false

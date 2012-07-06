@@ -22,6 +22,13 @@ define [
       if (@options.history)
         @history = @historySupport && @options.history
 
+      #save current path
+      path = window.location.pathname
+      if path.substr(0,1) isnt '/'
+        path = '/' + path
+
+      @setPath path
+
       return if @options.shim
 
       if @history

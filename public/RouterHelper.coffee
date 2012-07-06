@@ -13,11 +13,15 @@ define [
     navigate: (args...) ->
       postal.publish 'router.navigate', args...
 
+    setPath: (path) ->
+      @path = path
+
     getPath: ->
-      path = window.location.pathname
+      path = @path
+#      path = window.location.pathname
       if path.substr(0,1) isnt '/'
         path = '/' + path
-      path
+      path.match(/[^#?\s]+/)[0] || '/'
 
     getHash: -> window.location.hash
 
