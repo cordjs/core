@@ -4,7 +4,6 @@ define [
 ], (Behaviour, Router) ->
 
   class ButtonBehaviour extends Behaviour
-    className: 'initButton'
 
     cntClick: 0
 

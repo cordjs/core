@@ -5,8 +5,6 @@ define [
 
   class Behaviour
 
-    tag: 'div'
-
     constructor: (widget) ->
       @_widgetSubscriptions = []
       @widget = widget
@@ -16,7 +14,7 @@ define [
       @el  = $(@el)
       @$el = @el
 
-      @el.addClass(@className) if @className
+      @el.addClass(@cssClass) if @cssClass
       @el.attr(@attributes) if @attributes
 
       @events       = @constructor.events unless @events
