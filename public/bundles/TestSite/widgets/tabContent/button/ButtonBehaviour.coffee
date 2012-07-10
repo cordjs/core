@@ -1,6 +1,6 @@
 define [
-  '../Behaviour'
-  '../clientSideRouter'
+  'Behaviour'
+  'clientSideRouter'
 ], (Behaviour, Router) ->
 
   class ButtonBehaviour extends Behaviour

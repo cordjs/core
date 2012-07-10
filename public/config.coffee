@@ -20,7 +20,8 @@ require.config
 require [
   'jquery'
   './clientSideRouter'
-  './routes'
+#  './routes'
+  './bundles/TestSite/routes'
   './app/paths'
 ], ($, router, routes, paths) ->
 

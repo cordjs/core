@@ -2,8 +2,8 @@
 
 define [
   'dustjs-linkedin'
-  '../dustLoader'
-  '../Widget'
+  'dustLoader'
+  'Widget'
 ], (dust, dustLoader, Widget) ->
 
   class Button extends Widget
@@ -11,7 +11,7 @@ define [
     cssClass: 'b-button'
     rootTag: 'span'
 
-    path: 'button/'
+    path: 'bundles/TestSite/widgets/tabContent/button/'
 
     _defaultAction: (params, callback) ->
       @ctx.number = params.number ? 1

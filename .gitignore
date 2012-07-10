@@ -5,3 +5,9 @@ public/mainLayout/*.js
 public/tabContent/*.js
 public/Cord/*.js
 .idea/*
+public/app/*.js
+public/bundles/*.js
+public/bundles/*/*.js
+public/bundles/*/*/*.js
+public/bundles/*/*/*/*.js
+public/bundles/*/*/*/*/*.js

@@ -2,9 +2,8 @@
 
 define [
   'url'
-  './widgetInitializer'
   './Router'
-], (url, widgetInitializer, Router) ->
+], (url, Router) ->
 
   class ServerSideRouter extends Router
 
@@ -20,15 +19,14 @@ define [
         action = route.action
         params = route.params
 
-        res.writeHead 200, {'Content-Type': 'text/html'}
+        requirejs [rootWidgetPath, './widgetInitializer'], (RootWidgetClass, widgetInitializer) =>
+          res.writeHead 200, 'Content-Type': 'text/html'
+          rootWidget = new RootWidgetClass;
+          widgetInitializer.setRootWidget rootWidget
 
-        RootWidgetClass = require(rootWidgetPath);
-        rootWidget = new RootWidgetClass;
-        widgetInitializer.setRootWidget rootWidget
-
-        rootWidget.showAction action, params, (err, output) ->
-          if err then throw err
-          res.end output
+          rootWidget.showAction action, params, (err, output) ->
+            if err then throw err
+            res.end output
 
         true
       else

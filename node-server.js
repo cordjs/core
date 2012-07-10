@@ -18,7 +18,7 @@
   var static = require('node-static');
   var router = require('./public/ServerSideRouter');
 
-  router.addRoutes(require('./public/routes'));
+  router.addRoutes(require('./public/bundles/TestSite/routes'));
 
   var file = new(static.Server)('./public/');
 
