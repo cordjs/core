@@ -106,7 +106,7 @@ define [
 
     getTemplatePath: ->
       className = @constructor.name
-      "/#{ @path }#{ className.charAt(0).toUpperCase() + className.slice(1) }.html"
+      "#{ @path }#{ className.charAt(0).toLowerCase() + className.slice(1) }.html"
 
 
     cleanChildren: ->
@@ -115,6 +115,7 @@ define [
 
     renderTemplate: (callback) ->
       tmplPath = @getTemplatePath()
+#      console.log 'tmplPathtmplPathtmplPathtmplPath: ', tmplPath
       if dust.cache[tmplPath]?
         console.log "renderTemplate #{ tmplPath }"
         @markRenderStarted()
@@ -220,10 +221,12 @@ define [
           chunk.map (chunk) =>
 
             # nodejs vs browser hacks
-            prefix = if window? then '' else 'public/'
-            requireFunction = if window? then require else require 'requirejs'
+#            prefix = if window? then '' else 'public/'
+            prefix = ''
+            requireFunction = if window? then require else requirejs
 
             requireFunction ["./#{ prefix }#{ params.type }"], (WidgetClass) =>
+
               widget = new WidgetClass
 
               @children.push widget

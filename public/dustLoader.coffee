@@ -3,22 +3,21 @@
 define [
   'dustjs-linkedin'
   'underscore'
-  'requirejs'
-], (dust, _, requirejs) ->
+#  'requirejs'
+], (dust, _) ->
 
 #  isNode = false
 #  if typeof module != 'undefined' and module.exports?
 #    isNode = true
-  isNode = ! window?
-  console.log 'isNode', isNode
+#  isNode = ! window?
+  requireFunction = if window? then require else requirejs
+#  console.log 'isNode', isNode
 
   dust.onLoad = (tmplPath, callback) ->
-    if isNode
-      requirejs ['fs'], (fs) ->
-        fs.readFile 'public' + tmplPath, 'utf8', (err, tmplString) ->
-          callback err, tmplString
-    else
-      require ["text!" + tmplPath], (tplString) ->
+      if tmplPath.substr(0,1) is '/'
+        tmplPath = tmplPath.substr(1)
+
+      requireFunction ["text!" + tmplPath], (tplString) ->
         callback null, tplString
 
   class DustLoader
@@ -35,13 +34,8 @@ define [
         dust.loadSource(dust.compile data, name)
         callback()
 
-      if isNode
-        requirejs ['fs'], (fs) ->
-          fs.readFile 'public' + path, 'utf8', dustCompileCallback
-      else
-        require ["text!" + path], (tplString) ->
-          dustCompileCallback null, tplString
-
+      requireFunction ["text!" + path], (tplString) ->
+        dustCompileCallback null, tplString
 
     _getAutoName: (path) ->
       path

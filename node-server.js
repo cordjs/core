@@ -6,10 +6,13 @@
    * To change this template use File | Settings | File Templates.
    */
 
-  var requirejs = require('requirejs');
+  var paths = require('./public/app/paths');
+  requirejs = require('requirejs');
   requirejs.config({
-    nodeRequire: require
+    nodeRequire: require,
+    baseUrl: 'public'
   });
+  requirejs.config( paths );
 
   var http = require('http');
   var static = require('node-static');
@@ -28,5 +31,6 @@
     }
 
   }).listen(1337, '127.0.0.1');
+
   console.log('Server running at http://127.0.0.1:1337/');
   console.log('Current directory: ' + process.cwd());

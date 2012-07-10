@@ -21,7 +21,9 @@ require [
   'jquery'
   './clientSideRouter'
   './routes'
-], ($, router, routes) ->
+  './app/paths'
+], ($, router, routes, paths) ->
 
   router.addRoutes routes
   router.process()
+  require.config paths
