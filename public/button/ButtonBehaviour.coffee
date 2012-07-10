@@ -1,16 +1,16 @@
 define [
   '../Behaviour'
-], (Behaviour) ->
+  '../clientSideRouter'
+], (Behaviour, Router) ->
 
   class ButtonBehaviour extends Behaviour
-    className: 'initButton'
 
     cntClick: 0
 
     constructor: ->
       super
 
-      i = parseInt( Cord.Router.getURLParameter 'cntClick' )
+      i = parseInt( Router.getURLParameter 'cntClick' )
       @cntClick = i if i
 
 
@@ -25,6 +25,6 @@ define [
         @logMove.text( "coords #{e.clientX}x#{e.clientY}, context #{ @widget.ctx.number }" )
 
     clickButton: ->
-      @logClick.text( "click #{++@cntClick}, context #{ @widget.ctx.number }, path: #{ Cord.Router.getPath() }" )
+      @logClick.text( "click #{++@cntClick}, context #{ @widget.ctx.number }, path: #{ Router.getPath() }" )
       @append '<div>test add </div>'
-      Cord.Router.navigate "#{ Cord.Router.getPath() }?cntClick=#{@cntClick}&ctx=#{ @widget.ctx.number }", false
+      Router.navigate "#{ Router.getPath() }?cntClick=#{@cntClick}&ctx=#{ @widget.ctx.number }", false

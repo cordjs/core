@@ -17,14 +17,11 @@ require.config
     'text': 'vendor/requirejs/plugins/text'
     'use': 'vendor/requirejs/plugins/use'
 
-Cord = {}
-
 require [
   'jquery'
   './clientSideRouter'
   './routes'
 ], ($, router, routes) ->
 
-  Cord.Router = router
-  Cord.Router.addRoutes routes
-  Cord.Router.process()
+  router.addRoutes routes
+  router.process()

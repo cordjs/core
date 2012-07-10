@@ -8,6 +8,9 @@ define [
 
   class Button extends Widget
 
+    cssClass: 'b-button'
+    rootTag: 'span'
+
     path: 'button/'
 
     _defaultAction: (params, callback) ->

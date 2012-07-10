@@ -24,6 +24,9 @@ define [
 
     behaviourClass: null
 
+    cssClass: null
+    rootTag: 'div'
+
     # internals
     _renderStarted: false
     _childWidgetCounter: 0
@@ -220,7 +223,7 @@ define [
             prefix = if window? then '' else 'public/'
             requireFunction = if window? then require else require 'requirejs'
 
-            requireFunction ["./#{ prefix }#{ params.class }"], (WidgetClass) =>
+            requireFunction ["./#{ prefix }#{ params.type }"], (WidgetClass) =>
               widget = new WidgetClass
 
               @children.push widget
@@ -229,9 +232,13 @@ define [
 
               showCallback = =>
                 widget.show params, (err, output) =>
+
+                  classAttr = if params.class then params.class else if widget.cssClass then widget.cssClass else ""
+                  classAttr = if classAttr then "class=\"#{ classAttr }\"" else ""
+
                   @childWidgetComplete()
                   if err then throw err
-                  chunk.end "<div id=\"#{ widget.ctx.id }\">#{ output }</div>"
+                  chunk.end "<#{ widget.rootTag } id=\"#{ widget.ctx.id }\"#{ classAttr }>#{ output }</#{ widget.rootTag }>"
 
               waitCounter = 0
               waitCounterFinish = false
@@ -240,7 +247,7 @@ define [
 
               # waiting for parent's necessary context-variables availability before rendering widget...
               for name, value of params
-                if name != 'name' and name != 'class'
+                if name != 'name' and name != 'type'
                   if value.charAt(0) == '!'
                     value = value.slice 1
                     bindings[value] = name
