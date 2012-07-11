@@ -3,6 +3,7 @@
 define [],  ->
 
   paths:
+    'Router': './Router'
     'Widget': './Widget'
     'dustLoader': './dustLoader'
     'Behaviour': './Behaviour'

@@ -16,21 +16,17 @@
 
   var http = require('http');
   var static = require('node-static');
-  var router = require('./public/ServerSideRouter');
 
-  router.addRoutes(require('./public/bundles/TestSite/routes'));
+  requirejs(['app/application'], function(application) {
+	  var file = new(static.Server)('./public/');
 
-  var file = new(static.Server)('./public/');
-
-  http.createServer(function (req, res) {
-
-    if (!router.process(req, res)) {
-      req.addListener('end', function () {
-        file.serve(req, res)
-      });
-    }
-
-  }).listen(1337, '127.0.0.1');
-
-  console.log('Server running at http://127.0.0.1:1337/');
-  console.log('Current directory: ' + process.cwd());
+	  http.createServer(function (req, res) {
+		  if (!application.process(req, res)) {
+			  req.addListener('end', function () {
+				  file.serve(req, res)
+			  });
+		  }
+	  }).listen(1337, '127.0.0.1');
+	  console.log('Server running at http://127.0.0.1:1337/');
+	  console.log('Current directory: ' + process.cwd());
+  });

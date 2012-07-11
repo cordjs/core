@@ -19,12 +19,11 @@ require.config
 
 require [
   'jquery'
-  './clientSideRouter'
-#  './routes'
-  './bundles/TestSite/routes'
   './app/paths'
-], ($, router, routes, paths) ->
+], ($, paths) ->
 
-  router.addRoutes routes
-  router.process()
   require.config paths
+  require [
+    'app/application'
+  ], ( router ) ->
+    router.process()

@@ -5,7 +5,7 @@ define(['module'], function (module) {
 
 	var cord, type, moduleConfig;
 
-	console.log( 'mmmm:', arguments );
+//	console.log( 'mmmm:', arguments );
 
 	type = module.id || 'cord';
 
@@ -33,7 +33,7 @@ define(['module'], function (module) {
 		version: '1.0.0',
 
 		load: function (name, req, onLoad, config) {
-			console.log ( 'loading...' )
+//			console.log ( 'loading...' )
 			moduleConfig = moduleConfig || {};
 
 //			if ( config.paths && config.paths.baseUrl ) {
@@ -42,14 +42,22 @@ define(['module'], function (module) {
 
 //			console.log ('ssss', config.paths.cord )
 //				console.log ( 'innnerReq: ', arguments )
-			console.log ( 'type:: ', type )
-			console.log ('nnnnnnaaaammmee:: ', name, checkName( name, config ))
+//			console.log ( 'type:: ', type )
+//			console.log ('nnnnnnaaaammmee:: ', name, checkName( name, config ))
 			var path = checkName( name, config );
+
+			console.log( name, config )
 
 			switch ( type ) {
 				case 'cord-t':
 					path = 'text!' + path;
-					console.log( 'cord-t: path,   ', path )
+//					console.log( 'cord-t: path,   ', path )
+					break;
+				case 'cord-w':
+					onLoad( {
+						test: 'rrrr'
+					} );
+					return true;
 					break;
 			}
 

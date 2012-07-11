@@ -9,6 +9,7 @@ define [
   class TabContent extends Widget
 
     path: 'bundles/TestSite/widgets/tabContent/'
+#    pathCord: 'cord-w!//tabContent/'
 
     _defaultAction: (params, callback) ->
       @ctx.set 'activeTab', params.activeTabId

@@ -32,6 +32,11 @@ define [
     _childWidgetCounter: 0
 
     getPath: ->
+      if @pathCord
+        console.log '++++++pathCord+++++', @pathCord
+        requirejs [@pathCord], (w)->
+          console.log w
+
       if @path?
         "#{ @path }#{ @constructor.name }"
       else
