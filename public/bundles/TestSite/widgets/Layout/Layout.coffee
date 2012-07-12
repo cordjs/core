@@ -7,7 +7,7 @@ define [
 
   class Layout extends Widget
 
-    path: 'bundles/TestSite/widgets/Layout/'
+    path: 'cord-w!//Layout/'
 
     _defaultAction: (params, callback) ->
       @ctx.setDeferred 'activeTab'
