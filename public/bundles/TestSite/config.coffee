@@ -3,5 +3,6 @@
 define [
   './routes'
 ], (routes) ->
+
   'routes': routes
-  'ns': 'TestSite'
+#  'ProjectNS': 'TestSite'

@@ -4,7 +4,7 @@ define [], ->
 
   '/tab:activeTabId':
     regex: false
-    widget: './bundles/TestSite/widgets/Layout/Layout'
+    widget: 'cord-w!//Layout/Layout'
     action: 'default'
     params:
       someParam: 11

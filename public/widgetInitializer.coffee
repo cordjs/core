@@ -4,6 +4,17 @@ define [
   'postal'
 ], (postal) ->
 
+  requireFunction = if window? then require else requirejs
+#
+#  requireFunction [
+#    'pathBundles/config'
+#  ], (rr) ->
+#    console.log '+++++++++++++++++++preloader: ', rr
+#  requireFunction [
+#    'pathBundles'
+#  ], (fff) ->
+#    console.log 'preloader: ', fff
+
   class WidgetInitializer
     widgets: {}
 
@@ -35,12 +46,18 @@ define [
 
     endInit: ->
       @_initEnd = true
+      requireFunction [
+        'cord-path!//tabContent'
+#        'ProjectNS/config'
+      ], (rr) ->
+        console.log '+++++++++++++++++++preloader: ', rr
 
     ##
      #
      # @browser-only
      ##
     init: (widgetPath, ctx, namedChilds, childBindings, parentId) ->
+#      console.log requireFunction
       @_loadingCount++
       @_widgetOrder.push ctx.id
 
@@ -49,7 +66,11 @@ define [
         for ctxName, paramName of bindingMap
           @_pushBindings[widgetId][ctxName] = paramName
 
-      require ["./#{ widgetPath }"], (WidgetClass) =>
+      console.log 'widgetPathwidgetPathwidgetPath: ', widgetPath
+#      return
+
+      requireFunction [widgetPath], (WidgetClass) =>
+        console.log 'LoadWidget: ', WidgetClass
         widget = new WidgetClass ctx.id
         widget.loadContext ctx
 

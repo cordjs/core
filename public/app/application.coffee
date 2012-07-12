@@ -1,29 +1,21 @@
 `if (typeof define !== 'function') { var define = require('amdefine')(module) }`
 
 define [
-  'pathBundles/TestSite/config'
-#  ( if window? then './serverSideRouter' else './clientSideRouter' )
+  '../bundles/TestSite/config'
   ( if window? then 'clientSideRouter' else 'serverSideRouter' )
 ], (config, router) ->
+#
+#  nameCord = 'cord!Tab/asdasd/asdasdasd'
+#  nameParts = nameCord.split('!')
+#  console.log '++++___---- ', nameCord.substr(0, 4)
+#
+#  console.log nameParts.length
+#  console.log nameParts
+#  console.log nameParts.slice(1).join('!')
 
-#  console.log if window? then './clientSideRouter' else './serverSideRouter'
-#  console.log router
   router.addRoutes config.routes
 
-#  console.log( ':::1222::::', router )
+#  require.config paths: 'ProjectNS': config.ProjectNS if config.ProjectNS?
+
 
   router
-
-#  console.log '_______-----_____', config
-#  isNode = ! window?
-#  requireFunction = if window? then require else requirejs
-#  routerPath = if window? then './clientSideRouter' else './serverSideRouter'
-
-#  requireFunction [routerPath], (router) =>
-#    'sdfsdfsdfsdf'
-#    router.addRoutes config.routes
-#  router.process()
-#  require.config paths
-
-
-#router.addRoutes(require('./public/bundles/TestSite/routes'));

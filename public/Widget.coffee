@@ -8,6 +8,8 @@ define [
   'postal'
 ], (_, widgetInitializer, dust, dustLoader, postal) ->
 
+  requireFunction = if window? then require else requirejs
+
   class Widget
 
     # @const
@@ -32,12 +34,13 @@ define [
     _childWidgetCounter: 0
 
     getPath: ->
-      if @pathCord
-        console.log '++++++pathCord+++++', @pathCord
-        requirejs [@pathCord], (w)->
-          console.log w
+#      if @pathCord
+#        console.log '++++++pathCord+++++', @pathCord
+#        requirejs ["cord-t!#{@pathCord}"], (w)->
+#          console.log w
 
       if @path?
+#        "./#{ @path }#{ @constructor.name }"
         "#{ @path }#{ @constructor.name }"
       else
         throw "path is not defined for widget #{@constructor.name}"
@@ -119,8 +122,15 @@ define [
       @resetChildren()
 
     renderTemplate: (callback) ->
+
       tmplPath = @getTemplatePath()
+
+
+#      requireFunction ['cord-path!//Layout/Layout'], (Test) =>
+#        console.log 'Test++++', Test
+
 #      console.log 'tmplPathtmplPathtmplPathtmplPath: ', tmplPath
+      
       if dust.cache[tmplPath]?
         console.log "renderTemplate #{ tmplPath }"
         @markRenderStarted()
@@ -129,8 +139,30 @@ define [
         dust.render tmplPath, @getBaseContext().push(@ctx), callback
         @markRenderFinished()
       else
-        dustLoader.loadTemplate tmplPath, tmplPath, =>
+#        if @path.substr(0, 4) is 'cord'
+#          requireFunction [@path], ( data ) =>
+#              console.log 'Test++++', Test
+#          './'
+#        else
+#          ''
+#        dustLoader.loadTemplate tmplPath, tmplPath, =>
+#          @renderTemplate callback
+
+        path = tmplPath
+        pathParts = path.split('!')
+
+        if pathParts.length > 1 and path.substr(0, 4) is 'cord'
+          path = "cord-t!#{ pathParts.slice(1).join('!') }"
+        else
+          path = "text!#{ tmplPath }"
+
+        dustCompileCallback = (err, data) =>
+          if err then throw err
+          dust.loadSource(dust.compile data, tmplPath)
           @renderTemplate callback
+
+        requireFunction [path], (tplString) ->
+          dustCompileCallback null, tplString
 
 
     getInitCode: (parentId) ->
@@ -228,7 +260,6 @@ define [
             # nodejs vs browser hacks
 #            prefix = if window? then '' else 'public/'
             prefix = ''
-            requireFunction = if window? then require else requirejs
 
             requireFunction ["./#{ prefix }#{ params.type }"], (WidgetClass) =>
 

@@ -6,10 +6,20 @@ define [
   'Widget'
 ], (dust, dustLoader, Widget) ->
 
+
+#  requireFunction = if window? then require else requirejs
+#  #  console.log '----------------------------------------'
+#  #  console.log requireFunction
+#  #  console.log '----------------------------------------'
+#  requireFunction [
+#    'pathBundles/TestSite/config'
+#  ], (fff) ->
+#    console.log 'preloader: ', fff
+
   class TabContent extends Widget
 
-    path: 'bundles/TestSite/widgets/tabContent/'
-#    pathCord: 'cord-w!//tabContent/'
+#    path: 'bundles/TestSite/widgets/tabContent/'
+    path: 'cord-w!//tabContent/'
 
     _defaultAction: (params, callback) ->
       @ctx.set 'activeTab', params.activeTabId

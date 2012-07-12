@@ -11,6 +11,7 @@ define [
     cssClass: 'b-button'
     rootTag: 'span'
 
+#    path: 'cord-w!//tabContent/button/'
     path: 'bundles/TestSite/widgets/tabContent/button/'
 
     _defaultAction: (params, callback) ->
