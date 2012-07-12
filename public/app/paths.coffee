@@ -3,11 +3,13 @@
 define [],  ->
 
   paths:
-    'Router': './Router'
-    'Widget': './Widget'
-    'dustLoader': './dustLoader'
-    'Behaviour': './Behaviour'
-    'clientSideRouter': './clientSideRouter'
+    'Router':             './bundles/cord/core/Router'
+    'Widget':             './bundles/cord/core/Widget'
+    'widgetInitializer':  './bundles/cord/core/widgetInitializer'
+
+    'Behaviour':          './bundles/cord/core/Behaviour'
+    'clientSideRouter':   './bundles/cord/core/clientSideRouter'
+    'serverSideRouter':   './bundles/cord/core/serverSideRouter'
 
     # plugins
 #    'cord': './vendor/requirejs/plugins/cord'

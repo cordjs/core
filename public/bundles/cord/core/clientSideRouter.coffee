@@ -1,5 +1,5 @@
 define [
-  './Router'
+  'Router'
   'jquery'
   'postal'
   './widgetInitializer'

@@ -2,13 +2,19 @@
 
 define [
   'underscore'
-  './widgetInitializer'
+  'widgetInitializer'
   'dustjs-linkedin'
-  './dustLoader'
   'postal'
-], (_, widgetInitializer, dust, dustLoader, postal) ->
+], (_, widgetInitializer, dust, postal) ->
 
   requireFunction = if window? then require else requirejs
+
+  dust.onLoad = (tmplPath, callback) ->
+    if tmplPath.substr(0,1) is '/'
+      tmplPath = tmplPath.substr(1)
+
+    requireFunction ["text!" + tmplPath], (tplString) ->
+      callback null, tplString
 
   class Widget
 
