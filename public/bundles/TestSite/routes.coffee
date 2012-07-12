@@ -4,7 +4,6 @@ define [], ->
 
   '/tab:activeTabId':
     regex: false
-    widget: './mainLayout/MainLayout'
     action: 'default'
     params:
       someParam: 11
@@ -12,5 +11,5 @@ define [], ->
 #        type: 'int'
 #        validate: /\d+/
 
-  '/simple/:number':
-    widget: './simpleLayout/SimpleLayout'
+#  '/simple/:number':
+#    widget: './simpleLayout/SimpleLayout'

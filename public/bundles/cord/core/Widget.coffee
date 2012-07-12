@@ -2,11 +2,19 @@
 
 define [
   'underscore'
-  './widgetInitializer'
+  'widgetInitializer'
   'dustjs-linkedin'
-  './dustLoader'
   'postal'
-], (_, widgetInitializer, dust, dustLoader, postal) ->
+], (_, widgetInitializer, dust, postal) ->
+
+  requireFunction = if window? then require else requirejs
+
+  dust.onLoad = (tmplPath, callback) ->
+    if tmplPath.substr(0,1) is '/'
+      tmplPath = tmplPath.substr(1)
+
+    requireFunction ["text!" + tmplPath], (tplString) ->
+      callback null, tplString
 
   class Widget
 
@@ -106,7 +114,7 @@ define [
 
     getTemplatePath: ->
       className = @constructor.name
-      "/#{ @path }#{ className.charAt(0).toUpperCase() + className.slice(1) }.html"
+      "#{ @path }#{ className.charAt(0).toLowerCase() + className.slice(1) }.html"
 
 
     cleanChildren: ->
@@ -114,7 +122,9 @@ define [
       @resetChildren()
 
     renderTemplate: (callback) ->
+
       tmplPath = @getTemplatePath()
+      
       if dust.cache[tmplPath]?
         console.log "renderTemplate #{ tmplPath }"
         @markRenderStarted()
@@ -122,9 +132,23 @@ define [
           @cleanChildren()
         dust.render tmplPath, @getBaseContext().push(@ctx), callback
         @markRenderFinished()
+
       else
-        dustLoader.loadTemplate tmplPath, tmplPath, =>
+        path = tmplPath
+        pathParts = path.split('!')
+
+        if pathParts.length > 1 and path.substr(0, 4) is 'cord'
+          path = "cord-t!#{ pathParts.slice(1).join('!') }"
+        else
+          path = "text!#{ tmplPath }"
+
+        dustCompileCallback = (err, data) =>
+          if err then throw err
+          dust.loadSource(dust.compile data, tmplPath)
           @renderTemplate callback
+
+        requireFunction [path], (tplString) ->
+          dustCompileCallback null, tplString
 
 
     getInitCode: (parentId) ->
@@ -220,10 +244,11 @@ define [
           chunk.map (chunk) =>
 
             # nodejs vs browser hacks
-            prefix = if window? then '' else 'public/'
-            requireFunction = if window? then require else require 'requirejs'
+#            prefix = if window? then '' else 'public/'
+            prefix = ''
 
-            requireFunction ["./#{ prefix }#{ params.type }"], (WidgetClass) =>
+            requireFunction [params.type], (WidgetClass) =>
+
               widget = new WidgetClass
 
               @children.push widget
@@ -272,6 +297,20 @@ define [
               waitCounterFinish = true
               if waitCounter == 0
                 showCallback()
+        cordI: (chunk, context, bodies, params) =>
+
+          path = @path
+          pathParts = path.split('!')
+
+          if pathParts.length > 1 and path.substr(0, 4) is 'cord'
+            path = "cord-path!#{ pathParts.slice(1).join('!') }"
+          else
+            path = "cord-path!#{ path }"
+
+          chunk.map (chunk) =>
+            requireFunction ["#{ path }i/#{ params.src }"], (path) =>
+              chunk.end path
+
 
 
         deferred: (chunk, context, bodies, params) =>

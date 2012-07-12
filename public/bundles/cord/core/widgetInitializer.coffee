@@ -4,6 +4,8 @@ define [
   'postal'
 ], (postal) ->
 
+  requireFunction = if window? then require else requirejs
+
   class WidgetInitializer
     widgets: {}
 
@@ -49,7 +51,7 @@ define [
         for ctxName, paramName of bindingMap
           @_pushBindings[widgetId][ctxName] = paramName
 
-      require ["./#{ widgetPath }"], (WidgetClass) =>
+      requireFunction [widgetPath], (WidgetClass) =>
         widget = new WidgetClass ctx.id
         widget.loadContext ctx
 

@@ -1,10 +1,10 @@
 define [
   'jquery'
-  '../Behaviour'
-  '../clientSideRouter'
+  'Behaviour'
+  'clientSideRouter'
 ], ($, Behaviour, router) ->
 
-  class MainLayoutBehaviour extends Behaviour
+  class LayoutBehaviour extends Behaviour
 
     widgetEvents:
       'activeTab': (data) ->

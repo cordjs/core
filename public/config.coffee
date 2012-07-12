@@ -1,6 +1,6 @@
 require.config
 
-  deps: ['widgetInitializer']
+  deps: ['bundles/cord/core/widgetInitializer']
 
 #  baseUrl: '/public'
 
@@ -19,9 +19,13 @@ require.config
 
 require [
   'jquery'
-  './clientSideRouter'
-  './routes'
-], ($, router, routes) ->
+  './app/paths'
+], ($, paths) ->
 
-  router.addRoutes routes
-  router.process()
+  require.config paths
+  require [
+    'app/application'
+  ], ( router ) ->
+    router.process()
+
+#  window.require = require

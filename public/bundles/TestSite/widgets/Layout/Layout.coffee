@@ -2,24 +2,21 @@
 
 define [
   'dustjs-linkedin'
-  '../Widget'
+  'Widget'
 ], (dust, Widget) ->
 
-  class MainLayout extends Widget
+  class Layout extends Widget
 
-    path: 'mainLayout/'
+    path: 'cord-w!//Layout/'
 
     _defaultAction: (params, callback) ->
       @ctx.setDeferred 'activeTab'
       @ctx.set
         centralTabGroup: Widget.DEFERRED
       setTimeout =>
-        @ctx.set
-          activeTab: params.activeTabId
-          centralTabGroup: true
-      , 200
+          @ctx.set
+            activeTab: params.activeTabId
+            centralTabGroup: true
+        , 200
 
       callback()
-
-
-  MainLayout

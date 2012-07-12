@@ -2,13 +2,13 @@
 
 define [
   'dustjs-linkedin'
-  '../dustLoader'
-  '../Widget'
-], (dust, dustLoader, Widget) ->
+  'Widget'
+], (dust, Widget) ->
 
   class TabContent extends Widget
 
-    path: 'tabContent/'
+#    path: 'bundles/TestSite/widgets/tabContent/'
+    path: 'cord-w!//tabContent/'
 
     _defaultAction: (params, callback) ->
       @ctx.set 'activeTab', params.activeTabId
