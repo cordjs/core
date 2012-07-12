@@ -241,7 +241,7 @@ define [
 #            prefix = if window? then '' else 'public/'
             prefix = ''
 
-            requireFunction ["./#{ prefix }#{ params.type }"], (WidgetClass) =>
+            requireFunction [params.type], (WidgetClass) =>
 
               widget = new WidgetClass
 
