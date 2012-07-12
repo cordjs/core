@@ -34,13 +34,7 @@ define [
     _childWidgetCounter: 0
 
     getPath: ->
-#      if @pathCord
-#        console.log '++++++pathCord+++++', @pathCord
-#        requirejs ["cord-t!#{@pathCord}"], (w)->
-#          console.log w
-
       if @path?
-#        "./#{ @path }#{ @constructor.name }"
         "#{ @path }#{ @constructor.name }"
       else
         throw "path is not defined for widget #{@constructor.name}"
@@ -124,12 +118,6 @@ define [
     renderTemplate: (callback) ->
 
       tmplPath = @getTemplatePath()
-
-
-#      requireFunction ['cord-path!//Layout/Layout'], (Test) =>
-#        console.log 'Test++++', Test
-
-#      console.log 'tmplPathtmplPathtmplPathtmplPath: ', tmplPath
       
       if dust.cache[tmplPath]?
         console.log "renderTemplate #{ tmplPath }"
@@ -138,16 +126,8 @@ define [
           @cleanChildren()
         dust.render tmplPath, @getBaseContext().push(@ctx), callback
         @markRenderFinished()
-      else
-#        if @path.substr(0, 4) is 'cord'
-#          requireFunction [@path], ( data ) =>
-#              console.log 'Test++++', Test
-#          './'
-#        else
-#          ''
-#        dustLoader.loadTemplate tmplPath, tmplPath, =>
-#          @renderTemplate callback
 
+      else
         path = tmplPath
         pathParts = path.split('!')
 

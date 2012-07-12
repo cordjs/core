@@ -5,4 +5,3 @@ define [
 ], (routes) ->
 
   'routes': routes
-#  'ProjectNS': 'TestSite'

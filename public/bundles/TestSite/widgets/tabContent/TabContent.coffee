@@ -2,19 +2,8 @@
 
 define [
   'dustjs-linkedin'
-  'dustLoader'
   'Widget'
-], (dust, dustLoader, Widget) ->
-
-
-#  requireFunction = if window? then require else requirejs
-#  #  console.log '----------------------------------------'
-#  #  console.log requireFunction
-#  #  console.log '----------------------------------------'
-#  requireFunction [
-#    'pathBundles/TestSite/config'
-#  ], (fff) ->
-#    console.log 'preloader: ', fff
+], (dust, Widget) ->
 
   class TabContent extends Widget
 

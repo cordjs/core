@@ -3,15 +3,9 @@
 define [
   'dustjs-linkedin'
   'underscore'
-#  'requirejs'
 ], (dust, _) ->
 
-#  isNode = false
-#  if typeof module != 'undefined' and module.exports?
-#    isNode = true
-#  isNode = ! window?
   requireFunction = if window? then require else requirejs
-#  console.log 'isNode', isNode
 
   dust.onLoad = (tmplPath, callback) ->
       if tmplPath.substr(0,1) is '/'

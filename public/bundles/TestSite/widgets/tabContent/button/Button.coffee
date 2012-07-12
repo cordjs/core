@@ -2,9 +2,8 @@
 
 define [
   'dustjs-linkedin'
-  'dustLoader'
   'Widget'
-], (dust, dustLoader, Widget) ->
+], (dust, Widget) ->
 
   class Button extends Widget
 
