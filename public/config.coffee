@@ -1,6 +1,6 @@
 require.config
 
-#  deps: ['widgetInitializer']
+  deps: ['bundles/cord/core/widgetInitializer']
 
 #  baseUrl: '/public'
 
