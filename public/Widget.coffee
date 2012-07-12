@@ -291,6 +291,20 @@ define [
               waitCounterFinish = true
               if waitCounter == 0
                 showCallback()
+        cordI: (chunk, context, bodies, params) =>
+
+          path = @path
+          pathParts = path.split('!')
+
+          if pathParts.length > 1 and path.substr(0, 4) is 'cord'
+            path = "cord-path!#{ pathParts.slice(1).join('!') }"
+          else
+            path = "cord-path!#{ path }"
+
+          chunk.map (chunk) =>
+            requireFunction ["#{ path }i/#{ params.src }"], (path) =>
+              chunk.end path
+
 
 
         deferred: (chunk, context, bodies, params) =>
