@@ -13,8 +13,8 @@ define [], ->
       for path, definition of routes
         @routes.push(new Route(path, definition))
 
-    setRootWidget: (rootWidget) ->
-      @rootWidget = rootWidget
+    setDefWidget: (defWidget) ->
+      @defWidget = defWidget
 
     matchRoute: (path, options) ->
       for route in @routes

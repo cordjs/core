@@ -45,7 +45,7 @@ define [
       postal.subscribe
         topic: 'router.process'
         callback: (route) ->
-          widgetPath = if route.widget? then route.widget else @rootWidget
+          widgetPath = if route.widget? then route.widget else @defWidget
           action = route.action
           params = route.params
 
