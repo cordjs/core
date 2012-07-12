@@ -25,7 +25,7 @@ define [
     getTemplateCode: ->
       """
       <script>
-        require(['./widgetInitializer'],
+        require(['./bundles/cord/core/widgetInitializer'],
         function (wi) {
           $(function() {
             #{ @rootWidget.getInitCode() }

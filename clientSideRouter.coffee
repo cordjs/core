@@ -1,5 +1,5 @@
 define [
-  'Router'
+  'cord!/cord/core/Router'
   'jquery'
   'postal'
   './widgetInitializer'

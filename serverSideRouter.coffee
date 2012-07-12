@@ -2,7 +2,7 @@
 
 define [
   'url'
-  'Router'
+  'cord!/cord/core/Router'
   'widgetInitializer'
 ], (url, Router, widgetInitializer) ->
 
