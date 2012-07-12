@@ -1,15 +1,3 @@
 .idea/*
-public/*.js
-public/button/*.js
-public/simpleLayout/*.js
-public/mainLayout/*.js
-public/tabContent/*.js
-public/Cord/*.js
-.idea/*
 .sass-cache/*
-public/app/*.js
-public/bundles/*.js
-public/bundles/*/*.js
-public/bundles/*/*/*.js
-public/bundles/*/*/*/*.js
-public/bundles/*/*/*/*/*.js
+*.js
