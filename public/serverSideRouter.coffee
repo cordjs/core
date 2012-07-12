@@ -15,7 +15,7 @@ define [
       if (route = @matchRoute path.pathname)
         console.log "router.process #{ req.url } #{ path.pathname }"
 
-        rootWidgetPath = route.widget
+        rootWidgetPath = if route.widget? then route.widget else @rootWidget
         action = route.action
         params = route.params
 

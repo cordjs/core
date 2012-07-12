@@ -5,3 +5,4 @@ define [
 ], (routes) ->
 
   'routes': routes
+  'rootWidget': 'cord-w!//Layout/Layout'
