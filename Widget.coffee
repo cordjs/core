@@ -2,7 +2,7 @@
 
 define [
   'underscore'
-  'widgetInitializer'
+  'cord!/cord/core/widgetInitializer'
   'dustjs-linkedin'
   'postal'
 ], (_, widgetInitializer, dust, postal) ->

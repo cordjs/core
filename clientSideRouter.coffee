@@ -1,9 +1,9 @@
 define [
-  'cord!/cord/core/Router'
   'jquery'
   'postal'
-  './widgetInitializer'
-], (Router, $, postal, widgetInitializer) ->
+  'cord!/cord/core/Router'
+  'cord!/cord/core/widgetInitializer'
+], ($, postal, Router, widgetInitializer) ->
 
   hashStrip = /^#*/
 

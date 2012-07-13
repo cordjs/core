@@ -1,31 +1,24 @@
+`if (typeof define !== 'function') { var define = require('amdefine')(module) }`
+
 require.config
 
-  deps: ['bundles/cord/core/widgetInitializer']
-
-#  baseUrl: '/public'
+  baseUrl: '/'
 
   urlArgs: "uid=" + (new Date()).getTime()
 
   paths:
-    'dustjs-linkedin': 'vendor/dustjs/dust-amd-adapter',
-    'jquery': 'vendor/jquery/jquery-1.7.2.min',
-    'underscore': 'vendor/underscore/underscore-amd-adapter',
-    'requirejs': 'vendor/requirejs/require',
-    'postal': 'vendor/postal/postal'
+    'postal':           '/vendor/postal/postal'
+    'dustjs-linkedin':  '/vendor/dustjs/dust-amd-adapter'
+    'jquery':           '/vendor/jquery/jquery-1.7.2.min'
+    'underscore':       '/vendor/underscore/underscore-amd-adapter'
+    'requirejs':        '/vendor/requirejs/require'
 
-    #plugins
-    'text': 'vendor/requirejs/plugins/text'
-    'use': 'vendor/requirejs/plugins/use'
-
-require [
+define [
   'jquery'
-  './app/paths'
+  './config-paths'
 ], ($, paths) ->
 
   require.config paths
-  require [
-    'app/application'
-  ], ( router ) ->
+  require ['app/application'], ( router ) ->
     router.process()
 
-#  window.require = require

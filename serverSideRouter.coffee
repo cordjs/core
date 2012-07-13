@@ -3,7 +3,7 @@
 define [
   'url'
   'cord!/cord/core/Router'
-  'widgetInitializer'
+  'cord!/cord/core/widgetInitializer'
 ], (url, Router, widgetInitializer) ->
 
   class ServerSideRouter extends Router
