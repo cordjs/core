@@ -41,7 +41,7 @@ define [
 
     getPath: ->
       if @path?
-        "#{ @path }#{ @constructor.name }"
+        "#{ @path }"
       else
         throw "path is not defined for widget #{@constructor.name}"
 
@@ -124,6 +124,8 @@ define [
     renderTemplate: (callback) ->
 
       tmplPath = @getTemplatePath()
+
+      tmplPath = "cord-t!#{ @path }"
       
       if dust.cache[tmplPath]?
         console.log "renderTemplate #{ tmplPath }"
@@ -134,20 +136,13 @@ define [
         @markRenderFinished()
 
       else
-        path = tmplPath
-        pathParts = path.split('!')
-
-        if pathParts.length > 1 and path.substr(0, 4) is 'cord'
-          path = "cord-t!#{ pathParts.slice(1).join('!') }"
-        else
-          path = "text!#{ tmplPath }"
 
         dustCompileCallback = (err, data) =>
           if err then throw err
           dust.loadSource(dust.compile data, tmplPath)
           @renderTemplate callback
 
-        requireFunction [path], (tplString) ->
+        requireFunction [tmplPath], (tplString) ->
           dustCompileCallback null, tplString
 
 
@@ -170,7 +165,7 @@ define [
 
     getBehaviourClass: ->
       if not @behaviourClass?
-        @behaviourClass = "#{ @path }#{ @constructor.name }Behaviour"
+        @behaviourClass = "#{ @path },Behaviour"
 
       if @behaviourClass == false
         null
@@ -186,7 +181,7 @@ define [
       behaviourClass = @getBehaviourClass()
       console.log 'initBehaviour', @constructor.name, behaviourClass
       if behaviourClass?
-        require [behaviourClass], (BehaviourClass) =>
+        require ["cord-w!#{ behaviourClass }"], (BehaviourClass) =>
           @behaviour = new BehaviourClass @
 
     #
@@ -243,11 +238,7 @@ define [
           @childWidgetAdd()
           chunk.map (chunk) =>
 
-            # nodejs vs browser hacks
-#            prefix = if window? then '' else 'public/'
-            prefix = ''
-
-            requireFunction [params.type], (WidgetClass) =>
+            requireFunction ["#{ params.type }"], (WidgetClass) =>
 
               widget = new WidgetClass
 

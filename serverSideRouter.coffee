@@ -20,7 +20,7 @@ define [
         action = route.action
         params = route.params
 
-        requirejs [rootWidgetPath], (RootWidgetClass) =>
+        requirejs ["cord-w!#{ rootWidgetPath }"], (RootWidgetClass) =>
           res.writeHead 200, 'Content-Type': 'text/html'
           rootWidget = new RootWidgetClass;
           widgetInitializer.setRootWidget rootWidget

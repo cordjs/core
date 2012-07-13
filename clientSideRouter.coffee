@@ -51,7 +51,7 @@ define [
 
           console.log 'router postal callback'
 
-          require [widgetPath], (WidgetClass) ->
+          require ["cord-w!#{ widgetPath }"], (WidgetClass) ->
             if widgetInitializer.rootWidget?
               widget = widgetInitializer.rootWidget
               widget.fireAction action, params

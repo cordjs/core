@@ -55,7 +55,7 @@ define [
         for ctxName, paramName of bindingMap
           @_pushBindings[widgetId][ctxName] = paramName
 
-      requireFunction [widgetPath], (WidgetClass) =>
+      requireFunction ["cord-w!#{ widgetPath }"], (WidgetClass) =>
         widget = new WidgetClass ctx.id
         widget.loadContext ctx
 

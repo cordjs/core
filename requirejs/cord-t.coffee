@@ -2,10 +2,11 @@
 
 define [
   'module'
-], (module) ->
-  {
+  'cord-helper'
+], (module, helper) ->
+  cord =
+
     load: (name, req, onLoad, config) ->
-      req ["cord!#{ name }"], (path) ->
-        req ["text!#{ path }"], (data) ->
-          onLoad data
-  }
+      path = helper.getPath name, config, module.id
+      req ["text!#{ path }.html"], (data) ->
+        onLoad data
