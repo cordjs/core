@@ -17,4 +17,3 @@ define [],  ->
     # todo: remove this trash
     'cord-path':    './vendor/requirejs/plugins/cord-path'
     'cord-t':       'vendor/requirejs/plugins/cord-t'
-    'ProjectNS':    './bundles/TestSite'
