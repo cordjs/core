@@ -1,7 +1,7 @@
 define [
   'jquery'
-  'postal'
-  'cord!/cord/core/Router'
+  '../../../../.'
+  'cord!/cord/core/router/Router'
   'cord!/cord/core/widgetInitializer'
 ], ($, postal, Router, widgetInitializer) ->
 
