@@ -15,10 +15,10 @@ require.config
 
 define [
   'jquery'
-  'bundles/cord/core/config-paths'
-], ($, paths) ->
+  'bundles/cord/core/configPaths'
+], ($, configPaths) ->
 
-  require.config paths
+  require.config configPaths
   require [
     'app/application'
     'cord!/cord/core/widgetInitializer'
