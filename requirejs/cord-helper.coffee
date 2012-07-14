@@ -20,20 +20,34 @@ define [], () ->
       if namePartsComma.length > 1
         name = namePartsComma.slice(0, 1).join()
 
-      nameParts = name.split '/'
+#      nameParts = name.split '/'
 
       if name.substr(0, 1) is '/'
         name = "#{ config.paths.pathBundles }#{name}"
 
       switch type
         when 'cord-w', 'cord-t'
-          if name.indexOf '//' > 0
-            widgetName = nameParts[nameParts.length - 1]
-            widgetName = "#{ widgetName.charAt(0).toUpperCase() }#{ widgetName.slice(1) }" if type == 'cord-w'
+          widgetName = cord.getWidgetName name
+          widgetName = cord.widgetName widgetName if type == 'cord-w'
 
+          if name.indexOf '//' > 0
             name = "#{ name.replace "//", cord.getPathType type }/#{ widgetName }"
 
       if namePartsComma.length > 1
         name = name + namePartsComma.slice(1)
 
       name
+
+    getWidgetName: (name) ->
+      nameParts = name.split '/'
+      nameParts[nameParts.length - 1]
+
+    getBundleName: (name) ->
+
+      nameParts = name.split '/'
+      console.log nameParts
+      console.log 'getBun: ', nameParts.slice( 0, nameParts.length - 1).join '/'
+      nameParts
+
+    widgetName: (widgetName) ->
+      "#{ widgetName.charAt(0).toUpperCase() }#{ widgetName.slice(1) }"
