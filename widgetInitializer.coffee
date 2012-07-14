@@ -24,18 +24,12 @@ define [
 
     getTemplateCode: ->
       """
-      <script src="vendor/requirejs/require.js"></script>
+      <script data-main="bundles/cord/core/browser-init" src="vendor/requirejs/require.js"></script>
       <script>
-        require(['./bundles/cord/core/browser-init'],
-        function (browserInit, wi) {
-          require(['cord!/cord/core/widgetInitializer'],
-          function (wi) {
-            $(function() {
-              #{ @rootWidget.getInitCode() }
-              wi.endInit();
-            });
-          });
-        });
+          function cordcorewidgetinitializerbrowser(wi) {
+            #{ @rootWidget.getInitCode() }
+            wi.endInit();
+          };
       </script>
       """
 

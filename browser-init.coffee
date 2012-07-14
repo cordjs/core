@@ -15,10 +15,15 @@ require.config
 
 define [
   'jquery'
-  './config-paths'
+  'bundles/cord/core/config-paths'
 ], ($, paths) ->
 
   require.config paths
-  require ['app/application'], ( router ) ->
+  require [
+    'app/application'
+    'cord!/cord/core/widgetInitializer'
+  ], ( router, widgetInitializer ) ->
     router.process()
+    $ ->
+      cordcorewidgetinitializerbrowser? widgetInitializer
 
