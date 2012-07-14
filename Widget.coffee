@@ -45,6 +45,13 @@ define [
       else
         throw "path is not defined for widget #{@constructor.name}"
 
+    setPath: (path)  ->
+      requireFunction [
+        'cord-helper'
+      ], (cordHelper) ->
+        console.log 'patttttH1: ', path
+        console.log 'patttttH2: ', cordHelper.getBundleName path
+
 
     resetChildren: ->
       @children = []
