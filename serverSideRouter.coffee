@@ -22,8 +22,9 @@ define [
 
         requirejs ["cord-w!#{ rootWidgetPath }"], (RootWidgetClass) =>
           res.writeHead 200, 'Content-Type': 'text/html'
-          rootWidget = new RootWidgetClass;
-#          rootWidget.setPath rootWidgetPath
+          rootWidget = new RootWidgetClass
+          rootWidget.setPath rootWidgetPath
+
           widgetInitializer.setRootWidget rootWidget
 
           rootWidget.showAction action, params, (err, output) ->

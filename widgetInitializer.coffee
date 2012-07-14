@@ -51,6 +51,7 @@ define [
 
       requireFunction ["cord-w!#{ widgetPath }"], (WidgetClass) =>
         widget = new WidgetClass ctx.id
+        widget.setPath widgetPath
         widget.loadContext ctx
 
         if @_pushBindings[ctx.id]?

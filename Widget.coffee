@@ -48,9 +48,8 @@ define [
     setPath: (path)  ->
       requireFunction [
         'cord-helper'
-      ], (cordHelper) ->
-        console.log 'patttttH1: ', path
-        console.log 'patttttH2: ', cordHelper.getBundleName path
+      ], (cordHelper) =>
+        @path = cordHelper.getPathToWidget path
 
 
     resetChildren: ->
@@ -248,6 +247,7 @@ define [
             requireFunction ["#{ params.type }"], (WidgetClass) =>
 
               widget = new WidgetClass
+              widget.setPath params.type
 
               @children.push widget
               @childByName[params.name] = widget if params.name?

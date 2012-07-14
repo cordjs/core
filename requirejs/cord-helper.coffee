@@ -42,12 +42,10 @@ define [], () ->
       nameParts = name.split '/'
       nameParts[nameParts.length - 1]
 
-    getBundleName: (name) ->
-
+    getPathToWidget: (name) ->
+      name = "#{ name.replace "//", cord.getPathType 'cord-w' }/"
       nameParts = name.split '/'
-      console.log nameParts
-      console.log 'getBun: ', nameParts.slice( 0, nameParts.length - 1).join '/'
-      nameParts
+      "#{ nameParts.slice( 0, nameParts.length - 1).join '/' }"
 
     widgetName: (widgetName) ->
       "#{ widgetName.charAt(0).toUpperCase() }#{ widgetName.slice(1) }"
