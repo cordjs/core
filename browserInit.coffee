@@ -18,9 +18,9 @@ define [
 
   require.config configPaths
   require [
-    'app/application'
+    'cord!/cord/core/appManager'
     'cord!/cord/core/widgetInitializer'
-  ], ( router, widgetInitializer ) ->
+  ], (router, widgetInitializer) ->
     router.process()
     $ ->
       cordcorewidgetinitializerbrowser? widgetInitializer
