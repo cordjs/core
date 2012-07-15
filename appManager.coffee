@@ -1,5 +1,3 @@
-`if (typeof define !== 'function') { var define = require('amdefine')(module) }`
-
 define [
   "app/application"
   "cord!/cord/core/router/#{ ( if window? then 'clientSideRouter' else 'serverSideRouter' ) }"
