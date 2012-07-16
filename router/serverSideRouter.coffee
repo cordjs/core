@@ -12,7 +12,6 @@ define [
       @setPath req.url
 
       if (route = @matchRoute path.pathname)
-        console.log "router.process #{ req.url } #{ path.pathname }"
 
         rootWidgetPath = if route.widget? then route.widget else @defWidget
         action = route.action
@@ -21,7 +20,7 @@ define [
         requirejs ["cord-w!#{ rootWidgetPath }"], (RootWidgetClass) =>
           res.writeHead 200, 'Content-Type': 'text/html'
           rootWidget = new RootWidgetClass
-          rootWidget.setPath rootWidgetPath
+          rootWidget.setCurrentBundle rootWidgetPath
 
           widgetInitializer.setRootWidget rootWidget
 

@@ -11,7 +11,7 @@ define [
     if tmplPath.substr(0,1) is '/'
       tmplPath = tmplPath.substr(1)
 
-    requireFunction ["text!" + tmplPath], (tplString) ->
+    requireFunction ["cord-t!" + tmplPath], (tplString) ->
       callback null, tplString
 
   class Widget
@@ -48,6 +48,16 @@ define [
         'cord-helper'
       ], (cordHelper) =>
         @path = cordHelper.getPathToWidget path
+
+    setCurrentBundle: (path) ->
+      requireFunction [
+        'cord-helper'
+      ], (cordHelper) =>
+        @path = cordHelper.getPathToWidget path if ! @path?
+        @pathBundle = cordHelper.getPathToBundle path
+        requireFunction.config
+          paths:
+            'currentBundle': @pathBundle
 
 
     resetChildren: ->
@@ -118,7 +128,7 @@ define [
 
     getTemplatePath: ->
       className = @constructor.name
-      "#{ @path }#{ className.charAt(0).toLowerCase() + className.slice(1) }.html"
+      "#{ @pathBundle }#{ @path }#{ className.charAt(0).toLowerCase() + className.slice(1) }.html"
 
 
     cleanChildren: ->
@@ -132,7 +142,7 @@ define [
       tmplPath = "cord-t!#{ @path }"
       
       if dust.cache[tmplPath]?
-        console.log "renderTemplate #{ tmplPath }"
+#        console.log "renderTemplate #{ tmplPath }"
         @markRenderStarted()
         if @_dirtyChildren
           @cleanChildren()
@@ -183,7 +193,7 @@ define [
         delete @behaviour
 
       behaviourClass = @getBehaviourClass()
-      console.log 'initBehaviour', @constructor.name, behaviourClass
+#      console.log 'initBehaviour', @constructor.name, behaviourClass
       if behaviourClass?
         require ["cord-w!#{ behaviourClass }"], (BehaviourClass) =>
           @behaviour = new BehaviourClass @
@@ -242,10 +252,14 @@ define [
           @childWidgetAdd()
           chunk.map (chunk) =>
 
-            requireFunction ["#{ params.type }"], (WidgetClass) =>
+            requireFunction [
+              "#{ params.type }"
+              "cord-helper!#{ params.type }"
+            ], (WidgetClass, cordHelper) =>
 
               widget = new WidgetClass
-              widget.setPath params.type
+#              widget.setPath params.type
+              widget.setPath cordHelper
 
               @children.push widget
               @childByName[params.name] = widget if params.name?
@@ -293,20 +307,6 @@ define [
               waitCounterFinish = true
               if waitCounter == 0
                 showCallback()
-        cordI: (chunk, context, bodies, params) =>
-
-          path = @path
-          pathParts = path.split('!')
-
-          if pathParts.length > 1 and path.substr(0, 4) is 'cord'
-            path = "cord-path!#{ pathParts.slice(1).join('!') }"
-          else
-            path = "cord-path!#{ path }"
-
-          chunk.map (chunk) =>
-            requireFunction ["#{ path }i/#{ params.src }"], (path) =>
-              chunk.end path
-
 
 
         deferred: (chunk, context, bodies, params) =>

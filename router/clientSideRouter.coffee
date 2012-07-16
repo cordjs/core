@@ -49,11 +49,13 @@ define [
           action = route.action
           params = route.params
 
-          console.log 'router postal callback'
+#          console.log 'router postal callback'
 
           require ["cord-w!#{ widgetPath }"], (WidgetClass) ->
             if widgetInitializer.rootWidget?
               widget = widgetInitializer.rootWidget
+              widget.setCurrentBundle widgetPath
+
               widget.fireAction action, params
             else
               throw "root widget is undefined!"
