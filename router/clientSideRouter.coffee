@@ -34,9 +34,9 @@ define [
       return if @options.shim
 
       if @history
-        $(window).bind('popstate', => @change)
+        $(window).bind('popstate', => @change())
       else
-        $(window).bind('hashchange', => @change)
+        $(window).bind('hashchange', => @change())
       @change()
 
       @initNavigate()
