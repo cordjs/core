@@ -31,16 +31,18 @@ define [
 
 
     browserRequest: (options, callback) ->
-      $.ajax
+      params =
         type: options.method
-        url: options.url
+        url:  options.url
         data: options.data
-        dataType: if options.json then 'json' else 'html'
+        dataType: if options.crossDomain then 'jsonp' else if options.json then 'json' else 'html'
 
-      .done (body) ->
-         callback? body
+      req = $.ajax params
 
-      .error ( error ) ->
+      req.done (body) ->
+        callback? body
+
+      req.error ( error ) ->
         console.log 'error, ', error
 
 #      .complete ( error ) ->
@@ -60,6 +62,10 @@ define [
 
           if restUrl.hostname isnt currUrl.hostname
             if options.method is 'GET'
+#              options.crossDomain = true
+#              options.url = "#{ options.url }?#{ $.param options.data }"
+#            else
+#              options.url = "/_restAPI/#{ encodeURIComponent options.url }"
               options.url = "#{ options.url }?#{ $.param options.data }"
 
             options.url = "/_restAPI/#{ encodeURIComponent options.url }"
