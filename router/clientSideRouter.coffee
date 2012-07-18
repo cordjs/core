@@ -54,7 +54,7 @@ define [
           require ["cord-w!#{ widgetPath }"], (WidgetClass) ->
             if widgetInitializer.rootWidget?
               widget = widgetInitializer.rootWidget
-              widget.setCurrentBundle widgetPath
+              widget.setCurrentBundle? widgetPath
 
               widget.fireAction action, params
             else

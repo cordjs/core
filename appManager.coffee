@@ -5,7 +5,13 @@ define [
 ], (application, router, _) ->
 
   require application, () ->
-    routes = {};
+    routes =
+      '/_restAPI/:restPath':
+        widget: '/cord/core/RestApi'
+        regex: false
+        params:
+          someParam: 11
+
     _.extend routes, bundle.routes for bundle in arguments
     router.addRoutes routes
 

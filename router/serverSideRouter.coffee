@@ -20,13 +20,14 @@ define [
         require ["cord-w!#{ rootWidgetPath }"], (RootWidgetClass) =>
           res.writeHead 200, 'Content-Type': 'text/html'
           rootWidget = new RootWidgetClass
-          rootWidget.setCurrentBundle rootWidgetPath
+          rootWidget.setCurrentBundle? rootWidgetPath
 
           widgetInitializer.setRootWidget rootWidget
 
           rootWidget.showAction action, params, (err, output) ->
             if err then throw err
             res.end output
+          , req, res
 
         true
       else
