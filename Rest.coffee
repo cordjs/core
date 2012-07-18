@@ -29,7 +29,6 @@ define [
 
         urlParse
 
-
     browserRequest: (options, callback) ->
       params =
         type: options.method
@@ -61,14 +60,14 @@ define [
           currUrl = @browserUrlParse '/'
 
           if restUrl.hostname isnt currUrl.hostname
-            if options.method is 'GET'
+#            if options.method is 'GET'
 #              options.crossDomain = true
-#              options.url = "#{ options.url }?#{ $.param options.data }"
+##              options.url = "#{ options.url }"#?#{ $.param options.data }"
 #            else
 #              options.url = "/_restAPI/#{ encodeURIComponent options.url }"
-              options.url = "#{ options.url }?#{ $.param options.data }"
+#              options.url = "#{ options.url }?#{ $.param options.data }"
 
-            options.url = "/_restAPI/#{ encodeURIComponent options.url }"
+              options.url = "/_restAPI/#{ encodeURIComponent options.url }"
 
           @browserRequest options, callback
 
