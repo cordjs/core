@@ -1,32 +1,55 @@
 define [
+  'underscore'
   'cord!/cord/core/isBrowser'
-], ( isBrowser ) ->
+], ( _, isBrowser ) ->
 
   class Rest
 
-    get: (url) ->
-      
+    get: (data, callback) ->
+      options = _.extend {
+        method: 'GET'
+      }, data
 
-    post: (url, data) ->
+      @request options, callback
 
-      require ['http', 'querystring'], (http, querystring) ->
-        data = querystring.stringify data
+    post: (data, callback) ->
+      options = _.extend {
+        method: 'POST'
+      }, data
 
-        options =
-          host: url
-          port: '80'
-          path: '/U2Search/TableFilters/show.json'
-          method: 'POST'
-          headers:
-            'Content-Type': 'application/x-www-form-urlencoded'
-            'Content-Length': data.length
+      @request options, callback
 
-        postReq = http.request options, (res) ->
-          res.setEncoding 'utf8'
-          res.on 'data', (chunk) ->
-            console.log 'Response: ', chunk
+    request: (options, callback) ->
+      options = _.extend {
+                  method: 'GET'
+                }, options
 
-#        postReq.write data
-        postReq.end()
+      console.log 'Rest: ', options.url
+      if isBrowser
+        require [ 'jquery' ], ($) ->
+          $.ajax
+            type: options.method
+            url: options.url
+            data: options.data
+            dataType: if options.json then 'json' else 'html'
+
+          .done (body) ->
+            callback? body
+
+          .error ( error ) ->
+            console.log 'error, ', error
+
+          .complete ( error ) ->
+            console.log 'complete, ', arguments
+
+      else
+        require [ 'request', 'querystring', 'url' ], (request, qs, url) ->
+#          console.log 'Rest: send val'
+#          console.log 'urlParse: ', url.parse '//json.text'
+          options.url += '?' + qs.stringify options.data if options.data?
+          request options, (error, response, body) ->
+#            console.log 'Rest options:', options
+            console.log 'Rest error:', error
+            callback? body
 
   new Rest
