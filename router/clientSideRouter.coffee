@@ -115,9 +115,16 @@ define [
 
     change: ->
       path = if @getFragment() isnt '' then @getFragment() else @getPath()
+
       return if path is @path
       @path = path
       @matchRoute(@path)
+
+    getPath: ->
+      path = window.location.pathname
+      if path.substr(0,1) isnt '/'
+        path = '/' + path
+      path
 
     getHash: -> window.location.hash
 
