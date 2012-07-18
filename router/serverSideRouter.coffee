@@ -17,7 +17,7 @@ define [
         action = route.action
         params = route.params
 
-        requirejs ["cord-w!#{ rootWidgetPath }"], (RootWidgetClass) =>
+        require ["cord-w!#{ rootWidgetPath }"], (RootWidgetClass) =>
           res.writeHead 200, 'Content-Type': 'text/html'
           rootWidget = new RootWidgetClass
           rootWidget.setCurrentBundle rootWidgetPath

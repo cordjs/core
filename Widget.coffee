@@ -5,13 +5,11 @@ define [
   'postal'
 ], (_, widgetInitializer, dust, postal) ->
 
-  requireFunction = if window? then require else requirejs
-
   dust.onLoad = (tmplPath, callback) ->
     if tmplPath.substr(0,1) is '/'
       tmplPath = tmplPath.substr(1)
 
-    requireFunction ["cord-t!" + tmplPath], (tplString) ->
+    require ["cord-t!" + tmplPath], (tplString) ->
       callback null, tplString
 
   class Widget
@@ -44,18 +42,18 @@ define [
         throw "path is not defined for widget #{@constructor.name}"
 
     setPath: (path)  ->
-      requireFunction [
+      require [
         'cord-helper'
       ], (cordHelper) =>
         @path = cordHelper.getPathToWidget path
 
     setCurrentBundle: (path) ->
-      requireFunction [
+      require [
         'cord-helper'
       ], (cordHelper) =>
         @path = cordHelper.getPathToWidget path if ! @path?
         @pathBundle = cordHelper.getPathToBundle path
-        requireFunction.config
+        require.config
           paths:
             'currentBundle': @pathBundle
 
@@ -156,7 +154,7 @@ define [
           dust.loadSource(dust.compile data, tmplPath)
           @renderTemplate callback
 
-        requireFunction [tmplPath], (tplString) ->
+        require [tmplPath], (tplString) ->
           dustCompileCallback null, tplString
 
 
@@ -244,6 +242,14 @@ define [
     getBaseContext: ->
       @_baseContext ? (@_baseContext = @_buildBaseContext())
 
+
+    subscribeValueChange: (params, name, value, callback) ->
+      postal.subscribe
+        topic: "widget.#{ @ctx.id }.change.#{ value }"
+        callback: (data) ->
+          params[name] = data.value
+          callback()
+
     _buildBaseContext: ->
       dust.makeBase
 
@@ -252,7 +258,7 @@ define [
           @childWidgetAdd()
           chunk.map (chunk) =>
 
-            requireFunction [
+            require [
               "#{ params.type }"
               "cord-helper!#{ params.type }"
             ], (WidgetClass, cordHelper) =>
@@ -283,19 +289,19 @@ define [
               # waiting for parent's necessary context-variables availability before rendering widget...
               for name, value of params
                 if name != 'name' and name != 'type'
-                  if value.charAt(0) == '!'
+
+                  if value.charAt(0) == '^'
                     value = value.slice 1
                     bindings[value] = name
+
                     # if context value is deferred, than waiting asyncronously...
                     if @ctx.isDeferred value
                       waitCounter++
-                      postal.subscribe
-                        topic: "widget.#{ @ctx.id }.change.#{ value }"
-                        callback: (data) ->
-                          params[name] = data.value
-                          waitCounter--
-                          if waitCounter == 0 and waitCounterFinish
-                            showCallback()
+                      @subscribeValueChange params, name, value, ->
+                        waitCounter--
+                        if waitCounter == 0 and waitCounterFinish
+                          showCallback()
+
                     # otherwise just getting it's value syncronously
                     else
                       params[name] = @ctx[value]
@@ -383,14 +389,16 @@ define [
 
     setSingle: (name, newValue) ->
       triggerChange = false
+
       if @[name]?
         oldValue = @[name]
         if oldValue != newValue
           triggerChange = true
+
       else
         triggerChange = true
 
-      @[name] = newValue
+      @[name] = if newValue? then newValue else ''
 
       if triggerChange
         setTimeout =>
