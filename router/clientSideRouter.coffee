@@ -44,17 +44,17 @@ define [
     process: ->
       postal.subscribe
         topic: 'router.process'
-        callback: (route) ->
+        callback: (route) =>
           widgetPath = if route.widget? then route.widget else @defWidget
           action = route.action
           params = route.params
 
-#          console.log 'router postal callback'
+          @setCurrentBundle widgetPath
 
           require ["cord-w!#{ widgetPath }"], (WidgetClass) ->
             if widgetInitializer.rootWidget?
               widget = widgetInitializer.rootWidget
-              widget.setCurrentBundle? widgetPath
+              widget.setPath? widgetPath
 
               widget.fireAction action, params
             else

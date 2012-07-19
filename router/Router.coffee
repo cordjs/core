@@ -1,4 +1,6 @@
-define [], ->
+define [
+  'cord-helper'
+], (cordHelper) ->
 
   class Router
 
@@ -29,6 +31,9 @@ define [], ->
         path = '/' + path
       path.match(/[^#?\s]+/)[0] || '/'
 
+    setCurrentBundle: (path) ->
+      cordHelper.setCurrentBundle path
+
 #    @add: (path, callback) ->
 #      if (typeof path is 'object' and path not instanceof RegExp)
 #        @add(key, value) for key, value of path
@@ -43,9 +48,10 @@ define [], ->
   class Route
 
     constructor: (@path, @definition) ->
-      @widget = @definition.widget ? null
-      @action = @definition.action ? 'default'
-      @params = @definition.params ? {}
+      @widget         = @definition.widget ? null
+      @currentBundle  = @definition.currentBundle ? ''
+      @action         = @definition.action ? 'default'
+      @params         = @definition.params ? {}
 
       @names = []
 

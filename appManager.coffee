@@ -4,7 +4,10 @@ define [
   "underscore"
 ], (application, router, _) ->
 
-  require application, () ->
+  bundles = for i, bundle of application
+    "cord!/#{ bundle }/config"
+
+  require bundles, () ->
     routes =
       '/_restAPI/:restPath':
         widget: '/cord/core/RestApi'
@@ -12,7 +15,11 @@ define [
         params:
           someParam: 11
 
-    _.extend routes, bundle.routes for bundle in arguments
+#    _.extend routes, bundle.routes for bundle in arguments
+#    router.addRoutes routes
+    for bundle, i in arguments
+#      bundle.routes.currentBundle = "/#{ application[i] }"
+      _.extend routes, bundle.routes
     router.addRoutes routes
 
   router

@@ -1,6 +1,7 @@
 define [
   'postal'
-], (postal) ->
+  'cord-helper'
+], (postal, cordHelper) ->
 
   class WidgetInitializer
     widgets: {}
@@ -18,11 +19,15 @@ define [
     setRootWidget: (widget) ->
       @rootWidget = widget
 
+    setCurrentBundle: (bundle) ->
+      cordHelper.setCurrentBundle bundle, true
+
     getTemplateCode: ->
       """
       <script data-main="bundles/cord/core/browserInit" src="vendor/requirejs/require.js"></script>
       <script>
           function cordcorewidgetinitializerbrowser(wi) {
+            wi.setCurrentBundle('#{ cordHelper.getCurrentBundle() }')
             #{ @rootWidget.getInitCode() }
             wi.endInit();
           };

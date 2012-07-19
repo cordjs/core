@@ -4,6 +4,7 @@ define [],  ->
   paths:
 
     'cordWidget':     './bundles/cord/core/Widget'
+    'cordModel':      './bundles/cord/core/Model'
     'cordBehaviour':  './bundles/cord/core/Behaviour'
     'pathBundles':    './bundles'
     'currentBundle': ''

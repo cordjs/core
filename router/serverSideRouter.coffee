@@ -17,10 +17,13 @@ define [
         action = route.action
         params = route.params
 
+        @setCurrentBundle rootWidgetPath
+
         require ["cord-w!#{ rootWidgetPath }"], (RootWidgetClass) =>
           res.writeHead 200, 'Content-Type': 'text/html'
           rootWidget = new RootWidgetClass
-          rootWidget.setCurrentBundle? rootWidgetPath
+          rootWidget.setPath? rootWidgetPath
+#          rootWidget.setBundle if route.currentBundle? then route.currentBundle else ""
 
           widgetInitializer.setRootWidget rootWidget
 
