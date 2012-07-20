@@ -1,14 +1,13 @@
 define [
   'underscore'
-  'cord!/cord/core/isBrowser'
-], ( _, isBrowser ) ->
+  ( if window? then 'jquery' else '' )
+], ( _, $ ) ->
 
   class Rest
 
-
     get: (data, callback) ->
       options = _.extend {
-        method: 'GET'
+        type: 'GET'
       }, data
 
       @request options, callback
@@ -16,50 +15,35 @@ define [
 
     post: (data, callback) ->
       options = _.extend {
-        method: 'POST'
+        type: 'POST'
       }, data
 
       @request options, callback
 
 
     browserUrlParse: (sUrl) ->
-      if isBrowser
+      if $
         urlParse = document.createElement 'a'
         urlParse.href = sUrl
 
         urlParse
 
     browserRequest: (options, callback) ->
-      params =
-        type: options.method
-        url:  options.url
-        data: options.data
-        dataType: if options.crossDomain then 'jsonp' else if options.json then 'json' else 'html'
-
-      req = $.ajax params
-
-      req.done (body) ->
-        callback? body
-
-      req.error ( error ) ->
-        console.log 'error, ', error
-
-#      .complete ( error ) ->
-#          callback? body
-
+      options.dataType = 'jsonp' if options.crossDomain?
+      $.ajax(options)
 
     request: (options, callback) ->
       options = _.extend {
-                  method: 'GET'
+                  type: 'GET'
                 }, options
 
-      console.log 'Rest: ', options.url
-      if isBrowser
-        require [ 'jquery' ], ($) =>
-          restUrl = @browserUrlParse options.url
-          currUrl = @browserUrlParse '/'
+      # is browser
+      if $
+        restUrl = @browserUrlParse options.url
+        currUrl = @browserUrlParse '/'
 
-          if restUrl.hostname isnt currUrl.hostname
+        if restUrl.hostname isnt currUrl.hostname
+            # todo: Нужно позже разобраться с кроссдоменным ajax через клиента, это возможно :)
 #            if options.method is 'GET'
 #              options.crossDomain = true
 ##              options.url = "#{ options.url }"#?#{ $.param options.data }"
@@ -67,16 +51,43 @@ define [
 #              options.url = "/_restAPI/#{ encodeURIComponent options.url }"
 #              options.url = "#{ options.url }?#{ $.param options.data }"
 
-              options.url = "/_restAPI/#{ encodeURIComponent options.url }"
+            options.url = "/_restAPI/#{ encodeURIComponent options.url }"
 
-          @browserRequest options, callback
+        @browserRequest options, callback
 
       else
+
         require [ 'request', 'querystring' ], (request, qs) ->
+          options.method = options.type
+          delete options.type
+
+          if options.dataType is 'json'
+            options.json = 'true'
+            delete options.dataType
+
           options.url += '?' + qs.stringify options.data if options.data?
           request options, (error, response, body) ->
-#            console.log 'Rest error:', error
-#            console.log 'Rest body:', body
             callback? body, error, response
+
+            if !error and response.statusCode is 200
+              ajaxCallbacks.success(body)
+            else
+              ajaxCallbacks.error(body)
+
+        # сделано для того, чтобы сервер умел понимать Ajax .success, .error как jQuery
+        # это нужно для совместимости с моделями Spine без их потрашения
+        ajaxCallbacks =
+          success: ->
+          error: ->
+
+        returnCallbacks =
+          success: (callback) ->
+            ajaxCallbacks.success = callback
+            returnCallbacks
+
+          error: (callback) ->
+            ajaxCallbacks.error = callback
+            returnCallbacks
+
 
   new Rest
