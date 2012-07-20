@@ -1,6 +1,6 @@
 define [
-  'cord!/cord/core/Rest'
-], ( Rest ) ->
+  'cord!/cord/core/ModelAjax'
+], ( Ajax ) ->
 
   Events =
     bind: (ev, callback) ->
@@ -48,6 +48,7 @@ define [
       this
 
   moduleKeywords = ['included', 'extended']
+
 
   class Module
     @include: (obj) ->
@@ -393,5 +394,49 @@ define [
 
   makeArray = (args) ->
     Array::slice.call(args, 0)
+
+
+  # using Ajax
+  Model.host = ''
+
+  Include =
+    ajax: -> new Ajax.Common.Singleton(this)
+
+    url: (args...) ->
+      url = Ajax.getURL(@constructor)
+      url += '/' unless url.charAt(url.length - 1) is '/'
+      url += encodeURIComponent(@id)
+      args.unshift(url)
+      args.join('/')
+
+  Extend =
+    ajax: -> new Ajax.Common.Collection(this)
+
+    url: (args...) ->
+      args.unshift(@className.toLowerCase() + 's')
+      args.unshift(Model.host)
+      args.join('/')
+
+  Model.Ajax =
+    extended: ->
+      @fetch @ajaxFetch
+      @change @ajaxChange
+
+      @extend Extend
+      @include Include
+
+    # Private
+
+    ajaxFetch: ->
+      @ajax().fetch(arguments...)
+
+    ajaxChange: (record, type, options = {}) ->
+      return if options.ajax is false
+      record.ajax()[type](options.ajax, options)
+
+  Model.Ajax.Methods =
+    extended: ->
+      @extend Extend
+      @include Include
 
   Model
