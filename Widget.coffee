@@ -168,15 +168,12 @@ define [
 
       """
       wi.init('#{ @getPath() }', #{ JSON.stringify @ctx }, #{ JSON.stringify namedChilds }, #{ JSON.stringify @childBindings }#{ parentStr });
-      #{ widget.getInitCode(@ctx.id) for widget in @children }
+      #{ (widget.getInitCode(@ctx.id) for widget in @children).join '' }
       """
 
     getCss: (parentId) ->
       html = "<link href=\"#{ cordHelper.getPathToCss @path }\" rel=\"stylesheet\" />"
-      """
-        #{ if @css? then html else '' }
-        #{ widget.getCss(@ctx.id) for widget in @children }
-      """
+      """#{ if @css? then html else '' }#{ (widget.getCss(@ctx.id) for widget in @children).join '' }"""
 
 
     registerChild: (child, name) ->
