@@ -1,6 +1,7 @@
 define [
   'cord!/cord/core/Rest'
-], ( Rest ) ->
+  'underscore'
+], ( Rest, _ ) ->
   Ajax =
     getURL: (object) ->
       object and object.url?() or object.url
@@ -48,7 +49,7 @@ define [
       headers: {'X-Requested-With': 'XMLHttpRequest'}
 
     ajax: (params, defaults) ->
-      Rest.request($.extend({}, @defaults, defaults, params))
+      Rest.request(_.extend({}, @defaults, defaults, params))
 
     queue: (callback) ->
       Ajax.queue(callback)

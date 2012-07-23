@@ -57,23 +57,24 @@ define [
 
       else
 
-        require [ 'request', 'querystring' ], (request, qs) ->
-          options.method = options.type
-          delete options.type
+        setTimeout =>
+          require [ 'request', 'querystring' ], (request, qs) ->
+            options.method = options.type
+            delete options.type
 
-          if options.dataType is 'json'
-            options.json = 'true'
-            delete options.dataType
+            if options.dataType is 'json'
+              options.json = 'true'
+              delete options.dataType
 
-          options.url += '?' + qs.stringify options.data if options.data?
-          request options, (error, response, body) ->
-            callback? body, error, response
+            options.url += '?' + qs.stringify options.data if options.data?
+            request options, (error, response, body) ->
+              callback? body, error, response
 
-            if !error and response.statusCode is 200
-              ajaxCallbacks.success(body)
-            else
-              ajaxCallbacks.error(body)
-
+              if !error and response.statusCode is 200
+                ajaxCallbacks.success body
+              else
+                ajaxCallbacks.error arguments...
+        , 0
         # сделано для того, чтобы сервер умел понимать Ajax .success, .error как jQuery
         # это нужно для совместимости с моделями Spine без их потрашения
         ajaxCallbacks =
