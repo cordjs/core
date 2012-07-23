@@ -74,12 +74,15 @@ define [
                 ajaxCallbacks.success body
               else
                 ajaxCallbacks.error arguments...
+
+              ajaxCallbacks.complete()
         , 0
         # сделано для того, чтобы сервер умел понимать Ajax .success, .error как jQuery
         # это нужно для совместимости с моделями Spine без их потрашения
         ajaxCallbacks =
           success: ->
           error: ->
+          complete: ->
 
         returnCallbacks =
           success: (callback) ->
@@ -88,6 +91,10 @@ define [
 
           error: (callback) ->
             ajaxCallbacks.error = callback
+            returnCallbacks
+
+          complete: (callback) ->
+            ajaxCallbacks.complete = callback
             returnCallbacks
 
 
