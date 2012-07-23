@@ -1,6 +1,7 @@
 define [
   'cord-helper'
-], (cordHelper) ->
+  'underscore'
+], (cordHelper, _) ->
 
   class Router
 
@@ -82,7 +83,9 @@ define [
         for param, i in params
           options[@names[i]] = param
 
-      @params = options
+      @params = _.extend(@params, options)
+#      @params = options
+
       true
 #      @callback.call(null, options) isnt false
 
