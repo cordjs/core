@@ -34,6 +34,11 @@ define [
       </script>
       """
 
+    getTemplateCss: ->
+      """
+        #{ @rootWidget.getCss() }
+      """
+
     endInit: ->
       @_initEnd = true
 

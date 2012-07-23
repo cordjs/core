@@ -1,5 +1,6 @@
 define [], () ->
   currentBundle = '';
+  currentConfig = {};
 
   cord =
 
@@ -11,6 +12,7 @@ define [], () ->
 #      paths[type]
 
     getPath: (name, config, type) ->
+      currentConfig = config if config?
 
       ## search cord!
       nameParts = name.split('!')
@@ -24,10 +26,10 @@ define [], () ->
 #      nameParts = name.split '/'
 
       if name.substr(0, 2) is '//'
-        name = "#{ config.paths.pathBundles }#{ config.paths.currentBundle }#{ cord.getPathType type }#{ name.slice(2)  }"
+        name = "#{ currentConfig.paths.pathBundles }#{ currentConfig.paths.currentBundle }#{ cord.getPathType type }#{ name.slice(2)  }"
 
       else if name.substr(0, 1) is '/'
-        name = "#{ config.paths.pathBundles }#{name}"
+        name = "#{ currentConfig.paths.pathBundles }#{name}"
 
       switch type
         when 'cord-w', 'cord-t'
@@ -71,6 +73,10 @@ define [], () ->
         name = nameParts.slice(0, nameParts.length - 1).join '/'
 
       name
+
+    getPathToCss: (path) ->
+      path = cord.getPath path
+      "#{ path }/#{ cord.getWidgetName path }.css"
 
     setCurrentBundle: (path, isChecked) ->
       currentBundle = if isChecked? then path else cord.getPathToBundle path

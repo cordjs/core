@@ -3,7 +3,8 @@ define [
   'cord!/cord/core/widgetInitializer'
   'dustjs-linkedin'
   'postal'
-], (_, widgetInitializer, dust, postal) ->
+  'cord-helper'
+], (_, widgetInitializer, dust, postal, cordHelper) ->
 
   dust.onLoad = (tmplPath, callback) ->
     if tmplPath.substr(0,1) is '/'
@@ -168,6 +169,13 @@ define [
       """
       wi.init('#{ @getPath() }', #{ JSON.stringify @ctx }, #{ JSON.stringify namedChilds }, #{ JSON.stringify @childBindings }#{ parentStr });
       #{ widget.getInitCode(@ctx.id) for widget in @children }
+      """
+
+    getCss: (parentId) ->
+      html = "<link href=\"#{ cordHelper.getPathToCss @path }\" rel=\"stylesheet\" />"
+      """
+        #{ if @css? then html else '' }
+        #{ widget.getCss(@ctx.id) for widget in @children }
       """
 
 
@@ -355,6 +363,15 @@ define [
               topic: "widget.#{ widgetInitializer.rootWidget.ctx.id }.render.children.complete"
               callback: ->
                 chunk.end widgetInitializer.getTemplateCode()
+
+
+        # css inclide
+        css: (chunk, context, bodies, params) ->
+          chunk.map (chunk) ->
+            postal.subscribe
+              topic: "widget.#{ widgetInitializer.rootWidget.ctx.id }.render.children.complete"
+              callback: ->
+                chunk.end widgetInitializer.getTemplateCss()
 
 
   class Context
