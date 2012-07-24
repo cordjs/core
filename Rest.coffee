@@ -4,6 +4,8 @@ define [
 ], ( _, $ ) ->
 
   class Rest
+    host: ''
+    port: 80
 
     get: (data, callback) ->
       options = _.extend {
@@ -58,8 +60,10 @@ define [
       else
 
         setTimeout =>
-          require [ 'request', 'querystring' ], (request, qs) ->
+          require [ 'request', 'querystring', 'url' ], (request, qs, url) =>
+            parseUrl = url.parse options.url
             options.method = options.type
+            options.url = "http://#{ @host }:#{ @port }#{ options.url }" if !parseUrl.host?
             delete options.type
 
             if options.dataType is 'json'

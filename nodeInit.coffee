@@ -11,10 +11,17 @@ requirejs.config configPaths
 http = require 'http'
 serverStatic = require 'node-static'
 
+host = '127.0.0.1'
+port = '1337'
+
 requirejs [
   'cord!/cord/core/appManager'
-], (application) ->
+  'cord!/cord/core/Rest'
+], (application, Rest) ->
     file = new serverStatic.Server './public/'
+
+    Rest.host = host
+    Rest.port = port
 
     http.createServer (req, res) ->
         if !application.process req, res
@@ -26,7 +33,7 @@ requirejs [
                   else
                     res.writeHead err.status, err.headers;
                     res.end()
-    .listen 1337, '127.0.0.1'
+    .listen port, host
 
-    console.log "Server running at http://127.0.0.1:1337/"
+    console.log "Server running at http://#{ host }:#{ port }/"
     console.log "Current directory: #{ process.cwd() }"
