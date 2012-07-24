@@ -18,6 +18,10 @@ define [], () ->
       nameParts = name.split('!')
       name = nameParts.slice(1).join('!') if nameParts.length > 1
 
+
+      nameParts = name.split('/')
+      name = "/cord/core/#{ name }" if nameParts.length == 1
+
       ## search comma
       namePartsComma = name.split(',')
       if namePartsComma.length > 1

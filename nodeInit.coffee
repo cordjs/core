@@ -15,8 +15,8 @@ host = '127.0.0.1'
 port = '1337'
 
 requirejs [
-  'cord!/cord/core/appManager'
-  'cord!/cord/core/Rest'
+  'cord!appManager'
+  'cord!Rest'
 ], (application, Rest) ->
     file = new serverStatic.Server './public/'
 

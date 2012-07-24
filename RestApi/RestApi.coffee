@@ -1,5 +1,5 @@
 define [
-  'cord!/cord/core/Rest'
+  'cord!Rest'
   'url'
   'querystring'
 ], ( Rest, url, qs ) ->

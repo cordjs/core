@@ -1,5 +1,5 @@
 define [
-  'cord!/cord/core/Rest'
+  'cord!Rest'
   'underscore'
 ], ( Rest, _ ) ->
   Ajax =
