@@ -7,8 +7,6 @@ define [
 ], (_, widgetInitializer, dust, postal, cordHelper) ->
 
   dust.onLoad = (tmplPath, callback) ->
-    if tmplPath.substr(0,1) is '/'
-      tmplPath = tmplPath.substr(1)
 
     require ["cord-t!" + tmplPath], (tplString) ->
       callback null, tplString
@@ -136,8 +134,6 @@ define [
 
     renderTemplate: (callback) ->
 
-      tmplPath = @getTemplatePath()
-
       tmplPath = "cord-t!#{ @path }"
       
       if dust.cache[tmplPath]?
@@ -155,9 +151,13 @@ define [
           dust.loadSource(dust.compile data, tmplPath)
           @renderTemplate callback
 
-        require [tmplPath], (tplString) ->
-          dustCompileCallback null, tplString
-
+        require [tmplPath], (tplString) =>
+          ## Этот хак позволяет не виснуть dustJs.
+          # зависание происходит при {#deffered}..{#name}{>"//folder/file.html"/}
+          setTimeout =>
+            dust.loadSource(dust.compile tplString, tmplPath)
+            dustCompileCallback null, tplString
+          , 100
 
     getInitCode: (parentId) ->
       parentStr = if parentId? then ", '#{ parentId }'" else ''
@@ -302,7 +302,7 @@ define [
                     # if context value is deferred, than waiting asyncronously...
                     if @ctx.isDeferred value
                       waitCounter++
-                      @subscribeValueChange params, name, value, ->
+                      @subscribeValueChange params, name, value, =>
                         waitCounter--
                         if waitCounter == 0 and waitCounterFinish
                           showCallback()
