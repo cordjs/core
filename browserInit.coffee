@@ -5,11 +5,11 @@ require.config
   urlArgs: "uid=" + (new Date()).getTime()
 
   paths:
-    'postal':           '/vendor/postal/postal'
-    'dustjs-linkedin':  '/vendor/dustjs/dust-amd-adapter'
-    'jquery':           '/vendor/jquery/jquery-1.7.2.min'
-    'underscore':       '/vendor/underscore/underscore-amd-adapter'
-    'requirejs':        '/vendor/requirejs/require'
+    'postal':           'vendor/postal/postal'
+    'dustjs-linkedin':  'vendor/dustjs/dust-amd-adapter'
+    'jquery':           'vendor/jquery/jquery-1.7.2.min'
+    'underscore':       'vendor/underscore/underscore-amd-adapter'
+    'requirejs':        'vendor/requirejs/require'
 
 define [
   'jquery'

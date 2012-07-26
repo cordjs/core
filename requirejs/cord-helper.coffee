@@ -80,6 +80,12 @@ define [], () ->
 
     getPathToCss: (path) ->
       path = cord.getPath path
+
+      if path.substr(0, 2) is './'
+        path = "/#{ path.slice(2) }"
+      else
+        path = "/#{ path }"
+
       "#{ path }/#{ cord.getWidgetName path }.css"
 
     setCurrentBundle: (path, isChecked) ->

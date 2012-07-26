@@ -24,7 +24,7 @@ define [
 
     getTemplateCode: ->
       """
-      <script data-main="bundles/cord/core/browserInit" src="vendor/requirejs/require.js"></script>
+      <script data-main="/bundles/cord/core/browserInit" src="/vendor/requirejs/require.js"></script>
       <script>
           function cordcorewidgetinitializerbrowser(wi) {
             wi.setCurrentBundle('#{ cordHelper.getCurrentBundle() }');
