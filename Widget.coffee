@@ -156,7 +156,7 @@ define [
           # зависание происходит при {#deffered}..{#name}{>"//folder/file.html"/}
           setTimeout =>
             dustCompileCallback null, tplString
-          , 50
+          , 200
 
     getInitCode: (parentId) ->
       parentStr = if parentId? then ", '#{ parentId }'" else ''
@@ -262,13 +262,17 @@ define [
           @childWidgetAdd()
           chunk.map (chunk) =>
 
+            if !params.type
+              params.type = @ctx[params.getType]
+              params.name = @ctx[params.getType]
+
+
             require [
               "#{ params.type }"
               "cord-helper!#{ params.type }"
             ], (WidgetClass, cordHelper) =>
 
               widget = new WidgetClass
-#              widget.setPath params.type
               widget.setPath cordHelper
 
               @children.push widget
