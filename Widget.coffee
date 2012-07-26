@@ -152,8 +152,12 @@ define [
           @renderTemplate callback
 
         require [tmplPath], (tplString) =>
-          dust.loadSource(dust.compile tplString, tmplPath)
-          dustCompileCallback null, tplString
+          ## Этот хак позволяет не виснуть dustJs.
+          # зависание происходит при {#deffered}..{#name}{>"//folder/file.html"/}
+          setTimeout =>
+            dust.loadSource(dust.compile tplString, tmplPath)
+            dustCompileCallback null, tplString
+          , 100
 
     getInitCode: (parentId) ->
       parentStr = if parentId? then ", '#{ parentId }'" else ''
