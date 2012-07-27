@@ -4,7 +4,8 @@ define [
   'dustjs-linkedin'
   'postal'
   'cord-helper'
-], (_, widgetInitializer, dust, postal, cordHelper) ->
+  'cord-s'
+], (_, widgetInitializer, dust, postal, cordHelper, cordCss) ->
 
   dust.onLoad = (tmplPath, callback) ->
 
@@ -170,9 +171,25 @@ define [
       #{ (widget.getInitCode(@ctx.id) for widget in @children).join '' }
       """
 
-    getCss: (parentId) ->
-      html = "<link href=\"#{ cordHelper.getPathToCss @path }\" rel=\"stylesheet\" />"
-      """#{ if @css? then html else '' }#{ (widget.getCss(@ctx.id) for widget in @children).join '' }"""
+    # include all css-files, if rootWidget init
+    getInitCss: (parentId) ->
+      html = ""
+
+      if @css? and typeof @css is 'object'
+        html = (cordCss.getHtml "cord-s!#{ css }" for css in @css).join ''
+      else if @css?
+        html = cordCss.getHtml @path, true
+
+      """#{ html }#{ (widget.getInitCss(@ctx.id) for widget in @children).join '' }"""
+
+
+    # browser-only, include css-files widget
+    getWidgetCss: ->
+
+      if @css? and typeof @css is 'object'
+        cordCss.insertCss "cord-s!#{ css }" for css in @css
+      else if @css?
+        cordCss.insertCss @path, true
 
 
     registerChild: (child, name) ->
@@ -199,6 +216,8 @@ define [
       if behaviourClass?
         require ["cord-w!#{ behaviourClass }"], (BehaviourClass) =>
           @behaviour = new BehaviourClass @
+
+      @getWidgetCss()
 
     #
     # Almost copy of widgetInitializer::init but for client-side rendering

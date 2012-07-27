@@ -86,7 +86,7 @@ define [], () ->
       else
         path = "/#{ path }"
 
-      "#{ path }/#{ cord.getWidgetName path }.css"
+      path
 
     setCurrentBundle: (path, isChecked) ->
       currentBundle = if isChecked? then path else cord.getPathToBundle path

@@ -25,6 +25,7 @@ define [
       @initWidgetEvents(@widgetEvents)  if @widgetEvents
       @refreshElements()                if @elements
 
+
     $: (selector) ->
       $(selector, @el)
 

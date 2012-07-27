@@ -14,3 +14,4 @@ define [],  ->
     'cord':           dir + 'bundles/cord/core/requirejs/cord'
     'cord-w':         dir + 'bundles/cord/core/requirejs/cord-w'
     'cord-t':         dir + 'bundles/cord/core/requirejs/cord-t'
+    'cord-s':         dir + 'bundles/cord/core/requirejs/cord-s'

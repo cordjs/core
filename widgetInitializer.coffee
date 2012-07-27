@@ -36,7 +36,7 @@ define [
 
     getTemplateCss: ->
       """
-        #{ @rootWidget.getCss() }
+        #{ @rootWidget.getInitCss() }
       """
 
     endInit: ->
