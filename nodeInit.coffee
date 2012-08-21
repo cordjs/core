@@ -4,7 +4,7 @@ configPaths = require './configPaths'
 requirejs = require 'requirejs'
 requirejs.config
   nodeRequire: require
-  baseUrl: 'public'
+  baseUrl: 'target/'
 
 requirejs.config configPaths
 
