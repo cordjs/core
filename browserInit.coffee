@@ -6,10 +6,17 @@ require.config
 
   paths:
     'postal':           'vendor/postal/postal'
-    'dustjs-linkedin':  'vendor/dustjs/dust-amd-adapter'
-    'jquery':           'vendor/jquery/jquery-1.7.2.min'
-    'underscore':       'vendor/underscore/underscore-amd-adapter'
+    'dustjs-linkedin':  'vendor/dustjs/dustjs-full'
+    'jquery':           'vendor/jquery/jquery'
+    'underscore':       'vendor/underscore/underscore'
     'requirejs':        'vendor/requirejs/require'
+
+  shim:
+    'dustjs-linkedin':
+      exports: dust
+    'underscore':
+      exports: _
+
 
 define [
   'jquery'
