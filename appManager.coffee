@@ -12,13 +12,11 @@ define [
       '/_restAPI/:restPath':
         widget: '/cord/core/RestApi'
         regex: false
-        params:
-          someParam: 11
 
-#    _.extend routes, bundle.routes for bundle in arguments
-#    router.addRoutes routes
     for bundle, i in arguments
-#      bundle.routes.currentBundle = "/#{ application[i] }"
+      for route, params of bundle.routes
+        if params.widget and params.widget.substr(0, 2) is '//'
+          params.widget = "/#{ application[i] }#{ params.widget }"
       _.extend routes, bundle.routes
     router.addRoutes routes
 
