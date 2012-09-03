@@ -136,7 +136,7 @@ define [
     renderTemplate: (callback) ->
 
       tmplPath = "cord-t!#{ @path }"
-      
+
       if dust.cache[tmplPath]?
 #        console.log "renderTemplate #{ tmplPath }"
         @markRenderStarted()
@@ -287,7 +287,7 @@ define [
 
 
             require [
-              "#{ params.type }"
+              "cord-w!#{ params.type }"
               "cord-helper!#{ params.type }"
             ], (WidgetClass, cordHelper) =>
 
