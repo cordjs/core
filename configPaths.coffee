@@ -9,7 +9,6 @@ define [],  ->
 
     #plugins
     'text':           dir + 'vendor/requirejs/plugins/text'
-    'use':            dir + 'vendor/requirejs/plugins/use'
     'cord-helper':    dir + 'bundles/cord/core/requirejs/cord-helper'
     'cord':           dir + 'bundles/cord/core/requirejs/cord'
     'cord-w':         dir + 'bundles/cord/core/requirejs/cord-w'
