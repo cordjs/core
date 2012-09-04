@@ -5,17 +5,17 @@ require.config
   urlArgs: "uid=" + (new Date()).getTime()
 
   paths:
-    'postal':           'vendor/postal/postal'
-    'dustjs-linkedin':  'vendor/dustjs/dustjs-full'
-    'jquery':           'vendor/jquery/jquery'
-    'underscore':       'vendor/underscore/underscore'
-    'requirejs':        'vendor/requirejs/require'
+    'postal':           '/vendor/postal/postal'
+    'dustjs-linkedin':  '/vendor/dustjs/dustjs-full'
+    'jquery':           '/vendor/jquery/jquery'
+    'underscore':       '/vendor/underscore/underscore'
+    'requirejs':        '/vendor/requirejs/require'
 
   shim:
     'dustjs-linkedin':
-      exports: dust
+      exports: 'dust'
     'underscore':
-      exports: _
+      exports: '_'
 
 
 define [

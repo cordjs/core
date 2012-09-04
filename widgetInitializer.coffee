@@ -60,15 +60,32 @@ define [
         widget.setPath widgetPath
         widget.loadContext ctx
 
+        # need to be in separate function to preserve context for the closure
+        subscribePushBinding = (ctxName, paramName) ->
+          postal.subscribe
+            topic: "widget.#{ parentId }.change.#{ ctxName }"
+            callback: (data, envelope) ->
+              params = {}
+
+              # param with name "params" is a special case and we should expand the value as key-value pairs
+              # of widget's params
+              if paramName == 'params'
+                if _.isObject data.value
+                  for subName, subValue of data.value
+                    params[subName] = subValue
+                else
+                  # todo: warning?
+              else
+                params[paramName] = data.value
+
+              console.log "(wi) push binding event of parent (#{ envelope.topic }) for child widget #{ widget.constructor.name }::#{ widget.ctx.id }::#{ paramName } -> #{ data.value }"
+              widget.fireAction 'default', params
+        ####
+
         if @_pushBindings[ctx.id]?
           for ctxName, paramName of @_pushBindings[ctx.id]
-            subscription = postal.subscribe
-              topic: "widget.#{ parentId }.change.#{ ctxName }"
-              callback: (data) ->
-                params = {}
-                params[paramName] = data.value
-                console.log "(widgetInitializer) push binding event of parent (#{ parentId }) field #{ ctxName } for child widget #{ widget.constructor.name }::#{ widget.ctx.id }::#{ paramName }"
-                widget.fireAction 'default', params
+            console.log "#{ paramName }=\"^#{ ctxName }\" for #{ ctx.id }"
+            subscription = subscribePushBinding ctxName, paramName
             widget.addSubscription subscription
 
         @widgets[ctx.id] =
