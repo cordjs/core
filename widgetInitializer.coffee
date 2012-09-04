@@ -60,33 +60,10 @@ define [
         widget.setPath widgetPath
         widget.loadContext ctx
 
-        # need to be in separate function to preserve context for the closure
-        subscribePushBinding = (ctxName, paramName) ->
-          postal.subscribe
-            topic: "widget.#{ parentId }.change.#{ ctxName }"
-            callback: (data, envelope) ->
-              params = {}
-
-              # param with name "params" is a special case and we should expand the value as key-value pairs
-              # of widget's params
-              if paramName == 'params'
-                if _.isObject data.value
-                  for subName, subValue of data.value
-                    params[subName] = subValue
-                else
-                  # todo: warning?
-              else
-                params[paramName] = data.value
-
-              console.log "(wi) push binding event of parent (#{ envelope.topic }) for child widget #{ widget.constructor.name }::#{ widget.ctx.id }::#{ paramName } -> #{ data.value }"
-              widget.fireAction 'default', params
-        ####
-
         if @_pushBindings[ctx.id]?
           for ctxName, paramName of @_pushBindings[ctx.id]
             console.log "#{ paramName }=\"^#{ ctxName }\" for #{ ctx.id }"
-            subscription = subscribePushBinding ctxName, paramName
-            widget.addSubscription subscription
+            @subscribePushBinding parentId, ctxName, widget, paramName
 
         @widgets[ctx.id] =
           'widget': widget
@@ -122,5 +99,39 @@ define [
         @widgets[widgetId].widget.initBehaviour()
       else
         throw "Try to use uninitialized widget with id = #{ widgetId }"
+
+
+    #
+    # Subscribes child widget to the parent widget's context variable change event
+    #
+    # @param String parentWidgetId id of the parent widget
+    # @param String ctxName name of parent's context variable whose changes we are listening to
+    # @param Widget childWidget subscribing child widget object
+    # @param String paramName child widget's default action input param name which should be set to the context variable
+    #                         value
+    # @return postal subscription object
+    #
+    subscribePushBinding: (parentWidgetId, ctxName, childWidget, paramName) ->
+      subscription = postal.subscribe
+        topic: "widget.#{ parentWidgetId }.change.#{ ctxName }"
+        callback: (data, envelope) ->
+          params = {}
+
+          # param with name "params" is a special case and we should expand the value as key-value pairs
+          # of widget's params
+          if paramName == 'params'
+            if _.isObject data.value
+              for subName, subValue of data.value
+                params[subName] = subValue
+            else
+              # todo: warning?
+          else
+            params[paramName] = data.value
+
+          console.log "(wi) push binding event of parent (#{ envelope.topic }) for child widget #{ childWidget.constructor.name }::#{ childWidget.ctx.id }::#{ paramName } -> #{ data.value }"
+          childWidget.fireAction 'default', params
+      childWidget.addSubscription subscription
+      subscription
+
 
   new WidgetInitializer

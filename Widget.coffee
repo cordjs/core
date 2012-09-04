@@ -224,33 +224,9 @@ define [
     # @browser-only
     #
     browserInit: ->
-
-      # need to be in separate function to preserve context for the closure
-      subscribePushBinding = (ctxName, widgetId, paramName) =>
-        postal.subscribe
-          topic: "widget.#{ @ctx.id }.change.#{ ctxName }"
-          callback: (data) =>
-            params = {}
-
-            # param with name "params" is a special case and we should expand the value as key-value pairs
-            # of widget's params
-            if paramName == 'params'
-              if _.isObject data.value
-                for subName, subValue of data.value
-                  params[subName] = subValue
-              else
-                # todo: warning?
-            else
-              params[paramName] = data.value
-
-            console.log "push binding event of parent #{ @constructor.name}(#{ @ctx.id }) field #{ ctxName } for child widget #{ @childById[widgetId].constructor.name }::#{ widgetId }::#{ paramName } -> #{ data.value }"
-            @childById[widgetId].fireAction 'default', params
-
-
       for widgetId, bindingMap of @childBindings
         for ctxName, paramName of bindingMap
-          subscription = subscribePushBinding ctxName, widgetId, paramName
-          @childById[widgetId].addSubscription subscription
+          widgetInitializer.subscribePushBinding @ctx.id, ctxName, @childById[widgetId], paramName
 
       for childWidget in @children
         childWidget.browserInit()
