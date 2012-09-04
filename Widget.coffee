@@ -8,9 +8,9 @@ define [
 ], (_, widgetInitializer, dust, postal, cordHelper, cordCss) ->
 
   dust.onLoad = (tmplPath, callback) ->
-
     require ["cord-t!" + tmplPath], (tplString) ->
       callback null, tplString
+
 
   class Widget
 
@@ -224,15 +224,32 @@ define [
     # @browser-only
     #
     browserInit: ->
+
+      # need to be in separate function to preserve context for the closure
+      subscribePushBinding = (ctxName, widgetId, paramName) =>
+        postal.subscribe
+          topic: "widget.#{ @ctx.id }.change.#{ ctxName }"
+          callback: (data) =>
+            params = {}
+
+            # param with name "params" is a special case and we should expand the value as key-value pairs
+            # of widget's params
+            if paramName == 'params'
+              if _.isObject data.value
+                for subName, subValue of data.value
+                  params[subName] = subValue
+              else
+                # todo: warning?
+            else
+              params[paramName] = data.value
+
+            console.log "push binding event of parent #{ @constructor.name}(#{ @ctx.id }) field #{ ctxName } for child widget #{ @childById[widgetId].constructor.name }::#{ widgetId }::#{ paramName } -> #{ data.value }"
+            @childById[widgetId].fireAction 'default', params
+
+
       for widgetId, bindingMap of @childBindings
         for ctxName, paramName of bindingMap
-          subscription = postal.subscribe
-            topic: "widget.#{ @ctx.id }.change.#{ ctxName }"
-            callback: (data) =>
-              params = {}
-              params[paramName] = data.value
-              console.log "push binding event of parent #{ @constructor.name}(#{ @ctx.id }) field #{ ctxName } for child widget #{ @childById[widgetId].constructor.name }::#{ widgetId }::#{ paramName }"
-              @childById[widgetId].fireAction 'default', params
+          subscription = subscribePushBinding ctxName, widgetId, paramName
           @childById[widgetId].addSubscription subscription
 
       for childWidget in @children
@@ -270,7 +287,16 @@ define [
       postal.subscribe
         topic: "widget.#{ @ctx.id }.change.#{ value }"
         callback: (data) ->
-          params[name] = data.value
+          # param with name "params" is a special case and we should expand the value as key-value pairs
+          # of widget's params
+          if name == 'params'
+            if _.isObject data.value
+              for subName, subValue of data.value
+                params[subName] = subValue
+            else
+              # todo: warning?
+          else
+            params[name] = data.value
           callback()
 
     _buildBaseContext: ->
@@ -331,7 +357,17 @@ define [
 
                     # otherwise just getting it's value syncronously
                     else
-                      params[name] = @ctx[value]
+                      # param with name "params" is a special case and we should expand the value as key-value pairs
+                      # of widget's params
+                      console.log "#{ name } = \"^#{ value }\" ( -> #{ @ctx.value })"
+                      if name == 'params'
+                        if _.isObject @ctx[value]
+                          for subName, subValue of @ctx[value]
+                            params[subName] = subValue
+                        else
+                          # todo: warning?
+                      else
+                        params[name] = @ctx[value]
 
               # todo: potentially not cross-browser code!
               if Object.keys(bindings).length != 0
@@ -426,21 +462,24 @@ define [
     setSingle: (name, newValue) ->
       triggerChange = false
 
-      if @[name]?
-        oldValue = @[name]
-        if oldValue != newValue
+      console.log "setSingle -> #{ name } = #{ newValue } (oldValue = #{ @[name] })"
+
+      if newValue?
+        if @[name]?
+          oldValue = @[name]
+          if oldValue != newValue
+            triggerChange = true
+        else
           triggerChange = true
 
-      else
-        triggerChange = true
-
-      @[name] = if newValue? then newValue else ''
+      @[name] = newValue if typeof newValue != 'undefined'
 
       if triggerChange
         setTimeout =>
           postal.publish "widget.#{ @id }.change.#{ name }",
             name: name
             value: newValue
+            oldValue: oldValue
         , 0
 
       triggerChange
