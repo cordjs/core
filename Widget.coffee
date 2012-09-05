@@ -438,8 +438,6 @@ define [
     setSingle: (name, newValue) ->
       triggerChange = false
 
-      console.log "setSingle -> #{ name } = #{ newValue } (oldValue = #{ @[name] })"
-
       if newValue?
         if @[name]?
           oldValue = @[name]
@@ -447,6 +445,8 @@ define [
             triggerChange = true
         else
           triggerChange = true
+
+      console.log "setSingle -> #{ name } = #{ newValue } (oldValue = #{ @[name] }) trigger = #{ triggerChange }"
 
       @[name] = newValue if typeof newValue != 'undefined'
 

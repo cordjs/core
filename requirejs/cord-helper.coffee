@@ -49,7 +49,7 @@ define [], () ->
           name = "#{ name }#{ widgetName }"
 
       if parseInt(name.indexOf '//') > 0
-        name = name.replace "//", cord.getPathType type
+        name = name.replace '//', cord.getPathType type
 
       if namePartsComma.length > 1
         name = name + namePartsComma.slice(1)
