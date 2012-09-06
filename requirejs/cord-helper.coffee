@@ -15,26 +15,33 @@ define [], () ->
       currentConfig = config if config?
 
       ## search cord!
-      nameParts = name.split('!')
+      nameParts = name.split '!'
       name = nameParts.slice(1).join('!') if nameParts.length > 1
 
+      nameParts = name.split '/'
 
-      nameParts = name.split('/')
-      name = "/cord/core/#{ name }" if nameParts.length == 1
+      if nameParts.length is 1
+        switch type
+          when 'cord-w', 'cord-t', undefined
+            name = "/cord/core/widgets/#{ name }"
+          else
+            name = "/cord/core/#{ name }"
 
       ## search comma
-      namePartsComma = name.split(',')
+      # Делаем поиск запятой, после которой можно передать параметры
+      namePartsComma = name.split ','
       if namePartsComma.length > 1
         name = namePartsComma.slice(0, 1).join()
 
-#      nameParts = name.split '/'
-
+      # Если путь начинается с //, автоматом строим полный путь к текущему бандлу
       if name.substr(0, 2) is '//'
         name = "#{ currentConfig.paths.pathBundles }#{ currentConfig.paths.currentBundle }#{ cord.getPathType type }#{ name.slice(2)  }"
 
+      # Или если одинарная /, строим в ручную путь от папки с бандлами
       else if name.substr(0, 1) is '/'
         name = "#{ currentConfig.paths.pathBundles }#{name}"
 
+      # Формирование пути
       switch type
         when 'cord-w', 'cord-t'
           widgetName = cord.getWidgetName name
