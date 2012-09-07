@@ -6,7 +6,7 @@ require.config
 
   paths:
     'postal':           '/vendor/postal/postal'
-    'dustjs-linkedin':  '/vendor/dustjs/dustjs-full'
+    'dustjs-linkedin':  '/vendor/dustjs/dust-full'
     'jquery':           '/vendor/jquery/jquery'
     'underscore':       '/vendor/underscore/underscore'
     'requirejs':        '/vendor/requirejs/require'
