@@ -287,6 +287,7 @@ define [
               params.type = @ctx[params.getType]
               params.name = @ctx[params.getType]
 
+            chunk.render bodies.block, context if bodies.block?
 
             require [
               "cord-w!#{ params.type }"
