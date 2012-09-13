@@ -5,7 +5,8 @@ define [
   'postal'
   'cord-helper'
   'cord-s'
-], (_, widgetInitializer, dust, postal, cordHelper, cordCss) ->
+  'cord!isBrowser'
+], (_, widgetInitializer, dust, postal, cordHelper, cordCss, isBrowser) ->
 
   dust.onLoad = (tmplPath, callback) ->
     require ["cord-t!" + tmplPath], (tplString) ->
@@ -14,8 +15,13 @@ define [
 
   class Widget
 
+    #
+    # Enable special mode for building structure tree of widget
+    #
+    compileMode: false
+
     # @const
-    @DEFERRED = '__deferred_value__'
+    @DEFERRED: '__deferred_value__'
 
     # widget context
     ctx: null
@@ -70,7 +76,8 @@ define [
       @_subscriptions = []
       @behaviour = null
       @resetChildren()
-      @ctx = new Context(id ? (if window? then 'brow' else 'node') + '-wdt-' + _.uniqueId())
+      @ctx = new Context(id ? (if isBrowser? then 'brow' else 'node') + '-wdt-' + _.uniqueId())
+      @placeholders = {}
 
     clean: ->
       @cleanChildren()
@@ -138,7 +145,6 @@ define [
       tmplPath = "cord-t!#{ @path }"
 
       if dust.cache[tmplPath]?
-#        console.log "renderTemplate #{ tmplPath }"
         @markRenderStarted()
         if @_dirtyChildren
           @cleanChildren()
@@ -212,7 +218,6 @@ define [
         delete @behaviour
 
       behaviourClass = @getBehaviourClass()
-#      console.log 'initBehaviour', @constructor.name, behaviourClass
       if behaviourClass?
         require ["cord-w!#{ behaviourClass }"], (BehaviourClass) =>
           @behaviour = new BehaviourClass @
@@ -276,17 +281,28 @@ define [
           callback()
 
     _buildBaseContext: ->
+      if @compileMode
+        @_buildCompileBaseContext()
+      else
+        @_buildNormalBaseContext()
+
+    _buildNormalBaseContext: ->
       dust.makeBase
 
-        # widget-block
+        #
+        # Widget-block
+        #
         widget: (chunk, context, bodies, params) =>
           @childWidgetAdd()
+          console.log "childWidgetAdd (#{ @_childWidgetCounter }) #{ @constructor.name } -> #{ params.type }"
+          console.log "Widget plugin before map #{ @constructor.name } -> #{ params.type }"
           chunk.map (chunk) =>
 
             if !params.type
               params.type = @ctx[params.getType]
               params.name = @ctx[params.getType]
 
+            console.log "Widget plugin in map #{ @constructor.name } -> #{ params.type }"
 
             require [
               "cord-w!#{ params.type }"
@@ -308,7 +324,15 @@ define [
 
                   @childWidgetComplete()
                   if err then throw err
-                  chunk.end "<#{ widget.rootTag } id=\"#{ widget.ctx.id }\"#{ classAttr }>#{ output }</#{ widget.rootTag }>"
+
+                  if bodies.block?
+                    tmpName = "tmp#{ _.uniqueId() }"
+                    dust.register tmpName, bodies.block
+                    dust.render tmpName, context, (err, out) =>
+                      console.log out
+                      chunk.end "<#{ widget.rootTag } id=\"#{ widget.ctx.id }\"#{ classAttr }>#{ output }</#{ widget.rootTag }>"
+                  else
+                    chunk.end "<#{ widget.rootTag } id=\"#{ widget.ctx.id }\"#{ classAttr }>#{ output }</#{ widget.rootTag }>"
 
               waitCounter = 0
               waitCounterFinish = false
@@ -386,8 +410,9 @@ define [
             chunk.render bodies.block, context
 
 
-
-        # widget initialization script generator
+        #
+        # Widget initialization script generator
+        #
         widgetInitializer: (chunk, context, bodies, params) ->
           chunk.map (chunk) ->
             postal.subscribe
@@ -403,6 +428,113 @@ define [
               topic: "widget.#{ widgetInitializer.rootWidget.ctx.id }.render.children.complete"
               callback: ->
                 chunk.end widgetInitializer.getTemplateCss()
+
+
+    #
+    # Dust plugins for compilation mode
+    #
+    _buildCompileBaseContext: ->
+      dust.makeBase
+
+        #
+        # Widget-block (compile mode)
+        #
+        widget: (chunk, context, bodies, params) =>
+          console.log "Compile mode widget plugin before map #{ @constructor.name } -> #{ params.type }"
+          chunk.map (chunk) =>
+
+            if !params.type
+              params.type = @ctx[params.getType]
+              params.name = @ctx[params.getType]
+
+            require [
+              "cord-w!#{ params.type }"
+              "cord-helper!#{ params.type }"
+              "cord!widgetCompiler"
+            ], (WidgetClass, cordHelper, widgetCompiler) =>
+
+              widget = new WidgetClass
+              widget.compileMode = true
+              widget.setPath cordHelper
+
+              @children.push widget
+              @childByName[params.name] = widget if params.name?
+              @childById[widget.ctx.id] = widget
+
+              if bodies.block?
+                widgetCompiler.addLayoutCall widget, params
+
+              if context.surroundingWidget?
+                ph = params.placeholder ? 'default'
+                sw = context.surroundingWidget
+
+                if sw.placeholders[ph]?
+                  delete params.placeholder
+                  delete params.type
+                  widgetCompiler.addPlaceholderContent sw, ph, widget, params
+                else
+                  throw "there is no placeholder with id \"#{ ph }\" in surrounding widget #{ sw.constructor.name } (id = #{ sw.ctx.id })!"
+              else
+                # ???
+
+              widget.renderTemplate (err, output) =>
+                if err then throw err
+
+                if bodies.block?
+                  ctx = @getBaseContext().push(@ctx)
+                  ctx.surroundingWidget = widget
+
+                  tmpName = "tmp#{ _.uniqueId() }"
+                  dust.register tmpName, bodies.block
+                  dust.render tmpName, ctx, (err, out) =>
+                    if err then throw err
+                    chunk.end "<widget type=\"#{ params.type }\">#{ out }</widget>"
+                else
+                  chunk.end "<widget type=\"#{ params.type }\"></widget>"
+
+        #
+        # Inline - block of sub-template to place into surrounding widget's placeholder (compiler only)
+        #
+        inline: (chunk, context, bodies, params) =>
+          chunk.map (chunk) =>
+            require ['cord!widgetCompiler'], (widgetCompiler) =>
+              if bodies.block?
+                id = params?.id ? _.uniqueId()
+                if context.surroundingWidget?
+                  ph = params?.placeholder ? 'default'
+
+                  sw = context.surroundingWidget
+                  if sw.placeholders[ph]?
+                    templateName = "__inline_#{ id }_template.js"
+                    widgetCompiler.addPlaceholderInline sw, ph, this, templateName
+
+                    ctx = @getBaseContext().push(@ctx)
+                    ctx.surroundingWidget = sw
+
+                    tmpName = "tmp#{ _.uniqueId() }"
+                    dust.register tmpName, bodies.block
+
+                    dust.render tmpName, ctx, (err, out) =>
+                      if err then throw err
+                      chunk.end "<inline type=\"#{ @constructor.name }\">#{ out }</inline>"
+
+                  else
+                    throw "there is no placeholder with id \"#{ ph }\" in surrounding widget #{ sw.constructor.name } (id = #{ sw.ctx.id })!"
+                else
+                  throw "inlines are not allowed outside surrounding widget (widget #{ @constructor.name }, id"
+              else
+                console.log "Warning: empty inline in widget #{ @constructor.name }(#{ @ctx.id })"
+
+        #
+        # Placeholder - point of extension of the widget (compiler version)
+        #
+        placeholder: (chunk, context, bodies, params) =>
+          id = params?.id ? 'default'
+          if @placeholders[id]?
+            throw "duplicate placeholder id (#{ id }) for widget #{ @constructor.name }"
+          @placeholders[id] = []
+          chunk.write "<placeholder id=\"#{ id }\" />"
+          #chunk.write "<div id=\"ph-#{ @ctx.id }-#{ id }\"></div>"
 
 
   class Context
