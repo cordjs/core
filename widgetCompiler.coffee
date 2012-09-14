@@ -1,44 +1,59 @@
 define [
-], () ->
+  'underscore'
+], (_) ->
 
   class WidgetCompiler
 
-    tree: {}
-    widgets: {}
-    currentNode: null
-    callStack: []
+    structure: {}
+
+    _extendList: []
+    _widgets: {}
+
+    _extendPhaseFinished: false
 
     registerWidget: (widget) ->
-      if not @widgets[widget.ctx.id]?
+      if not @_widgets[widget.ctx.id]?
         wdt =
           uid: widget.ctx.id
           path: widget.getPath()
           placeholders: {}
-        @widgets[widget.ctx.id] = wdt
-      @widgets[widget.ctx.id]
+        @_widgets[widget.ctx.id] = wdt
+      @_widgets[widget.ctx.id]
 
 
-    setFirstWidget: (widget) ->
-      @tree = {}
+    reset: ->
+      ###
+      Resets compiler's state
+      ###
+      @_extendPhaseFinished = false
+      @_extendList = []
+      @_widgets = {}
+      @structure =
+        extends: @_extendList
+        widgets: @_widgets
+
+
+    addExtendCall: (widget, params) ->
+      console.log "COMPILER:addExtendCall #{ params.type }"
+
+      if @extendPhaseFinished
+        throw "'#extend' appeared in wrong place (extending widget #{ widget.constructor.name })!"
+
       widgetRef = @registerWidget widget
-      @currentNode = @tree
-      @tree.widget = widgetRef.uid
 
-
-    addLayoutCall: (widget, params) ->
-      console.log "COMPILER:addLayoutCall #{ params.type }"
-      widgetRef = @registerWidget widget
-      @currentNode.layout =
-        widget: widgetRef.uid
-      @callStack.unshift @currentNode
-      @currentNode = @currentNode.layout
+      params = _.clone params
       delete params.type
       delete params.name
-      @currentNode.params = params
+
+      @_extendList.push
+        widget: widgetRef.uid
+        params: params
 
 
     addPlaceholderContent: (surroundingWidget, placeholderId, widget, params) ->
       console.log "COMPILER:addPlaceholderContent #{ placeholderId }, #{ widget.constructor.name }"
+
+      @extendPhaseFinished = true
 
       swRef = @registerWidget surroundingWidget
       widgetRef = @registerWidget widget
@@ -52,6 +67,8 @@ define [
     addPlaceholderInline: (surroundingWidget, placeholderId, widget, templateName) ->
       console.log "COMPILER:addPlaceholderInline #{ placeholderId }, #{ widget.constructor.name }"
 
+      @extendPhaseFinished = true
+
       swRef = @registerWidget surroundingWidget
       widgetRef = @registerWidget widget
 
@@ -61,9 +78,14 @@ define [
         template: templateName
 
 
-    printTree: ->
-      console.log JSON.stringify @tree, null, 2
-      console.log JSON.stringify @widgets, null, 2
+    getStructureCode: (compact = true) ->
+      if compact
+        JSON.stringify @structure
+      else
+        JSON.stringify @structure, null, 2
+
+    printStructure: ->
+      console.log @getStructureCode false
 
 
   new WidgetCompiler

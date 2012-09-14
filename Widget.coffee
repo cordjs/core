@@ -72,11 +72,31 @@ define [
       @_dirtyChildren = false
 
 
-    constructor: (id) ->
+    #
+    # Constructor
+    #
+    # @param string id (optional) manual ID of the widget
+    # @param boolean compileMode (optional) turn on/off compile mode
+    #
+    constructor: (id, compileMode) ->
+      if compileMode?
+        compileMode = if compileMode then true else false
+      else
+        if _.isBoolean id
+          compileMode = id
+          id = null
+        else
+          compileMode = false
+
+      @compileMode = compileMode
       @_subscriptions = []
       @behaviour = null
       @resetChildren()
-      @ctx = new Context(id ? (if isBrowser? then 'brow' else 'node') + '-wdt-' + _.uniqueId())
+      if compileMode
+        id = 'ref-wdt-' + _.uniqueId()
+      else
+        id ?= (if isBrowser? then 'brow' else 'node') + '-wdt-' + _.uniqueId()
+      @ctx = new Context(id)
       @placeholders = {}
 
     clean: ->
@@ -117,13 +137,13 @@ define [
       @["_#{ action }Action"] params, ->
 
 
-    ###
-      Action that generates/modifies widget context according to the given params
-      Should be overriden in particular widget
-      @private
-      @param Map params some arbitrary params for the action
-      @param Function callback callback function that must be called after action completion
-    ###
+    ##
+    # Action that generates/modifies widget context according to the given params
+    # Should be overriden in particular widget
+    # @private
+    # @param Map params some arbitrary params for the action
+    # @param Function callback callback function that must be called after action completion
+    ##
     _defaultAction: (params, callback) ->
       callback()
 
@@ -436,6 +456,59 @@ define [
     _buildCompileBaseContext: ->
       dust.makeBase
 
+        extend: (chunk, context, bodies, params) =>
+          ###
+          Extend another widget (probably layout-widget).
+
+          This section should be used as a root element of the template and all contents should be inside it's body
+          block. All contents outside this section will be ignored. Example:
+
+              {#extend type="//rootLayout" someParam="foo"}
+                {#widget type="//mainMenu" selectedItem=activeItem placeholder="default"/}
+              {/extend}
+
+          This section accepts the same params as the "widget" section, except of placeholder which logically cannot
+          be used with extend.
+
+          todo: add check of (un)existance of other root sections in the template
+          ###
+
+          console.log "Extend plugin before map #{ @constructor.name } -> #{ params.type }"
+          chunk.map (chunk) =>
+
+            if not params.type? or !params.type
+              throw "Extend must have 'type' param defined!"
+
+            if params.placeholder?
+              console.log "WARNING: 'placeholder' param is useless for 'extend' section"
+
+            require [
+              "cord-w!#{ params.type }"
+              "cord-helper!#{ params.type }"
+              "cord!widgetCompiler"
+            ], (WidgetClass, cordHelper, widgetCompiler) =>
+
+              widget = new WidgetClass @compileMode
+              widget.setPath cordHelper
+
+              widgetCompiler.addExtendCall widget, params
+
+              widget.renderTemplate (err, output) =>
+                if err then throw err
+
+                if bodies.block?
+                  ctx = @getBaseContext().push(@ctx)
+                  ctx.surroundingWidget = widget
+
+                  tmpName = "tmp#{ _.uniqueId() }"
+                  dust.register tmpName, bodies.block
+                  dust.render tmpName, ctx, (err, out) =>
+                    if err then throw err
+                    chunk.end ""
+                else
+                  console.log "WARNING: Extending widget #{ params.type } with nothing!"
+                  chunk.end ""
+
         #
         # Widget-block (compile mode)
         #
@@ -443,6 +516,7 @@ define [
           console.log "Compile mode widget plugin before map #{ @constructor.name } -> #{ params.type }"
           chunk.map (chunk) =>
 
+            # todo: спросить у Кости - что это значит?
             if !params.type
               params.type = @ctx[params.getType]
               params.name = @ctx[params.getType]
@@ -453,16 +527,12 @@ define [
               "cord!widgetCompiler"
             ], (WidgetClass, cordHelper, widgetCompiler) =>
 
-              widget = new WidgetClass
-              widget.compileMode = true
+              widget = new WidgetClass @compileMode
               widget.setPath cordHelper
 
               @children.push widget
               @childByName[params.name] = widget if params.name?
               @childById[widget.ctx.id] = widget
-
-              if bodies.block?
-                widgetCompiler.addLayoutCall widget, params
 
               if context.surroundingWidget?
                 ph = params.placeholder ? 'default'

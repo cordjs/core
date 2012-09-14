@@ -19,17 +19,24 @@ define [
 
         @setCurrentBundle rootWidgetPath
 
-        require ["cord-w!#{ rootWidgetPath }"], (RootWidgetClass) =>
+        require [
+          "cord-w!#{ rootWidgetPath }"
+          'cord!widgetCompiler'
+        ], (RootWidgetClass, widgetCompiler) =>
           res.writeHead 200, 'Content-Type': 'text/html'
-          rootWidget = new RootWidgetClass
+          rootWidget = new RootWidgetClass true
           rootWidget.setPath? rootWidgetPath
 #          rootWidget.setBundle if route.currentBundle? then route.currentBundle else ""
+
+          # todo: temporary!!! do not commit!
+          widgetCompiler.reset()
 
           widgetInitializer.setRootWidget rootWidget
 
           rootWidget.showAction action, params, (err, output) ->
             if err then throw err
-            res.end output
+            widgetCompiler.printStructure()
+            res.end widgetCompiler.getStructureCode()
           , req, res
 
         true
