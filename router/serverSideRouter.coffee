@@ -21,22 +21,25 @@ define [
 
         require [
           "cord-w!#{ rootWidgetPath }"
+          "cord-helper!#{ rootWidgetPath }"
           'cord!widgetCompiler'
-        ], (RootWidgetClass, widgetCompiler) =>
+        ], (RootWidgetClass, rootWidgetPath, widgetCompiler) =>
           res.writeHead 200, 'Content-Type': 'text/html'
-          rootWidget = new RootWidgetClass true
-          rootWidget.setPath? rootWidgetPath
-#          rootWidget.setBundle if route.currentBundle? then route.currentBundle else ""
+
+#          rootWidget = new RootWidgetClass true
+          rootWidget = new RootWidgetClass
+          rootWidget.setPath rootWidgetPath
 
           # todo: temporary!!! do not commit!
-          widgetCompiler.reset()
+#          widgetCompiler.reset()
 
           widgetInitializer.setRootWidget rootWidget
 
           rootWidget.showAction action, params, (err, output) ->
             if err then throw err
-            widgetCompiler.printStructure()
-            res.end widgetCompiler.getStructureCode()
+#            widgetCompiler.printStructure()
+#            res.end widgetCompiler.getStructureCode()
+            res.end output
           , req, res
 
         true

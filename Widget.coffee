@@ -153,7 +153,7 @@ define [
 
     getTemplatePath: ->
       className = @constructor.name
-      "#{ @pathBundle }#{ @path }#{ className.charAt(0).toLowerCase() + className.slice(1) }.html"
+      "#{ @path }/#{ className.charAt(0).toLowerCase() + className.slice(1) }.html"
 
 
     cleanChildren: ->
@@ -161,24 +161,46 @@ define [
       @resetChildren()
 
     renderTemplate: (callback) ->
+      tmplPath = @path
 
-      tmplPath = "cord-t!#{ @path }"
+      require [
+        'cord!config'
+        'fs'
+      ], (config, fs) =>
+        tmplStructureFile = "#{ @getTemplatePath() }.structure.json"
+
+        fs.exists "./#{ config.PUBLIC_PREFIX }/#{ tmplStructureFile}", (exists) =>
+          if exists
+            require ["text!#{ tmplStructureFile }"], (tplJsonString) =>
+              jsonTpl = JSON.parse tplJsonString
+
+              if jsonTpl.extends? and _.isArray(jsonTpl.extends) and jsonTpl.extends.length > 0
+                console.log "extends: ", JSON.stringify(jsonTpl.extends, null, 2)
+                # extended widget, using only structure template
+
 
       if dust.cache[tmplPath]?
         @markRenderStarted()
         if @_dirtyChildren
           @cleanChildren()
-        dust.render tmplPath, @getBaseContext().push(@ctx), callback
+
+        tmpl = dust.cache[tmplPath]
+        if _.isFunction tmpl
+          dust.render tmplPath, @getBaseContext().push(@ctx), callback
+        else if _.isObject tmpl and tmpl.extends? and tmpl.widgets?
+          ""
+
+
         @markRenderFinished()
 
       else
 
         dustCompileCallback = (err, data) =>
           if err then throw err
-          dust.loadSource(dust.compile data, tmplPath)
+          dust.loadSource dust.compile(data, tmplPath)
           @renderTemplate callback
 
-        require [tmplPath], (tplString) =>
+        require ["cord-t!#{ tmplPath }"], (tplString) =>
           ## Этот хак позволяет не виснуть dustJs.
           # зависание происходит при {#deffered}..{#name}{>"//folder/file.html"/}
           setTimeout =>
@@ -317,10 +339,6 @@ define [
           console.log "childWidgetAdd (#{ @_childWidgetCounter }) #{ @constructor.name } -> #{ params.type }"
           console.log "Widget plugin before map #{ @constructor.name } -> #{ params.type }"
           chunk.map (chunk) =>
-
-            if !params.type
-              params.type = @ctx[params.getType]
-              params.name = @ctx[params.getType]
 
             console.log "Widget plugin in map #{ @constructor.name } -> #{ params.type }"
 
@@ -516,11 +534,6 @@ define [
           console.log "Compile mode widget plugin before map #{ @constructor.name } -> #{ params.type }"
           chunk.map (chunk) =>
 
-            # todo: спросить у Кости - что это значит?
-            if !params.type
-              params.type = @ctx[params.getType]
-              params.name = @ctx[params.getType]
-
             require [
               "cord-w!#{ params.type }"
               "cord-helper!#{ params.type }"
@@ -558,16 +571,20 @@ define [
                   dust.register tmpName, bodies.block
                   dust.render tmpName, ctx, (err, out) =>
                     if err then throw err
-                    chunk.end "<widget type=\"#{ params.type }\">#{ out }</widget>"
+                    chunk.end ""
                 else
-                  chunk.end "<widget type=\"#{ params.type }\"></widget>"
+                  chunk.end ""
 
         #
         # Inline - block of sub-template to place into surrounding widget's placeholder (compiler only)
         #
         inline: (chunk, context, bodies, params) =>
           chunk.map (chunk) =>
-            require ['cord!widgetCompiler'], (widgetCompiler) =>
+            require [
+              'cord!widgetCompiler'
+              'fs'
+              'cord!config'
+            ], (widgetCompiler, fs, config) =>
               if bodies.block?
                 id = params?.id ? _.uniqueId()
                 if context.surroundingWidget?
@@ -575,7 +592,13 @@ define [
 
                   sw = context.surroundingWidget
                   if sw.placeholders[ph]?
-                    templateName = "__inline_#{ id }_template.js"
+                    templateName = "__inline_template_#{ id }.html.js"
+                    tmplFullPath = "./#{ config.PUBLIC_PREFIX }/#{ @getPath() }/#{ templateName }"
+
+                    fs.writeFile tmplFullPath, bodies.block.toString(), (err)->
+                      if err then throw err
+                      console.log "template saved #{ tmplFullPath }"
+
                     widgetCompiler.addPlaceholderInline sw, ph, this, templateName
 
                     ctx = @getBaseContext().push(@ctx)
@@ -586,7 +609,7 @@ define [
 
                     dust.render tmpName, ctx, (err, out) =>
                       if err then throw err
-                      chunk.end "<inline type=\"#{ @constructor.name }\">#{ out }</inline>"
+                      chunk.end ""
 
                   else
                     throw "there is no placeholder with id \"#{ ph }\" in surrounding widget #{ sw.constructor.name } (id = #{ sw.ctx.id })!"

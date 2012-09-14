@@ -1,6 +1,6 @@
 define [], () ->
-  currentBundle = '';
-  currentConfig = {};
+  currentBundle = ''
+  currentConfig = {}
 
   cord =
 

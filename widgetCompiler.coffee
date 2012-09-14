@@ -25,6 +25,8 @@ define [
       ###
       Resets compiler's state
       ###
+      console.log "COMPILER: reset"
+
       @_extendPhaseFinished = false
       @_extendList = []
       @_widgets = {}
@@ -36,7 +38,7 @@ define [
     addExtendCall: (widget, params) ->
       console.log "COMPILER:addExtendCall #{ params.type }"
 
-      if @extendPhaseFinished
+      if @_extendPhaseFinished
         throw "'#extend' appeared in wrong place (extending widget #{ widget.constructor.name })!"
 
       widgetRef = @registerWidget widget
