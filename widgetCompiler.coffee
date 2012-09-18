@@ -21,7 +21,7 @@ define [
       @_widgets[widget.ctx.id]
 
 
-    reset: ->
+    reset: (rootWidget) ->
       ###
       Resets compiler's state
       ###
@@ -30,7 +30,11 @@ define [
       @_extendPhaseFinished = false
       @_extendList = []
       @_widgets = {}
+
+      rootInfo = @registerWidget rootWidget
+
       @structure =
+        rootWidget: rootInfo.uid
         extends: @_extendList
         widgets: @_widgets
 

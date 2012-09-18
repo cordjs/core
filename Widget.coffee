@@ -6,7 +6,8 @@ define [
   'cord-helper'
   'cord-s'
   'cord!isBrowser'
-], (_, widgetInitializer, dust, postal, cordHelper, cordCss, isBrowser) ->
+  'cord!StructureTemplate'
+], (_, widgetInitializer, dust, postal, cordHelper, cordCss, isBrowser, StructureTemplate) ->
 
   dust.onLoad = (tmplPath, callback) ->
     require ["cord-t!" + tmplPath], (tplString) ->
@@ -65,6 +66,10 @@ define [
 
 
     resetChildren: ->
+      ###
+      Cleanup all internal state about child widgets.
+      This method is called when performing full re-rendering of the widget.
+      ###
       @children = []
       @childByName = {}
       @childById = {}
@@ -100,6 +105,13 @@ define [
       @placeholders = {}
 
     clean: ->
+      ###
+      Kind of destructor.
+
+      Delete all event-subscriptions assosiated with the widget and do this recursively for all child widgets.
+      This have to be called when performing full re-render of some part of the widget tree to avoid double
+      subscriptions left from the dissapered widgets.
+      ###
       @cleanChildren()
       if @behaviour?
         @behaviour.clean()
@@ -108,9 +120,19 @@ define [
       @_subscriptions = []
 
     loadContext: (ctx) ->
+      ###
+      Manually set given context state of the widget.
+      This method is used when restoring state of the widget-tree of the page on the client-side after page was
+      rendered on the server-side.
+      ###
       @ctx = new Context(ctx)
 
     addSubscription: (subscription) ->
+      ###
+      Register event subscription associated with the widget.
+
+      All such subscritiptions need to be registered to be able to clean them up later (see @cleanChildren())
+      ###
       @_subscriptions.push subscription
 
     #
@@ -134,6 +156,9 @@ define [
         @renderJson callback
 
     fireAction: (action, params) ->
+      ###
+      Just call action (change context) and do not output anything
+      ###
       @["_#{ action }Action"] params, ->
 
 
@@ -160,45 +185,70 @@ define [
       widget.clean() for widget in @children
       @resetChildren()
 
+###
+Если структуры нет в кеше то
+  достать структуру в кеш
+Если в структуре массив extends непустой то
+  запустить экшны экстендов по цепочке (не рендерить их шаблоны), кроме последнего.
+  последнему экстенду запустить обычный рендер шаблона и назначить его корневым виджетом страницы
+Иначе
+  Если шаблона нет в кеше То
+    достать скомпилированный шаблон в кеш
+  назначить текущий виджет корневым на странице и запустить его обычный рендер
+###
+
     renderTemplate: (callback) ->
       tmplPath = @path
+      tmplStructureFile = "#{ @getTemplatePath() }.structure.json"
 
-      require [
-        'cord!config'
-        'fs'
-      ], (config, fs) =>
-        tmplStructureFile = "#{ @getTemplatePath() }.structure.json"
+      if dust.cache[tmplStructureFile]?
+        decideWayOfRendering()
+      else
+        # load structure template from json-file
+        require [
+          'cord!config'
+          'fs'
+        ], (config, fs) =>
+          fs.exists "./#{ config.PUBLIC_PREFIX }/#{ tmplStructureFile}", (exists) =>
+            if exists
+              require ["text!#{ tmplStructureFile }"], (tplJsonString) =>
+                dust.register tmplStructureFile, JSON.parse(tplJsonString)
+                decideWayOfRendering()
+            else
+              dust.register tmplStructureFile, {}
+              @_renderSelfTemplate tmplPath, callback
 
-        fs.exists "./#{ config.PUBLIC_PREFIX }/#{ tmplStructureFile}", (exists) =>
-          if exists
-            require ["text!#{ tmplStructureFile }"], (tplJsonString) =>
-              jsonTpl = JSON.parse tplJsonString
+      decideWayOfRendering = ->
+        ###
+        Decides wether to call extended template parsing of self-template parsing and calls it.
+        This closure if to avoid duplicating.
+        ###
 
-              if jsonTpl.extends? and _.isArray(jsonTpl.extends) and jsonTpl.extends.length > 0
-                console.log "extends: ", JSON.stringify(jsonTpl.extends, null, 2)
-                # extended widget, using only structure template
+        structTmpl = dust.cache[tmplStructureFile]
 
+        console.warn "there is no structure template for #{ tmplPath }" if not structTmpl.extends?
+
+        if structTmpl.extends? and _.isArray(structTmpl.extends) and structTmpl.extends.length > 0
+          # extended widget, using only structure template
+          @_renderExtendedTemplate structTmpl, callback
+        else
+          @_renderSelfTemplate callback
+
+
+    _renderSelfTemplate: (callback) ->
+      ###
+      Usual way of rendering template via dust.
+      ###
 
       if dust.cache[tmplPath]?
-        @markRenderStarted()
-        if @_dirtyChildren
-          @cleanChildren()
-
-        tmpl = dust.cache[tmplPath]
-        if _.isFunction tmpl
-          dust.render tmplPath, @getBaseContext().push(@ctx), callback
-        else if _.isObject tmpl and tmpl.extends? and tmpl.widgets?
-          ""
-
-
-        @markRenderFinished()
-
+        actualRender()
       else
+        # compile and load dust template
 
         dustCompileCallback = (err, data) =>
           if err then throw err
           dust.loadSource dust.compile(data, tmplPath)
-          @renderTemplate callback
+          actualRender()
 
         require ["cord-t!#{ tmplPath }"], (tplString) =>
           ## Этот хак позволяет не виснуть dustJs.
@@ -206,6 +256,40 @@ define [
           setTimeout =>
             dustCompileCallback null, tplString
           , 200
+
+      actualRender = ->
+        @markRenderStarted()
+        if @_dirtyChildren
+          @cleanChildren()
+        dust.render tmplPath, @getBaseContext().push(@ctx), callback
+        @markRenderFinished()
+
+
+    _renderExtendedTemplate: (struct, callback) ->
+      ###
+      Render template if it uses #extend plugin to extend another widget
+      ###
+
+      tmpl = new StructureTemplate struct, this
+
+      extendList = tmpl.extends
+      lastWidgetInfo = extendList.pop()
+
+      prevWidget = this
+      for wdtInfo in extendList
+        wdt = structTmpl.getWidget wdtInfo.widget
+        # todo: do not forget to take into account deferred values in prevWidget context
+        params = resolveParamRefs wdtInfo.params, prevWidget.ctx
+        params.__struct__ = tmpl
+        wdt.fireAction 'default', params
+        prevWidget = wdt
+
+      domRootWidget = structTmpl.getWidget lastWidgetInfo.widget
+      params = resolveParamRefs lastWidgetInfo.params, prevWidget.ctx
+
+      domRootWidget.show params, callback
+
+
 
     getInitCode: (parentId) ->
       parentStr = if parentId? then ", '#{ parentId }'" else ''
@@ -626,7 +710,7 @@ define [
           if @placeholders[id]?
             throw "duplicate placeholder id (#{ id }) for widget #{ @constructor.name }"
           @placeholders[id] = []
-          chunk.write "<placeholder id=\"#{ id }\" />"
+          chunk.write ""
           #chunk.write "<div id=\"ph-#{ @ctx.id }-#{ id }\"></div>"
 
 

@@ -31,7 +31,7 @@ define [
           rootWidget.setPath rootWidgetPath
 
           # todo: temporary!!! do not commit!
-#          widgetCompiler.reset()
+#          widgetCompiler.reset rootWidget
 
           widgetInitializer.setRootWidget rootWidget
 
