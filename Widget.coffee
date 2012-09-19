@@ -611,23 +611,35 @@ define [
           chunk.map (chunk) =>
             id = params?.id ? 'default'
 
-            console.log "placeholders for widget #{@constructor.name} placeholder id = #{id}", @placeholders[id]
+            waitCounter = 0
+            waitCounterFinish = false
 
             placeholderOut = []
+            showCallback = =>
+              chunk.end "<div id=\"ph-#{ @ctx.id }-#{ id }\">#{ placeholderOut.join '' }</div>"
 
             for info in @placeholders[id]
               if info.type == 'widget'
+                waitCounter++
                 info.widget.show info.params, (err, out) ->
                   if err then throw err
                   # todo: add class attribute support
                   placeholderOut.push "<#{ info.widget.rootTag } id=\"#{ info.widget.ctx.id }\">#{ out }</#{ info.widget.rootTag }>"
+                  waitCounter--
+                  if waitCounter == 0 and waitCounterFinish
+                    showCallback()
               else
+                waitCounter++
                 info.widget.renderInlineTemplate info.template, (err, out) ->
                   if err then throw err
                   placeholderOut.push "<div class=\"cord-inline\">#{ out }</div>"
+                  waitCounter--
+                  if waitCounter == 0 and waitCounterFinish
+                    showCallback()
 
-            chunk.end "<div id=\"ph-#{ @ctx.id }-#{ id }\">#{ placeholderOut.join '' }</div>"
-
+            waitCounterFinish = true
+            if waitCounter == 0
+              showCallback()
 
         #
         # Widget initialization script generator
