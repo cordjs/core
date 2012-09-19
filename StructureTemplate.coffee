@@ -31,12 +31,19 @@ define [], ->
         widget = new WidgetClass
         widget.setPath info.path
 
+        waitCounter = 0
+        waitCounterFinish = false
+
         resolvedPlaceholders = {}
 
-        # todo: make all this work in async (browser) environment
+        returnCallback = ->
+          widget.injectPlaceholders resolvedPlaceholders
+          callback widget
+
         for id, items of info.placeholders
           resolvedPlaceholders[id] = []
           for item in items
+            waitCounter++
             if item.widget?
               @getWidget item.widget, (widget) =>
                 @rootWidget.resolveParamRefs widget, item.params, (params) ->
@@ -44,12 +51,19 @@ define [], ->
                     type: 'widget'
                     widget: widget
                     params: params
+                  waitCounter--
+                  if waitCounter == 0 and waitCounterFinish
+                    returnCallback()
             else
               @getWidget item.inline, (widget) ->
                 resolvedPlaceholders[id].push
                   type: 'inline'
                   widget: widget
                   template: item.template
+                waitCounter--
+                if waitCounter == 0 and waitCounterFinish
+                  returnCallback()
 
-        widget.injectPlaceholders resolvedPlaceholders
-        callback widget
+        waitCounterFinish = true
+        if waitCounter == 0
+          returnCallback()
