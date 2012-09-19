@@ -357,6 +357,7 @@ define [
 
     renderInlineTemplate: (template, callback) ->
       tmplPath = "#{ @getPath() }/#{ template}"
+      # todo: check dust.cache and load js (not text)
       require ["text!#{ tmplPath }"], (tmplString) =>
         x = eval tmplString
         dust.render tmplPath, @getBaseContext().push(@ctx), callback
@@ -419,7 +420,7 @@ define [
         delete @behaviour
 
       behaviourClass = @getBehaviourClass()
-      if behaviourClass?
+      if behaviourClass
         require ["cord-w!#{ behaviourClass }"], (BehaviourClass) =>
           @behaviour = new BehaviourClass @
 
