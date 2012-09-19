@@ -609,6 +609,7 @@ define [
           @childWidgetAdd()
           chunk.map (chunk) =>
             id = params?.id ? 'default'
+            @placeholders[id] ?= []
 
             waitCounter = 0
             waitCounterFinish = false
