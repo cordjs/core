@@ -317,7 +317,6 @@ define [
             else
               # param with name "params" is a special case and we should expand the value as key-value pairs
               # of widget's params
-              console.log "#{ name } = \"^#{ value }\" ( -> #{ @ctx.value })"
               if name == 'params'
                 if _.isObject @ctx[value]
                   for subName, subValue of @ctx[value]
@@ -341,14 +340,17 @@ define [
       Render template if it uses #extend plugin to extend another widget
       ###
 
-      console.log @constructor.name, struct.rootWidget
-
       tmpl = new StructureTemplate struct, this
 
+      # todo: change format to use only one extend
       extendWidgetInfo = tmpl.struct.extends[0]
-      console.log extendWidgetInfo
 
       tmpl.getWidget extendWidgetInfo.widget, (extendWidget) =>
+
+        @children.push extendWidget
+        #@childByName[params.name] = extendWidget if params.name?
+        @childById[extendWidget.ctx.id] = extendWidget
+
         @resolveParamRefs extendWidget, extendWidgetInfo.params, (params) ->
           extendWidget.show params, callback
 
@@ -493,10 +495,7 @@ define [
         #
         widget: (chunk, context, bodies, params) =>
           @childWidgetAdd()
-#          console.log "Widget plugin before map #{ @constructor.name } -> #{ params.type }"
           chunk.map (chunk) =>
-
-#            console.log "Widget plugin in map #{ @constructor.name } -> #{ params.type }"
 
             require [
               "cord-w!#{ params.type }"
@@ -523,7 +522,6 @@ define [
                     tmpName = "tmp#{ _.uniqueId() }"
                     dust.register tmpName, bodies.block
                     dust.render tmpName, context, (err, out) =>
-                      console.log out
                       chunk.end "<#{ widget.rootTag } id=\"#{ widget.ctx.id }\"#{ classAttr }>#{ output }</#{ widget.rootTag }>"
                   else
                     chunk.end "<#{ widget.rootTag } id=\"#{ widget.ctx.id }\"#{ classAttr }>#{ output }</#{ widget.rootTag }>"
@@ -553,7 +551,6 @@ define [
                     else
                       # param with name "params" is a special case and we should expand the value as key-value pairs
                       # of widget's params
-                      console.log "#{ name } = \"^#{ value }\" ( -> #{ @ctx.value })"
                       if name == 'params'
                         if _.isObject @ctx[value]
                           for subName, subValue of @ctx[value]
@@ -608,6 +605,7 @@ define [
         # Placeholder - point of extension of the widget (compiler version)
         #
         placeholder: (chunk, context, bodies, params) =>
+          @childWidgetAdd()
           chunk.map (chunk) =>
             id = params?.id ? 'default'
 
@@ -616,11 +614,17 @@ define [
 
             placeholderOut = []
             showCallback = =>
+              @childWidgetComplete()
               chunk.end "<div id=\"ph-#{ @ctx.id }-#{ id }\">#{ placeholderOut.join '' }</div>"
 
             for info in @placeholders[id]
               if info.type == 'widget'
                 waitCounter++
+
+                @children.push info.widget
+                #@childByName[params.name] = widget if params.name?
+                @childById[info.widget.ctx.id] = info.widget
+
                 info.widget.show info.params, (err, out) ->
                   if err then throw err
                   # todo: add class attribute support
@@ -644,10 +648,11 @@ define [
         #
         # Widget initialization script generator
         #
-        widgetInitializer: (chunk, context, bodies, params) ->
-          chunk.map (chunk) ->
+        widgetInitializer: (chunk, context, bodies, params) =>
+          chunk.map (chunk) =>
             postal.subscribe
-              topic: "widget.#{ widgetInitializer.rootWidget.ctx.id }.render.children.complete"
+              #topic: "widget.#{ widgetInitializer.rootWidget.ctx.id }.render.children.complete"
+              topic: "widget.#{ @ctx.id }.render.children.complete"
               callback: ->
                 chunk.end widgetInitializer.getTemplateCode()
 
@@ -790,7 +795,7 @@ define [
                   widgetCompiler.addPlaceholderInline sw, ph, this, templateName
 
                   ctx = @getBaseContext().push(@ctx)
-                  ctx.surroundingWidget = sw
+                #  ctx.surroundingWidget = sw
 
                   tmpName = "tmp#{ _.uniqueId() }"
                   dust.register tmpName, bodies.block

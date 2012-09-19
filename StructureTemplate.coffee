@@ -12,7 +12,6 @@ define [], ->
 
 
     getWidget: (widgetRefId, callback) ->
-      console.log 'getWidget', widgetRefId
       if @widgets[widgetRefId]?
         callback @widgets[widgetRefId]
       else
@@ -22,7 +21,6 @@ define [], ->
 
 
     _initWidget: (widgetRefId, callback) ->
-      console.log '_initWidget', widgetRefId
       info = @struct.widgets[widgetRefId]
       require [
         "cord-w!#{ info.path }"
