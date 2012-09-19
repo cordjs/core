@@ -149,6 +149,7 @@ define [
 
     showAction: (action, params, callback) ->
       @["_#{ action }Action"] params, =>
+        console.log "#{ @constructor.name}::_#{ action }Action: params:", params, " context:", @ctx
         @renderTemplate callback
 
     jsonAction: (action, params, callback) ->
@@ -290,58 +291,55 @@ define [
             dustCompileCallback null, tplString
           , 200
 
+    resolveParamRefs: (widget, params, callback) ->
+      waitCounter = 0
+      waitCounterFinish = false
+
+      bindings = {}
+
+      # waiting for parent's necessary context-variables availability before rendering widget...
+      for name, value of params
+        if name != 'name' and name != 'type'
+
+          if value.charAt(0) == '^'
+            value = value.slice 1
+            bindings[value] = name
+
+            # if context value is deferred, than waiting asyncronously...
+            if @ctx.isDeferred value
+              waitCounter++
+              @subscribeValueChange params, name, value, =>
+                waitCounter--
+                if waitCounter == 0 and waitCounterFinish
+                  callback params
+
+            # otherwise just getting it's value syncronously
+            else
+              # param with name "params" is a special case and we should expand the value as key-value pairs
+              # of widget's params
+              console.log "#{ name } = \"^#{ value }\" ( -> #{ @ctx.value })"
+              if name == 'params'
+                if _.isObject @ctx[value]
+                  for subName, subValue of @ctx[value]
+                    params[subName] = subValue
+                else
+                  # todo: warning?
+              else
+                params[name] = @ctx[value]
+
+      # todo: potentially not cross-browser code!
+      if Object.keys(bindings).length != 0
+        @childBindings[widget.ctx.id] = bindings
+
+      waitCounterFinish = true
+      if waitCounter == 0
+        callback params
 
 
     _renderExtendedTemplate: (struct, callback) ->
       ###
       Render template if it uses #extend plugin to extend another widget
       ###
-
-      resolveParamRefs = (widget, params, callback) =>
-        waitCounter = 0
-        waitCounterFinish = false
-
-        bindings = {}
-
-        # waiting for parent's necessary context-variables availability before rendering widget...
-        for name, value of params
-          if name != 'name' and name != 'type'
-
-            if value.charAt(0) == '^'
-              value = value.slice 1
-              bindings[value] = name
-
-              # if context value is deferred, than waiting asyncronously...
-              if @ctx.isDeferred value
-                waitCounter++
-                @subscribeValueChange params, name, value, =>
-                  waitCounter--
-                  if waitCounter == 0 and waitCounterFinish
-                    callback params
-
-              # otherwise just getting it's value syncronously
-              else
-                # param with name "params" is a special case and we should expand the value as key-value pairs
-                # of widget's params
-                console.log "#{ name } = \"^#{ value }\" ( -> #{ @ctx.value })"
-                if name == 'params'
-                  if _.isObject @ctx[value]
-                    for subName, subValue of @ctx[value]
-                      params[subName] = subValue
-                  else
-                    # todo: warning?
-                else
-                  params[name] = @ctx[value]
-
-        # todo: potentially not cross-browser code!
-        if Object.keys(bindings).length != 0
-          @childBindings[widget.ctx.id] = bindings
-
-        waitCounterFinish = true
-        if waitCounter == 0
-          callback params
-
-
 
       console.log @constructor.name, struct.rootWidget
 
@@ -350,8 +348,8 @@ define [
       extendWidgetInfo = tmpl.struct.extends[0]
       console.log extendWidgetInfo
 
-      tmpl.getWidget extendWidgetInfo.widget, (extendWidget) ->
-        resolveParamRefs extendWidget, extendWidgetInfo.params, (params) ->
+      tmpl.getWidget extendWidgetInfo.widget, (extendWidget) =>
+        @resolveParamRefs extendWidget, extendWidgetInfo.params, (params) ->
           extendWidget.show params, callback
 
 
@@ -613,7 +611,7 @@ define [
           chunk.map (chunk) =>
             id = params?.id ? 'default'
 
-            console.log "placeholders for widget #{@constructor.name} placeholder id = #{id}", @placeholders
+            console.log "placeholders for widget #{@constructor.name} placeholder id = #{id}", @placeholders[id]
 
             placeholderOut = []
 

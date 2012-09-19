@@ -38,11 +38,12 @@ define [], ->
           resolvedPlaceholders[id] = []
           for item in items
             if item.widget?
-              @getWidget item.widget, (widget) ->
-                resolvedPlaceholders[id].push
-                  type: 'widget'
-                  widget: widget
-                  params: item.params
+              @getWidget item.widget, (widget) =>
+                @rootWidget.resolveParamRefs widget, item.params, (params) ->
+                  resolvedPlaceholders[id].push
+                    type: 'widget'
+                    widget: widget
+                    params: params
             else
               @getWidget item.inline, (widget) ->
                 resolvedPlaceholders[id].push
