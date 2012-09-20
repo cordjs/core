@@ -17,6 +17,8 @@ define [
 
     _pushBindings: {}
 
+    _currentExtendList: []
+
     setRootWidget: (widget) ->
       @rootWidget = widget
 
@@ -47,7 +49,7 @@ define [
      #
      # @browser-only
      ##
-    init: (widgetPath, ctx, namedChilds, childBindings, parentId) ->
+    init: (widgetPath, ctx, namedChilds, childBindings, isExtended, parentId) ->
       @_loadingCount++
       @_widgetOrder.push ctx.id
 
@@ -61,9 +63,11 @@ define [
         widget.setPath widgetPath
         widget.loadContext ctx
 
+        @_currentExtendList.push widget if isExtended
+
         if @_pushBindings[ctx.id]?
           for ctxName, paramName of @_pushBindings[ctx.id]
-            console.log "#{ paramName }=\"^#{ ctxName }\" for #{ ctx.id }"
+            #console.log "#{ paramName }=\"^#{ ctxName }\" for #{ ctx.id }"
             @subscribePushBinding parentId, ctxName, widget, paramName
 
         @widgets[ctx.id] =
@@ -133,6 +137,33 @@ define [
           deferAggregator.fireAction childWidget, 'default', params
       childWidget.addSubscription subscription
       subscription
+
+
+    injectWidget: (widgetPath, action, params) ->
+      found = false
+      counter = 0
+      for extendWidget in @_currentExtendList
+        console.log "injectWidget: #{ extendWidget.constructor.name } - #{ extendWidget.path } == #{ widgetPath }"
+        if widgetPath == extendWidget.path
+          found = true
+          # removing all extend tree below found widget
+          @removeExtendWidget(i) for i in [0..counter]
+          extendWidget.fireAction action, params
+          break
+        counter++
+
+      if not found
+        require [
+          "cord-w!#{ widgetPath }"
+          "cord-helper!#{ widgetPath }"
+        ], (WidgetClass, widgetPath1) ->
+
+          widget = new WidgetClass
+          widget.setPath widgetPath1
+
+          widget.injectAction action, params
+
+
 
 
   new WidgetInitializer

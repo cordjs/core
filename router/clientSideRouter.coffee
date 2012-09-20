@@ -51,20 +51,16 @@ define [
 
           @setCurrentBundle widgetPath
 
-          require ["cord-w!#{ widgetPath }"], (WidgetClass) ->
-            if widgetInitializer.rootWidget?
-              widget = widgetInitializer.rootWidget
-              widget.setPath? widgetPath
+          if widgetInitializer.rootWidget?
+            widgetInitializer.injectWidget widgetPath, action, params
+#            widgetInitializer.setRootWidget newRootWidget
+          else
+            throw "root widget is undefined!"
 
-              widget.fireAction action, params
-            else
-              throw "root widget is undefined!"
-
-      that = @
       postal.subscribe
         topic: 'router.navigate'
-        callback: (args...) ->
-          that.navigate args...
+        callback: (args...) =>
+          @navigate args...
 
 
     matchRoute: (path, options) ->

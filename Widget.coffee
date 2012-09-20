@@ -42,6 +42,8 @@ define [
     _renderStarted: false
     _childWidgetCounter: 0
 
+    _isExtended: false
+
     getPath: ->
       if @path?
         "#{ @path }"
@@ -219,6 +221,67 @@ define [
             , 200
 
 
+    injectAction: (action, params) ->
+      ###
+      @browser-only
+      ###
+
+      @["_#{ action }Action"] params, =>
+        tmplStructureFile = "#{ @getTemplatePath() }.structure.json"
+        if dust.cache[tmplStructureFile]?
+          @_injectRender dust.cache[tmplStructureFile]
+        else
+          require ["text!#{ tmplStructureFile }"], (jsonString) =>
+            dust.register tmplStructureFile, JSON.parse(jsonString)
+            @_injectRender dust.cache[tmplStructureFile]
+
+    _injectRender: (struct) ->
+      ###
+      @browser-only
+      ###
+
+      tmpl = new StructureTemplate struct, this
+
+      # todo: change format to use only one extend
+      extendWidgetInfo = tmpl.struct.extends[0]
+      if extendWidgetInfo?
+        extendWidget = widgetInitializer.findAndCutMatchingExtendWidget extendWidgetInfo.path
+        if extendWidget?
+          tmpl.assignWidget extendWidgetInfo.uid, extendWidget
+          tmpl.reinjectPlaceholders extendWidgetInfo
+
+          @children.push extendWidget
+          #@childByName[params.name] = extendWidget if params.name?
+          @childById[extendWidget.ctx.id] = extendWidget
+
+          @resolveParamRefs extendWidget, extendWidgetInfo.params, (params) ->
+            extendWidget.fireAction 'default', params
+        else
+          tmpl.getWidget extendWidgetInfo.widget, (extendWidget) =>
+
+            @children.push extendWidget
+            #@childByName[params.name] = extendWidget if params.name?
+            @childById[extendWidget.ctx.id] = extendWidget
+
+            @resolveParamRefs extendWidget, extendWidgetInfo.params, (params) ->
+              extendWidget.injectAction 'default', params
+      else
+        widgetInitializer.removeOldWidgets()
+        tmpl.getWidget extendWidgetInfo.widget, (extendWidget) =>
+
+          @children.push extendWidget
+          #@childByName[params.name] = extendWidget if params.name?
+          @childById[extendWidget.ctx.id] = extendWidget
+
+          @resolveParamRefs extendWidget, extendWidgetInfo.params, (params) ->
+            extendWidget.showAction 'default', params, (err, out) ->
+              if err then throw err
+              document.write out
+              extendWidget.browserInit()
+
+
+
+
     renderTemplate: (callback) ->
       console.log "renderTemplate(#{ @constructor.name })"
 
@@ -347,6 +410,8 @@ define [
 
       tmpl.getWidget extendWidgetInfo.widget, (extendWidget) =>
 
+        extendWidget._isExtended = true if @_isExtended
+
         @children.push extendWidget
         #@childByName[params.name] = extendWidget if params.name?
         @childById[extendWidget.ctx.id] = extendWidget
@@ -375,7 +440,7 @@ define [
         namedChilds[widget.ctx.id] = name
 
       """
-      wi.init('#{ @getPath() }', #{ JSON.stringify @ctx }, #{ JSON.stringify namedChilds }, #{ JSON.stringify @childBindings }#{ parentStr });
+      wi.init('#{ @getPath() }', #{ JSON.stringify @ctx }, #{ JSON.stringify namedChilds }, #{ JSON.stringify @childBindings }, #{ @_isExtended }#{ parentStr });
       #{ (widget.getInitCode(@ctx.id) for widget in @children).join '' }
       """
 

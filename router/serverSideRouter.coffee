@@ -39,6 +39,7 @@ define [
           else
             rootWidget = new RootWidgetClass
             rootWidget.setPath rootWidgetPath
+            rootWidget._isExtended = true
             widgetInitializer.setRootWidget rootWidget
 
             rootWidget.showAction action, params, (err, output) ->
