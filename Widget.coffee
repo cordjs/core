@@ -452,7 +452,7 @@ define [
 
     getBehaviourClass: ->
       if not @behaviourClass?
-        @behaviourClass = "#{ @getPath() }Behaviour"
+        @behaviourClass = "#{ @constructor.name }Behaviour"
 
       if @behaviourClass == false
         null
@@ -467,7 +467,7 @@ define [
 
       behaviourClass = @getBehaviourClass()
       if behaviourClass
-        require ["cord-w!#{ behaviourClass }"], (BehaviourClass) =>
+        require ["cord!bundles/#{ @getDir() }/#{ behaviourClass }"], (BehaviourClass) =>
           @behaviour = new BehaviourClass @
 
       @getWidgetCss()
