@@ -3,11 +3,11 @@ define [
   'cord!/cord/core/widgetInitializer'
   'dustjs-linkedin'
   'postal'
-  'cord-helper'
   'cord-s'
   'cord!isBrowser'
   'cord!StructureTemplate'
-], (_, widgetInitializer, dust, postal, cordHelper, cordCss, isBrowser, StructureTemplate) ->
+  'cord!config'
+], (_, widgetInitializer, dust, postal, cordCss, isBrowser, StructureTemplate, config) ->
 
   dust.onLoad = (tmplPath, callback) ->
     require ["cord-t!" + tmplPath], (tplString) ->
@@ -31,8 +31,6 @@ define [
     children: null
     childByName: null
 
-    path: null
-
     behaviourClass: null
 
     cssClass: null
@@ -45,26 +43,13 @@ define [
     _isExtended: false
 
     getPath: ->
-      if @path?
-        "#{ @path }"
-      else
-        throw "path is not defined for widget #{@constructor.name}"
+      @constructor.path
 
-    setPath: (path)  ->
-      require [
-        'cord-helper'
-      ], (cordHelper) =>
-        @path = cordHelper.getPathToWidget path
+    getDir: ->
+      @constructor.relativeDirPath
 
-    setCurrentBundle: (path) ->
-      require [
-        'cord-helper'
-      ], (cordHelper) =>
-        @path = cordHelper.getPathToWidget path if ! @path?
-        @pathBundle = cordHelper.getPathToBundle path
-        require.config
-          paths:
-            'currentBundle': @pathBundle
+    getBundle: ->
+      @constructor.bundle
 
 
     resetChildren: ->
@@ -180,8 +165,7 @@ define [
 
 
     getTemplatePath: ->
-      className = @constructor.name
-      "#{ @path }/#{ className.charAt(0).toLowerCase() + className.slice(1) }.html"
+      "#{ @getDir() }/#{ @constructor.dirName }.html"
 
 
     cleanChildren: ->
@@ -201,7 +185,7 @@ define [
       if not @compileMode
         callback 'not in compile mode', ''
       else
-        tmplPath = @path
+        tmplPath = @getPath()
 
         if dust.cache[tmplPath]?
           actualRender()
@@ -293,7 +277,7 @@ define [
 
         structTmpl = dust.cache[tmplStructureFile]
 
-        console.warn "there is no structure template for #{ @path }" if not structTmpl.extends?
+        console.warn "there is no structure template for #{ @getPath() }" if not structTmpl.extends?
 
         if structTmpl.extends? and _.isArray(structTmpl.extends) and structTmpl.extends.length > 0
           # extended widget, using only structure template
@@ -301,17 +285,14 @@ define [
         else
           @_renderSelfTemplate callback
 
-      tmplStructureFile = "#{ @getTemplatePath() }.structure.json"
+      tmplStructureFile = "bundles/#{ @getTemplatePath() }.structure.json"
 
       if dust.cache[tmplStructureFile]?
         decideWayOfRendering()
       else
         # load structure template from json-file
-        require [
-          'cord!config'
-          'fs'
-        ], (config, fs) =>
-          fs.exists "./#{ config.PUBLIC_PREFIX }/#{ tmplStructureFile}", (exists) =>
+        require ['fs'], (fs) =>
+          fs.exists "./#{ config.PUBLIC_PREFIX }/#{ tmplStructureFile }", (exists) =>
             if exists
               require ["text!#{ tmplStructureFile }"], (tplJsonString) =>
                 dust.register tmplStructureFile, JSON.parse(tplJsonString)
@@ -335,7 +316,7 @@ define [
         dust.render tmplPath, @getBaseContext().push(@ctx), callback
         @markRenderFinished()
 
-      tmplPath = @path
+      tmplPath = @getPath()
 
       if dust.cache[tmplPath]?
         actualRender()
@@ -421,9 +402,9 @@ define [
 
 
     renderInlineTemplate: (template, callback) ->
-      tmplPath = "#{ @getPath() }/#{ template}"
+      tmplPath = "#{ @getDir() }/#{ template }"
       # todo: check dust.cache and load js (not text)
-      require ["text!#{ tmplPath }"], (tmplString) =>
+      require ["text!bundles/#{ tmplPath }"], (tmplString) =>
         x = eval tmplString
         dust.render tmplPath, @getBaseContext().push(@ctx), callback
 
@@ -451,7 +432,7 @@ define [
       if @css? and typeof @css is 'object'
         html = (cordCss.getHtml "cord-s!#{ css }" for css in @css).join ''
       else if @css?
-        html = cordCss.getHtml @path, true
+        html = cordCss.getHtml @path1, true
 
       """#{ html }#{ (widget.getInitCss(@ctx.id) for widget in @children).join '' }"""
 
@@ -462,7 +443,7 @@ define [
       if @css? and typeof @css is 'object'
         cordCss.insertCss "cord-s!#{ css }" for css in @css
       else if @css?
-        cordCss.insertCss @path, true
+        cordCss.insertCss @path1, true
 
 
     registerChild: (child, name) ->
@@ -471,7 +452,7 @@ define [
 
     getBehaviourClass: ->
       if not @behaviourClass?
-        @behaviourClass = "#{ @path },Behaviour"
+        @behaviourClass = "#{ @getPath() }Behaviour"
 
       if @behaviourClass == false
         null
@@ -563,13 +544,9 @@ define [
           @childWidgetAdd()
           chunk.map (chunk) =>
 
-            require [
-              "cord-w!#{ params.type }"
-              "cord-helper!#{ params.type }"
-            ], (WidgetClass, cordHelper) =>
+            require ["cord-w!#{ params.type }@#{ @getBundle() }"], (WidgetClass) =>
 
               widget = new WidgetClass
-              widget.setPath cordHelper
 
               @children.push widget
               @childByName[params.name] = widget if params.name?
@@ -766,13 +743,11 @@ define [
               console.log "WARNING: 'placeholder' param is useless for 'extend' section"
 
             require [
-              "cord-w!#{ params.type }"
-              "cord-helper!#{ params.type }"
+              "cord-w!#{ params.type }@#{ @getBundle() }"
               "cord!widgetCompiler"
-            ], (WidgetClass, cordHelper, widgetCompiler) =>
+            ], (WidgetClass, widgetCompiler) =>
 
               widget = new WidgetClass @compileMode
-              widget.setPath cordHelper
 
               widgetCompiler.addExtendCall widget, params
 
@@ -797,13 +772,11 @@ define [
           chunk.map (chunk) =>
 
             require [
-              "cord-w!#{ params.type }"
-              "cord-helper!#{ params.type }"
+              "cord-w!#{ params.type }@#{ @getBundle() }"
               "cord!widgetCompiler"
-            ], (WidgetClass, cordHelper, widgetCompiler) =>
+            ], (WidgetClass, widgetCompiler) =>
 
-              widget = new WidgetClass @compileMode
-              widget.setPath cordHelper
+              widget = new WidgetClass true
 
               @children.push widget
               @childByName[params.name] = widget if params.name?
@@ -839,8 +812,7 @@ define [
             require [
               'cord!widgetCompiler'
               'fs'
-              'cord!config'
-            ], (widgetCompiler, fs, config) =>
+            ], (widgetCompiler, fs) =>
               if bodies.block?
                 id = params?.id ? _.uniqueId()
                 if context.surroundingWidget?
@@ -849,13 +821,13 @@ define [
                   sw = context.surroundingWidget
 
                   templateName = "__inline_template_#{ id }.html.js"
-                  tmplPath = "#{ @getPath() }/#{ templateName }"
-                  tmplFullPath = "./#{ config.PUBLIC_PREFIX }/#{ tmplPath }"
+                  tmplPath = "#{ @getDir() }/#{ templateName }"
+                  # todo: detect bundles or vendor dir correctly
+                  tmplFullPath = "./#{ config.PUBLIC_PREFIX }/bundles/#{ tmplPath }"
 
                   tmplString = "(function(){dust.register(\"#{ tmplPath }\", #{ bodies.block.name }); #{ bodies.block.toString() }; return #{ bodies.block.name };})();"
 
                   fs.writeFile tmplFullPath, tmplString, (err)->
-                    console.log 'function-name: ', bodies.block.name, dust.compile("Hello {name}!", "intro");
                     if err then throw err
                     console.log "template saved #{ tmplFullPath }"
 

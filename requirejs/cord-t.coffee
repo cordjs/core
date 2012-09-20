@@ -1,11 +1,6 @@
-define [
-  'module'
-  'cord-helper'
-], (module, helper) ->
-  cord =
+define ['cord-w'], (cord) ->
 
-    load: (name, req, onLoad, config) ->
-      path = helper.getPath name, config, module.id
-      path = "#{ path }.html" if ! (path.split('.').pop().length <= 4)
-      req ["text!#{ path }"], (data) ->
-        onLoad data
+  load: (name, req, load, config) ->
+    info = cord.getFullInfo name
+    req ["text!#{ config.paths.pathBundles }/#{ info.relativeDirPath }/#{ info.dirName }.html"], (data) ->
+      load data

@@ -1,7 +1,4 @@
-define [
-  'cord-helper'
-  'underscore'
-], (cordHelper, _) ->
+define ['underscore'], (_) ->
 
   class Router
 
@@ -31,9 +28,6 @@ define [
       if path.substr(0,1) isnt '/'
         path = '/' + path
       path.match(/[^#?\s]+/)[0] || '/'
-
-    setCurrentBundle: (path) ->
-      cordHelper.setCurrentBundle path
 
 #    @add: (path, callback) ->
 #      if (typeof path is 'object' and path not instanceof RegExp)

@@ -100,6 +100,6 @@ define [], () ->
     widgetName: (widgetName) ->
       "#{ widgetName.charAt(0).toUpperCase() }#{ widgetName.slice(1) }"
 
-    load: (name, req, onLoad, config) ->
+    load: (name, req, load, config) ->
       path = cord.getPath name, config
-      onLoad path
+      load path

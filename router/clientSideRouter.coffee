@@ -49,8 +49,6 @@ define [
           action = route.action
           params = route.params
 
-          @setCurrentBundle widgetPath
-
           if widgetInitializer.rootWidget?
             widgetInitializer.injectWidget widgetPath, action, params
 #            widgetInitializer.setRootWidget newRootWidget

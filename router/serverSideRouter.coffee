@@ -18,19 +18,15 @@ define [
         action = route.action
         params = _.extend path.query, route.params
 
-        @setCurrentBundle rootWidgetPath
-
         require [
           "cord-w!#{ rootWidgetPath }"
-          "cord-helper!#{ rootWidgetPath }"
           'cord!widgetCompiler'
-        ], (RootWidgetClass, rootWidgetPath, widgetCompiler) =>
+        ], (RootWidgetClass, widgetCompiler) =>
           res.writeHead 200, 'Content-Type': 'text/html'
 
           compileMode = false
           if compileMode
             rootWidget = new RootWidgetClass true
-            rootWidget.setPath rootWidgetPath
             widgetCompiler.reset rootWidget
             rootWidget.compileTemplate (err, output) ->
               if err then throw err
@@ -38,7 +34,6 @@ define [
               res.end widgetCompiler.getStructureCode()
           else
             rootWidget = new RootWidgetClass
-            rootWidget.setPath rootWidgetPath
             rootWidget._isExtended = true
             widgetInitializer.setRootWidget rootWidget
 

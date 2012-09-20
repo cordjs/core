@@ -22,12 +22,8 @@ define [], ->
 
     _initWidget: (widgetRefId, callback) ->
       info = @struct.widgets[widgetRefId]
-      require [
-        "cord-w!#{ info.path }"
-#        "cord-helper!#{ info.path }"
-      ], (WidgetClass) =>
+      require ["cord-w!#{ info.path }"], (WidgetClass) =>
         widget = new WidgetClass
-        widget.setPath info.path
 
         waitCounter = 0
         waitCounterFinish = false

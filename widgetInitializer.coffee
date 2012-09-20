@@ -1,8 +1,7 @@
 define [
   'postal'
-  'cord-helper'
   'cord!deferAggregator'
-], (postal, cordHelper, deferAggregator) ->
+], (postal, deferAggregator) ->
 
   class WidgetInitializer
     widgets: {}
@@ -22,15 +21,11 @@ define [
     setRootWidget: (widget) ->
       @rootWidget = widget
 
-    setCurrentBundle: (bundle) ->
-      cordHelper.setCurrentBundle bundle, true
-
     getTemplateCode: ->
       """
       <script data-main="/bundles/cord/core/browserInit" src="/vendor/requirejs/require.js"></script>
       <script>
           function cordcorewidgetinitializerbrowser(wi) {
-            wi.setCurrentBundle('#{ cordHelper.getCurrentBundle() }');
             #{ @rootWidget.getInitCode() }
             wi.endInit();
           };
@@ -60,7 +55,6 @@ define [
 
       require ["cord-w!#{ widgetPath }"], (WidgetClass) =>
         widget = new WidgetClass ctx.id
-        widget.setPath widgetPath
         widget.loadContext ctx
 
         @_currentExtendList.push widget if isExtended
@@ -153,17 +147,9 @@ define [
         counter++
 
       if not found
-        require [
-          "cord-w!#{ widgetPath }"
-          "cord-helper!#{ widgetPath }"
-        ], (WidgetClass, widgetPath1) ->
-
+        require ["cord-w!#{ widgetPath }"], (WidgetClass) ->
           widget = new WidgetClass
-          widget.setPath widgetPath1
-
           widget.injectAction action, params
-
-
 
 
   new WidgetInitializer
