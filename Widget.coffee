@@ -211,7 +211,7 @@ define [
       ###
 
       @["_#{ action }Action"] params, =>
-        tmplStructureFile = "#{ @getTemplatePath() }.structure.json"
+        tmplStructureFile = "bundles/#{ @getTemplatePath() }.structure.json"
         if dust.cache[tmplStructureFile]?
           @_injectRender dust.cache[tmplStructureFile]
         else
@@ -227,19 +227,18 @@ define [
       tmpl = new StructureTemplate struct, this
 
       # todo: change format to use only one extend
-      extendWidgetInfo = tmpl.struct.extends[0]
+      extendWidgetInfo = tmpl.struct.extend
       if extendWidgetInfo?
-        extendWidget = widgetInitializer.findAndCutMatchingExtendWidget extendWidgetInfo.path
+        extendWidget = widgetInitializer.findAndCutMatchingExtendWidget tmpl.struct.widgets[extendWidgetInfo.widget].path
         if extendWidget?
           tmpl.assignWidget extendWidgetInfo.uid, extendWidget
-          tmpl.reinjectPlaceholders extendWidgetInfo
+          tmpl.reinjectPlaceholders extendWidgetInfo, =>
+            @children.push extendWidget
+            #@childByName[params.name] = extendWidget if params.name?
+            @childById[extendWidget.ctx.id] = extendWidget
 
-          @children.push extendWidget
-          #@childByName[params.name] = extendWidget if params.name?
-          @childById[extendWidget.ctx.id] = extendWidget
-
-          @resolveParamRefs extendWidget, extendWidgetInfo.params, (params) ->
-            extendWidget.fireAction 'default', params
+            @resolveParamRefs extendWidget, extendWidgetInfo.params, (params) ->
+              extendWidget.fireAction 'default', params
         else
           tmpl.getWidget extendWidgetInfo.widget, (extendWidget) =>
 
@@ -277,9 +276,9 @@ define [
 
         structTmpl = dust.cache[tmplStructureFile]
 
-        console.warn "there is no structure template for #{ @getPath() }" if not structTmpl.extends?
+        console.warn "there is no structure template for #{ @getPath() }" if not structTmpl.extend?
 
-        if structTmpl.extends? and _.isArray(structTmpl.extends) and structTmpl.extends.length > 0
+        if structTmpl.extend?
           # extended widget, using only structure template
           @_renderExtendedTemplate structTmpl, callback
         else
@@ -387,7 +386,7 @@ define [
       tmpl = new StructureTemplate struct, this
 
       # todo: change format to use only one extend
-      extendWidgetInfo = tmpl.struct.extends[0]
+      extendWidgetInfo = tmpl.struct.extend
 
       tmpl.getWidget extendWidgetInfo.widget, (extendWidget) =>
 
@@ -705,7 +704,7 @@ define [
         css: (chunk, context, bodies, params) ->
           chunk.map (chunk) ->
             postal.subscribe
-              topic: "widget.#{ widgetInitializer.rootWidget.ctx.id }.render.children.complete"
+              topic: "widget.#{ widgetInitializer.ownerWidget.ctx.id }.render.children.complete"
               callback: ->
                 chunk.end widgetInitializer.getTemplateCss()
 

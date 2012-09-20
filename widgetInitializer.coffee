@@ -137,8 +137,8 @@ define [
       found = false
       counter = 0
       for extendWidget in @_currentExtendList
-        console.log "injectWidget: #{ extendWidget.constructor.name } - #{ extendWidget.path } == #{ widgetPath }"
-        if widgetPath == extendWidget.path
+        console.log "injectWidget: #{ extendWidget.constructor.name } - #{ extendWidget.getPath() } == #{ widgetPath }"
+        if widgetPath == extendWidget.getPath()
           found = true
           # removing all extend tree below found widget
           @removeExtendWidget(i) for i in [0..counter]
@@ -151,5 +151,23 @@ define [
           widget = new WidgetClass
           widget.injectAction action, params
 
+    findAndCutMatchingExtendWidget: (widgetPath) ->
+      result = null
+      counter = 0
+      for extendWidget in @_currentExtendList
+        console.log "findAndCutMatchingExtendWidget: #{ extendWidget.constructor.name } - #{ extendWidget.getPath() } == #{ widgetPath }"
+        if widgetPath == extendWidget.getPath()
+          found = true
+          # removing all extend tree below found widget
+          @removeRootExtendWidget() for i in [0..counter]
+          result = extendWidget
+          break
+        counter++
+      result
+
+    removeRootExtendWidget: ->
+      widget = @_currentExtendList.shift()
+      widget.clean()
+      # todo: add some more removal (from dom placeholders)
 
   new WidgetInitializer

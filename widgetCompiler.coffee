@@ -6,7 +6,7 @@ define [
 
     structure: {}
 
-    _extendList: []
+    _extend: null
     _widgets: {}
 
     _extendPhaseFinished: false
@@ -21,21 +21,21 @@ define [
       @_widgets[widget.ctx.id]
 
 
-    reset: (rootWidget) ->
+    reset: (ownerWidget) ->
       ###
       Resets compiler's state
       ###
       console.log "COMPILER: reset"
 
       @_extendPhaseFinished = false
-      @_extendList = []
+      @_extend = null
       @_widgets = {}
 
-      rootInfo = @registerWidget rootWidget
+      ownerInfo = @registerWidget ownerWidget
 
       @structure =
-        rootWidget: rootInfo.uid
-        extends: @_extendList
+        ownerWidget: ownerInfo.uid
+        extend: @_extend
         widgets: @_widgets
 
 
@@ -44,6 +44,8 @@ define [
 
       if @_extendPhaseFinished
         throw "'#extend' appeared in wrong place (extending widget #{ widget.constructor.name })!"
+      if @_extend?
+        throw "Only one '#extend' is allowed per template (#{ widget.constructor.name })!"
 
       widgetRef = @registerWidget widget
 
@@ -51,9 +53,11 @@ define [
       delete params.type
       delete params.name
 
-      @_extendList.push
+      @_extend =
         widget: widgetRef.uid
         params: params
+
+      @structure.extend = @_extend
 
 
     addPlaceholderContent: (surroundingWidget, placeholderId, widget, params) ->

@@ -2,12 +2,12 @@ define [], ->
 
   class StructureTemplate
 
-    constructor: (struct, rootWidget) ->
+    constructor: (struct, ownerWidget) ->
       @struct = struct
-      @rootWidget = rootWidget
+      @ownerWidget = ownerWidget
 
       @widgets = {}
-      @widgets[struct.rootWidget] = rootWidget
+      @widgets[struct.ownerWidget] = ownerWidget
 
 
 
@@ -25,39 +25,54 @@ define [], ->
       require ["cord-w!#{ info.path }"], (WidgetClass) =>
         widget = new WidgetClass
 
-        waitCounter = 0
-        waitCounterFinish = false
-
-        resolvedPlaceholders = {}
-
-        returnCallback = ->
-          widget.injectPlaceholders resolvedPlaceholders
+        @injectPlaceholders widget, info.placeholders, ->
           callback widget
 
-        for id, items of info.placeholders
-          resolvedPlaceholders[id] = []
-          for item in items
-            waitCounter++
-            if item.widget?
-              @getWidget item.widget, (widget) =>
-                @rootWidget.resolveParamRefs widget, item.params, (params) ->
-                  resolvedPlaceholders[id].push
-                    type: 'widget'
-                    widget: widget
-                    params: params
-                  waitCounter--
-                  if waitCounter == 0 and waitCounterFinish
-                    returnCallback()
-            else
-              @getWidget item.inline, (widget) ->
+
+    injectPlaceholders: (targetWidget, placeholders, callback) ->
+      waitCounter = 0
+      waitCounterFinish = false
+
+      resolvedPlaceholders = {}
+
+      returnCallback = ->
+        targetWidget.injectPlaceholders resolvedPlaceholders
+        callback()
+
+      for id, items of placeholders
+        resolvedPlaceholders[id] = []
+        for item in items
+          waitCounter++
+          if item.widget?
+            @getWidget item.widget, (widget) =>
+              @ownerWidget.resolveParamRefs widget, item.params, (params) ->
                 resolvedPlaceholders[id].push
-                  type: 'inline'
+                  type: 'widget'
                   widget: widget
-                  template: item.template
+                  params: params
                 waitCounter--
                 if waitCounter == 0 and waitCounterFinish
                   returnCallback()
+          else
+            @getWidget item.inline, (widget) ->
+              resolvedPlaceholders[id].push
+                type: 'inline'
+                widget: widget
+                template: item.template
+              waitCounter--
+              if waitCounter == 0 and waitCounterFinish
+                returnCallback()
 
-        waitCounterFinish = true
-        if waitCounter == 0
-          returnCallback()
+      waitCounterFinish = true
+      if waitCounter == 0
+        returnCallback()
+
+
+    assignWidget: (uid, newWidget) ->
+      @widgets[uid] = newWidget
+
+    reinjectPlaceholders: (extendInfo, callback) ->
+      console.log "extendInfo = ", extendInfo, @struct
+      @injectPlaceholders @widgets[extendInfo.widget], @struct.widgets[extendInfo.widget].placeholders, ->
+        callback()
+
