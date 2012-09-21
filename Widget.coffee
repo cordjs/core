@@ -231,8 +231,8 @@ define [
       if extendWidgetInfo?
         extendWidget = widgetInitializer.findAndCutMatchingExtendWidget tmpl.struct.widgets[extendWidgetInfo.widget].path
         if extendWidget?
-          tmpl.assignWidget extendWidgetInfo.uid, extendWidget
-          tmpl.reinjectPlaceholders extendWidgetInfo, =>
+          tmpl.assignWidget extendWidgetInfo.widget, extendWidget
+          tmpl.replacePlaceholders extendWidgetInfo, =>
             @children.push extendWidget
             #@childByName[params.name] = extendWidget if params.name?
             @childById[extendWidget.ctx.id] = extendWidget
@@ -290,15 +290,9 @@ define [
         decideWayOfRendering()
       else
         # load structure template from json-file
-        require ['fs'], (fs) =>
-          fs.exists "./#{ config.PUBLIC_PREFIX }/#{ tmplStructureFile }", (exists) =>
-            if exists
-              require ["text!#{ tmplStructureFile }"], (tplJsonString) =>
-                dust.register tmplStructureFile, JSON.parse(tplJsonString)
-                decideWayOfRendering()
-            else
-              dust.register tmplStructureFile, {}
-              @_renderSelfTemplate callback
+        require ["text!#{ tmplStructureFile }"], (tplJsonString) =>
+          dust.register tmplStructureFile, JSON.parse(tplJsonString)
+          decideWayOfRendering()
 
 
     _renderSelfTemplate: (callback) ->
@@ -408,8 +402,111 @@ define [
         dust.render tmplPath, @getBaseContext().push(@ctx), callback
 
 
-    injectPlaceholders: (placeholders) ->
+    _renderPlaceholder: (id, callback) ->
+      @placeholders[id] ?= []
+      @ctx[':placeholders'][id] ?= []
+
+      placeholderOut = []
+      returnCallback = =>
+        @childWidgetComplete()
+        callback(placeholderOut.join '')
+
+      waitCounter = 0
+      waitCounterFinish = false
+
+      i = 0
+      placeholderOrder = {}
+      for info in @placeholders[id]
+        do (info) =>
+          placeholderOut.push '' # stub
+          if info.type == 'widget'
+            widgetId = info.widget.ctx.id
+            placeholderOrder[widgetId] = i
+
+            waitCounter++
+
+            # todo: this is wrong, widget must be child of the template owner widget!
+            @children.push info.widget
+            #@childByName[params.name] = widget if params.name?
+            @childById[widgetId] = info.widget
+
+            info.widget.show info.params, (err, out) ->
+              if err then throw err
+              # todo: add class attribute support
+              placeholderOut[placeholderOrder[widgetId]] =
+                "<#{ info.widget.rootTag } id=\"#{ widgetId }\">#{ out }</#{ info.widget.rootTag }>"
+              waitCounter--
+              if waitCounter == 0 and waitCounterFinish
+                returnCallback()
+          else
+            placeholderOrder[info.template] = i
+
+            waitCounter++
+            info.widget.renderInlineTemplate info.template, (err, out) ->
+              if err then throw err
+              placeholderOut[placeholderOrder[info.template]] = "<div class=\"cord-inline\">#{ out }</div>"
+              waitCounter--
+              if waitCounter == 0 and waitCounterFinish
+                returnCallback()
+          i++
+
+      waitCounterFinish = true
+      if waitCounter == 0
+        returnCallback()
+
+
+    definePlaceholders: (placeholders) ->
+      ph = {}
+      for id, items of placeholders
+        ph[id] = []
+        for item in items
+          if item.type == 'widget'
+            ph[id].push
+              type: 'widget'
+              widget: item.widget.ctx.id
+              params: item.params
+          else
+            ph[id].push
+              type: 'inline'
+              widget: item.widget.ctx.id
+              template: item.template
       @placeholders = placeholders
+      @ctx[':placeholders'] = ph
+
+    replacePlaceholders: (placeholders) ->
+      ###
+      @browser-only
+      ###
+
+      require ['jquery'], ($) =>
+        # cleanup
+        # widgets should be already cleaned (?)
+        for id, items of @ctx[':placeholders']
+          $("#ph-#{ @ctx.id }-#{ id }").empty()
+
+        ph = {}
+        for id, items of placeholders
+          ph[id] = []
+          for item in items
+            if item.type == 'widget'
+              ph[id].push
+                type: 'widget'
+                widget: item.widget.ctx.id
+                params: item.params
+
+            else
+              ph[id].push
+                type: 'inline'
+                widget: item.widget.ctx.id
+                template: item.template
+        @placeholders = placeholders
+        @ctx[':placeholders'] = ph
+
+        for id, items of @ctx[':placeholders']
+          do (id) =>
+            @_renderPlaceholder id, (out) =>
+              $("#ph-#{ @ctx.id }-#{ id }").html out
+
 
 
     getInitCode: (parentId) ->
@@ -650,43 +747,9 @@ define [
           @childWidgetAdd()
           chunk.map (chunk) =>
             id = params?.id ? 'default'
-            @placeholders[id] ?= []
-
-            waitCounter = 0
-            waitCounterFinish = false
-
-            placeholderOut = []
-            showCallback = =>
+            @_renderPlaceholder id, (out) =>
               @childWidgetComplete()
-              chunk.end "<div id=\"ph-#{ @ctx.id }-#{ id }\">#{ placeholderOut.join '' }</div>"
-
-            for info in @placeholders[id]
-              if info.type == 'widget'
-                waitCounter++
-
-                @children.push info.widget
-                #@childByName[params.name] = widget if params.name?
-                @childById[info.widget.ctx.id] = info.widget
-
-                info.widget.show info.params, (err, out) ->
-                  if err then throw err
-                  # todo: add class attribute support
-                  placeholderOut.push "<#{ info.widget.rootTag } id=\"#{ info.widget.ctx.id }\">#{ out }</#{ info.widget.rootTag }>"
-                  waitCounter--
-                  if waitCounter == 0 and waitCounterFinish
-                    showCallback()
-              else
-                waitCounter++
-                info.widget.renderInlineTemplate info.template, (err, out) ->
-                  if err then throw err
-                  placeholderOut.push "<div class=\"cord-inline\">#{ out }</div>"
-                  waitCounter--
-                  if waitCounter == 0 and waitCounterFinish
-                    showCallback()
-
-            waitCounterFinish = true
-            if waitCounter == 0
-              showCallback()
+              chunk.end "<div id=\"ph-#{ @ctx.id }-#{ id }\">#{ out }</div>"
 
         #
         # Widget initialization script generator

@@ -25,19 +25,20 @@ define [], ->
       require ["cord-w!#{ info.path }"], (WidgetClass) =>
         widget = new WidgetClass
 
-        @injectPlaceholders widget, info.placeholders, ->
+        @resolvePlaceholders widget, info.placeholders, (resolvedPlaceholders) ->
+          widget.definePlaceholders resolvedPlaceholders
           callback widget
 
 
-    injectPlaceholders: (targetWidget, placeholders, callback) ->
+    resolvePlaceholders: (targetWidget, placeholders, callback) ->
       waitCounter = 0
       waitCounterFinish = false
 
       resolvedPlaceholders = {}
 
       returnCallback = ->
-        targetWidget.injectPlaceholders resolvedPlaceholders
-        callback()
+        console.log 'returnCallback'
+        callback resolvedPlaceholders
 
       for id, items of placeholders
         resolvedPlaceholders[id] = []
@@ -69,10 +70,12 @@ define [], ->
 
 
     assignWidget: (uid, newWidget) ->
+      console.log "assignWidget(#{ uid }, #{ newWidget.constructor.name })"
       @widgets[uid] = newWidget
 
-    reinjectPlaceholders: (extendInfo, callback) ->
-      console.log "extendInfo = ", extendInfo, @struct
-      @injectPlaceholders @widgets[extendInfo.widget], @struct.widgets[extendInfo.widget].placeholders, ->
+    replacePlaceholders: (extendInfo, callback) ->
+      extendWidget = @widgets[extendInfo.widget]
+      @resolvePlaceholders extendWidget, @struct.widgets[extendInfo.widget].placeholders, (resolvedPlaceholders) ->
+        extendWidget.replacePlaceholders resolvedPlaceholders
         callback()
 
