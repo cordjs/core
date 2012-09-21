@@ -205,21 +205,23 @@ define [
             , 200
 
 
-    injectAction: (action, params) ->
+    injectAction: (action, params, callback) ->
       ###
       @browser-only
       ###
 
+      widgetInitializer.registerNewExtendWidget this
+
       @["_#{ action }Action"] params, =>
         tmplStructureFile = "bundles/#{ @getTemplatePath() }.structure.json"
         if dust.cache[tmplStructureFile]?
-          @_injectRender dust.cache[tmplStructureFile]
+          @_injectRender dust.cache[tmplStructureFile], callback
         else
           require ["text!#{ tmplStructureFile }"], (jsonString) =>
             dust.register tmplStructureFile, JSON.parse(jsonString)
-            @_injectRender dust.cache[tmplStructureFile]
+            @_injectRender dust.cache[tmplStructureFile], callback
 
-    _injectRender: (struct) ->
+    _injectRender: (struct, callback) ->
       ###
       @browser-only
       ###
@@ -239,6 +241,7 @@ define [
 
             @resolveParamRefs extendWidget, extendWidgetInfo.params, (params) ->
               extendWidget.fireAction 'default', params
+              callback()
         else
           tmpl.getWidget extendWidgetInfo.widget, (extendWidget) =>
 
@@ -247,7 +250,7 @@ define [
             @childById[extendWidget.ctx.id] = extendWidget
 
             @resolveParamRefs extendWidget, extendWidgetInfo.params, (params) ->
-              extendWidget.injectAction 'default', params
+              extendWidget.injectAction 'default', params, callback
       else
         widgetInitializer.removeOldWidgets()
         tmpl.getWidget extendWidgetInfo.widget, (extendWidget) =>
@@ -260,6 +263,7 @@ define [
             extendWidget.showAction 'default', params, (err, out) ->
               if err then throw err
               document.write out
+              callback()
               extendWidget.browserInit()
 
 
@@ -276,7 +280,7 @@ define [
 
         structTmpl = dust.cache[tmplStructureFile]
 
-        console.warn "there is no structure template for #{ @getPath() }" if not structTmpl.extend?
+        console.warn "there is no structure template for #{ @getPath() }" if typeof structTmpl.extend is 'undefined'
 
         if structTmpl.extend?
           # extended widget, using only structure template
@@ -481,8 +485,8 @@ define [
       require ['jquery'], ($) =>
         # cleanup
         # widgets should be already cleaned (?)
-        for id, items of @ctx[':placeholders']
-          $("#ph-#{ @ctx.id }-#{ id }").empty()
+#        for id, items of @ctx[':placeholders']
+#          $("#ph-#{ @ctx.id }-#{ id }").empty()
 
         ph = {}
         for id, items of placeholders

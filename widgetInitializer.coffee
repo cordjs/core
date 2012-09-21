@@ -17,6 +17,7 @@ define [
     _pushBindings: {}
 
     _currentExtendList: []
+    _newExtendList: []
 
     setRootWidget: (widget) ->
       @rootWidget = widget
@@ -100,6 +101,21 @@ define [
         throw "Try to use uninitialized widget with id = #{ widgetId }"
 
 
+    getById: (id) ->
+      ###
+      Returns widget with the given id if it is exists.
+      Throws exception otherwise.
+      @param String id widget id
+      @return Widget
+      ###
+
+      if @widgets[widgetId]?
+        @widgets[widgetId].widget
+      else
+        throw "Try to get uninitialized widget with id = #{ id }"
+
+
+
     #
     # Subscribes child widget to the parent widget's context variable change event
     #
@@ -134,22 +150,15 @@ define [
 
 
     injectWidget: (widgetPath, action, params) ->
-      found = false
-      counter = 0
-      for extendWidget in @_currentExtendList
-        console.log "injectWidget: #{ extendWidget.constructor.name } - #{ extendWidget.getPath() } == #{ widgetPath }"
-        if widgetPath == extendWidget.getPath()
-          found = true
-          # removing all extend tree below found widget
-          @removeExtendWidget(i) for i in [0..counter]
-          extendWidget.fireAction action, params
-          break
-        counter++
-
-      if not found
-        require ["cord-w!#{ widgetPath }"], (WidgetClass) ->
+      extendWidget = @findAndCutMatchingExtendWidget widgetPath
+      if extendWidget?
+        extendWidget.fireAction action, params
+        @setRootWidget extendWidget
+      else
+        require ["cord-w!#{ widgetPath }"], (WidgetClass) =>
           widget = new WidgetClass
-          widget.injectAction action, params
+          widget.injectAction action, params, =>
+            @setRootWidget widget
 
     findAndCutMatchingExtendWidget: (widgetPath) ->
       result = null
@@ -160,14 +169,29 @@ define [
           found = true
           # removing all extend tree below found widget
           @removeRootExtendWidget() for i in [0..counter]
+          # ... and prepending extend tree with the new widgets
+          @_newExtendList.reverse()
+          @_currentExtendList.unshift(wdt) for wdt in @_newExtendList
+          @_newExtendList = []
+
           result = extendWidget
           break
         counter++
       result
 
+    registerNewExtendWidget: (widget) ->
+      @_newExtendList.push widget
+
     removeRootExtendWidget: ->
       widget = @_currentExtendList.shift()
       widget.clean()
       # todo: add some more removal (from dom placeholders)
+
+    removeOldWidgets: ->
+      # todo: smarter clean of widgetInitializer
+      @rootWidget.clean()
+      @rootWidget = null
+      @widgets = {}
+      @_currentExtendList = @_newExtendList
 
   new WidgetInitializer
