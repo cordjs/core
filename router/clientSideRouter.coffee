@@ -49,7 +49,7 @@ define [
           action = route.action
           params = route.params
 
-          if widgetInitializer.ownerWidget?
+          if widgetInitializer.rootWidget?
             widgetInitializer.injectWidget widgetPath, action, params
 #            widgetInitializer.setRootWidget newRootWidget
           else
