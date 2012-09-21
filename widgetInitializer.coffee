@@ -168,7 +168,7 @@ define [
         if widgetPath == extendWidget.getPath()
           found = true
           # removing all extend tree below found widget
-          @removeRootExtendWidget() for i in [0..counter]
+          @removeRootExtendWidget() while counter--
           # ... and prepending extend tree with the new widgets
           @_newExtendList.reverse()
           @_currentExtendList.unshift(wdt) for wdt in @_newExtendList
