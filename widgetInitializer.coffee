@@ -164,11 +164,13 @@ define [
       result = null
       counter = 0
       for extendWidget in @_currentExtendList
-        console.log "findAndCutMatchingExtendWidget: #{ extendWidget.constructor.name } - #{ extendWidget.getPath() } == #{ widgetPath }"
         if widgetPath == extendWidget.getPath()
           found = true
           # removing all extend tree below found widget
-          @removeRootExtendWidget() while counter--
+          if counter > 0
+            # unbind rest of widget tree to avoid cascade cleaning
+            @_currentExtendList[counter - 1].unbindChild extendWidget
+            @removeRootExtendWidget() while counter--
           # ... and prepending extend tree with the new widgets
           @_newExtendList.reverse()
           @_currentExtendList.unshift(wdt) for wdt in @_newExtendList

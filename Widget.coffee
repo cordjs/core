@@ -99,6 +99,9 @@ define [
       This have to be called when performing full re-render of some part of the widget tree to avoid double
       subscriptions left from the dissapered widgets.
       ###
+
+      console.log "clean #{ @constructor.name }(#{ @ctx.id })"
+
       @cleanChildren()
       if @behaviour?
         @behaviour.clean()
@@ -136,7 +139,7 @@ define [
 
     showAction: (action, params, callback) ->
       @["_#{ action }Action"] params, =>
-        console.log "#{ @constructor.name}::_#{ action }Action: params:", params, " context:", @ctx
+        console.log "showAction #{ @constructor.name}::_#{ action }Action: params:", params, " context:", @ctx
         @renderTemplate callback
 
     jsonAction: (action, params, callback) ->
@@ -147,7 +150,8 @@ define [
       ###
       Just call action (change context) and do not output anything
       ###
-      @["_#{ action }Action"] params, ->
+      @["_#{ action }Action"] params, =>
+        console.log "fireAction #{ @constructor.name}::_#{ action }Action: params:", params, " context:", @ctx
 
 
     ##
@@ -213,6 +217,8 @@ define [
       widgetInitializer.registerNewExtendWidget this
 
       @["_#{ action }Action"] params, =>
+        console.log "fireAction #{ @constructor.name}::_#{ action }Action: params:", params, " context:", @ctx
+
         tmplStructureFile = "bundles/#{ @getTemplatePath() }.structure.json"
         if dust.cache[tmplStructureFile]?
           @_injectRender dust.cache[tmplStructureFile], callback
@@ -235,37 +241,25 @@ define [
         if extendWidget?
           tmpl.assignWidget extendWidgetInfo.widget, extendWidget
           tmpl.replacePlaceholders extendWidgetInfo, =>
-            @children.push extendWidget
-            #@childByName[params.name] = extendWidget if params.name?
-            @childById[extendWidget.ctx.id] = extendWidget
-
+            @registerChild extendWidget
             @resolveParamRefs extendWidget, extendWidgetInfo.params, (params) ->
               extendWidget.fireAction 'default', params
               callback()
         else
           tmpl.getWidget extendWidgetInfo.widget, (extendWidget) =>
-
-            @children.push extendWidget
-            #@childByName[params.name] = extendWidget if params.name?
-            @childById[extendWidget.ctx.id] = extendWidget
-
+            @registerChild extendWidget
             @resolveParamRefs extendWidget, extendWidgetInfo.params, (params) ->
               extendWidget.injectAction 'default', params, callback
       else
         widgetInitializer.removeOldWidgets()
         tmpl.getWidget extendWidgetInfo.widget, (extendWidget) =>
-
-          @children.push extendWidget
-          #@childByName[params.name] = extendWidget if params.name?
-          @childById[extendWidget.ctx.id] = extendWidget
-
+          @registerChild extendWidget
           @resolveParamRefs extendWidget, extendWidgetInfo.params, (params) ->
             extendWidget.showAction 'default', params, (err, out) ->
               if err then throw err
               document.write out
               callback()
               extendWidget.browserInit()
-
 
 
 
@@ -387,13 +381,8 @@ define [
       extendWidgetInfo = tmpl.struct.extend
 
       tmpl.getWidget extendWidgetInfo.widget, (extendWidget) =>
-
         extendWidget._isExtended = true if @_isExtended
-
-        @children.push extendWidget
-        #@childByName[params.name] = extendWidget if params.name?
-        @childById[extendWidget.ctx.id] = extendWidget
-
+        @registerChild extendWidget
         @resolveParamRefs extendWidget, extendWidgetInfo.params, (params) ->
           extendWidget.show params, callback
 
@@ -428,11 +417,6 @@ define [
             placeholderOrder[widgetId] = i
 
             waitCounter++
-
-            # todo: this is wrong, widget must be child of the template owner widget!
-            @children.push info.widget
-            #@childByName[params.name] = widget if params.name?
-            @childById[widgetId] = info.widget
 
             info.widget.show info.params, (err, out) ->
               if err then throw err
@@ -548,7 +532,22 @@ define [
 
     registerChild: (child, name) ->
       @children.push child
+      @childById[child.ctx.id] = child
       @childByName[name] = child if name?
+
+    unbindChild: (child) ->
+      ###
+      @param Widget child child widget object
+      ###
+      index = @children.indexOf child
+      if index != -1
+        @children.splice index, 1
+        delete @childById[child.ctx.id]
+        for name, widget of @childByName
+          if widget == child
+            delete @childByName[name]
+      else
+        throw "Trying to remove unexistent child of widget #{ @constructor.name }(#{ @ctx.id }), child: #{ child.constructor.name }(#{ child.ctx.id })"
 
     getBehaviourClass: ->
       if not @behaviourClass?
@@ -648,9 +647,7 @@ define [
 
               widget = new WidgetClass
 
-              @children.push widget
-              @childByName[params.name] = widget if params.name?
-              @childById[widget.ctx.id] = widget
+              @registerChild widget, params.name
 
               showCallback = =>
                 widget.show params, (err, output) =>
@@ -844,9 +841,7 @@ define [
 
               widget = new WidgetClass true
 
-              @children.push widget
-              @childByName[params.name] = widget if params.name?
-              @childById[widget.ctx.id] = widget
+              @registerChild widget, params.name
 
               if context.surroundingWidget?
                 ph = params.placeholder ? 'default'
@@ -963,6 +958,7 @@ define [
 
       if triggerChange
         setTimeout =>
+          console.log "publish widget.#{ @id }.change.#{ name }"
           postal.publish "widget.#{ @id }.change.#{ name }",
             name: name
             value: newValue

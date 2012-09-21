@@ -37,7 +37,6 @@ define [], ->
       resolvedPlaceholders = {}
 
       returnCallback = ->
-        console.log 'returnCallback'
         callback resolvedPlaceholders
 
       for id, items of placeholders
@@ -46,6 +45,7 @@ define [], ->
           waitCounter++
           if item.widget?
             @getWidget item.widget, (widget) =>
+              @ownerWidget.registerChild widget
               @ownerWidget.resolveParamRefs widget, item.params, (params) ->
                 resolvedPlaceholders[id].push
                   type: 'widget'
@@ -70,7 +70,6 @@ define [], ->
 
 
     assignWidget: (uid, newWidget) ->
-      console.log "assignWidget(#{ uid }, #{ newWidget.constructor.name })"
       @widgets[uid] = newWidget
 
     replacePlaceholders: (extendInfo, callback) ->
