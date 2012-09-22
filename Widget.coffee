@@ -651,10 +651,7 @@ define [
           @childWidgetAdd()
           chunk.map (chunk) =>
 
-            require ["cord-w!#{ params.type }@#{ @getBundle() }"], (WidgetClass) =>
-
-              widget = new WidgetClass
-
+            widgetRepo.createWidget params.type, @getBundle(), (widget) =>
               @registerChild widget, params.name
 
               showCallback = =>

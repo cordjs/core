@@ -1,7 +1,8 @@
 define [
   'postal'
   'cord!deferAggregator'
-], (postal, deferAggregator) ->
+  'underscore'
+], (postal, deferAggregator, _) ->
 
   class WidgetRepo
     widgets: {}
@@ -18,6 +19,33 @@ define [
 
     _currentExtendList: []
     _newExtendList: []
+
+    createWidget: () ->
+      ###
+      Main widget factory.
+      All widgets should be created through this call.
+
+      @param String path canonical path of the widget
+      @param (optional)String contextBundle calling context bundle to expand relative widget paths
+      @param Callback(Widget) callback callback in which resulting widget will be passed as argument
+      ###
+
+      # normalizing arguments
+      path = arguments[0]
+      if _.isFunction arguments[1]
+        callback = arguments[1]
+        contextBundle = null
+      else if _.isFunction arguments[2]
+        callback = arguments[2]
+        contextBundle = arguments[1]
+      else
+        throw "Callback should be passed to the widget factory!"
+
+      bundleSpec = if contextBundle then "@#{ contextBundle }" else ''
+
+      require ["cord-w!#{ path }#{ bundleSpec }"], (WidgetClass) =>
+        widget = new WidgetClass
+        callback widget
 
     setRootWidget: (widget) ->
       @rootWidget = widget
@@ -155,8 +183,7 @@ define [
         extendWidget.fireAction action, params
         @setRootWidget extendWidget
       else
-        require ["cord-w!#{ widgetPath }"], (WidgetClass) =>
-          widget = new WidgetClass
+        @createWidget widgetPath, (widget) =>
           widget.injectAction action, params, =>
             @setRootWidget widget
 

@@ -18,28 +18,15 @@ define [
         action = route.action
         params = _.extend path.query, route.params
 
-        require [
-          "cord-w!#{ rootWidgetPath }"
-          'cord!widgetCompiler'
-        ], (RootWidgetClass, widgetCompiler) =>
+        widgetRepo.createWidget rootWidgetPath, (rootWidget) ->
           res.writeHead 200, 'Content-Type': 'text/html'
 
-          compileMode = false
-          if compileMode
-            rootWidget = new RootWidgetClass true
-            widgetCompiler.reset rootWidget
-            rootWidget.compileTemplate (err, output) ->
-              if err then throw err
-              widgetCompiler.printStructure()
-              res.end widgetCompiler.getStructureCode()
-          else
-            rootWidget = new RootWidgetClass
-            rootWidget._isExtended = true
-            widgetRepo.setRootWidget rootWidget
+          rootWidget._isExtended = true
+          widgetRepo.setRootWidget rootWidget
 
-            rootWidget.showAction action, params, (err, output) ->
-              if err then throw err
-              res.end output
+          rootWidget.showAction action, params, (err, output) ->
+            if err then throw err
+            res.end output
 
         true
       else
