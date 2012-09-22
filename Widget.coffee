@@ -487,6 +487,14 @@ define [
                 type: 'inline'
                 widget: item.widget.ctx.id
                 template: item.template
+          # remove replaced placeholder is needed to know what remaining placeholders need to cleanup
+          if @ctx[':placeholders'][id]?
+            delete @ctx[':placeholders'][id]?
+
+        # cleanup empty placeholders
+        for id of @ctx[':placeholders']
+          $("#ph-#{ @ctx.id }-#{ id }").empty()
+
         @placeholders = placeholders
         @ctx[':placeholders'] = ph
 
