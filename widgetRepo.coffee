@@ -3,7 +3,7 @@ define [
   'cord!deferAggregator'
 ], (postal, deferAggregator) ->
 
-  class WidgetInitializer
+  class WidgetRepo
     widgets: {}
 
     rootWidget: null
@@ -190,10 +190,10 @@ define [
       # todo: add some more removal (from dom placeholders)
 
     removeOldWidgets: ->
-      # todo: smarter clean of widgetInitializer
+      # todo: smarter clean of widgetRepo
       @rootWidget.clean()
       @rootWidget = null
       @widgets = {}
       @_currentExtendList = @_newExtendList
 
-  new WidgetInitializer
+  new WidgetRepo

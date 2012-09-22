@@ -1,13 +1,13 @@
 define [
   'underscore'
-  'cord!/cord/core/widgetInitializer'
+  'cord!/cord/core/widgetRepo'
   'dustjs-linkedin'
   'postal'
   'cord-s'
   'cord!isBrowser'
   'cord!StructureTemplate'
   'cord!config'
-], (_, widgetInitializer, dust, postal, cordCss, isBrowser, StructureTemplate, config) ->
+], (_, widgetRepo, dust, postal, cordCss, isBrowser, StructureTemplate, config) ->
 
   dust.onLoad = (tmplPath, callback) ->
     require ["cord-t!" + tmplPath], (tplString) ->
@@ -214,7 +214,7 @@ define [
       @browser-only
       ###
 
-      widgetInitializer.registerNewExtendWidget this
+      widgetRepo.registerNewExtendWidget this
 
       @["_#{ action }Action"] params, =>
         console.log "fireAction #{ @constructor.name}::_#{ action }Action: params:", params, " context:", @ctx
@@ -237,7 +237,7 @@ define [
       # todo: change format to use only one extend
       extendWidgetInfo = tmpl.struct.extend
       if extendWidgetInfo?
-        extendWidget = widgetInitializer.findAndCutMatchingExtendWidget tmpl.struct.widgets[extendWidgetInfo.widget].path
+        extendWidget = widgetRepo.findAndCutMatchingExtendWidget tmpl.struct.widgets[extendWidgetInfo.widget].path
         if extendWidget?
           tmpl.assignWidget extendWidgetInfo.widget, extendWidget
           tmpl.replacePlaceholders extendWidgetInfo, =>
@@ -251,7 +251,7 @@ define [
             @resolveParamRefs extendWidget, extendWidgetInfo.params, (params) ->
               extendWidget.injectAction 'default', params, callback
       else
-        widgetInitializer.removeOldWidgets()
+        widgetRepo.removeOldWidgets()
         tmpl.getWidget extendWidgetInfo.widget, (extendWidget) =>
           @registerChild extendWidget
           @resolveParamRefs extendWidget, extendWidgetInfo.params, (params) ->
@@ -580,13 +580,13 @@ define [
       @getWidgetCss()
 
     #
-    # Almost copy of widgetInitializer::init but for client-side rendering
+    # Almost copy of widgetRepo::init but for client-side rendering
     # @browser-only
     #
     browserInit: ->
       for widgetId, bindingMap of @childBindings
         for ctxName, paramName of bindingMap
-          widgetInitializer.subscribePushBinding @ctx.id, ctxName, @childById[widgetId], paramName
+          widgetRepo.subscribePushBinding @ctx.id, ctxName, @childById[widgetId], paramName
 
       for childWidget in @children
         childWidget.browserInit()
@@ -766,19 +766,19 @@ define [
         widgetInitializer: (chunk, context, bodies, params) =>
           chunk.map (chunk) =>
             postal.subscribe
-              #topic: "widget.#{ widgetInitializer.rootWidget.ctx.id }.render.children.complete"
+              #topic: "widget.#{ widgetRepo.rootWidget.ctx.id }.render.children.complete"
               topic: "widget.#{ @ctx.id }.render.children.complete"
               callback: ->
-                chunk.end widgetInitializer.getTemplateCode()
+                chunk.end widgetRepo.getTemplateCode()
 
 
         # css inclide
         css: (chunk, context, bodies, params) ->
           chunk.map (chunk) ->
             postal.subscribe
-              topic: "widget.#{ widgetInitializer.ownerWidget.ctx.id }.render.children.complete"
+              topic: "widget.#{ widgetRepo.ownerWidget.ctx.id }.render.children.complete"
               callback: ->
-                chunk.end widgetInitializer.getTemplateCss()
+                chunk.end widgetRepo.getTemplateCss()
 
 
     #

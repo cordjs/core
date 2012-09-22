@@ -1,9 +1,9 @@
 define [
   'url'
   'cord!/cord/core/router/Router'
-  'cord!/cord/core/widgetInitializer'
+  'cord!/cord/core/widgetRepo'
   'underscore'
-], (url, Router, widgetInitializer, _) ->
+], (url, Router, widgetRepo, _) ->
 
   class ServerSideRouter extends Router
 
@@ -35,7 +35,7 @@ define [
           else
             rootWidget = new RootWidgetClass
             rootWidget._isExtended = true
-            widgetInitializer.setRootWidget rootWidget
+            widgetRepo.setRootWidget rootWidget
 
             rootWidget.showAction action, params, (err, output) ->
               if err then throw err

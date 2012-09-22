@@ -2,8 +2,8 @@ define [
   'jquery'
   'postal'
   'cord!/cord/core/router/Router'
-  'cord!/cord/core/widgetInitializer'
-], ($, postal, Router, widgetInitializer) ->
+  'cord!/cord/core/widgetRepo'
+], ($, postal, Router, widgetRepo) ->
 
   hashStrip = /^#*/
 
@@ -49,9 +49,9 @@ define [
           action = route.action
           params = route.params
 
-          if widgetInitializer.rootWidget?
-            widgetInitializer.injectWidget widgetPath, action, params
-#            widgetInitializer.setRootWidget newRootWidget
+          if widgetRepo.rootWidget?
+            widgetRepo.injectWidget widgetPath, action, params
+#            widgetRepo.setRootWidget newRootWidget
           else
             throw "root widget is undefined!"
 
