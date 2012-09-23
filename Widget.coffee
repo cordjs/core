@@ -333,6 +333,9 @@ define [
           , 200
 
     resolveParamRefs: (widget, params, callback) ->
+      # this is necessary to avoid corruption of original structure template params
+      params = _.clone params
+
       waitCounter = 0
       waitCounterFinish = false
 
@@ -486,7 +489,6 @@ define [
                 type: 'widget'
                 widget: item.widget.ctx.id
                 params: item.params
-
             else
               ph[id].push
                 type: 'inline'
