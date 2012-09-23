@@ -4,11 +4,10 @@ define [
   'postal'
   'cord-s'
   'cord!Context'
-  'cord!widgetRepo'
   'cord!isBrowser'
   'cord!StructureTemplate'
   'cord!config'
-], (_, dust, postal, cordCss, Context, widgetRepo, isBrowser, StructureTemplate, config) ->
+], (_, dust, postal, cordCss, Context, isBrowser, StructureTemplate, config) ->
 
   dust.onLoad = (tmplPath, callback) ->
     require ["cord-t!" + tmplPath], (tplString) ->
@@ -17,10 +16,11 @@ define [
 
   class Widget
 
-    #
     # Enable special mode for building structure tree of widget
-    #
     compileMode: false
+
+    # widget repository
+    widgetRepo = null
 
     # widget context
     ctx: null
@@ -106,6 +106,7 @@ define [
         delete @behaviour
       subscription.unsubscribe() for subscription in @_subscriptions
       @_subscriptions = []
+      @resetChildren()
 
     loadContext: (ctx) ->
       ###
@@ -122,6 +123,14 @@ define [
       All such subscritiptions need to be registered to be able to clean them up later (see @cleanChildren())
       ###
       @_subscriptions.push subscription
+
+    setRepo: (repo) ->
+      ###
+      Inject widget repository to create child widgets in same repository while rendering the same page.
+      The approach is one repository per request/page rendering.
+      @param WidgetRepo repo the repository
+      ###
+      @widgetRepo = repo
 
     #
     # Main method to call if you want to show rendered widget template
@@ -212,7 +221,7 @@ define [
       @browser-only
       ###
 
-      widgetRepo.registerNewExtendWidget this
+      @widgetRepo.registerNewExtendWidget this
 
       @["_#{ action }Action"] params, =>
         console.log "fireAction #{ @constructor.name}::_#{ action }Action: params:", params, " context:", @ctx
@@ -235,7 +244,7 @@ define [
       # todo: change format to use only one extend
       extendWidgetInfo = tmpl.struct.extend
       if extendWidgetInfo?
-        extendWidget = widgetRepo.findAndCutMatchingExtendWidget tmpl.struct.widgets[extendWidgetInfo.widget].path
+        extendWidget = @widgetRepo.findAndCutMatchingExtendWidget tmpl.struct.widgets[extendWidgetInfo.widget].path
         if extendWidget?
           tmpl.assignWidget extendWidgetInfo.widget, extendWidget
           tmpl.replacePlaceholders extendWidgetInfo, =>
@@ -249,7 +258,7 @@ define [
             @resolveParamRefs extendWidget, extendWidgetInfo.params, (params) ->
               extendWidget.injectAction 'default', params, callback
       else
-        widgetRepo.removeOldWidgets()
+        @widgetRepo.removeOldWidgets()
         tmpl.getWidget extendWidgetInfo.widget, (extendWidget) =>
           @registerChild extendWidget
           @resolveParamRefs extendWidget, extendWidgetInfo.params, (params) ->
@@ -584,7 +593,7 @@ define [
     browserInit: ->
       for widgetId, bindingMap of @childBindings
         for ctxName, paramName of bindingMap
-          widgetRepo.subscribePushBinding @ctx.id, ctxName, @childById[widgetId], paramName
+          @widgetRepo.subscribePushBinding @ctx.id, ctxName, @childById[widgetId], paramName
 
       for childWidget in @children
         childWidget.browserInit()
@@ -649,7 +658,7 @@ define [
           @childWidgetAdd()
           chunk.map (chunk) =>
 
-            widgetRepo.createWidget params.type, @getBundle(), (widget) =>
+            @widgetRepo.createWidget params.type, @getBundle(), (widget) =>
               @registerChild widget, params.name
 
               showCallback = =>
@@ -760,20 +769,23 @@ define [
         #
         widgetInitializer: (chunk, context, bodies, params) =>
           chunk.map (chunk) =>
-            postal.subscribe
-              #topic: "widget.#{ widgetRepo.rootWidget.ctx.id }.render.children.complete"
+            subscription = postal.subscribe
+              #topic: "widget.#{ @widgetRepo.rootWidget.ctx.id }.render.children.complete"
               topic: "widget.#{ @ctx.id }.render.children.complete"
-              callback: ->
-                chunk.end widgetRepo.getTemplateCode()
+              callback: =>
+                chunk.end @widgetRepo.getTemplateCode()
+                subscription.unsubscribe()
 
 
         # css inclide
         css: (chunk, context, bodies, params) ->
           chunk.map (chunk) ->
-            postal.subscribe
-              topic: "widget.#{ widgetRepo.ownerWidget.ctx.id }.render.children.complete"
-              callback: ->
-                chunk.end widgetRepo.getTemplateCss()
+            subscription = postal.subscribe
+              #topic: "widget.#{ @widgetRepo.ownerWidget.ctx.id }.render.children.complete"
+              topic: "widget.#{ @ctx.id }.render.children.complete"
+              callback: =>
+                chunk.end @widgetRepo.getTemplateCss()
+                subscription.unsubscribe()
 
 
     #

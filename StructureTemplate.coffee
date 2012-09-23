@@ -1,6 +1,4 @@
-define [
-  'cord!widgetRepo'
-], (widgetRepo) ->
+define [], ->
 
   class StructureTemplate
 
@@ -24,7 +22,7 @@ define [
 
     _initWidget: (widgetRefId, callback) ->
       info = @struct.widgets[widgetRefId]
-      widgetRepo.createWidget info.path, (widget) =>
+      @ownerWidget.widgetRepo.createWidget info.path, (widget) =>
         @resolvePlaceholders widget, info.placeholders, (resolvedPlaceholders) ->
           widget.definePlaceholders resolvedPlaceholders
           callback widget

@@ -1,9 +1,9 @@
 define [
   'url'
   'cord!/cord/core/router/Router'
-  'cord!/cord/core/widgetRepo'
+  'cord!WidgetRepo'
   'underscore'
-], (url, Router, widgetRepo, _) ->
+], (url, Router, WidgetRepo, _) ->
 
   class ServerSideRouter extends Router
 
@@ -18,6 +18,7 @@ define [
         action = route.action
         params = _.extend path.query, route.params
 
+        widgetRepo = new WidgetRepo
         widgetRepo.createWidget rootWidgetPath, (rootWidget) ->
           res.writeHead 200, 'Content-Type': 'text/html'
 
@@ -27,6 +28,8 @@ define [
           rootWidget.showAction action, params, (err, output) ->
             if err then throw err
             res.end output
+            # todo: may be need some cleanup before?
+            widgetRepo = null
 
         true
       else

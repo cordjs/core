@@ -28,8 +28,10 @@ define [
   require.config configPaths
   require [
     'cord!/cord/core/appManager'
-    'cord!/cord/core/widgetRepo'
-  ], (router, widgetRepo) ->
-    router.process()
+    'cord!WidgetRepo'
+  ], (clientSideRouter, WidgetRepo) ->
+    widgetRepo = new WidgetRepo
+    clientSideRouter.setWidgetRepo widgetRepo
+    clientSideRouter.process()
     $ ->
       cordcorewidgetinitializerbrowser? widgetRepo

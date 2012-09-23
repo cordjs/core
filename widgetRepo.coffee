@@ -45,6 +45,7 @@ define [
 
       require ["cord-w!#{ path }#{ bundleSpec }"], (WidgetClass) =>
         widget = new WidgetClass
+        widget.setRepo this
         callback widget
 
     setRootWidget: (widget) ->
@@ -222,5 +223,3 @@ define [
       @rootWidget = null
       @widgets = {}
       @_currentExtendList = @_newExtendList
-
-  new WidgetRepo

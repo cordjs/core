@@ -2,8 +2,7 @@ define [
   'jquery'
   'postal'
   'cord!/cord/core/router/Router'
-  'cord!/cord/core/widgetRepo'
-], ($, postal, Router, widgetRepo) ->
+], ($, postal, Router) ->
 
   hashStrip = /^#*/
 
@@ -15,6 +14,8 @@ define [
       shim: false
 
     historySupport: window.history?.pushState?
+
+    widgetRepo: null
 
     constructor:(options = {}) ->
       super
@@ -41,6 +42,12 @@ define [
 
       @initNavigate()
 
+    setWidgetRepo: (widgetRepo) ->
+      ###
+      Injects widget repository from from browserInit script
+      ###
+      @widgetRepo = widgetRepo
+
     process: ->
       postal.subscribe
         topic: 'router.process'
@@ -49,9 +56,8 @@ define [
           action = route.action
           params = route.params
 
-          if widgetRepo.rootWidget?
-            widgetRepo.injectWidget widgetPath, action, params
-#            widgetRepo.setRootWidget newRootWidget
+          if @widgetRepo.rootWidget?
+            @widgetRepo.injectWidget widgetPath, action, params
           else
             throw "root widget is undefined!"
 
