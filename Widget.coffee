@@ -659,7 +659,7 @@ define [
             @widgetRepo.createWidget params.type, @getBundle(), (widget) =>
               @registerChild widget, params.name
 
-              showCallback = =>
+              @resolveParamRefs widget, params, (params) =>
                 widget.show params, (err, output) =>
 
                   classAttr = if params.class then params.class else if widget.cssClass then widget.cssClass else ""
@@ -675,48 +675,6 @@ define [
                       chunk.end "<#{ widget.rootTag } id=\"#{ widget.ctx.id }\"#{ classAttr }>#{ output }</#{ widget.rootTag }>"
                   else
                     chunk.end "<#{ widget.rootTag } id=\"#{ widget.ctx.id }\"#{ classAttr }>#{ output }</#{ widget.rootTag }>"
-
-              waitCounter = 0
-              waitCounterFinish = false
-
-              bindings = {}
-
-              # waiting for parent's necessary context-variables availability before rendering widget...
-              for name, value of params
-                if name != 'name' and name != 'type'
-
-                  if value.charAt(0) == '^'
-                    value = value.slice 1
-                    bindings[value] = name
-
-                    # if context value is deferred, than waiting asyncronously...
-                    if @ctx.isDeferred value
-                      waitCounter++
-                      @subscribeValueChange params, name, value, =>
-                        waitCounter--
-                        if waitCounter == 0 and waitCounterFinish
-                          showCallback()
-
-                    # otherwise just getting it's value syncronously
-                    else
-                      # param with name "params" is a special case and we should expand the value as key-value pairs
-                      # of widget's params
-                      if name == 'params'
-                        if _.isObject @ctx[value]
-                          for subName, subValue of @ctx[value]
-                            params[subName] = subValue
-                        else
-                          # todo: warning?
-                      else
-                        params[name] = @ctx[value]
-
-              # todo: potentially not cross-browser code!
-              if Object.keys(bindings).length != 0
-                @childBindings[widget.ctx.id] = bindings
-
-              waitCounterFinish = true
-              if waitCounter == 0
-                showCallback()
 
 
         deferred: (chunk, context, bodies, params) =>
