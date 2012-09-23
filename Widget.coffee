@@ -106,7 +106,6 @@ define [
         delete @behaviour
       subscription.unsubscribe() for subscription in @_subscriptions
       @_subscriptions = []
-      @resetChildren()
 
     loadContext: (ctx) ->
       ###
