@@ -406,8 +406,7 @@ define [
       @ctx[':placeholders'][id] ?= []
 
       placeholderOut = []
-      returnCallback = =>
-        @childWidgetComplete()
+      returnCallback = ->
         callback(placeholderOut.join '')
 
       waitCounter = 0
