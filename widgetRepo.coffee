@@ -46,7 +46,20 @@ define [
       require ["cord-w!#{ path }#{ bundleSpec }"], (WidgetClass) =>
         widget = new WidgetClass
         widget.setRepo this
+
+        @widgets[widget.ctx.id] =
+          widget: widget
+
         callback widget
+
+    registerParent: (childWidget, parentWidget) ->
+      ###
+      Register child-parent relationship in the repo
+      ###
+      info = @widgets[childWidget.ctx.id]
+      if info.parent?
+        info.parent.unbindChild childWidget
+      info.parent = parentWidget
 
     setRootWidget: (widget) ->
       @rootWidget = widget
@@ -86,6 +99,7 @@ define [
       require ["cord-w!#{ widgetPath }"], (WidgetClass) =>
         widget = new WidgetClass ctx.id
         widget.loadContext ctx
+        widget.setRepo this
 
         @_currentExtendList.push widget if isExtended
 
@@ -95,8 +109,8 @@ define [
             @subscribePushBinding parentId, ctxName, widget, paramName
 
         @widgets[ctx.id] =
-          'widget': widget
-          'namedChilds': namedChilds
+          widget: widget
+          namedChilds: namedChilds
 
         completeFunc = =>
           @_loadingCount--
@@ -138,12 +152,10 @@ define [
       @return Widget
       ###
 
-      if @widgets[widgetId]?
-        @widgets[widgetId].widget
+      if @widgets[id]?
+        @widgets[id].widget
       else
         throw "Try to get uninitialized widget with id = #{ id }"
-
-
 
     #
     # Subscribes child widget to the parent widget's context variable change event
@@ -182,11 +194,15 @@ define [
       extendWidget = @findAndCutMatchingExtendWidget widgetPath
       if extendWidget?
         extendWidget.fireAction action, params
+        @rootWidget.clean()
         @setRootWidget extendWidget
+        @rootWidget.browserInit()
       else
         @createWidget widgetPath, (widget) =>
           widget.injectAction action, params, =>
+            @rootWidget.clean()
             @setRootWidget widget
+            @rootWidget.browserInit()
 
     findAndCutMatchingExtendWidget: (widgetPath) ->
       result = null
@@ -195,10 +211,7 @@ define [
         if widgetPath == extendWidget.getPath()
           found = true
           # removing all extend tree below found widget
-          if counter > 0
-            # unbind rest of widget tree to avoid cascade cleaning
-            @_currentExtendList[counter - 1].unbindChild extendWidget
-            @removeRootExtendWidget() while counter--
+          @removeRootExtendWidget() while counter--
           # ... and prepending extend tree with the new widgets
           @_newExtendList.reverse()
           @_currentExtendList.unshift(wdt) for wdt in @_newExtendList
@@ -214,7 +227,7 @@ define [
 
     removeRootExtendWidget: ->
       widget = @_currentExtendList.shift()
-      widget.clean()
+      # cleaning of the widget will be done later when some children will be unbound
       # todo: add some more removal (from dom placeholders)
 
     removeOldWidgets: ->

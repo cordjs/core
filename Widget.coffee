@@ -223,7 +223,7 @@ define [
       @widgetRepo.registerNewExtendWidget this
 
       @["_#{ action }Action"] params, =>
-        console.log "fireAction #{ @constructor.name}::_#{ action }Action: params:", params, " context:", @ctx
+        console.log "injectAction #{ @constructor.name}::_#{ action }Action: params:", params, " context:", @ctx
 
         tmplStructureFile = "bundles/#{ @getTemplatePath() }.structure.json"
         if dust.cache[tmplStructureFile]?
@@ -240,13 +240,12 @@ define [
 
       tmpl = new StructureTemplate struct, this
 
-      # todo: change format to use only one extend
       extendWidgetInfo = tmpl.struct.extend
       if extendWidgetInfo?
         extendWidget = @widgetRepo.findAndCutMatchingExtendWidget tmpl.struct.widgets[extendWidgetInfo.widget].path
         if extendWidget?
           tmpl.assignWidget extendWidgetInfo.widget, extendWidget
-          tmpl.replacePlaceholders extendWidgetInfo, =>
+          tmpl.replacePlaceholders extendWidgetInfo.widget, extendWidget.ctx[':placeholders'], =>
             @registerChild extendWidget
             @resolveParamRefs extendWidget, extendWidgetInfo.params, (params) ->
               extendWidget.fireAction 'default', params
@@ -258,14 +257,15 @@ define [
               extendWidget.injectAction 'default', params, callback
       else
         @widgetRepo.removeOldWidgets()
-        tmpl.getWidget extendWidgetInfo.widget, (extendWidget) =>
-          @registerChild extendWidget
-          @resolveParamRefs extendWidget, extendWidgetInfo.params, (params) ->
-            extendWidget.showAction 'default', params, (err, out) ->
-              if err then throw err
-              document.write out
-              callback()
-              extendWidget.browserInit()
+#        tmpl.getWidget extendWidgetInfo.widget, (extendWidget) =>
+#          @registerChild extendWidget
+#        @resolveParamRefs extendWidget, extendWidgetInfo.params, (params) ->
+        throw "yet unsupported case!"
+        @showAction 'default', params, (err, out) ->
+          if err then throw err
+          document.write out
+          callback()
+          extendWidget.browserInit()
 
 
 
@@ -469,17 +469,12 @@ define [
       @placeholders = placeholders
       @ctx[':placeholders'] = ph
 
-    replacePlaceholders: (placeholders) ->
+    replacePlaceholders: (placeholders, structTmpl, replaceHints) ->
       ###
       @browser-only
       ###
 
       require ['jquery'], ($) =>
-        # cleanup
-        # widgets should be already cleaned (?)
-#        for id, items of @ctx[':placeholders']
-#          $("#ph-#{ @ctx.id }-#{ id }").empty()
-
         ph = {}
         for id, items of placeholders
           ph[id] = []
@@ -496,7 +491,7 @@ define [
                 template: item.template
           # remove replaced placeholder is needed to know what remaining placeholders need to cleanup
           if @ctx[':placeholders'][id]?
-            delete @ctx[':placeholders'][id]?
+            delete @ctx[':placeholders'][id]
 
         # cleanup empty placeholders
         for id of @ctx[':placeholders']
@@ -505,11 +500,19 @@ define [
         @placeholders = placeholders
         @ctx[':placeholders'] = ph
 
-        for id, items of @ctx[':placeholders']
-          do (id) =>
-            @_renderPlaceholder id, (out) =>
-              $("#ph-#{ @ctx.id }-#{ id }").html out
-
+        for id, items of @placeholders
+          do (id, items) =>
+            if replaceHints[id].replace
+              @_renderPlaceholder id, (out) =>
+                $("#ph-#{ @ctx.id }-#{ id }").html out
+            else
+              i = 0
+              for item in items
+                do (item, i) ->
+                  console.log "loop hints = ", item
+                  structTmpl.replacePlaceholders replaceHints[id].items[i], item.widget.ctx[':placeholders'], ->
+                    item.widget.fireAction 'default', item.params
+                i++
 
 
     getInitCode: (parentId) ->
@@ -549,6 +552,7 @@ define [
       @children.push child
       @childById[child.ctx.id] = child
       @childByName[name] = child if name?
+      @widgetRepo.registerParent child, this
 
     unbindChild: (child) ->
       ###
@@ -737,7 +741,7 @@ define [
 
         # css inclide
         css: (chunk, context, bodies, params) ->
-          chunk.map (chunk) ->
+          chunk.map (chunk) =>
             subscription = postal.subscribe
               #topic: "widget.#{ @widgetRepo.ownerWidget.ctx.id }.render.children.complete"
               topic: "widget.#{ @ctx.id }.render.children.complete"
@@ -814,8 +818,6 @@ define [
 
               widget = new WidgetClass true
 
-              @registerChild widget, params.name
-
               if context.surroundingWidget?
                 ph = params.placeholder ? 'default'
                 sw = context.surroundingWidget
@@ -868,7 +870,6 @@ define [
                   widgetCompiler.addPlaceholderInline sw, ph, this, templateName
 
                   ctx = @getBaseContext().push(@ctx)
-                #  ctx.surroundingWidget = sw
 
                   tmpName = "tmp#{ _.uniqueId() }"
                   dust.register tmpName, bodies.block

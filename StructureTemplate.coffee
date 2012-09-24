@@ -28,7 +28,7 @@ define [], ->
           callback widget
 
 
-    resolvePlaceholders: (targetWidget, placeholders, callback) ->
+    resolvePlaceholders: (targetWidget, newPlaceholders, callback) ->
       waitCounter = 0
       waitCounterFinish = false
 
@@ -37,7 +37,7 @@ define [], ->
       returnCallback = ->
         callback resolvedPlaceholders
 
-      for id, items of placeholders
+      for id, items of newPlaceholders
         resolvedPlaceholders[id] = []
         for item in items
           waitCounter++
@@ -70,9 +70,48 @@ define [], ->
     assignWidget: (uid, newWidget) ->
       @widgets[uid] = newWidget
 
-    replacePlaceholders: (extendInfo, callback) ->
-      extendWidget = @widgets[extendInfo.widget]
-      @resolvePlaceholders extendWidget, @struct.widgets[extendInfo.widget].placeholders, (resolvedPlaceholders) ->
-        extendWidget.replacePlaceholders resolvedPlaceholders
+    replacePlaceholders: (widgetUid, currentPlaceholders, callback) ->
+      extendWidget = @widgets[widgetUid]
+
+      # search for appearence of the widget in current placeholder
+      replaceHints = {}
+      for id, items of @struct.widgets[widgetUid].placeholders
+        replaceHints[id] = {}
+        if currentPlaceholders[id]?
+          if currentPlaceholders[id].length == items.length
+            theSame = true
+            i = 0
+            for item in items
+              if item.widget?
+                curItem = currentPlaceholders[id][i]
+                curWidget = @ownerWidget.widgetRepo.getById(curItem.widget)
+                console.log "compare: #{ curItem.type } != 'widget' or #{ curWidget.getPath() } != #{ @struct.widgets[item.widget].path }"
+                if curItem.type != 'widget' or curWidget.getPath() != @struct.widgets[item.widget].path
+                  theSame = false
+                  break
+              else
+                theSame = false
+                break
+              i++
+          else
+            theSame = false
+        else
+          theSame = false
+
+        if theSame
+          i = 0
+          replaceHints[id].items = []
+          replaceHints[id].replace = false
+          for item in items
+            refUid = item.widget
+            curWidget = @ownerWidget.widgetRepo.getById(currentPlaceholders[id][i].widget)
+            @assignWidget refUid, curWidget
+
+            replaceHints[id].items.push refUid
+        else
+          replaceHints[id].replace = true
+
+      @resolvePlaceholders extendWidget, @struct.widgets[widgetUid].placeholders, (resolvedPlaceholders) =>
+        extendWidget.replacePlaceholders resolvedPlaceholders, this, replaceHints
         callback()
 
