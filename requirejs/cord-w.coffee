@@ -1,6 +1,6 @@
 define [], ->
 
-  classNameFormat: /[A-Z][A-Za-z0-9]*/
+  classNameFormat: /^[A-Z][A-Za-z0-9]*$/
 
   getFullInfo: (name) ->
     bundleSpec = null

@@ -763,8 +763,8 @@ define [
           This section should be used as a root element of the template and all contents should be inside it's body
           block. All contents outside this section will be ignored. Example:
 
-              {#extend type="//rootLayout" someParam="foo"}
-                {#widget type="//mainMenu" selectedItem=activeItem placeholder="default"/}
+              {#extend type="//RootLayout" someParam="foo"}
+                {#widget type="//MainMenu" selectedItem=activeItem placeholder="default"/}
               {/extend}
 
           This section accepts the same params as the "widget" section, except of placeholder which logically cannot
