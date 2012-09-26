@@ -827,6 +827,9 @@ define [
                 delete params.placeholder
                 delete params.type
                 widgetCompiler.addPlaceholderContent sw, ph, widget, params
+              else if bodies.block?
+                throw "Name must be explicitly defined for the inline-widget with body placeholders (#{ @constructor.name } -> #{ widget.constructor.name })!" if not params.name? or params.name == ''
+                widgetCompiler.registerWidget widget, params.name
               else
                 # ???
 

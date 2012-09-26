@@ -11,13 +11,14 @@ define [
 
     _extendPhaseFinished: false
 
-    registerWidget: (widget) ->
+    registerWidget: (widget, name) ->
       if not @_widgets[widget.ctx.id]?
         wdt =
           uid: widget.ctx.id
           path: widget.getPath()
           placeholders: {}
         @_widgets[widget.ctx.id] = wdt
+      @_widgets[widget.ctx.id].name = name if name?
       @_widgets[widget.ctx.id]
 
 
