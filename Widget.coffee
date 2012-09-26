@@ -204,12 +204,9 @@ define [
           actualRender()
 
         require [
-          'cord-w'
           'fs'
-        ], (cord, fs) ->
-          info = cord.getFullInfo tmplPath
-
-          fs.readFile "./#{ config.PUBLIC_PREFIX }/bundles/#{ info.relativeDirPath }/#{ info.dirName }.html", (err, code) ->
+        ], (fs) =>
+          fs.readFile "./#{ config.PUBLIC_PREFIX }/bundles/#{ @getTemplatePath() }", (err, code) ->
             throw err if err and err.code isnt 'ENOENT'
             return if err?.code is 'ENOENT'
 
