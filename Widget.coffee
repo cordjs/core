@@ -197,22 +197,27 @@ define [
       else
         tmplPath = @getPath()
 
-        if dust.cache[tmplPath]?
+        # compile and load dust template
+        dustCompileCallback = (err, data) =>
+          if err then throw err
+          dust.loadSource dust.compile(data, tmplPath)
           actualRender()
-        else
-          # compile and load dust template
 
-          dustCompileCallback = (err, data) =>
-            if err then throw err
-            dust.loadSource dust.compile(data, tmplPath)
-            actualRender()
+        require [
+          'cord-w'
+          'fs'
+        ], (cord, fs) ->
+          info = cord.getFullInfo tmplPath
 
-          require ["cord-t!#{ tmplPath }"], (tplString) =>
+          fs.readFile "./#{ config.PUBLIC_PREFIX }/bundles/#{ info.relativeDirPath }/#{ info.dirName }.html", (err, code) ->
+            throw err if err and err.code isnt 'ENOENT'
+            return if err?.code is 'ENOENT'
+
             ## Этот хак позволяет не виснуть dustJs.
             # зависание происходит при {#deffered}..{#name}{>"//folder/file.html"/}
             setTimeout =>
-              dustCompileCallback null, tplString
-            , 200
+                dustCompileCallback null, code.toString()
+              , 200
 
 
     injectAction: (action, params, callback) ->
