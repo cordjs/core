@@ -406,7 +406,7 @@ define [
 
     _renderPlaceholder: (id, callback) ->
       @placeholders[id] ?= []
-      @ctx[':placeholders'][id] ?= []
+      @ctx[':placeholders']?[id] ?= []
 
       placeholderOut = []
       returnCallback = ->

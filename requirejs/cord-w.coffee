@@ -44,7 +44,6 @@ define [], ->
 
     nameParts = relativePath.split '/'
     widgetClassName = nameParts.pop()
-    widgetClassName = widgetClassName.charAt(0).toUpperCase() + widgetClassName.slice(1)
     throw "Widget class name should start with CAP letter: #{ widgetClassName }!" if not @classNameFormat.test widgetClassName
     dirName = widgetClassName.charAt(0).toLowerCase() + widgetClassName.slice(1)
     nameParts.push(dirName)
