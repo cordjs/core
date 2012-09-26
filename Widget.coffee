@@ -216,6 +216,26 @@ define [
                 dustCompileCallback null, code.toString()
               , 200
 
+    getStructTemplate: (callback) ->
+      if @constructor.structTemplate?
+        callback @constructor.structTemplate
+      else
+        tmplStructureFile = "bundles/#{ @getTemplatePath() }.structure.json"
+        returnCallback = =>
+          console.log "dust.cache[#{ tmplStructureFile }] = ", dust.cache[tmplStructureFile]
+          struct = dust.cache[tmplStructureFile]
+          if struct.widgets? and Object.keys(struct.widgets).length > 1
+            @constructor.structTemplate = new StructureTemplate struct, this
+          else
+            @constructor.structTemplate = ':empty'
+          callback @constructor.structTemplate
+
+        if dust.cache[tmplStructureFile]?
+          returnCallback()
+        else
+          require ["text!#{ tmplStructureFile }"], (jsonString) =>
+            dust.register tmplStructureFile, JSON.parse(jsonString)
+            returnCallback()
 
     injectAction: (action, params, callback) ->
       ###
@@ -226,23 +246,16 @@ define [
 
       @["_#{ action }Action"] params, =>
         console.log "injectAction #{ @constructor.name}::_#{ action }Action: params:", params, " context:", @ctx
+        @getStructTemplate (tmpl) =>
+          @_injectRender tmpl, callback
 
-        tmplStructureFile = "bundles/#{ @getTemplatePath() }.structure.json"
-        if dust.cache[tmplStructureFile]?
-          @_injectRender dust.cache[tmplStructureFile], callback
-        else
-          require ["text!#{ tmplStructureFile }"], (jsonString) =>
-            dust.register tmplStructureFile, JSON.parse(jsonString)
-            @_injectRender dust.cache[tmplStructureFile], callback
 
-    _injectRender: (struct, callback) ->
+    _injectRender: (tmpl, callback) ->
       ###
       @browser-only
       ###
 
-      tmpl = new StructureTemplate struct, this
-
-      extendWidgetInfo = tmpl.struct.extend
+      extendWidgetInfo = if tmpl != ':empty' then tmpl.struct.extend else null
       if extendWidgetInfo?
         extendWidget = @widgetRepo.findAndCutMatchingExtendWidget tmpl.struct.widgets[extendWidgetInfo.widget].path
         if extendWidget?
@@ -270,35 +283,17 @@ define [
           extendWidget.browserInit()
 
 
-
     renderTemplate: (callback) ->
+      ###
+      Decides wether to call extended template parsing of self-template parsing and calls it.
+      ###
       console.log "renderTemplate(#{ @constructor.name })"
 
-      decideWayOfRendering = =>
-        ###
-        Decides wether to call extended template parsing of self-template parsing and calls it.
-        This closure if to avoid duplicating.
-        ###
-
-        structTmpl = dust.cache[tmplStructureFile]
-
-        console.warn "there is no structure template for #{ @getPath() }" if typeof structTmpl.extend is 'undefined'
-
-        if structTmpl.extend?
-          # extended widget, using only structure template
-          @_renderExtendedTemplate structTmpl, callback
+      @getStructTemplate (tmpl) =>
+        if tmpl != ':empty' and tmpl.struct.extend?
+          @_renderExtendedTemplate tmpl, callback
         else
           @_renderSelfTemplate callback
-
-      tmplStructureFile = "bundles/#{ @getTemplatePath() }.structure.json"
-
-      if dust.cache[tmplStructureFile]?
-        decideWayOfRendering()
-      else
-        # load structure template from json-file
-        require ["text!#{ tmplStructureFile }"], (tplJsonString) =>
-          dust.register tmplStructureFile, JSON.parse(tplJsonString)
-          decideWayOfRendering()
 
 
     _renderSelfTemplate: (callback) ->
@@ -381,14 +376,13 @@ define [
         callback params
 
 
-    _renderExtendedTemplate: (struct, callback) ->
+    _renderExtendedTemplate: (tmpl, callback) ->
       ###
       Render template if it uses #extend plugin to extend another widget
+      @param StructureTemplate tmpl structure template object
+      @param Function(err, output) callback
       ###
 
-      tmpl = new StructureTemplate struct, this
-
-      # todo: change format to use only one extend
       extendWidgetInfo = tmpl.struct.extend
 
       tmpl.getWidget extendWidgetInfo.widget, (extendWidget) =>
@@ -664,25 +658,21 @@ define [
           @childWidgetAdd()
           chunk.map (chunk) =>
 
-            @widgetRepo.createWidget params.type, @getBundle(), (widget) =>
+            callbackRender = (widget) =>
               @registerChild widget, params.name
-
               @resolveParamRefs widget, params, (params) =>
                 widget.show params, (err, output) =>
-
                   classAttr = if params.class then params.class else if widget.cssClass then widget.cssClass else ""
                   classAttr = if classAttr then "class=\"#{ classAttr }\"" else ""
-
                   @childWidgetComplete()
                   if err then throw err
+                  chunk.end "<#{ widget.rootTag } id=\"#{ widget.ctx.id }\"#{ classAttr }>#{ output }</#{ widget.rootTag }>"
 
-                  if bodies.block?
-                    tmpName = "tmp#{ _.uniqueId() }"
-                    dust.register tmpName, bodies.block
-                    dust.render tmpName, context, (err, out) =>
-                      chunk.end "<#{ widget.rootTag } id=\"#{ widget.ctx.id }\"#{ classAttr }>#{ output }</#{ widget.rootTag }>"
-                  else
-                    chunk.end "<#{ widget.rootTag } id=\"#{ widget.ctx.id }\"#{ classAttr }>#{ output }</#{ widget.rootTag }>"
+            if bodies.block?
+              @getStructTemplate (tmpl) ->
+                tmpl.getWidgetByName params.name, callbackRender
+            else
+              @widgetRepo.createWidget params.type, @getBundle(), callbackRender
 
 
         deferred: (chunk, context, bodies, params) =>

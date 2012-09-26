@@ -27,6 +27,12 @@ define [], ->
           widget.definePlaceholders resolvedPlaceholders
           callback widget
 
+    getWidgetByName: (name, callback) ->
+      if @struct.widgetsByName[name]?
+        @getWidget @struct.widgetsByName[name], callback
+      else
+        throw "There is no widget with name '#{ name }' registered for template of #{ @ownerWidget.constructor.name }!"
+
 
     resolvePlaceholders: (targetWidget, newPlaceholders, callback) ->
       waitCounter = 0

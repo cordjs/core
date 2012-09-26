@@ -7,7 +7,8 @@ define [
     structure: {}
 
     _extend: null
-    _widgets: {}
+    _widgets: null
+    _widgetsByName: null
 
     _extendPhaseFinished: false
 
@@ -17,8 +18,10 @@ define [
           uid: widget.ctx.id
           path: widget.getPath()
           placeholders: {}
+        if name?
+          wdt.name = name
+          @_widgetsByName[name] = wdt.uid
         @_widgets[widget.ctx.id] = wdt
-      @_widgets[widget.ctx.id].name = name if name?
       @_widgets[widget.ctx.id]
 
 
@@ -31,6 +34,7 @@ define [
       @_extendPhaseFinished = false
       @_extend = null
       @_widgets = {}
+      @_widgetsByName = {}
 
       ownerInfo = @registerWidget ownerWidget
 
@@ -38,6 +42,7 @@ define [
         ownerWidget: ownerInfo.uid
         extend: @_extend
         widgets: @_widgets
+        widgetsByName: @_widgetsByName
 
 
     addExtendCall: (widget, params) ->
