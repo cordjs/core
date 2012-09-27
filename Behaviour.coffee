@@ -71,7 +71,10 @@ define [
     clean: ->
       subscription.unsubscribe() for subscription in @_widgetSubscriptions
       @_widgetSubscriptions = []
+      @widget = null
       @el.off()#.remove()
+      @el = null
+      @$el = null
 
     html: (element) ->
       @el.html(element.el or element)

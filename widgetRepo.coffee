@@ -8,7 +8,6 @@ define [
     widgets: {}
 
     rootWidget: null
-    _oldRootWidget: null
 
     _loadingCount: 0
 
@@ -64,6 +63,17 @@ define [
             null
           , (err) ->
             console.log "error again", err
+
+
+    dropWidget: (id) ->
+      if @widgets[id]?
+        console.log "drop widget #{ @widgets[id].widget.constructor.name }(#{id})"
+        @widgets[id].widget.clean()
+        @widgets[id].widget = null
+        delete @widgets[id]
+      else
+        throw "Try to drop unknown widget with id = #{ id }"
+
 
     registerParent: (childWidget, parentWidget) ->
       ###
@@ -206,25 +216,26 @@ define [
     injectWidget: (widgetPath, action, params) ->
       extendWidget = @findAndCutMatchingExtendWidget widgetPath
       console.log "current root widget = #{ @rootWidget.constructor.name }"
-      @_oldRootWidget = @rootWidget
+      _oldRootWidget = @rootWidget
       if extendWidget?
         extendWidget.fireAction action, params
-        @_oldRootWidget.clean()
-        @setRootWidget extendWidget
-        @rootWidget.browserInit()
+        if _oldRootWidget != extendWidget
+          @dropWidget _oldRootWidget.ctx.id
+          @setRootWidget extendWidget
+          @rootWidget.browserInit()
       else
         @createWidget widgetPath, (widget) =>
           @setRootWidget widget
           widget.injectAction action, params, =>
-            @_oldRootWidget.clean()
+            @dropWidget _oldRootWidget.ctx.id
             @rootWidget.browserInit()
 
     findAndCutMatchingExtendWidget: (widgetPath) ->
       result = null
       counter = 0
-      console.log "@_currentExtendList = ", @_currentExtendList
+#      console.log "@_currentExtendList = ", @_currentExtendList
       for extendWidget in @_currentExtendList
-        console.log "#{ widgetPath } == #{ extendWidget.getPath() }"
+#        console.log "#{ widgetPath } == #{ extendWidget.getPath() }"
         if widgetPath == extendWidget.getPath()
           found = true
           # removing all extend tree below found widget
@@ -247,10 +258,6 @@ define [
       # cleaning of the widget will be done later when some children will be unbound
       # todo: add some more removal (from dom placeholders)
 
-    removeOldWidgets: ->
-      # todo: smarter clean of widgetRepo
-#      @_oldRootWidget.clean()
-#      @_oldRootWidget = null
-#      @widgets = {}
+    replaceExtendTree: ->
       @_currentExtendList = @_newExtendList
       @_newExtendList = []

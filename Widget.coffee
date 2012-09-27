@@ -28,8 +28,10 @@ define [
     # child widgets
     children: null
     childByName: null
+    childById: null
 
     behaviourClass: null
+    behaviour: null
 
     cssClass: null
     rootTag: 'div'
@@ -81,7 +83,6 @@ define [
 
       @compileMode = compileMode
       @_subscriptions = []
-      @behaviour = null
       @resetChildren()
       if compileMode
         id = 'ref-wdt-' + _.uniqueId()
@@ -103,7 +104,7 @@ define [
       @cleanChildren()
       if @behaviour?
         @behaviour.clean()
-        delete @behaviour
+        @behaviour = null
       subscription.unsubscribe() for subscription in @_subscriptions
       @_subscriptions = []
 
@@ -179,7 +180,7 @@ define [
 
 
     cleanChildren: ->
-      widget.clean() for widget in @children
+      @widgetRepo.dropWidget(widget.ctx.id) for widget in @children
       @resetChildren()
 
 
@@ -277,7 +278,7 @@ define [
           # It works ok some times, but soon requirejs begin to fail to load new scripts for the page.
           # So I decided to leave this code for the promising future and fallback to force page reload as for now.
           console.log "FULL PAGE REWRITE!!! struct tmpl: ", tmpl
-          @widgetRepo.removeOldWidgets()
+          @widgetRepo.replaceExtendTree()
           @renderTemplate (err, out) =>
             if err then throw err
             document.open()
@@ -560,7 +561,7 @@ define [
     initBehaviour: ->
       if @behaviour?
         @behaviour.clean()
-        delete @behaviour
+        @behaviour = null
 
       behaviourClass = @getBehaviourClass()
       if behaviourClass
