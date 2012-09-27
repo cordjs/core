@@ -270,21 +270,25 @@ define [
             @resolveParamRefs extendWidget, extendWidgetInfo.params, (params) ->
               extendWidget.injectAction 'default', params, callback
       else
-        console.log "FULL PAGE REWRITE!!! struct tmpl: ", tmpl
-        @widgetRepo.removeOldWidgets()
-        @renderTemplate (err, out) =>
-          if err then throw err
-          document.open()
-          document.write out
-          document.close()
-          require ['cord!/cord/core/router/clientSideRouter', 'jquery'], (router, $) ->
-#            $ ->
-#              $(document).unbind()
-#              alert('document.ready')
-            $.cache = {}
-            $(window).unbind()
-            router.initNavigate()
-          callback()
+        if true
+          location.reload()
+        else
+          # This is very hackkky attempt to replace full page body without reloading.
+          # It works ok some times, but soon requirejs begin to fail to load new scripts for the page.
+          # So I decided to leave this code for the promising future and fallback to force page reload as for now.
+          console.log "FULL PAGE REWRITE!!! struct tmpl: ", tmpl
+          @widgetRepo.removeOldWidgets()
+          @renderTemplate (err, out) =>
+            if err then throw err
+            document.open()
+            document.write out
+            document.close()
+            require ['cord!/cord/core/router/clientSideRouter', 'jquery'], (router, $) ->
+              $.cache = {}
+              $(window).unbind()
+              #$(document).unbind()
+              router.initNavigate()
+            callback()
 
 
     renderTemplate: (callback) ->
