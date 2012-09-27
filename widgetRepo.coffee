@@ -53,6 +53,18 @@ define [
 
         callback widget
 
+      , (err) ->
+        failedId = if err.requireModules? then err.requireModules[0] else null
+        console.log failedId
+        console.log err
+        if failedId == "cord-w!#{ path }#{ bundleSpec }"
+          console.log "found"
+          requirejs.undef failedId
+          require [failedId], ->
+            null
+          , (err) ->
+            console.log "error again", err
+
     registerParent: (childWidget, parentWidget) ->
       ###
       Register child-parent relationship in the repo
@@ -241,3 +253,4 @@ define [
 #      @_oldRootWidget = null
 #      @widgets = {}
       @_currentExtendList = @_newExtendList
+      @_newExtendList = []

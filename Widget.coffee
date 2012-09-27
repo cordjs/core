@@ -282,6 +282,7 @@ define [
 #              $(document).unbind()
 #              alert('document.ready')
             $.cache = {}
+            $(window).unbind()
             router.initNavigate()
           callback()
 

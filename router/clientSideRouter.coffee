@@ -34,11 +34,7 @@ define [
 
       return if @options.shim
 
-      if @history
-        $(window).bind('popstate', => @change())
-      else
-        $(window).bind('hashchange', => @change())
-      @change()
+#      @change()
 
       @initNavigate()
 
@@ -104,6 +100,11 @@ define [
         window.location.hash = @path
 
     initNavigate: ->
+      if @history
+        $(window).bind('popstate', => @change())
+      else
+        $(window).bind('hashchange', => @change())
+
       route = @
       $(document).on "click", "a:not([data-bypass])", (evt) ->
         href = $(this).prop 'href'
