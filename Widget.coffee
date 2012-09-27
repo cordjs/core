@@ -88,7 +88,6 @@ define [
       else
         id ?= (if isBrowser then 'brow' else 'node') + '-wdt-' + _.uniqueId()
       @ctx = new Context(id)
-      @placeholders = {}
 
     clean: ->
       ###
@@ -405,9 +404,6 @@ define [
 
 
     _renderPlaceholder: (id, callback) ->
-      @placeholders[id] ?= []
-      @ctx[':placeholders']?[id] ?= []
-
       placeholderOut = []
       returnCallback = ->
         callback(placeholderOut.join '')
@@ -417,20 +413,23 @@ define [
 
       i = 0
       placeholderOrder = {}
-      for info in @placeholders[id]
+      phs = @ctx[':placeholders'] ? []
+      ph = phs[id] ? []
+
+      for info in ph
         do (info) =>
-          placeholderOut.push '' # stub
+          widgetId = info.widget
+          widget = @widgetRepo.getById widgetId
           if info.type == 'widget'
-            widgetId = info.widget.ctx.id
             placeholderOrder[widgetId] = i
 
             waitCounter++
 
-            info.widget.show info.params, (err, out) ->
+            widget.show info.params, (err, out) ->
               if err then throw err
               # todo: add class attribute support
               placeholderOut[placeholderOrder[widgetId]] =
-                "<#{ info.widget.rootTag } id=\"#{ widgetId }\">#{ out }</#{ info.widget.rootTag }>"
+                "<#{ widget.rootTag } id=\"#{ widgetId }\">#{ out }</#{ widget.rootTag }>"
               waitCounter--
               if waitCounter == 0 and waitCounterFinish
                 returnCallback()
@@ -438,7 +437,7 @@ define [
             placeholderOrder[info.template] = i
 
             waitCounter++
-            info.widget.renderInlineTemplate info.template, (err, out) ->
+            widget.renderInlineTemplate info.template, (err, out) ->
               if err then throw err
               placeholderOut[placeholderOrder[info.template]] = "<div class=\"cord-inline\">#{ out }</div>"
               waitCounter--
@@ -452,22 +451,7 @@ define [
 
 
     definePlaceholders: (placeholders) ->
-      ph = {}
-      for id, items of placeholders
-        ph[id] = []
-        for item in items
-          if item.type == 'widget'
-            ph[id].push
-              type: 'widget'
-              widget: item.widget.ctx.id
-              params: item.params
-          else
-            ph[id].push
-              type: 'inline'
-              widget: item.widget.ctx.id
-              template: item.template
-      @placeholders = placeholders
-      @ctx[':placeholders'] = ph
+      @ctx[':placeholders'] = placeholders
 
     replacePlaceholders: (placeholders, structTmpl, replaceHints) ->
       ###
@@ -479,16 +463,7 @@ define [
         for id, items of placeholders
           ph[id] = []
           for item in items
-            if item.type == 'widget'
-              ph[id].push
-                type: 'widget'
-                widget: item.widget.ctx.id
-                params: item.params
-            else
-              ph[id].push
-                type: 'inline'
-                widget: item.widget.ctx.id
-                template: item.template
+            ph[id].push item
           # remove replaced placeholder is needed to know what remaining placeholders need to cleanup
           if @ctx[':placeholders'][id]?
             delete @ctx[':placeholders'][id]
@@ -497,21 +472,20 @@ define [
         for id of @ctx[':placeholders']
           $("#ph-#{ @ctx.id }-#{ id }").empty()
 
-        @placeholders = placeholders
         @ctx[':placeholders'] = ph
 
-        for id, items of @placeholders
-          do (id, items) =>
+        for id, items of ph
+          do (id) =>
             if replaceHints[id].replace
               @_renderPlaceholder id, (out) =>
                 $("#ph-#{ @ctx.id }-#{ id }").html out
             else
               i = 0
               for item in items
-                do (item, i) ->
-                  console.log "loop hints = ", item
-                  structTmpl.replacePlaceholders replaceHints[id].items[i], item.widget.ctx[':placeholders'], ->
-                    item.widget.fireAction 'default', item.params
+                do (item, i) =>
+                  widget = @widgetRepo.getById item.widget
+                  structTmpl.replacePlaceholders replaceHints[id].items[i], widget.ctx[':placeholders'], ->
+                    widget.fireAction 'default', item.params
                 i++
 
 

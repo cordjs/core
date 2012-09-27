@@ -55,7 +55,7 @@ define [], ->
                   @ownerWidget.resolveParamRefs widget, item.params, (params) ->
                     resolvedPlaceholders[id].push
                       type: 'widget'
-                      widget: widget
+                      widget: widget.ctx.id
                       params: params
                     waitCounter--
                     if waitCounter == 0 and waitCounterFinish
@@ -64,7 +64,7 @@ define [], ->
                 @getWidget item.inline, (widget) ->
                   resolvedPlaceholders[id].push
                     type: 'inline'
-                    widget: widget
+                    widget: widget.ctx.id
                     template: item.template
                   waitCounter--
                   if waitCounter == 0 and waitCounterFinish
