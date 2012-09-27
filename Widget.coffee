@@ -10,8 +10,8 @@ define [
 ], (_, dust, postal, cordCss, Context, isBrowser, StructureTemplate, config) ->
 
   dust.onLoad = (tmplPath, callback) ->
-    require ["cord-t!" + tmplPath], (tplString) ->
-      callback null, tplString
+    require ["cord-t!" + tmplPath], ->
+      callback null, ''
 
 
   class Widget
@@ -185,37 +185,26 @@ define [
 
 
     compileTemplate: (callback) ->
-
-      actualRender = =>
-        @markRenderStarted()
-        if @_dirtyChildren
-          @cleanChildren()
-        dust.render tmplPath, @getBaseContext().push(@ctx), callback
-        @markRenderFinished()
-
       if not @compileMode
         callback 'not in compile mode', ''
       else
         tmplPath = @getPath()
-
-        # compile and load dust template
-        dustCompileCallback = (err, data) =>
-          if err then throw err
-          dust.loadSource dust.compile(data, tmplPath)
-          actualRender()
-
-        require [
-          'fs'
-        ], (fs) =>
-          fs.readFile "./#{ config.PUBLIC_PREFIX }/bundles/#{ @getTemplatePath() }", (err, code) ->
+        tmplFullPath = "./#{ config.PUBLIC_PREFIX }/bundles/#{ @getTemplatePath() }"
+        require ['fs'], (fs) =>
+          fs.readFile tmplFullPath, (err, data) =>
             throw err if err and err.code isnt 'ENOENT'
             return if err?.code is 'ENOENT'
+            compiledSource = dust.compile(data.toString(), tmplPath)
+            fs.writeFile "#{ tmplFullPath }.js", compiledSource, (err)->
+              throw err if err
+              console.log "Template saved: #{ tmplFullPath }.js"
+            dust.loadSource compiledSource
+            @markRenderStarted()
+            if @_dirtyChildren
+              @cleanChildren()
+            dust.render tmplPath, @getBaseContext().push(@ctx), callback
+            @markRenderFinished()
 
-            ## Этот хак позволяет не виснуть dustJs.
-            # зависание происходит при {#deffered}..{#name}{>"//folder/file.html"/}
-            setTimeout =>
-                dustCompileCallback null, code.toString()
-              , 200
 
     getStructTemplate: (callback) ->
       if @_structTemplate?
@@ -312,6 +301,8 @@ define [
 
       console.log "_renderSelfTemplate(#{ @constructor.name})"
 
+      tmplPath = @getPath()
+
       actualRender = =>
         @markRenderStarted()
         if @_dirtyChildren
@@ -319,24 +310,23 @@ define [
         dust.render tmplPath, @getBaseContext().push(@ctx), callback
         @markRenderFinished()
 
-      tmplPath = @getPath()
-
       if dust.cache[tmplPath]?
         actualRender()
       else
-        # compile and load dust template
-
-        dustCompileCallback = (err, data) =>
-          if err then throw err
-          dust.loadSource dust.compile(data, tmplPath)
+        require ["cord-t!#{ tmplPath }"], ->
           actualRender()
 
-        require ["cord-t!#{ tmplPath }"], (tplString) =>
-          ## Этот хак позволяет не виснуть dustJs.
-          # зависание происходит при {#deffered}..{#name}{>"//folder/file.html"/}
-          setTimeout =>
-            dustCompileCallback null, tplString
-          , 200
+#        dustCompileCallback = (err, data) =>
+#          if err then throw err
+#          dust.loadSource dust.compile(data, tmplPath)
+#          actualRender()
+#
+#        require ["cord-t!#{ tmplPath }"], (tplString) =>
+#          ## Этот хак позволяет не виснуть dustJs.
+#          # зависание происходит при {#deffered}..{#name}{>"//folder/file.html"/}
+#          setTimeout =>
+#            dustCompileCallback null, tplString
+#          , 200
 
     resolveParamRefs: (widget, params, callback) ->
       # this is necessary to avoid corruption of original structure template params
@@ -751,7 +741,6 @@ define [
           todo: add check of (un)existance of other root sections in the template
           ###
 
-          console.log "Extend plugin before map #{ @constructor.name } -> #{ params.type }"
           chunk.map (chunk) =>
 
             if not params.type? or !params.type
@@ -786,7 +775,6 @@ define [
         # Widget-block (compile mode)
         #
         widget: (chunk, context, bodies, params) =>
-          console.log "Compile mode widget plugin before map #{ @constructor.name } -> #{ params.type }"
           chunk.map (chunk) =>
 
             require [

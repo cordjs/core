@@ -29,7 +29,6 @@ define [
       ###
       Resets compiler's state
       ###
-      console.log "COMPILER: reset"
 
       @_extendPhaseFinished = false
       @_extend = null
@@ -46,8 +45,6 @@ define [
 
 
     addExtendCall: (widget, params) ->
-      console.log "COMPILER:addExtendCall #{ params.type }"
-
       if @_extendPhaseFinished
         throw "'#extend' appeared in wrong place (extending widget #{ widget.constructor.name })!"
       if @_extend?
@@ -67,8 +64,6 @@ define [
 
 
     addPlaceholderContent: (surroundingWidget, placeholderId, widget, params) ->
-      console.log "COMPILER:addPlaceholderContent #{ placeholderId }, #{ widget.constructor.name }"
-
       @extendPhaseFinished = true
 
       swRef = @registerWidget surroundingWidget
@@ -81,8 +76,6 @@ define [
 
 
     addPlaceholderInline: (surroundingWidget, placeholderId, widget, templateName) ->
-      console.log "COMPILER:addPlaceholderInline #{ placeholderId }, #{ widget.constructor.name }"
-
       @extendPhaseFinished = true
 
       swRef = @registerWidget surroundingWidget
@@ -95,10 +88,14 @@ define [
 
 
     getStructureCode: (compact = true) ->
-      if compact
-        JSON.stringify @structure
+      if @structure.widgets? and Object.keys(@structure.widgets).length > 1
+        res = @structure
       else
-        JSON.stringify @structure, null, 2
+        res = {}
+      if compact
+        JSON.stringify res
+      else
+        JSON.stringify res, null, 2
 
     printStructure: ->
       console.log @getStructureCode false
