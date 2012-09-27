@@ -44,29 +44,31 @@ define [], ->
         callback resolvedPlaceholders
 
       for id, items of newPlaceholders
-        resolvedPlaceholders[id] = []
-        for item in items
-          waitCounter++
-          if item.widget?
-            @getWidget item.widget, (widget) =>
-              @ownerWidget.registerChild widget
-              @ownerWidget.resolveParamRefs widget, item.params, (params) ->
-                resolvedPlaceholders[id].push
-                  type: 'widget'
-                  widget: widget
-                  params: params
-                waitCounter--
-                if waitCounter == 0 and waitCounterFinish
-                  returnCallback()
-          else
-            @getWidget item.inline, (widget) ->
-              resolvedPlaceholders[id].push
-                type: 'inline'
-                widget: widget
-                template: item.template
-              waitCounter--
-              if waitCounter == 0 and waitCounterFinish
-                returnCallback()
+        do (id) =>
+          resolvedPlaceholders[id] = []
+          for item in items
+            do (item) =>
+              waitCounter++
+              if item.widget?
+                @getWidget item.widget, (widget) =>
+                  @ownerWidget.registerChild widget
+                  @ownerWidget.resolveParamRefs widget, item.params, (params) ->
+                    resolvedPlaceholders[id].push
+                      type: 'widget'
+                      widget: widget
+                      params: params
+                    waitCounter--
+                    if waitCounter == 0 and waitCounterFinish
+                      returnCallback()
+              else
+                @getWidget item.inline, (widget) ->
+                  resolvedPlaceholders[id].push
+                    type: 'inline'
+                    widget: widget
+                    template: item.template
+                  waitCounter--
+                  if waitCounter == 0 and waitCounterFinish
+                    returnCallback()
 
       waitCounterFinish = true
       if waitCounter == 0
