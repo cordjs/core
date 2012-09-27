@@ -38,6 +38,7 @@ define [
     _renderStarted: false
     _childWidgetCounter: 0
 
+    _structTemplate: null
     _isExtended: false
 
     getPath: ->
@@ -217,18 +218,17 @@ define [
               , 200
 
     getStructTemplate: (callback) ->
-      if @constructor.structTemplate?
-        callback @constructor.structTemplate
+      if @_structTemplate?
+        callback @_structTemplate
       else
         tmplStructureFile = "bundles/#{ @getTemplatePath() }.structure.json"
         returnCallback = =>
-          console.log "dust.cache[#{ tmplStructureFile }] = ", dust.cache[tmplStructureFile]
           struct = dust.cache[tmplStructureFile]
           if struct.widgets? and Object.keys(struct.widgets).length > 1
-            @constructor.structTemplate = new StructureTemplate struct, this
+            @_structTemplate = new StructureTemplate struct, this
           else
-            @constructor.structTemplate = ':empty'
-          callback @constructor.structTemplate
+            @_structTemplate = ':empty'
+          callback @_structTemplate
 
         if dust.cache[tmplStructureFile]?
           returnCallback()
@@ -271,16 +271,20 @@ define [
             @resolveParamRefs extendWidget, extendWidgetInfo.params, (params) ->
               extendWidget.injectAction 'default', params, callback
       else
+        console.log "FULL PAGE REWRITE!!! struct tmpl: ", tmpl
         @widgetRepo.removeOldWidgets()
-#        tmpl.getWidget extendWidgetInfo.widget, (extendWidget) =>
-#          @registerChild extendWidget
-#        @resolveParamRefs extendWidget, extendWidgetInfo.params, (params) ->
-        throw "yet unsupported case!"
-        @showAction 'default', params, (err, out) ->
+        @renderTemplate (err, out) =>
           if err then throw err
+          document.open()
           document.write out
+          document.close()
+          require ['cord!/cord/core/router/clientSideRouter', 'jquery'], (router, $) ->
+#            $ ->
+#              $(document).unbind()
+#              alert('document.ready')
+            $.cache = {}
+            router.initNavigate()
           callback()
-          extendWidget.browserInit()
 
 
     renderTemplate: (callback) ->
@@ -722,13 +726,15 @@ define [
         # Widget initialization script generator
         #
         widgetInitializer: (chunk, context, bodies, params) =>
-          chunk.map (chunk) =>
-            subscription = postal.subscribe
-              #topic: "widget.#{ @widgetRepo.rootWidget.ctx.id }.render.children.complete"
-              topic: "widget.#{ @ctx.id }.render.children.complete"
-              callback: =>
-                chunk.end @widgetRepo.getTemplateCode()
-                subscription.unsubscribe()
+          if @widgetRepo._initEnd
+            ''
+          else
+            chunk.map (chunk) =>
+              subscription = postal.subscribe
+                topic: "widget.#{ @ctx.id }.render.children.complete"
+                callback: =>
+                  chunk.end @widgetRepo.getTemplateCode()
+                  subscription.unsubscribe()
 
 
         # css inclide

@@ -8,6 +8,7 @@ define [
     widgets: {}
 
     rootWidget: null
+    _oldRootWidget: null
 
     _loadingCount: 0
 
@@ -192,22 +193,26 @@ define [
 
     injectWidget: (widgetPath, action, params) ->
       extendWidget = @findAndCutMatchingExtendWidget widgetPath
+      console.log "current root widget = #{ @rootWidget.constructor.name }"
+      @_oldRootWidget = @rootWidget
       if extendWidget?
         extendWidget.fireAction action, params
-        @rootWidget.clean()
+        @_oldRootWidget.clean()
         @setRootWidget extendWidget
         @rootWidget.browserInit()
       else
         @createWidget widgetPath, (widget) =>
+          @setRootWidget widget
           widget.injectAction action, params, =>
-            @rootWidget.clean()
-            @setRootWidget widget
+            @_oldRootWidget.clean()
             @rootWidget.browserInit()
 
     findAndCutMatchingExtendWidget: (widgetPath) ->
       result = null
       counter = 0
+      console.log "@_currentExtendList = ", @_currentExtendList
       for extendWidget in @_currentExtendList
+        console.log "#{ widgetPath } == #{ extendWidget.getPath() }"
         if widgetPath == extendWidget.getPath()
           found = true
           # removing all extend tree below found widget
@@ -232,7 +237,7 @@ define [
 
     removeOldWidgets: ->
       # todo: smarter clean of widgetRepo
-      @rootWidget.clean()
-      @rootWidget = null
-      @widgets = {}
+#      @_oldRootWidget.clean()
+#      @_oldRootWidget = null
+#      @widgets = {}
       @_currentExtendList = @_newExtendList
