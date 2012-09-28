@@ -66,6 +66,9 @@ define [], ->
                     type: 'inline'
                     widget: widget.ctx.id
                     template: item.template
+                    name: item.name
+                    tag: item.tag
+                    class: item.class
                   waitCounter--
                   if waitCounter == 0 and waitCounterFinish
                     returnCallback()

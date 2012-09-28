@@ -75,7 +75,7 @@ define [
         params: params
 
 
-    addPlaceholderInline: (surroundingWidget, placeholderId, widget, templateName) ->
+    addPlaceholderInline: (surroundingWidget, placeholderId, widget, templateName, name, tag, cls) ->
       @extendPhaseFinished = true
 
       swRef = @registerWidget surroundingWidget
@@ -85,6 +85,9 @@ define [
       swRef.placeholders[placeholderId].push
         inline: widgetRef.uid
         template: templateName
+        name: name
+        tag: tag
+        class: cls
 
 
     getStructureCode: (compact = true) ->

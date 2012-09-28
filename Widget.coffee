@@ -188,6 +188,7 @@ define [
       if not @compileMode
         callback 'not in compile mode', ''
       else
+        @inlineCounter = 0 # for generating inline block IDs
         tmplPath = @getPath()
         tmplFullPath = "./#{ config.PUBLIC_PREFIX }/bundles/#{ @getTemplatePath() }"
         require ['fs'], (fs) =>
@@ -432,10 +433,13 @@ define [
           else
             placeholderOrder[info.template] = i
 
+            inlineId = "inline-#{ widget.ctx.id }-#{ info.name}"
+            classAttr = info.class ? ''
+            classAttr = if classAttr then "class=\"#{ classAttr }\"" else ''
             waitCounter++
             widget.renderInlineTemplate info.template, (err, out) ->
               if err then throw err
-              placeholderOut[placeholderOrder[info.template]] = "<div class=\"cord-inline\">#{ out }</div>"
+              placeholderOut[placeholderOrder[info.template]] = "<#{ info.tag } id=\"#{ inlineId }\"#{ classAttr }>#{ out }</#{ info.tag }>"
               waitCounter--
               if waitCounter == 0 and waitCounterFinish
                 returnCallback()
@@ -819,13 +823,17 @@ define [
               'fs'
             ], (widgetCompiler, fs) =>
               if bodies.block?
-                id = params?.id ? _.uniqueId()
+                # todo: check other params and output warning
+                params ?= {}
+                name = params.name ? 'inline' + (@inlineCounter++)
+                tag = params.tag ? 'div'
+                cls = params.class ? ''
                 if context.surroundingWidget?
                   ph = params?.placeholder ? 'default'
 
                   sw = context.surroundingWidget
 
-                  templateName = "__inline_template_#{ id }.html.js"
+                  templateName = "__inline_#{ name }.html.js"
                   tmplPath = "#{ @getDir() }/#{ templateName }"
                   # todo: detect bundles or vendor dir correctly
                   tmplFullPath = "./#{ config.PUBLIC_PREFIX }/bundles/#{ tmplPath }"
@@ -836,7 +844,7 @@ define [
                     if err then throw err
                     console.log "template saved #{ tmplFullPath }"
 
-                  widgetCompiler.addPlaceholderInline sw, ph, this, templateName
+                  widgetCompiler.addPlaceholderInline sw, ph, this, templateName, name, tag, cls
 
                   ctx = @getBaseContext().push(@ctx)
 
@@ -848,6 +856,6 @@ define [
                     chunk.end ""
 
                 else
-                  throw "inlines are not allowed outside surrounding widget (widget #{ @constructor.name }, id"
+                  throw "inlines are not allowed outside surrounding widget [#{ @constructor.name }(#{ @ctx.id })]"
               else
                 console.log "Warning: empty inline in widget #{ @constructor.name }(#{ @ctx.id })"
