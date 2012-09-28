@@ -52,17 +52,17 @@ define [
 
         callback widget
 
-      , (err) ->
-        failedId = if err.requireModules? then err.requireModules[0] else null
-        console.log failedId
-        console.log err
-        if failedId == "cord-w!#{ path }#{ bundleSpec }"
-          console.log "found"
-          requirejs.undef failedId
-          require [failedId], ->
-            null
-          , (err) ->
-            console.log "error again", err
+#      , (err) ->
+#        failedId = if err.requireModules? then err.requireModules[0] else null
+#        console.log failedId
+#        console.log err
+#        if failedId == "cord-w!#{ path }#{ bundleSpec }"
+#          console.log "found"
+#          requirejs.undef failedId
+#          require [failedId], ->
+#            null
+#          , (err) ->
+#            console.log "error again", err
 
 
     dropWidget: (id) ->
@@ -215,14 +215,20 @@ define [
 
     injectWidget: (widgetPath, action, params) ->
       extendWidget = @findAndCutMatchingExtendWidget widgetPath
-      console.log "current root widget = #{ @rootWidget.constructor.name }"
+#      console.log "current root widget = #{ @rootWidget.constructor.name }"
       _oldRootWidget = @rootWidget
       if extendWidget?
-        extendWidget.fireAction action, params
         if _oldRootWidget != extendWidget
-          @dropWidget _oldRootWidget.ctx.id
+          _oldRootWidget.unbindChild extendWidget
           @setRootWidget extendWidget
-          @rootWidget.browserInit()
+          extendWidget.getStructTemplate (tmpl) =>
+            tmpl.assignWidget tmpl.struct.ownerWidget, extendWidget
+            tmpl.replacePlaceholders tmpl.struct.ownerWidget, extendWidget.ctx[':placeholders'], =>
+              extendWidget.fireAction action, params
+              @dropWidget _oldRootWidget.ctx.id
+              @rootWidget.browserInit()
+        else
+          throw 'not supported yet!'
       else
         @createWidget widgetPath, (widget) =>
           @setRootWidget widget
@@ -239,7 +245,7 @@ define [
         if widgetPath == extendWidget.getPath()
           found = true
           # removing all extend tree below found widget
-          @removeRootExtendWidget() while counter--
+          @_currentExtendList.shift() while counter--
           # ... and prepending extend tree with the new widgets
           @_newExtendList.reverse()
           @_currentExtendList.unshift(wdt) for wdt in @_newExtendList
@@ -252,11 +258,6 @@ define [
 
     registerNewExtendWidget: (widget) ->
       @_newExtendList.push widget
-
-    removeRootExtendWidget: ->
-      widget = @_currentExtendList.shift()
-      # cleaning of the widget will be done later when some children will be unbound
-      # todo: add some more removal (from dom placeholders)
 
     replaceExtendTree: ->
       @_currentExtendList = @_newExtendList

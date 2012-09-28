@@ -392,7 +392,9 @@ define [
           extendWidget.show params, callback
 
 
-    renderInlineTemplate: (template, callback) ->
+    renderInlineTemplate: (inlineId, template, callback) ->
+      @ctx[':inlines'] ?= []
+      @ctx[':inlines'].push inlineId
       tmplPath = "#{ @getDir() }/#{ template }"
       # todo: check dust.cache and load js (not text)
       require ["text!bundles/#{ tmplPath }"], (tmplString) =>
@@ -437,7 +439,7 @@ define [
             classAttr = info.class ? ''
             classAttr = if classAttr then "class=\"#{ classAttr }\"" else ''
             waitCounter++
-            widget.renderInlineTemplate info.template, (err, out) ->
+            widget.renderInlineTemplate inlineId, info.template, (err, out) ->
               if err then throw err
               placeholderOut[placeholderOrder[info.template]] = "<#{ info.tag } id=\"#{ inlineId }\"#{ classAttr }>#{ out }</#{ info.tag }>"
               waitCounter--
@@ -460,6 +462,7 @@ define [
 
       require ['jquery'], ($) =>
         ph = {}
+        @ctx[':placeholders'] ?= []
         for id, items of placeholders
           ph[id] = []
           for item in items

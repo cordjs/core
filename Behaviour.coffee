@@ -5,17 +5,21 @@ define [
 
   class Behaviour
 
+    rootEls: null
+
     constructor: (widget) ->
       @_widgetSubscriptions = []
       @widget = widget
       @id = widget.ctx.id
 
-      @el  = $('#' + @widget.ctx.id ) unless @el
-      @el  = $(@el)
+      @el  = $('#' + @widget.ctx.id )
       @$el = @el
 
-      @el.addClass(@cssClass) if @cssClass
-      @el.attr(@attributes) if @attributes
+      @rootEls = []
+      @rootEls.push @el if @el.length == 1
+
+      if @widget.ctx[':inlines']?
+        @rootEls.push $('#'+inlineId) for inlineId in @widget.ctx[':inlines']
 
       @events       = @constructor.events unless @events
       @widgetEvents = @constructor.widgetEvents unless @widgetEvents
@@ -38,9 +42,9 @@ define [
         selector   = match[2]
 
         if selector is ''
-          @el.on(eventName, method)
+          $el.on(eventName, method) for $el in @rootEls
         else
-          @el.on(eventName, selector, method)
+          $el.on(eventName, selector, method) for $el in @rootEls
 
     initWidgetEvents: (events) ->
       for fieldName, method of events

@@ -83,6 +83,7 @@ define [], ->
 
     replacePlaceholders: (widgetUid, currentPlaceholders, callback) ->
       extendWidget = @widgets[widgetUid]
+      currentPlaceholders ?= {}
 
       # search for appearence of the widget in current placeholder
       replaceHints = {}
