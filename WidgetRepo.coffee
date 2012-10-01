@@ -85,6 +85,10 @@ define [
       info.parent = parentWidget
 
     setRootWidget: (widget) ->
+      info = @widgets[widget.ctx.id]
+      if info.parent?
+        info.parent.unbindChild widget
+      info.parent = null
       @rootWidget = widget
 
     getTemplateCode: ->
@@ -219,22 +223,21 @@ define [
       _oldRootWidget = @rootWidget
       if extendWidget?
         if _oldRootWidget != extendWidget
-          _oldRootWidget.unbindChild extendWidget
           @setRootWidget extendWidget
           extendWidget.getStructTemplate (tmpl) =>
             tmpl.assignWidget tmpl.struct.ownerWidget, extendWidget
             tmpl.replacePlaceholders tmpl.struct.ownerWidget, extendWidget.ctx[':placeholders'], =>
               extendWidget.fireAction action, params
               @dropWidget _oldRootWidget.ctx.id
-              @rootWidget.browserInit()
+              @rootWidget.browserInit extendWidget
         else
           throw 'not supported yet!'
       else
         @createWidget widgetPath, (widget) =>
           @setRootWidget widget
-          widget.injectAction action, params, =>
-            @dropWidget _oldRootWidget.ctx.id
-            @rootWidget.browserInit()
+          widget.injectAction action, params, (commonBaseWidget) =>
+            @dropWidget _oldRootWidget.ctx.id unless commonBaseWidget == _oldRootWidget
+            @rootWidget.browserInit commonBaseWidget
 
     findAndCutMatchingExtendWidget: (widgetPath) ->
       result = null

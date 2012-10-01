@@ -254,7 +254,7 @@ define [
             @registerChild extendWidget
             @resolveParamRefs extendWidget, extendWidgetInfo.params, (params) ->
               extendWidget.fireAction 'default', params
-              callback()
+              callback extendWidget
         else
           tmpl.getWidget extendWidgetInfo.widget, (extendWidget) =>
             @registerChild extendWidget
@@ -458,12 +458,18 @@ define [
     definePlaceholders: (placeholders) ->
       @ctx[':placeholders'] = placeholders
 
-    replacePlaceholders: (placeholders, structTmpl, replaceHints) ->
+    replacePlaceholders: (placeholders, structTmpl, replaceHints, callback) ->
       ###
       @browser-only
       ###
 
+      returnCallback = ->
+        callback()
+
       require ['jquery'], ($) =>
+        waitCounter = 0
+        waitCounterFinish = false
+
         ph = {}
         @ctx[':placeholders'] ?= []
         for name, items of placeholders
@@ -483,16 +489,30 @@ define [
         for name, items of ph
           do (name) =>
             if replaceHints[name].replace
+              waitCounter++
               @_renderPlaceholder name, (out) =>
-                $('#' + @_getPlaceholderDomId name).html out
+                $el = $('#' + @_getPlaceholderDomId name)
+                $el.on 'DOMNodeInserted', ->
+                  waitCounter--
+                  if waitCounter == 0 and waitCounterFinish
+                    returnCallback()
+                $el.html out
             else
               i = 0
               for item in items
                 do (item, i) =>
                   widget = @widgetRepo.getById item.widget
+                  waitCounter++
                   structTmpl.replacePlaceholders replaceHints[name].items[i], widget.ctx[':placeholders'], ->
                     widget.fireAction 'default', item.params
+                    waitCounter--
+                    if waitCounter == 0 and waitCounterFinish
+                      returnCallback()
                 i++
+
+        waitCounterFinish = true
+        if waitCounter == 0
+          returnCallback()
 
 
     getInitCode: (parentId) ->
@@ -566,7 +586,7 @@ define [
       behaviourClass = @getBehaviourClass()
       if behaviourClass
         require ["cord!bundles/#{ @getDir() }/#{ behaviourClass }"], (BehaviourClass) =>
-          @behaviour = new BehaviourClass @
+          @behaviour = new BehaviourClass this
 
       @getWidgetCss()
 
@@ -574,15 +594,16 @@ define [
     # Almost copy of widgetRepo::init but for client-side rendering
     # @browser-only
     #
-    browserInit: ->
-      for widgetId, bindingMap of @childBindings
-        for ctxName, paramName of bindingMap
-          @widgetRepo.subscribePushBinding @ctx.id, ctxName, @childById[widgetId], paramName
+    browserInit: (stopPropagateWidget) ->
+      if this != stopPropagateWidget
+        for widgetId, bindingMap of @childBindings
+          for ctxName, paramName of bindingMap
+            @widgetRepo.subscribePushBinding @ctx.id, ctxName, @childById[widgetId], paramName
 
-      for childWidget in @children
-        childWidget.browserInit()
+        for childWidget in @children
+          childWidget.browserInit stopPropagateWidget
 
-      @initBehaviour()
+        @initBehaviour()
 
 
     markRenderStarted: ->

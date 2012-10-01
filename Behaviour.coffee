@@ -18,8 +18,8 @@ define [
       @rootEls = []
       @rootEls.push @el if @el.length == 1
 
-      if @widget.ctx[':inlines']?
-        @rootEls.push $('#'+inlineId) for inlineId in @widget.ctx[':inlines']
+      if widget.ctx[':inlines']?
+        @rootEls.push $('#'+inlineId) for inlineId in widget.ctx[':inlines']
 
       @events       = @constructor.events unless @events
       @widgetEvents = @constructor.widgetEvents unless @widgetEvents
@@ -112,5 +112,7 @@ define [
     render: ->
       @widget.renderTemplate (err, output) =>
         if err then throw err
-        $('#'+@widget.ctx.id).html output
-        @widget.browserInit()
+        $el = $('#'+@widget.ctx.id)
+        $el.html output
+        $el.on 'DOMNodeInserted', =>
+          @widget.browserInit()

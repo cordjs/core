@@ -124,6 +124,6 @@ define [], ->
           replaceHints[name].replace = true
 
       @resolvePlaceholders extendWidget, @struct.widgets[widgetRefUid].placeholders, (resolvedPlaceholders) =>
-        extendWidget.replacePlaceholders resolvedPlaceholders, this, replaceHints
-        callback()
+        extendWidget.replacePlaceholders resolvedPlaceholders, this, replaceHints, ->
+          callback()
 
