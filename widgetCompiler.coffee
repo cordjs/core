@@ -63,26 +63,26 @@ define [
       @structure.extend = @_extend
 
 
-    addPlaceholderContent: (surroundingWidget, placeholderId, widget, params) ->
+    addPlaceholderContent: (surroundingWidget, placeholderName, widget, params) ->
       @extendPhaseFinished = true
 
       swRef = @registerWidget surroundingWidget
       widgetRef = @registerWidget widget
 
-      swRef.placeholders[placeholderId] ?= []
-      swRef.placeholders[placeholderId].push
+      swRef.placeholders[placeholderName] ?= []
+      swRef.placeholders[placeholderName].push
         widget: widgetRef.uid
         params: params
 
 
-    addPlaceholderInline: (surroundingWidget, placeholderId, widget, templateName, name, tag, cls) ->
+    addPlaceholderInline: (surroundingWidget, placeholderName, widget, templateName, name, tag, cls) ->
       @extendPhaseFinished = true
 
       swRef = @registerWidget surroundingWidget
       widgetRef = @registerWidget widget
 
-      swRef.placeholders[placeholderId] ?= []
-      swRef.placeholders[placeholderId].push
+      swRef.placeholders[placeholderName] ?= []
+      swRef.placeholders[placeholderName].push
         inline: widgetRef.uid
         template: templateName
         name: name

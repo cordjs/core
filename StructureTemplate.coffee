@@ -43,9 +43,9 @@ define [], ->
       returnCallback = ->
         callback resolvedPlaceholders
 
-      for id, items of newPlaceholders
-        do (id) =>
-          resolvedPlaceholders[id] = []
+      for name, items of newPlaceholders
+        do (name) =>
+          resolvedPlaceholders[name] = []
           for item in items
             do (item) =>
               waitCounter++
@@ -53,7 +53,7 @@ define [], ->
                 @getWidget item.widget, (widget) =>
                   @ownerWidget.registerChild widget
                   @ownerWidget.resolveParamRefs widget, item.params, (params) ->
-                    resolvedPlaceholders[id].push
+                    resolvedPlaceholders[name].push
                       type: 'widget'
                       widget: widget.ctx.id
                       params: params
@@ -62,7 +62,7 @@ define [], ->
                       returnCallback()
               else
                 @getWidget item.inline, (widget) ->
-                  resolvedPlaceholders[id].push
+                  resolvedPlaceholders[name].push
                     type: 'inline'
                     widget: widget.ctx.id
                     template: item.template
@@ -78,24 +78,24 @@ define [], ->
         returnCallback()
 
 
-    assignWidget: (uid, newWidget) ->
-      @widgets[uid] = newWidget
+    assignWidget: (refUid, newWidget) ->
+      @widgets[refUid] = newWidget
 
-    replacePlaceholders: (widgetUid, currentPlaceholders, callback) ->
-      extendWidget = @widgets[widgetUid]
+    replacePlaceholders: (widgetRefUid, currentPlaceholders, callback) ->
+      extendWidget = @widgets[widgetRefUid]
       currentPlaceholders ?= {}
 
       # search for appearence of the widget in current placeholder
       replaceHints = {}
-      for id, items of @struct.widgets[widgetUid].placeholders
-        replaceHints[id] = {}
-        if currentPlaceholders[id]?
-          if currentPlaceholders[id].length == items.length
+      for name, items of @struct.widgets[widgetRefUid].placeholders
+        replaceHints[name] = {}
+        if currentPlaceholders[name]?
+          if currentPlaceholders[name].length == items.length
             theSame = true
             i = 0
             for item in items
               if item.widget?
-                curItem = currentPlaceholders[id][i]
+                curItem = currentPlaceholders[name][i]
                 curWidget = @ownerWidget.widgetRepo.getById(curItem.widget)
                 console.log "compare: #{ curItem.type } != 'widget' or #{ curWidget.getPath() } != #{ @struct.widgets[item.widget].path }"
                 if curItem.type != 'widget' or curWidget.getPath() != @struct.widgets[item.widget].path
@@ -112,18 +112,18 @@ define [], ->
 
         if theSame
           i = 0
-          replaceHints[id].items = []
-          replaceHints[id].replace = false
+          replaceHints[name].items = []
+          replaceHints[name].replace = false
           for item in items
             refUid = item.widget
-            curWidget = @ownerWidget.widgetRepo.getById(currentPlaceholders[id][i].widget)
+            curWidget = @ownerWidget.widgetRepo.getById(currentPlaceholders[name][i].widget)
             @assignWidget refUid, curWidget
 
-            replaceHints[id].items.push refUid
+            replaceHints[name].items.push refUid
         else
-          replaceHints[id].replace = true
+          replaceHints[name].replace = true
 
-      @resolvePlaceholders extendWidget, @struct.widgets[widgetUid].placeholders, (resolvedPlaceholders) =>
+      @resolvePlaceholders extendWidget, @struct.widgets[widgetRefUid].placeholders, (resolvedPlaceholders) =>
         extendWidget.replacePlaceholders resolvedPlaceholders, this, replaceHints
         callback()
 

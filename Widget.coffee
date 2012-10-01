@@ -402,7 +402,7 @@ define [
         dust.render tmplPath, @getBaseContext().push(@ctx), callback
 
 
-    _renderPlaceholder: (id, callback) ->
+    _renderPlaceholder: (name, callback) ->
       placeholderOut = []
       returnCallback = ->
         callback(placeholderOut.join '')
@@ -413,7 +413,7 @@ define [
       i = 0
       placeholderOrder = {}
       phs = @ctx[':placeholders'] ? []
-      ph = phs[id] ? []
+      ph = phs[name] ? []
 
       for info in ph
         do (info) =>
@@ -452,6 +452,9 @@ define [
         returnCallback()
 
 
+    _getPlaceholderDomId: (name) ->
+      'ph-' + @ctx.id + '-' + name
+
     definePlaceholders: (placeholders) ->
       @ctx[':placeholders'] = placeholders
 
@@ -463,31 +466,31 @@ define [
       require ['jquery'], ($) =>
         ph = {}
         @ctx[':placeholders'] ?= []
-        for id, items of placeholders
-          ph[id] = []
+        for name, items of placeholders
+          ph[name] = []
           for item in items
-            ph[id].push item
+            ph[name].push item
           # remove replaced placeholder is needed to know what remaining placeholders need to cleanup
-          if @ctx[':placeholders'][id]?
-            delete @ctx[':placeholders'][id]
+          if @ctx[':placeholders'][name]?
+            delete @ctx[':placeholders'][name]
 
         # cleanup empty placeholders
-        for id of @ctx[':placeholders']
-          $("#ph-#{ @ctx.id }-#{ id }").empty()
+        for name of @ctx[':placeholders']
+          $('#' + @_getPlaceholderDomId name).empty()
 
         @ctx[':placeholders'] = ph
 
-        for id, items of ph
-          do (id) =>
-            if replaceHints[id].replace
-              @_renderPlaceholder id, (out) =>
-                $("#ph-#{ @ctx.id }-#{ id }").html out
+        for name, items of ph
+          do (name) =>
+            if replaceHints[name].replace
+              @_renderPlaceholder name, (out) =>
+                $('#' + @_getPlaceholderDomId name).html out
             else
               i = 0
               for item in items
                 do (item, i) =>
                   widget = @widgetRepo.getById item.widget
-                  structTmpl.replacePlaceholders replaceHints[id].items[i], widget.ctx[':placeholders'], ->
+                  structTmpl.replacePlaceholders replaceHints[name].items[i], widget.ctx[':placeholders'], ->
                     widget.fireAction 'default', item.params
                 i++
 
@@ -694,10 +697,10 @@ define [
         placeholder: (chunk, context, bodies, params) =>
           @childWidgetAdd()
           chunk.map (chunk) =>
-            id = params?.id ? 'default'
-            @_renderPlaceholder id, (out) =>
+            name = params?.name ? 'default'
+            @_renderPlaceholder name, (out) =>
               @childWidgetComplete()
-              chunk.end "<div id=\"ph-#{ @ctx.id }-#{ id }\">#{ out }</div>"
+              chunk.end "<div id=\"#{ @_getPlaceholderDomId name }\">#{ out }</div>"
 
         #
         # Widget initialization script generator
