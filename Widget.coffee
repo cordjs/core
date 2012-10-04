@@ -534,7 +534,7 @@ define [
       if @css? and typeof @css is 'object'
         html = (cordCss.getHtml "cord-s!#{ css }" for css in @css).join ''
       else if @css?
-        html = cordCss.getHtml @path1, true
+        html = cordCss.getHtml "bundles/#{ @getDir() }", true
 
       """#{ html }#{ (widget.getInitCss(@ctx.id) for widget in @children).join '' }"""
 
@@ -739,7 +739,7 @@ define [
 
 
         # css inclide
-        css: (chunk, context, bodies, params) ->
+        css: (chunk, context, bodies, params) =>
           chunk.map (chunk) =>
             subscription = postal.subscribe
               #topic: "widget.#{ @widgetRepo.ownerWidget.ctx.id }.render.children.complete"
