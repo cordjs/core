@@ -128,7 +128,7 @@ define [
         widget.loadContext ctx
         widget.setRepo this
 
-        @_currentExtendList.push widget if isExtended
+        widget._isExtended = isExtended
 
         if @_pushBindings[ctx.id]?
           for ctxName, paramName of @_pushBindings[ctx.id]
@@ -162,6 +162,14 @@ define [
 
 
     setupBindings: ->
+      # organizing extendList in right order
+      for id in @_widgetOrder
+        widget = @widgets[id].widget
+        if widget._isExtended
+          @_currentExtendList.push widget
+        else
+          break
+      # initializing DOM bindings of widgets in reverse order (leafs of widget tree - first)
       @bind(id) for id in @_widgetOrder.reverse()
 
     bind: (widgetId) ->
