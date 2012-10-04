@@ -195,11 +195,11 @@ define [
           fs.readFile tmplFullPath, (err, data) =>
             throw err if err and err.code isnt 'ENOENT'
             return if err?.code is 'ENOENT'
-            compiledSource = dust.compile(data.toString(), tmplPath)
-            fs.writeFile "#{ tmplFullPath }.js", compiledSource, (err)->
+            @compiledSource = dust.compile(data.toString(), tmplPath)
+            fs.writeFile "#{ tmplFullPath }.js", @compiledSource, (err)->
               throw err if err
               console.log "Template saved: #{ tmplFullPath }.js"
-            dust.loadSource compiledSource
+            dust.loadSource @compiledSource
             @markRenderStarted()
             if @_dirtyChildren
               @cleanChildren()
@@ -844,6 +844,21 @@ define [
         # Inline - block of sub-template to place into surrounding widget's placeholder (compiler only)
         #
         inline: (chunk, context, bodies, params) =>
+
+          bodyStringList = null
+          bodyRe = /(body_[0-9]+)/g
+          collectBodies = (name, bodyString, bodies = {}) =>
+            if bodies[name]?
+              bodies
+            else
+              bodies[name] = bodyString
+              matchBodies = bodyString.match bodyRe
+              for depName in matchBodies
+                if not bodies[depName]?
+                  bodies[depName] = bodyStringList[depName]
+                  collectBodies depName, bodyStringList[depName], bodies
+              bodies
+
           chunk.map (chunk) =>
             require [
               'cord!widgetCompiler'
@@ -865,7 +880,10 @@ define [
                   # todo: detect bundles or vendor dir correctly
                   tmplFullPath = "./#{ config.PUBLIC_PREFIX }/bundles/#{ tmplPath }"
 
-                  tmplString = "(function(){dust.register(\"#{ tmplPath }\", #{ bodies.block.name }); #{ bodies.block.toString() }; return #{ bodies.block.name };})();"
+                  bodyStringList = widgetCompiler.extractBodiesAsStringList @compiledSource
+                  bodyList = collectBodies bodies.block.name, bodies.block.toString()
+
+                  tmplString = "(function(){dust.register(\"#{ tmplPath }\", #{ bodies.block.name }); #{ _.values(bodyList).join '' }; return #{ bodies.block.name };})();"
 
                   fs.writeFile tmplFullPath, tmplString, (err)->
                     if err then throw err
