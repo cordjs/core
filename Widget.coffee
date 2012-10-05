@@ -545,7 +545,7 @@ define [
       if @css? and typeof @css is 'object'
         cordCss.insertCss "cord-s!#{ css }" for css in @css
       else if @css?
-        cordCss.insertCss @path1, true
+        cordCss.insertCss "bundles/#{ @getDir() }", true
 
 
     registerChild: (child, name) ->
