@@ -551,7 +551,7 @@ define [
       html = ""
 
       if @css?
-        if typeof @css is 'object'
+        if _.isArray @css
           html = (cordCss.getHtml "cord-s!#{ css }" for css in @css).join ''
         else if @css
           html = cordCss.getHtml "bundles/#{ @getDir() }", true
@@ -561,11 +561,12 @@ define [
 
     # browser-only, include css-files widget
     getWidgetCss: ->
-
-      if @css? and typeof @css is 'object'
-        cordCss.insertCss "cord-s!#{ css }" for css in @css
-      else if @css?
-        cordCss.insertCss "bundles/#{ @getDir() }", true
+      console.log "#{ @constructor.name }::getWidgetCss"
+      if @css?
+        if _.isArray @css
+          cordCss.insertCss "cord-s!#{ css }" for css in @css
+        else if @css
+          cordCss.insertCss "bundles/#{ @getDir() }", true
 
 
     registerChild: (child, name) ->
