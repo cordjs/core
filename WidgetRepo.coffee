@@ -167,8 +167,6 @@ define [
         widget = @widgets[id].widget
         if widget._isExtended
           @_currentExtendList.push widget
-        else
-          break
       # initializing DOM bindings of widgets in reverse order (leafs of widget tree - first)
       @bind(id) for id in @_widgetOrder.reverse()
 
@@ -239,7 +237,8 @@ define [
               @dropWidget _oldRootWidget.ctx.id
               @rootWidget.browserInit extendWidget
         else
-          throw 'not supported yet!'
+          extendWidget.fireAction action, params
+          #throw 'not supported yet!'
       else
         @createWidget widgetPath, (widget) =>
           @setRootWidget widget

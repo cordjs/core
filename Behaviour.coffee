@@ -19,7 +19,7 @@ define [
       @rootEls.push @el if @el.length == 1
 
       if widget.ctx[':inlines']?
-        @rootEls.push $('#'+inlineId) for inlineId in widget.ctx[':inlines']
+        @rootEls.push $('#'+info.id) for inlineName, info of widget.ctx[':inlines']
 
       @events       = @constructor.events unless @events
       @widgetEvents = @constructor.widgetEvents unless @widgetEvents
@@ -110,9 +110,23 @@ define [
       @el
 
     render: ->
-      @widget.renderTemplate (err, output) =>
+      @widget.renderTemplate (err, out) =>
         if err then throw err
         $el = $('#'+@widget.ctx.id)
-        $el.html output
+        $el.html out
         $el.on 'DOMNodeInserted', =>
           @widget.browserInit()
+
+    renderInline: (name) ->
+      ###
+      Re-renders inline with the given name
+      @param String name inline's name to render
+      ###
+
+      @widget.renderInline name, (err, out) =>
+        if err then throw err
+        id = @widget.ctx[':inlines'][name].id
+        $el = $('#'+id)
+        $el.html out
+#        $el.on 'DOMNodeInserted', =>
+#          @widget.browserInit()

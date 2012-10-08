@@ -392,14 +392,29 @@ define [
           extendWidget.show params, callback
 
 
-    renderInlineTemplate: (inlineId, template, callback) ->
-      @ctx[':inlines'] ?= []
-      @ctx[':inlines'].push inlineId
-      tmplPath = "#{ @getDir() }/#{ template }"
-      # todo: check dust.cache and load js (not text)
-      require ["text!bundles/#{ tmplPath }"], (tmplString) =>
-        x = eval tmplString
-        dust.render tmplPath, @getBaseContext().push(@ctx), callback
+    renderInline: (inlineName, callback) ->
+      ###
+      Renders widget's inline-block by name
+      ###
+
+      console.log "#{ @constructor.name }::renderInline(#{ inlineName })"
+
+      if @ctx[':inlines'][inlineName]?
+        template = @ctx[':inlines'][inlineName].template
+        tmplPath = "#{ @getDir() }/#{ template }"
+
+        actualRender = =>
+          dust.render tmplPath, @getBaseContext().push(@ctx), callback
+
+        if dust.cache[tmplPath]?
+          actualRender()
+        else
+          # todo: load via cord-t
+          require ["text!bundles/#{ tmplPath }"], (tmplString) =>
+            dust.loadSource tmplString, tmplPath
+            actualRender()
+      else
+        throw "Trying to render unknown inline (name = #{ inlineName })!"
 
 
     _renderPlaceholder: (name, callback) ->
@@ -435,11 +450,15 @@ define [
           else
             placeholderOrder[info.template] = i
 
-            inlineId = "inline-#{ widget.ctx.id }-#{ info.name}"
+            inlineId = "inline-#{ widget.ctx.id }-#{ info.name }"
             classAttr = info.class ? ''
             classAttr = if classAttr then "class=\"#{ classAttr }\"" else ''
             waitCounter++
-            widget.renderInlineTemplate inlineId, info.template, (err, out) ->
+            widget.ctx[':inlines'] ?= {}
+            widget.ctx[':inlines'][info.name] =
+              id: inlineId
+              template: info.template
+            widget.renderInline info.name, (err, out) ->
               if err then throw err
               placeholderOut[placeholderOrder[info.template]] = "<#{ info.tag } id=\"#{ inlineId }\"#{ classAttr }>#{ out }</#{ info.tag }>"
               waitCounter--
@@ -531,10 +550,11 @@ define [
     getInitCss: (parentId) ->
       html = ""
 
-      if @css? and typeof @css is 'object'
-        html = (cordCss.getHtml "cord-s!#{ css }" for css in @css).join ''
-      else if @css?
-        html = cordCss.getHtml "bundles/#{ @getDir() }", true
+      if @css?
+        if typeof @css is 'object'
+          html = (cordCss.getHtml "cord-s!#{ css }" for css in @css).join ''
+        else if @css
+          html = cordCss.getHtml "bundles/#{ @getDir() }", true
 
       """#{ html }#{ (widget.getInitCss(@ctx.id) for widget in @children).join '' }"""
 
