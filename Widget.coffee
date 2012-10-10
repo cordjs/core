@@ -863,16 +863,13 @@ define [
           bodyStringList = null
           bodyRe = /(body_[0-9]+)/g
           collectBodies = (name, bodyString, bodies = {}) =>
-            if bodies[name]?
-              bodies
-            else
-              bodies[name] = bodyString
-              matchBodies = bodyString.match bodyRe
-              for depName in matchBodies
-                if not bodies[depName]?
-                  bodies[depName] = bodyStringList[depName]
-                  collectBodies depName, bodyStringList[depName], bodies
-              bodies
+            bodies[name] = bodyString
+            matchBodies = bodyString.match bodyRe
+            for depName in matchBodies
+              if not bodies[depName]?
+                bodies[depName] = bodyStringList[depName]
+                collectBodies depName, bodyStringList[depName], bodies
+            bodies
 
           chunk.map (chunk) =>
             require [
@@ -898,7 +895,8 @@ define [
                   bodyStringList = widgetCompiler.extractBodiesAsStringList @compiledSource
                   bodyList = collectBodies bodies.block.name, bodies.block.toString()
 
-                  tmplString = "(function(){dust.register(\"#{ tmplPath }\", #{ bodies.block.name }); #{ _.values(bodyList).join '' }; return #{ bodies.block.name };})();"
+                  tmplString = "(function(){dust.register(\"#{ tmplPath }\", #{ bodies.block.name }); " \
+                             + "#{ _.values(bodyList).join '' }; return #{ bodies.block.name };})();"
 
                   fs.writeFile tmplFullPath, tmplString, (err)->
                     if err then throw err
