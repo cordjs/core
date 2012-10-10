@@ -45,7 +45,7 @@ define [
 
       require ["cord-w!#{ path }#{ bundleSpec }"], (WidgetClass) =>
         widget = new WidgetClass
-        widget.setRepo this
+          repo: this
 
         @widgets[widget.ctx.id] =
           widget: widget
@@ -124,9 +124,10 @@ define [
           @_pushBindings[widgetId][ctxName] = paramName
 
       require ["cord-w!#{ widgetPath }"], (WidgetClass) =>
-        widget = new WidgetClass ctx.id
-        widget.loadContext ctx
-        widget.setRepo this
+        widget = new WidgetClass
+          context: ctx
+          repo: this
+          extended: isExtended
 
         widget._isExtended = isExtended
 

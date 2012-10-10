@@ -65,30 +65,36 @@ define [
       @_dirtyChildren = false
 
 
-    #
-    # Constructor
-    #
-    # @param string id (optional) manual ID of the widget
-    # @param boolean compileMode (optional) turn on/off compile mode
-    #
-    constructor: (id, compileMode) ->
-      if compileMode?
-        compileMode = if compileMode then true else false
-      else
-        if _.isBoolean id
-          compileMode = id
-          id = null
-        else
-          compileMode = false
+    constructor: (params) ->
+      ###
+      Constructor
 
-      @compileMode = compileMode
+      Accepted params:
+      * context (Object) - inject widget's context explicitly (should re used only to restore widget's state on node-browser
+                           transfer
+      * repo (WidgetRepo) - inject widget repository (should be always set except in compileMode
+      * compileMode (boolean) - turn on/off special compile mode of the widget (default - false)
+      * extended (boolean) - mark widget as part of extend tree (default - false)
+
+      @param (optional)Object params custom params, accepted by widget
+      ###
+
+      if params?
+        @ctx = new Context(params.context) if params.context?
+        @setRepo params.repo if params.repo?
+        @compileMode = params.compileMode if params.compileMode?
+        @_isExtended = params.extended if params.extended?
+
       @_subscriptions = []
       @resetChildren()
-      if compileMode
-        id = 'ref-wdt-' + _.uniqueId()
-      else
-        id ?= (if isBrowser then 'brow' else 'node') + '-wdt-' + _.uniqueId()
-      @ctx = new Context(id)
+
+      if not @ctx?
+        if @compileMode
+          id = 'rwdt-' + _.uniqueId()
+        else
+          id = (if isBrowser then 'b' else 'n') + 'wdt-' + _.uniqueId()
+        @ctx = new Context(id)
+
 
     clean: ->
       ###
@@ -108,13 +114,6 @@ define [
       subscription.unsubscribe() for subscription in @_subscriptions
       @_subscriptions = []
 
-    loadContext: (ctx) ->
-      ###
-      Manually set given context state of the widget.
-      This method is used when restoring state of the widget-tree of the page on the client-side after page was
-      rendered on the server-side.
-      ###
-      @ctx = new Context(ctx)
 
     addSubscription: (subscription) ->
       ###
@@ -200,11 +199,7 @@ define [
               throw err if err
               console.log "Template saved: #{ tmplFullPath }.js"
             dust.loadSource @compiledSource
-            @markRenderStarted()
-            if @_dirtyChildren
-              @cleanChildren()
             dust.render tmplPath, @getBaseContext().push(@ctx), callback
-            @markRenderFinished()
 
 
     getStructTemplate: (callback) ->
@@ -734,7 +729,7 @@ define [
 
 
         #
-        # Placeholder - point of extension of the widget (compiler version)
+        # Placeholder - point of extension of the widget
         #
         placeholder: (chunk, context, bodies, params) =>
           @childWidgetAdd()
@@ -763,7 +758,6 @@ define [
         css: (chunk, context, bodies, params) =>
           chunk.map (chunk) =>
             subscription = postal.subscribe
-              #topic: "widget.#{ @widgetRepo.ownerWidget.ctx.id }.render.children.complete"
               topic: "widget.#{ @ctx.id }.render.children.complete"
               callback: =>
                 chunk.end @widgetRepo.getTemplateCss()
