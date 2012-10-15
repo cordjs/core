@@ -5,7 +5,7 @@ define [
 ], (postal, deferAggregator, _) ->
 
   class WidgetRepo
-    widgets: {}
+    widgets: null
 
     rootWidget: null
 
@@ -13,12 +13,21 @@ define [
 
     _initEnd: false
 
-    _widgetOrder: []
+    _widgetOrder: null
 
-    _pushBindings: {}
+    _pushBindings: null
 
-    _currentExtendList: []
-    _newExtendList: []
+    _currentExtendList: null
+    _newExtendList: null
+
+
+    constructor: ->
+      @widgets = {}
+      @_widgetOrder = []
+      @_pushBindings = {}
+      @_currentExtendList = []
+      @_newExtendList = []
+
 
     createWidget: () ->
       ###

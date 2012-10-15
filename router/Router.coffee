@@ -44,7 +44,6 @@ define ['underscore'], (_) ->
 
     constructor: (@path, @definition) ->
       @widget         = @definition.widget ? null
-      @currentBundle  = @definition.currentBundle ? ''
       @action         = @definition.action ? 'default'
       @params         = @definition.params ? {}
 

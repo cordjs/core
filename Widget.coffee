@@ -6,11 +6,12 @@ define [
   'cord!Context'
   'cord!isBrowser'
   'cord!StructureTemplate'
-  'cord!config'
-], (_, dust, postal, cordCss, Context, isBrowser, StructureTemplate, config) ->
+  'cord!configPaths'
+  'cord!templateLoader'
+], (_, dust, postal, cordCss, Context, isBrowser, StructureTemplate, configPaths, templateLoader) ->
 
   dust.onLoad = (tmplPath, callback) ->
-    require ["cord-t!" + tmplPath], ->
+    templateLoader.loadTemplate tmplPath, ->
       callback null, ''
 
 
@@ -189,11 +190,10 @@ define [
       else
         @inlineCounter = 0 # for generating inline block IDs
         tmplPath = @getPath()
-        tmplFullPath = "./#{ config.PUBLIC_PREFIX }/bundles/#{ @getTemplatePath() }"
+        tmplFullPath = "./#{ configPaths.PUBLIC_PREFIX }/bundles/#{ @getTemplatePath() }"
         require ['fs'], (fs) =>
           fs.readFile tmplFullPath, (err, data) =>
-            throw err if err and err.code isnt 'ENOENT'
-            return if err?.code is 'ENOENT'
+            throw err if err
             @compiledSource = dust.compile(data.toString(), tmplPath)
             fs.writeFile "#{ tmplFullPath }.js", @compiledSource, (err)->
               throw err if err
@@ -309,7 +309,7 @@ define [
       if dust.cache[tmplPath]?
         actualRender()
       else
-        require ["cord-t!#{ tmplPath }"], ->
+        templateLoader.loadWidgetTemplate tmplPath, ->
           actualRender()
 
 #        dustCompileCallback = (err, data) =>
@@ -863,16 +863,13 @@ define [
           bodyStringList = null
           bodyRe = /(body_[0-9]+)/g
           collectBodies = (name, bodyString, bodies = {}) =>
-            if bodies[name]?
-              bodies
-            else
-              bodies[name] = bodyString
-              matchBodies = bodyString.match bodyRe
-              for depName in matchBodies
-                if not bodies[depName]?
-                  bodies[depName] = bodyStringList[depName]
-                  collectBodies depName, bodyStringList[depName], bodies
-              bodies
+            bodies[name] = bodyString
+            matchBodies = bodyString.match bodyRe
+            for depName in matchBodies
+              if not bodies[depName]?
+                bodies[depName] = bodyStringList[depName]
+                collectBodies depName, bodyStringList[depName], bodies
+            bodies
 
           chunk.map (chunk) =>
             require [
@@ -893,12 +890,13 @@ define [
                   templateName = "__inline_#{ name }.html.js"
                   tmplPath = "#{ @getDir() }/#{ templateName }"
                   # todo: detect bundles or vendor dir correctly
-                  tmplFullPath = "./#{ config.PUBLIC_PREFIX }/bundles/#{ tmplPath }"
+                  tmplFullPath = "./#{ configPaths.PUBLIC_PREFIX }/bundles/#{ tmplPath }"
 
                   bodyStringList = widgetCompiler.extractBodiesAsStringList @compiledSource
                   bodyList = collectBodies bodies.block.name, bodies.block.toString()
 
-                  tmplString = "(function(){dust.register(\"#{ tmplPath }\", #{ bodies.block.name }); #{ _.values(bodyList).join '' }; return #{ bodies.block.name };})();"
+                  tmplString = "(function(){dust.register(\"#{ tmplPath }\", #{ bodies.block.name }); " \
+                             + "#{ _.values(bodyList).join '' }; return #{ bodies.block.name };})();"
 
                   fs.writeFile tmplFullPath, tmplString, (err)->
                     if err then throw err
