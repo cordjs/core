@@ -14,7 +14,6 @@ define [], ->
         bundleSpec = bundleSpec.substr(0, bundleSpec.length - 1)
     name = nameParts[0]
 
-
     if name.indexOf('/') == -1
       bundleSpec = '/cord/core' if not bundleSpec?
       relativePath = name
@@ -61,7 +60,6 @@ define [], ->
 
   load: (name, req, load, config) ->
     info = @getFullInfo name
-#    console.log "cord-w::load( #{name} ) -> #{info.canonicalPath}, #{info.relativeFilePath}"
     req ["#{ config.paths.pathBundles }/#{ info.relativeFilePath }"], (WidgetClass) ->
       WidgetClass.path = info.canonicalPath
       WidgetClass.bundle = info.bundle

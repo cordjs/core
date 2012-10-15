@@ -97,7 +97,7 @@ define [], ->
               if item.widget?
                 curItem = currentPlaceholders[name][i]
                 curWidget = @ownerWidget.widgetRepo.getById(curItem.widget)
-                console.log "compare: #{ curItem.type } != 'widget' or #{ curWidget.getPath() } != #{ @struct.widgets[item.widget].path }"
+                #console.log "compare: #{ curItem.type } != 'widget' or #{ curWidget.getPath() } != #{ @struct.widgets[item.widget].path }"
                 if curItem.type != 'widget' or curWidget.getPath() != @struct.widgets[item.widget].path
                   theSame = false
                   break

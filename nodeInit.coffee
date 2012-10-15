@@ -8,7 +8,7 @@ http          = require 'http'
 serverStatic  = require 'node-static'
 
 configPaths   = require './configPaths'
-config        = require './config'
+#config        = require './config'
 host          = '127.0.0.1'
 port          = '1337'
 
@@ -18,7 +18,6 @@ exports.services = services =
   appManager: null
 
 exports.init = (baseUrl = 'public') ->
-  console.log 'public_prefix = ', config.PUBLIC_PREFIX
   requirejs.config
     baseUrl: baseUrl
     nodeRequire: require
@@ -27,10 +26,9 @@ exports.init = (baseUrl = 'public') ->
   requirejs [
     'cord!appManager'
     'cord!Rest'
-    'cord!config'
-  ], (application, Rest, config) ->
-    config.PUBLIC_PREFIX = baseUrl
-
+    'cord!configPaths'
+  ], (application, Rest, configPaths) ->
+    configPaths.PUBLIC_PREFIX = baseUrl
     services.appManager = application
     services.fileServer = new serverStatic.Server(baseUrl)
 
