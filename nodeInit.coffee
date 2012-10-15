@@ -9,8 +9,8 @@ serverStatic  = require 'node-static'
 
 configPaths   = require './configPaths'
 config        = require './config'
-host          = '127.0.0.1'
-port          = '1337'
+host          = '192.168.63.237'
+port          = '80'
 
 exports.services = services =
   nodeServer: null
@@ -51,7 +51,8 @@ exports.startServer = startServer = (callback) ->
             else
               res.writeHead err.status, err.headers;
               res.end()
-  .listen(port, host)
+#  .listen(port, host)
+  .listen(port)
   callback?()
 
 exports.restartServer = restartServer = ->
