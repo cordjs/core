@@ -337,7 +337,7 @@ define [
       for name, value of params
         if name != 'name' and name != 'type'
 
-          if value.charAt(0) == '^'
+          if typeof value is 'string' and value.charAt(0) == '^'
             value = value.slice 1
             bindings[value] = name
 
