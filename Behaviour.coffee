@@ -110,12 +110,14 @@ define [
       @el
 
     render: ->
-      @widget.renderTemplate (err, out) =>
+      # renderTemplate will clean this behaviour, so we must save links...
+      widget = @widget
+      $el = @$el
+      widget.renderTemplate (err, out) =>
         if err then throw err
-        $el = $('#'+@widget.ctx.id)
         $el.html out
         $el.on 'DOMNodeInserted', =>
-          @widget.browserInit()
+          widget.browserInit()
 
     renderInline: (name) ->
       ###
