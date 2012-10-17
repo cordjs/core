@@ -412,6 +412,16 @@ define [
       classAttr = if classList.length then " class=\"#{ classList.join ' ' }\"" else ""
       "<#{ @rootTag } id=\"#{ @ctx.id }\"#{ classAttr }>#{ content }</#{ @rootTag }>"
 
+    replaceClass: (cls) ->
+      ###
+      @browser-only
+      ###
+      $el = $('#'+@ctx.id)
+      classList = []
+      classList.push @cssClass if @cssClass
+      classList.push cls if cls
+      $el.attr('class', classList.join ' ')
+
     _renderPlaceholder: (name, callback) ->
       placeholderOut = []
       returnCallback = ->
@@ -516,6 +526,7 @@ define [
                 do (item, i) =>
                   widget = @widgetRepo.getById item.widget
                   waitCounter++
+                  widget.replaceClass item.class
                   structTmpl.replacePlaceholders replaceHints[name].items[i], widget.ctx[':placeholders'], ->
                     widget.fireAction 'default', item.params
                     waitCounter--
