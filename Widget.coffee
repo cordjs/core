@@ -294,7 +294,6 @@ define [
       ###
       Usual way of rendering template via dust.
       ###
-
       console.log "_renderSelfTemplate(#{ @constructor.name})"
 
       tmplPath = @getPath()
@@ -312,21 +311,16 @@ define [
         templateLoader.loadWidgetTemplate tmplPath, ->
           actualRender()
 
-#        dustCompileCallback = (err, data) =>
-#          if err then throw err
-#          dust.loadSource dust.compile(data, tmplPath)
-#          actualRender()
-#
-#        require ["cord-t!#{ tmplPath }"], (tplString) =>
-#          ## Этот хак позволяет не виснуть dustJs.
-#          # зависание происходит при {#deffered}..{#name}{>"//folder/file.html"/}
-#          setTimeout =>
-#            dustCompileCallback null, tplString
-#          , 200
 
     resolveParamRefs: (widget, params, callback) ->
       # this is necessary to avoid corruption of original structure template params
       params = _.clone params
+
+      # removing special params
+      delete params.placeholder
+      delete params.type
+      delete params.class
+      delete params.name
 
       waitCounter = 0
       waitCounterFinish = false
@@ -382,7 +376,7 @@ define [
 
       tmpl.getWidget extendWidgetInfo.widget, (extendWidget) =>
         extendWidget._isExtended = true if @_isExtended
-        @registerChild extendWidget
+        @registerChild extendWidget, extendWidgetInfo.name
         @resolveParamRefs extendWidget, extendWidgetInfo.params, (params) ->
           extendWidget.show params, callback
 
@@ -411,6 +405,12 @@ define [
       else
         throw "Trying to render unknown inline (name = #{ inlineName })!"
 
+    renderRootTag: (content, cls) ->
+      classList = []
+      classList.push @cssClass if @cssClass
+      classList.push cls if cls
+      classAttr = if classList.length then " class=\"#{ classList.join ' ' }\"" else ""
+      "<#{ @rootTag } id=\"#{ @ctx.id }\"#{ classAttr }>#{ content }</#{ @rootTag }>"
 
     _renderPlaceholder: (name, callback) ->
       placeholderOut = []
@@ -436,9 +436,8 @@ define [
 
             widget.show info.params, (err, out) ->
               if err then throw err
-              # todo: add class attribute support
-              placeholderOut[placeholderOrder[widgetId]] =
-                "<#{ widget.rootTag } id=\"#{ widgetId }\">#{ out }</#{ widget.rootTag }>"
+              placeholderOut[placeholderOrder[widgetId]] = widget.renderRootTag out, info.class
+
               waitCounter--
               if waitCounter == 0 and waitCounterFinish
                 returnCallback()
@@ -681,13 +680,11 @@ define [
 
             callbackRender = (widget) =>
               @registerChild widget, params.name
-              @resolveParamRefs widget, params, (params) =>
-                widget.show params, (err, output) =>
-                  classAttr = if params.class then params.class else if widget.cssClass then widget.cssClass else ""
-                  classAttr = if classAttr then "class=\"#{ classAttr }\"" else ""
+              @resolveParamRefs widget, params, (actionParams) =>
+                widget.show actionParams, (err, out) =>
                   @childWidgetComplete()
                   if err then throw err
-                  chunk.end "<#{ widget.rootTag } id=\"#{ widget.ctx.id }\"#{ classAttr }>#{ output }</#{ widget.rootTag }>"
+                  chunk.end widget.renderRootTag(out, params.class)
 
             if bodies.block?
               @getStructTemplate (tmpl) ->
@@ -834,8 +831,6 @@ define [
                 ph = params.placeholder ? 'default'
                 sw = context.surroundingWidget
 
-                delete params.placeholder
-                delete params.type
                 widgetCompiler.addPlaceholderContent sw, ph, widget, params
               else if bodies.block?
                 throw "Name must be explicitly defined for the inline-widget with body placeholders (#{ @constructor.name } -> #{ widget.constructor.name })!" if not params.name? or params.name == ''

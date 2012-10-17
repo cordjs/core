@@ -50,15 +50,16 @@ define [
       if @_extend?
         throw "Only one '#extend' is allowed per template (#{ widget.constructor.name })!"
 
-      widgetRef = @registerWidget widget
+      widgetRef = @registerWidget widget, params.name
 
-      params = _.clone params
-      delete params.type
-      delete params.name
+      cleanParams = _.clone params
+      delete cleanParams.type
+      delete cleanParams.name
 
       @_extend =
         widget: widgetRef.uid
-        params: params
+        params: cleanParams
+      @_extend.name = params.name if params.name
 
       @structure.extend = @_extend
 
@@ -67,12 +68,24 @@ define [
       @extendPhaseFinished = true
 
       swRef = @registerWidget surroundingWidget
-      widgetRef = @registerWidget widget
+      widgetRef = @registerWidget widget, params.name
 
       swRef.placeholders[placeholderName] ?= []
-      swRef.placeholders[placeholderName].push
+
+      cleanParams = _.clone params
+      delete cleanParams.type
+      delete cleanParams.placeholder
+      delete cleanParams.name
+      delete cleanParams.class
+
+      info =
         widget: widgetRef.uid
-        params: params
+        params: cleanParams
+      info.class = params.class if params.class
+      info.name = params.name if params.name
+
+      swRef.placeholders[placeholderName].push info
+
 
 
     addPlaceholderInline: (surroundingWidget, placeholderName, widget, templateName, name, tag, cls) ->

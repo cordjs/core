@@ -51,12 +51,13 @@ define [], ->
               waitCounter++
               if item.widget?
                 @getWidget item.widget, (widget) =>
-                  @ownerWidget.registerChild widget
+                  @ownerWidget.registerChild widget, item.name
                   @ownerWidget.resolveParamRefs widget, item.params, (params) ->
                     resolvedPlaceholders[name].push
                       type: 'widget'
                       widget: widget.ctx.id
                       params: params
+                      class: item.class
                     waitCounter--
                     if waitCounter == 0 and waitCounterFinish
                       returnCallback()
