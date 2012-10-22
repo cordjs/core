@@ -89,7 +89,7 @@ define [
       Register child-parent relationship in the repo
       ###
       info = @widgets[childWidget.ctx.id]
-      if info.parent?
+      if info.parent? and info.parent != parentWidget
         info.parent.unbindChild childWidget
       info.parent = parentWidget
 
