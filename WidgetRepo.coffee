@@ -235,7 +235,7 @@ define [
 
     injectWidget: (widgetPath, action, params) ->
       extendWidget = @findAndCutMatchingExtendWidget widgetPath
-#      console.log "current root widget = #{ @rootWidget.constructor.name }"
+#      console.log "injectWidget -> current root widget = #{ @rootWidget.constructor.name }"
       _oldRootWidget = @rootWidget
       if extendWidget?
         if _oldRootWidget != extendWidget

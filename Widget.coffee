@@ -106,7 +106,7 @@ define [
       subscriptions left from the dissapered widgets.
       ###
 
-      console.log "clean #{ @constructor.name }(#{ @ctx.id })"
+      console.log "clean #{ @getPath() }(#{ @ctx.id })"
 
       @cleanChildren()
       if @behaviour?
@@ -230,7 +230,7 @@ define [
       @widgetRepo.registerNewExtendWidget this
 
       @["_#{ action }Action"] params, =>
-        console.log "injectAction #{ @constructor.name}::_#{ action }Action: params:", params, " context:", @ctx
+        console.log "injectAction #{ @getPath() }::_#{ action }Action: params:", params, " context:", @ctx
         @getStructTemplate (tmpl) =>
           @_injectRender tmpl, callback
 
