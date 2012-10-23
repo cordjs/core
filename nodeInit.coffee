@@ -11,6 +11,17 @@ configPaths   = require './configPaths'
 host          = '127.0.0.1'
 port          = '1337'
 
+pathDir   = fs.realpathSync '.'
+
+try global.CONFIG = require pathDir + '/conf/serverConf.json'
+catch e
+ global.CONFIG = {}
+
+try global.CONFIG_CLIENT = require pathDir + '/conf/clientConf.json'
+catch e
+  global.CONFIG_CLIENT = {}
+
+
 exports.services = services =
   nodeServer: null
   fileServer: null

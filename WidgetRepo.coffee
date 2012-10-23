@@ -110,6 +110,10 @@ define [
             wi.endInit();
           };
       </script>
+      <script>
+        var global.CONFIG = #{ JSON.stringify(global.CONFIG_CLIENT) }
+      </script>
+
       """
 
     getTemplateCss: ->
