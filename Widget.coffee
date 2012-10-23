@@ -158,7 +158,7 @@ define [
       Just call action (change context) and do not output anything
       ###
       @["_#{ action }Action"] params, =>
-        console.log "fireAction #{ @constructor.name}::_#{ action }Action: params:", params, " context:", @ctx
+        console.log "fireAction #{ @debug "_#{ action }Action" } -> params:", params, " context:", @ctx
 
 
     ##
@@ -517,7 +517,7 @@ define [
               waitCounter++
               @_renderPlaceholder name, (out) =>
                 $el = $('#' + @_getPlaceholderDomId name)
-                $el.on 'DOMNodeInserted', ->
+                $el.one 'DOMNodeInserted', ->
                   waitCounter--
                   if waitCounter == 0 and waitCounterFinish
                     returnCallback()

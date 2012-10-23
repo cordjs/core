@@ -115,7 +115,7 @@ define [
       $el = @$el
       widget.renderTemplate (err, out) ->
         if err then throw err
-        $el.on 'DOMNodeInserted', ->
+        $el.one 'DOMNodeInserted', ->
           widget.browserInit()
         $el.html out
 
