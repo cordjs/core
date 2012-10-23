@@ -7,16 +7,18 @@ define [], ->
       @ownerWidget = ownerWidget
 
       @widgets = {}
-      @widgets[struct.ownerWidget] = ownerWidget
+      @_reverseIndex = {}
+      @assignWidget struct.ownerWidget, ownerWidget
 
 
 
     getWidget: (widgetRefId, callback) ->
+#      console.log "#{ @ownerWidget.debug 'StructureTemplate' }::getWidget(#{ widgetRefId }) -> #{ if @widgets[widgetRefId]? then @widgets[widgetRefId].debug() else 'unexistent' }"
       if @widgets[widgetRefId]?
         callback @widgets[widgetRefId]
       else
         @_initWidget widgetRefId, (widget) =>
-          @widgets[widgetRefId] = widget
+          @assignWidget widgetRefId, widget
           callback widget
 
 
@@ -81,6 +83,16 @@ define [], ->
 
     assignWidget: (refUid, newWidget) ->
       @widgets[refUid] = newWidget
+      @_reverseIndex[newWidget.ctx.id] = refUid
+
+    unassignWidget: (widget) ->
+#      console.log "StructureTemplate::unassignWidget(#{ widget.debug() })"
+      if @_reverseIndex[widget.ctx.id]?
+        delete @widgets[@_reverseIndex[widget.ctx.id]]
+        delete @_reverseIndex[widget.ctx.id]
+      else
+        console.log "WARNING: trying to unassign unknown widget #{ widget.debug() }"
+
 
     replacePlaceholders: (widgetRefUid, currentPlaceholders, callback) ->
       extendWidget = @widgets[widgetRefUid]

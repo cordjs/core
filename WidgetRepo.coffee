@@ -93,6 +93,7 @@ define [
         info.parent.unbindChild childWidget
       info.parent = parentWidget
 
+
     setRootWidget: (widget) ->
       info = @widgets[widget.ctx.id]
       if info.parent?

@@ -180,6 +180,8 @@ define [
 
 
     cleanChildren: ->
+      if @_structTemplate? and @_structTemplate != ':empty'
+        @_structTemplate.unassignWidget widget for widget in @children
       @widgetRepo.dropWidget(widget.ctx.id) for widget in @children
       @resetChildren()
 
@@ -573,8 +575,12 @@ define [
         else if @css
           cordCss.insertCss "bundles/#{ @getDir() }", true
 
+    debug: (method) ->
+      methodStr = if method? then "::#{ method }" else ''
+      "#{ @getPath() }(#{ @ctx.id })#{ methodStr }"
 
     registerChild: (child, name) ->
+#      console.log "#{ @debug 'registerChild' } -> #{ child.debug() }"
       @children.push child
       @childById[child.ctx.id] = child
       @childByName[name] = child if name?
