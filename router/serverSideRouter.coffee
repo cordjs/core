@@ -30,6 +30,7 @@ define [
             res.end output
             # todo: may be need some cleanup before?
             widgetRepo = null
+          , req, res
 
         true
       else

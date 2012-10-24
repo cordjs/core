@@ -1,12 +1,14 @@
 define [
+  'cord!Widget'
   'cord!Rest'
   'url'
   'querystring'
-], ( Rest, url, qs ) ->
+], ( Widget, Rest, url, qs ) ->
 
-  class RestApi
+  class RestApi extends Widget
 
     showAction: (action, params, callback, req, res) ->
+#      console.log arguments
       options =
         method: req.method
         url: decodeURIComponent params.restPath
@@ -35,5 +37,6 @@ define [
 
     request: (options, res, callback) ->
       Rest.request options, (body, error, response) ->
-        res.writeHead response[ 'statusCode' ], 'Content-Type': response.headers[ 'content-type' ]
+        console.log arguments
+#        res.writeHead response[ 'statusCode' ], 'Content-Type': response.headers[ 'content-type' ]
         callback null, body
