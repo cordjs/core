@@ -111,7 +111,9 @@ define [
           };
       </script>
       <script>
-        var global.CONFIG = #{ JSON.stringify(global.CONFIG_CLIENT) }
+        var global = {
+          CONFIG: #{ JSON.stringify(global.CONFIG_CLIENT) }
+        };
       </script>
 
       """
