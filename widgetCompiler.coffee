@@ -1,6 +1,7 @@
 define [
   'underscore'
-], (_) ->
+  'dustjs-linkedin'
+], (_, dust) ->
 
   class WidgetCompiler
 
@@ -138,5 +139,11 @@ define [
         startIdx = endIdx
       result
 
+  #
+  # Preventing loading of partials during widget compilation
+  #
+  dust.onLoad = (tmplPath, callback) ->
+    dust.cache[tmplPath] = ''
+    callback null, ''
 
   new WidgetCompiler
