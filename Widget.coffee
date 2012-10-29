@@ -146,7 +146,7 @@ define [
 
     showAction: (action, params, callback) ->
       @["_#{ action }Action"] params, =>
-        console.log "showAction #{ @constructor.name}::_#{ action }Action: params:", params, " context:", @ctx
+        console.log "showAction #{ @constructor.name}::_#{ action }Action: params:", params, " context:", @ctx if global.CONFIG.debug.widget
         @renderTemplate callback
 
     jsonAction: (action, params, callback) ->
@@ -283,7 +283,7 @@ define [
       ###
       Decides wether to call extended template parsing of self-template parsing and calls it.
       ###
-      console.log "renderTemplate(#{ @constructor.name })"
+      console.log "renderTemplate(#{ @constructor.name })" if global.CONFIG.debug.widget
 
       @getStructTemplate (tmpl) =>
         if tmpl != ':empty' and tmpl.struct.extend?
@@ -296,7 +296,7 @@ define [
       ###
       Usual way of rendering template via dust.
       ###
-      console.log "_renderSelfTemplate(#{ @constructor.name})"
+      console.log "_renderSelfTemplate(#{ @constructor.name})" if global.CONFIG.debug.widget
 
       tmplPath = @getPath()
 
@@ -388,7 +388,7 @@ define [
       Renders widget's inline-block by name
       ###
 
-      console.log "#{ @constructor.name }::renderInline(#{ inlineName })"
+      console.log "#{ @constructor.name }::renderInline(#{ inlineName })" if global.CONFIG.debug.widget
 
       if @ctx[':inlines'][inlineName]?
         template = @ctx[':inlines'][inlineName].template

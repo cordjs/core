@@ -5,7 +5,7 @@ define [
 ], (cord, dust, pathConfig) ->
 
   loadWidgetTemplate: (path, callback) ->
-    console.log "loadWidgetTemplate(#{path})"
+    console.log "loadWidgetTemplate(#{path})" if global.CONFIG.debug.widget
     info = cord.getFullInfo path
     require ["text!#{ pathConfig.paths.pathBundles }/#{ info.relativeDirPath }/#{ info.dirName }.html.js"], (tmplString) ->
       dust.loadSource tmplString, path

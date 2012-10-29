@@ -1,22 +1,21 @@
 define [
   'postal'
   'cord!deferAggregator'
+  'cord!Api'
   'underscore'
-], (postal, deferAggregator, _) ->
+], (postal, deferAggregator, Api, _) ->
 
   class WidgetRepo
     widgets: null
-
     rootWidget: null
 
+    request: null
+    response: null
+
     _loadingCount: 0
-
     _initEnd: false
-
     _widgetOrder: null
-
     _pushBindings: null
-
     _currentExtendList: null
     _newExtendList: null
 
@@ -27,6 +26,22 @@ define [
       @_pushBindings = {}
       @_currentExtendList = []
       @_newExtendList = []
+
+
+    setRequest: (request) =>
+      @request = request
+
+
+    setResponse: (response) =>
+      @response = response
+
+
+    getRequest: =>
+      @request
+
+
+    getResponse: =>
+      @response
 
 
     createWidget: () ->
@@ -283,9 +298,28 @@ define [
         counter++
       result
 
+
     registerNewExtendWidget: (widget) ->
       @_newExtendList.push widget
+
 
     replaceExtendTree: ->
       @_currentExtendList = @_newExtendList
       @_newExtendList = []
+
+
+    getApi: ->
+      new Api
+        protocol: global.CONFIG.api.protocol
+        host: global.CONFIG.api.host
+        urlPrefix: global.CONFIG.api.urlPrefix
+        http:
+          request: @request
+          response: @response
+        oauth2:
+          clientId: 'CLIENT'
+          secretKey: 'SECRET'
+          endpoints:
+            accessToken: "http://#{global.CONFIG.api.host}/oauth/access_token"
+        getUserPasswordCallback: (callback) ->
+          callback 'jedi', 'jedi'

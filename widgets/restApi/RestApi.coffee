@@ -7,36 +7,32 @@ define [
 
   class RestApi extends Widget
 
-    showAction: (action, params, callback, req, res) ->
-#      console.log arguments
+    showAction: (action, params, callback) ->
       options =
-        method: req.method
+        method: @repo.getRequest().method
         url: decodeURIComponent params.restPath
         headers:
-          'Accept': req.headers.accept
-#          'Accept-encoding': req.headers.accept-encoding
+          'Accept': @repo.getRequest().headers.accept
 
       request = (options) =>
-        @request options, res, callback
+        @request options, @repo.getResponse(), callback
 
-      switch req.method
+      switch @repo.getRequest().method
 
         when 'POST'
           body = ''
-          req.on 'data', (data) ->
+          @repo.getRequest().on 'data', (data) ->
             body += data
 
-          req.on 'end', (data) ->
+          @repo.getRequest().on 'end', (data) ->
             options.data = qs.parse body
             request options
 
         when 'GET'
-          urlParts = url.parse req.url, true
+          urlParts = url.parse @repo.getRequest().url, true
           options.data = urlParts.query
           request options
 
     request: (options, res, callback) ->
       Rest.request options, (body, error, response) ->
-        console.log arguments
-#        res.writeHead response[ 'statusCode' ], 'Content-Type': response.headers[ 'content-type' ]
         callback null, body
