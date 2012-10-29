@@ -49,7 +49,7 @@ define [
 
       if triggerChange
         setTimeout =>
-          console.log "publish widget.#{ @id }.change.#{ name }" if global.CONFIG.debug.widget
+          console.log "publish widget.#{ @id }.change.#{ name }" if global.CONFIG.debug?.widget
           postal.publish "widget.#{ @id }.change.#{ name }",
             name: name
             value: newValue

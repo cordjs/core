@@ -24,20 +24,20 @@ define [
 
       @options.query = args.params
 
-      startRequest = new Date() if global.CONFIG.debug.request
+      startRequest = new Date() if global.CONFIG.debug?.request
       curly.get args.url, @options, (error, response, body) ->
 
-        if global.CONFIG.debug.request
+        if global.CONFIG.debug?.request
           stopRequest = new Date()
           seconds = (stopRequest - startRequest) / 1000
 
-          if global.CONFIG.debug.request == 'simple'
+          if global.CONFIG.debug?.request == 'simple'
             console.log "ServerRequest ( #{ seconds } s): #{args.url}"
           else
             console.log "========================================================================( #{ seconds } s)"
             console.log "ServerRequest: #{args.url}"
             console.log args.params
-            console.log body if global.CONFIG.debug.request == 'full'
+            console.log body if global.CONFIG.debug?.request == 'full'
             console.log "========================================================================"
 
         args.callback body if typeof args.callback == 'function'

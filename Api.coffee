@@ -37,7 +37,7 @@ define [
       cookie.set 'accessToken', accessToken
       cookie.set 'refreshToken', refreshToken
 
-      console.log "Store tokens: #{accessToken}, #{refreshToken}" if global.CONFIG.debug.oauth2
+      console.log "Store tokens: #{accessToken}, #{refreshToken}" if global.CONFIG.debug?.oauth2
 
 
     restoreTokens: =>
@@ -45,7 +45,7 @@ define [
       @accessToken = cookie.get 'accessToken'
       @refreshToken = cookie.get 'refreshToken'
 
-      console.log "Restore tokens: #{@accessToken}, #{@refreshToken}" if global.CONFIG.debug.oauth2
+      console.log "Restore tokens: #{@accessToken}, #{@refreshToken}" if global.CONFIG.debug?.oauth2
 
 
     get: =>
