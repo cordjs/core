@@ -340,7 +340,7 @@ define [
             # if context value is deferred, than waiting asyncronously...
             if @ctx.isDeferred value
               waitCounter++
-              @subscribeValueChange params, name, value, =>
+              @subscribeValueChange params, name, value, ->
                 waitCounter--
                 if waitCounter == 0 and waitCounterFinish
                   callback params
@@ -480,20 +480,30 @@ define [
     _getPlaceholderDomId: (name) ->
       'ph-' + @ctx.id + '-' + name
 
+
     definePlaceholders: (placeholders) ->
       @ctx[':placeholders'] = placeholders
 
+
     replacePlaceholders: (placeholders, structTmpl, replaceHints, callback) ->
       ###
+      Replaces contents of the placeholders of this widget according to the given params
       @browser-only
+      @param Object placeholders meta-information about new placeholders contents
+      @param StructureTemplate structTmpl structure template of the calling widget
+      @param Object replaceHints pre-calculated helping information about which placeholders should be replaced
+                                 and which should not
+      @param Function() callback callback which should be called when replacement is done (async)
       ###
-
-      returnCallback = ->
-        callback()
 
       require ['jquery'], ($) =>
         waitCounter = 0
         waitCounterFinish = false
+
+        reduceWaitCounter = ->
+          waitCounter--
+          if waitCounter == 0 and waitCounterFinish
+            callback()
 
         ph = {}
         @ctx[':placeholders'] ?= []
@@ -517,11 +527,13 @@ define [
               waitCounter++
               @_renderPlaceholder name, (out) =>
                 $el = $('#' + @_getPlaceholderDomId name)
-                $el.one 'DOMNodeInserted', ->
-                  waitCounter--
-                  if waitCounter == 0 and waitCounterFinish
-                    returnCallback()
-                $el.html out
+                if $el.length == 1
+                  $el.one 'DOMNodeInserted', reduceWaitCounter
+                  $el.html out
+                else
+                  console.log "WARNING: Trying to replace unexistent placeholder with name \"#{ name }\" " +
+                    "in widget #{ @debug() }"
+                  reduceWaitCounter()
             else
               i = 0
               for item in items
@@ -531,14 +543,12 @@ define [
                   widget.replaceClass item.class
                   structTmpl.replacePlaceholders replaceHints[name].items[i], widget.ctx[':placeholders'], ->
                     widget.fireAction 'default', item.params
-                    waitCounter--
-                    if waitCounter == 0 and waitCounterFinish
-                      returnCallback()
+                    reduceWaitCounter()
                 i++
 
         waitCounterFinish = true
         if waitCounter == 0
-          returnCallback()
+          callback()
 
 
     getInitCode: (parentId) ->
@@ -552,6 +562,7 @@ define [
       wi.init('#{ @getPath() }', #{ JSON.stringify @ctx }, #{ JSON.stringify namedChilds }, #{ JSON.stringify @childBindings }, #{ @_isExtended }#{ parentStr });
       #{ (widget.getInitCode(@ctx.id) for widget in @children).join '' }
       """
+
 
     # include all css-files, if rootWidget init
     getInitCss: (parentId) ->
