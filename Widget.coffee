@@ -200,8 +200,11 @@ define [
             fs.writeFile "#{ tmplFullPath }.js", @compiledSource, (err)->
               throw err if err
               console.log "Template saved: #{ tmplFullPath }.js"
-            dust.loadSource @compiledSource
-            dust.render tmplPath, @getBaseContext().push(@ctx), callback
+            if @getPath() != '/cord/core//Switcher'
+              dust.loadSource @compiledSource
+              dust.render tmplPath, @getBaseContext().push(@ctx), callback
+            else
+              callback(null, '')
 
 
     getStructTemplate: (callback) ->
@@ -705,7 +708,6 @@ define [
         widget: (chunk, context, bodies, params) =>
           @childWidgetAdd()
           chunk.map (chunk) =>
-
             callbackRender = (widget) =>
               @registerChild widget, params.name
               @resolveParamRefs widget, params, (actionParams) =>

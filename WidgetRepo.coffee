@@ -71,6 +71,9 @@ define [
         widget = new WidgetClass
           repo: this
 
+        if widget.getPath() == '/cord/core//Switcher' and contextBundle?
+          widget._contextBundle = contextBundle
+
         @widgets[widget.ctx.id] =
           widget: widget
 
@@ -181,6 +184,8 @@ define [
           timeoutFunc = =>
             if @widgets[parentId]?
               @widgets[parentId].widget.registerChild widget, @widgets[parentId].namedChilds[ctx.id] ? null
+              if widgetPath == '/cord/core//Switcher'
+                widget._contextBundle = @widgets[parentId].widget.getBundle()
               completeFunc()
             else if retryCounter < 10
               console.log "widget load timeout activated", retryCounter
