@@ -4,8 +4,9 @@ define [
 
   class ServerCookie
 
-    constructor: (request, response) ->
-      @cookies = new Cookies request, response
+    constructor: (serviceContainer) ->
+      @serviceContainer = serviceContainer
+      @cookies = new Cookies serviceContainer.get('serverRequest'), serviceContainer.get('serverResponse')
 
 
     get: (name, defaultValue) =>

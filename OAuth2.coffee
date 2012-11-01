@@ -1,24 +1,20 @@
 define [
-  'cord!Request'
+  'cord!ServiceContainer'
   'underscore'
-], (Request, _) ->
+], (serviceContainer, _) ->
 
-  ###
-  #
-  # OAuth авторизация
-  #
-  ###
   class OAuth2
-    constructor: (options)->
+
+    constructor: (serviceContainer, options)->
       defaultOptions =
         clientId: ''
         secretKey: ''
         endpoints:
           authorize: '/oauth/authorize'
           accessToken: '/oauth/access_token'
-
       @options = _.extend  defaultOptions, options
-      @request = new Request()
+      @serviceContainer = serviceContainer
+
 
     ## Получение токена по grant_type = password (логин и пароль)
     grantAccessTokenByPassword: (user, password, callback) =>
@@ -29,8 +25,10 @@ define [
         client_id: @options.clientId
         json: true
 
-      @request.get @options.endpoints.accessToken, params, (result) =>
-        callback result.access_token, result.refresh_token
+      @serviceContainer.eval 'request', (request) =>
+        request.get @options.endpoints.accessToken, params, (result) =>
+          callback result.access_token, result.refresh_token
+
 
     ## Получение токена по grant_type = refresh_token (токен обновления)
     grantAccessTokenByRefreshToken: (refreshToken, callback) =>
@@ -39,5 +37,6 @@ define [
         refresh_token: refreshToken
         client_id: @options.clientId
 
-      @request.get @options.endpoints.accessToken, params, (result) =>
-        callback result.access_token, result.refresh_token
+      @serviceContainer.eval 'request', (request) =>
+        request.get @options.endpoints.accessToken, params, (result) =>
+          callback result.access_token, result.refresh_token

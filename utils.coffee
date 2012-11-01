@@ -3,7 +3,7 @@ define [
 
   class Utils
 
-    @parseArguments = (args, map) ->
+    @parseArguments: (args, map) ->
       stringArgument = ''
       objectArgument = {}
       functionArgument = null

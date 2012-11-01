@@ -3,12 +3,14 @@ define [
   'cord!deferAggregator'
   'cord!Api'
   'underscore'
+  ''
 ], (postal, deferAggregator, Api, _) ->
 
   class WidgetRepo
     widgets: null
     rootWidget: null
 
+    serviceContainer: null
     request: null
     response: null
 
@@ -28,16 +30,24 @@ define [
       @_newExtendList = []
 
 
+    setServiceContainer: (serviceContainer) =>
+      @serviceContainer = serviceContainer
+
+
+    getServiceContainer: =>
+      @serviceContainer
+
+
     setRequest: (request) =>
       @request = request
 
 
-    setResponse: (response) =>
-      @response = response
-
-
     getRequest: =>
       @request
+
+
+    setResponse: (response) =>
+      @response = response
 
 
     getResponse: =>
@@ -70,6 +80,8 @@ define [
       require ["cord-w!#{ path }#{ bundleSpec }"], (WidgetClass) =>
         widget = new WidgetClass
           repo: this
+
+        widget.setServiceContainer @serviceContainer
 
         @widgets[widget.ctx.id] =
           widget: widget
@@ -306,20 +318,3 @@ define [
     replaceExtendTree: ->
       @_currentExtendList = @_newExtendList
       @_newExtendList = []
-
-
-    getApi: ->
-      new Api
-        protocol: global.CONFIG.api.protocol
-        host: global.CONFIG.api.host
-        urlPrefix: global.CONFIG.api.urlPrefix
-        http:
-          request: @request
-          response: @response
-        oauth2:
-          clientId: 'CLIENT'
-          secretKey: 'SECRET'
-          endpoints:
-            accessToken: "http://#{global.CONFIG.api.host}/oauth/access_token"
-        getUserPasswordCallback: (callback) ->
-          callback 'jedi', 'jedi'

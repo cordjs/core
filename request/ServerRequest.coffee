@@ -6,38 +6,40 @@ define [
 
   class ServerRequest
 
-    constructor: (options) ->
+    constructor: (serviceContainer, options) ->
       defaultOptions =
         json: true
 
       @options = _.extend defaultOptions, options
+      @serviceContainer = serviceContainer
 
 
-    get: =>
-      args = Utils.parseArguments arguments,
+    get: (url, params, callback) ->
+      argssss = Utils.parseArguments arguments,
         url: 'string'
         params: 'object'
         callback: 'function'
 
-      args.url = args.params.url if !args.url and args.params.url?
-      args.callback = params.callback if !args.callback and args.params.callback?
+      argssss.url = argssss.params.url if !argssss.url and argssss.params.url?
+      argssss.callback = params.callback if !argssss.callback and argssss.params.callback?
 
-      @options.query = args.params
+      options =
+        query: argssss.params
+        json: true
 
       startRequest = new Date() if global.CONFIG.debug?.request
-      curly.get args.url, @options, (error, response, body) ->
-
+      curly.get argssss.url, options, (error, response, body) =>
         if global.CONFIG.debug?.request
           stopRequest = new Date()
           seconds = (stopRequest - startRequest) / 1000
-
+          global.CONFIG.debug.request = 'full'
           if global.CONFIG.debug?.request == 'simple'
-            console.log "ServerRequest ( #{ seconds } s): #{args.url}"
+            console.log "ServerRequest ( #{ seconds } s): #{argssss.url}"
           else
             console.log "========================================================================( #{ seconds } s)"
-            console.log "ServerRequest: #{args.url}"
-            console.log args.params
+            console.log "ServerRequest: #{argssss.url}"
+            console.log argssss.params
             console.log body if global.CONFIG.debug?.request == 'full'
             console.log "========================================================================"
 
-        args.callback body if typeof args.callback == 'function'
+        argssss.callback body if typeof argssss.callback == 'function'

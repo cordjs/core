@@ -23,6 +23,9 @@ define [
     # widget repository
     widgetRepo = null
 
+    # service container
+    serviceContainer = null
+
     # widget context
     ctx: null
 
@@ -124,6 +127,7 @@ define [
       ###
       @_subscriptions.push subscription
 
+
     setRepo: (repo) ->
       ###
       Inject widget repository to create child widgets in same repository while rendering the same page.
@@ -131,6 +135,15 @@ define [
       @param WidgetRepo repo the repository
       ###
       @widgetRepo = repo
+
+
+    setServiceContainer: (serviceContainer) =>
+      @serviceContainer = serviceContainer
+
+
+    getServiceContainer: =>
+      @serviceContainer
+
 
     #
     # Main method to call if you want to show rendered widget template
@@ -568,7 +581,6 @@ define [
 
     # browser-only, include css-files widget
     getWidgetCss: ->
-      console.log "#{ @constructor.name }::getWidgetCss"
       if @css?
         if _.isArray @css
           cordCss.insertCss "cord-s!#{ css }" for css in @css

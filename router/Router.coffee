@@ -46,6 +46,9 @@ define ['underscore'], (_) ->
       @widget         = @definition.widget ? null
       @action         = @definition.action ? 'default'
       @params         = @definition.params ? {}
+      @regexp         = @definition.regexp ? false
+
+      path = new RegExp path if @regexp
 
       @names = []
 

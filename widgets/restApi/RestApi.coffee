@@ -8,28 +8,31 @@ define [
   class RestApi extends Widget
 
     showAction: (action, params, callback) ->
+      serverRequest = @serviceContainer.get('serverRequest')
+      serverResponse = @serviceContainer.get('serverResponse')
+
       options =
-        method: @repo.getRequest().method
-        url: decodeURIComponent params.restPath
+        method: serverRequest.method
+        url: decodeURIComponent /^\/_restAPI\/(.*)$/.exec(serverRequest.url)[1]
         headers:
-          'Accept': @repo.getRequest().headers.accept
+          'Accept': serverRequest.headers.accept
 
       request = (options) =>
-        @request options, @repo.getResponse(), callback
+        @request options, serverResponse, callback
 
-      switch @repo.getRequest().method
+      switch serverRequest.method
 
         when 'POST'
           body = ''
-          @repo.getRequest().on 'data', (data) ->
+          serverRequest.on 'data', (data) ->
             body += data
 
-          @repo.getRequest().on 'end', (data) ->
+          serverRequest.on 'end', (data) ->
             options.data = qs.parse body
             request options
 
         when 'GET'
-          urlParts = url.parse @repo.getRequest().url, true
+          urlParts = url.parse serverRequest.url, true
           options.data = urlParts.query
           request options
 

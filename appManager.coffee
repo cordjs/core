@@ -9,9 +9,9 @@ define [
 
   require bundles, () ->
     routes =
-      '/_restAPI/:restPath':
+      '^\/_restAPI\/(.*)$':
         widget: '/cord/core//RestApi'
-        regex: false
+        regexp: true
 
     for bundle, i in arguments
       for route, params of bundle.routes

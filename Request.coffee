@@ -4,14 +4,10 @@ define [
 
   class Request
 
-    constructor: (options) ->
+    @api = (options, callback) ->
       if isBrowser
         require ['cord!/cord/core/request/BrowserRequest'], (BrowserRequest) =>
-          @request = new BrowserRequest options
+          callback( new BrowserRequest options )
       else
         require ['cord!/cord/core/request/ServerRequest'], (ServerRequest) =>
-          @request = new ServerRequest options
-
-
-    get: () ->
-      @request.get.apply(@, arguments)
+          callback( new ServerRequest options )

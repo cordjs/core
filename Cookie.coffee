@@ -1,16 +1,16 @@
 define [
-  'cord!isBrowser'
-], (isBrowser) ->
+  'cord!isBrowser',
+  'cord!/cord/core/cookie/BrowserCookie'
+  'cord!/cord/core/cookie/ServerCookie'
+], (isBrowser, BrowserCookie, ServerCookie) ->
 
   class Cookie
 
     constructor: (request, response) ->
       if isBrowser
-        require ['cord!/cord/core/cookie/BrowserCookie'], (BrowserCookie) =>
-          @cookie = new BrowserCookie request, response
+        @cookie = new BrowserCookie request, response
       else
-        require ['cord!/cord/core/cookie/ServerCookie'], (ServerCookie) =>
-          @cookie = new ServerCookie request, response
+        @cookie = new ServerCookie request, response
 
 
     get: (name, defaultValue) =>
