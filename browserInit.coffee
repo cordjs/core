@@ -51,7 +51,7 @@ define [
         clientId: 'CLIENT'
         secretKey: 'SECRET'
         endpoints:
-          accessToken: 'http://megaplan.hotfix/oauth/access_token'
+          accessToken: 'http://127.0.0.1:1337/_restAPI/http://megaplan.hotfix/oauth/access_token'
 
     ###
       Это надо перенести в более кошерное место

@@ -1,7 +1,6 @@
 define [
-  'cord!ServiceContainer'
   'underscore'
-], (serviceContainer, _) ->
+], (_) ->
 
   class OAuth2
 
