@@ -33,7 +33,8 @@ define [
     'cord!/cord/core/appManager'
     'cord!WidgetRepo'
     'cord!ServiceContainer'
-  ], (clientSideRouter, WidgetRepo, ServiceContainer) ->
+    'cord!css/browserManager'
+  ], (clientSideRouter, WidgetRepo, ServiceContainer, cssManager) ->
 
     serviceContainer = new ServiceContainer()
 
@@ -83,4 +84,5 @@ define [
     clientSideRouter.setWidgetRepo widgetRepo
     clientSideRouter.process()
     $ ->
+      cssManager.registerLoadedCssFiles()
       cordcorewidgetinitializerbrowser? widgetRepo

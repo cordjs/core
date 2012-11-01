@@ -2,14 +2,13 @@ define [
   'underscore'
   'dustjs-linkedin'
   'postal'
-  'cord-s'
   'cord!Context'
   'cord!isBrowser'
   'cord!StructureTemplate'
   'cord!configPaths'
   'cord!templateLoader'
-  'cord!cssManager'
-], (_, dust, postal, cordCss, Context, isBrowser, StructureTemplate, configPaths, templateLoader, cssManager) ->
+  'cord!css/Helper'
+], (_, dust, postal, Context, isBrowser, StructureTemplate, configPaths, templateLoader, cssHelper) ->
 
   dust.onLoad = (tmplPath, callback) ->
     templateLoader.loadTemplate tmplPath, ->
@@ -583,14 +582,7 @@ define [
 
     # include all css-files, if rootWidget init
     getInitCss: (parentId) ->
-      html = ""
-
-      if @css?
-        if _.isArray @css
-          html = (cordCss.getHtml "cord-s!#{ css }" for css in @css).join ''
-        else if @css
-          html = cordCss.getHtml "bundles/#{ @getDir() }", true
-
+      html = (cssHelper.getHtmlLink(css) for css in @getCssFiles()).join ''
       """#{ html }#{ (widget.getInitCss(@ctx.id) for widget in @children).join '' }"""
 
 
@@ -602,9 +594,9 @@ define [
       result = []
       if @css?
         if _.isArray @css
-          result.push cssManager.expandPath(css, this) for css in @css
+          result.push cssHelper.expandPath(css, this) for css in @css
         else if @css
-          result.push cssManager.expandPath(@constructor.dirName, this)
+          result.push cssHelper.expandPath(@constructor.dirName, this)
       result
 
 
@@ -613,7 +605,8 @@ define [
       Load widget's css-files to the current page.
       @browser-only
       ###
-      cssManager.load cssFile for cssFile in @getCssFiles()
+      require ['cord!css/browserManager'], (cssManager) =>
+        cssManager.load cssFile for cssFile in @getCssFiles()
 
 
     debug: (method) ->
@@ -664,7 +657,7 @@ define [
 
       behaviourClass = @getBehaviourClass()
       if behaviourClass
-        require ["cord!bundles/#{ @getDir() }/#{ behaviourClass }"], (BehaviourClass) =>
+        require ["cord!/#{ @getDir() }/#{ behaviourClass }"], (BehaviourClass) =>
           @behaviour = new BehaviourClass this
 
       @loadCss()

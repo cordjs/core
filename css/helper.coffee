@@ -2,27 +2,12 @@ define [
   'cord-w'
 ], (cordWidgetHelper) ->
 
-  class CssManager
+  class Helper
     ###
-    @browser-only
+    Helper functions for the css-file management
     ###
 
-    constructor: ->
-      @_loadedFiles = {}
-
-
-    load: (cssFile) ->
-      ###
-      Adds css-file to the page if it is not already loaded
-      ###
-      require ['jquery'], ($) =>
-        if not @_loadedFiles[cssFile]?
-          console.log "CssManager::load(#{ cssFile })"
-          $('head').append(@_getHtmlLink cssFile)
-          @_loadedFiles[cssFile] = true
-
-
-    _getHtmlLink: (path) ->
+    getHtmlLink: (path) ->
       ###
       Returns link-tag html for the given css file
       ###
@@ -37,7 +22,7 @@ define [
       @return String
       ###
 
-      if shortPath.substr(0, 1) != '/'
+      if shortPath.substr(0, 1) != '/' and shortPath.indexOf '//' == -1
         # context of current widget
         shortPath += '.css' if shortPath.substr(-4) != '.css'
         "/bundles/#{ contextWidget.getDir() }/#{ shortPath }"
@@ -59,4 +44,4 @@ define [
 
 
 
-  new CssManager
+  new Helper
