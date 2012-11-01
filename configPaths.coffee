@@ -9,13 +9,14 @@ define [],  ->
 
       'pathBundles':    dir + 'bundles'
 
+      'configPaths':    dir + 'bundles/cord/core/configPaths'
+
+
       #plugins
       'text':           dir + 'vendor/requirejs/plugins/text'
-      'cord-helper':    dir + 'bundles/cord/core/requirejs/cord-helper'
       'cord':           dir + 'bundles/cord/core/requirejs/cord'
       'cord-w':         dir + 'bundles/cord/core/requirejs/cord-w'
       'cord-t':         dir + 'bundles/cord/core/requirejs/cord-t'
-      'cord-s':         dir + 'bundles/cord/core/requirejs/cord-s'
 
     parsePathRaw: (path) ->
       ###
@@ -68,14 +69,14 @@ define [],  ->
               throw "Bundle specification doesn't match: [#{ path.substr(0, bundleSpec.length) } != #{ bundleSpec }]!" if path.substr(0, bundleSpec.length) != bundleSpec
               relativePath = path.substr(bundleSpec.length + 1)
             else
-              throw "Unsupported case! Need to implement considering list of enabled bundles from application!"
+              throw "Unsupported case: [#{ path }]! Need to implement considering list of enabled bundles from application!"
           else
             bundleSpec = '/cord/core' if not bundleSpec?
             relativePath = path
 
       bundle: bundleSpec
       relativePath: relativePath
-      canonicalShortedPath: bundleSpec + canonicalDelimiter + relativePath
+      delimiter: canonicalDelimiter
 
 
     convertCssPath: (path, context) ->

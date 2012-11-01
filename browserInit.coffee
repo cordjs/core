@@ -29,9 +29,11 @@ define [
   require [
     'cord!/cord/core/appManager'
     'cord!WidgetRepo'
-  ], (clientSideRouter, WidgetRepo) ->
+    'cord!css/browserManager'
+  ], (clientSideRouter, WidgetRepo, cssManager) ->
     widgetRepo = new WidgetRepo
     clientSideRouter.setWidgetRepo widgetRepo
     clientSideRouter.process()
     $ ->
+      cssManager.registerLoadedCssFiles()
       cordcorewidgetinitializerbrowser? widgetRepo
