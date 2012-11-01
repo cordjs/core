@@ -35,7 +35,7 @@ define [],  ->
       path = nameParts[0]
 
       if path.indexOf('/') == -1
-        bundleSpec = '/cord/core' if not bundleSpec?
+        bundleSpec = '/cord/core'
         relativePath = path
         canonicalDelimiter = '/'
       else

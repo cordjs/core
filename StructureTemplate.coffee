@@ -24,7 +24,7 @@ define [], ->
 
     _initWidget: (widgetRefId, callback) ->
       info = @struct.widgets[widgetRefId]
-      @ownerWidget.widgetRepo.createWidget info.path, (widget) =>
+      @ownerWidget.widgetRepo.createWidget info.path, @ownerWidget.getBundle(), (widget) =>
         @resolvePlaceholders widget, info.placeholders, (resolvedPlaceholders) ->
           widget.definePlaceholders resolvedPlaceholders
           callback widget

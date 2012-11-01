@@ -8,7 +8,8 @@ define [
   'cord!StructureTemplate'
   'cord!configPaths'
   'cord!templateLoader'
-], (_, dust, postal, cordCss, Context, isBrowser, StructureTemplate, configPaths, templateLoader) ->
+  'cord!cssManager'
+], (_, dust, postal, cordCss, Context, isBrowser, StructureTemplate, configPaths, templateLoader, cssManager) ->
 
   dust.onLoad = (tmplPath, callback) ->
     templateLoader.loadTemplate tmplPath, ->
@@ -213,8 +214,11 @@ define [
             fs.writeFile "#{ tmplFullPath }.js", @compiledSource, (err)->
               throw err if err
               console.log "Template saved: #{ tmplFullPath }.js"
-            dust.loadSource @compiledSource
-            dust.render tmplPath, @getBaseContext().push(@ctx), callback
+            if @getPath() != '/cord/core//Switcher'
+              dust.loadSource @compiledSource
+              dust.render tmplPath, @getBaseContext().push(@ctx), callback
+            else
+              callback(null, '')
 
 
     getStructTemplate: (callback) ->
@@ -353,7 +357,7 @@ define [
             # if context value is deferred, than waiting asyncronously...
             if @ctx.isDeferred value
               waitCounter++
-              @subscribeValueChange params, name, value, =>
+              @subscribeValueChange params, name, value, ->
                 waitCounter--
                 if waitCounter == 0 and waitCounterFinish
                   callback params
@@ -493,20 +497,30 @@ define [
     _getPlaceholderDomId: (name) ->
       'ph-' + @ctx.id + '-' + name
 
+
     definePlaceholders: (placeholders) ->
       @ctx[':placeholders'] = placeholders
 
+
     replacePlaceholders: (placeholders, structTmpl, replaceHints, callback) ->
       ###
+      Replaces contents of the placeholders of this widget according to the given params
       @browser-only
+      @param Object placeholders meta-information about new placeholders contents
+      @param StructureTemplate structTmpl structure template of the calling widget
+      @param Object replaceHints pre-calculated helping information about which placeholders should be replaced
+                                 and which should not
+      @param Function() callback callback which should be called when replacement is done (async)
       ###
-
-      returnCallback = ->
-        callback()
 
       require ['jquery'], ($) =>
         waitCounter = 0
         waitCounterFinish = false
+
+        reduceWaitCounter = ->
+          waitCounter--
+          if waitCounter == 0 and waitCounterFinish
+            callback()
 
         ph = {}
         @ctx[':placeholders'] ?= []
@@ -530,11 +544,13 @@ define [
               waitCounter++
               @_renderPlaceholder name, (out) =>
                 $el = $('#' + @_getPlaceholderDomId name)
-                $el.one 'DOMNodeInserted', ->
-                  waitCounter--
-                  if waitCounter == 0 and waitCounterFinish
-                    returnCallback()
-                $el.html out
+                if $el.length == 1
+                  $el.one 'DOMNodeInserted', reduceWaitCounter
+                  $el.html out
+                else
+                  console.log "WARNING: Trying to replace unexistent placeholder with name \"#{ name }\" " +
+                    "in widget #{ @debug() }"
+                  reduceWaitCounter()
             else
               i = 0
               for item in items
@@ -544,14 +560,12 @@ define [
                   widget.replaceClass item.class
                   structTmpl.replacePlaceholders replaceHints[name].items[i], widget.ctx[':placeholders'], ->
                     widget.fireAction 'default', item.params
-                    waitCounter--
-                    if waitCounter == 0 and waitCounterFinish
-                      returnCallback()
+                    reduceWaitCounter()
                 i++
 
         waitCounterFinish = true
         if waitCounter == 0
-          returnCallback()
+          callback()
 
 
     getInitCode: (parentId) ->
@@ -566,6 +580,7 @@ define [
       #{ (widget.getInitCode(@ctx.id) for widget in @children).join '' }
       """
 
+
     # include all css-files, if rootWidget init
     getInitCss: (parentId) ->
       html = ""
@@ -579,17 +594,37 @@ define [
       """#{ html }#{ (widget.getInitCss(@ctx.id) for widget in @children).join '' }"""
 
 
-    # browser-only, include css-files widget
-    getWidgetCss: ->
+    getCssFiles: ->
+      ###
+      Returns list of full paths to css-files of this widget
+      @return Array[String]
+      ###
+      result = []
       if @css?
         if _.isArray @css
-          cordCss.insertCss "cord-s!#{ css }" for css in @css
+          result.push cssManager.expandPath(css, this) for css in @css
         else if @css
-          cordCss.insertCss "bundles/#{ @getDir() }", true
+          result.push cssManager.expandPath(@constructor.dirName, this)
+      result
+
+
+    loadCss: ->
+      ###
+      Load widget's css-files to the current page.
+      @browser-only
+      ###
+      cssManager.load cssFile for cssFile in @getCssFiles()
+
 
     debug: (method) ->
+      ###
+      Return identification string of the current widget for debug purposes
+      @param (optional) String method include optional "::method" suffix to the result
+      @return String
+      ###
       methodStr = if method? then "::#{ method }" else ''
       "#{ @getPath() }(#{ @ctx.id })#{ methodStr }"
+
 
     registerChild: (child, name) ->
 #      console.log "#{ @debug 'registerChild' } -> #{ child.debug() }"
@@ -632,7 +667,8 @@ define [
         require ["cord!bundles/#{ @getDir() }/#{ behaviourClass }"], (BehaviourClass) =>
           @behaviour = new BehaviourClass this
 
-      @getWidgetCss()
+      @loadCss()
+
 
     #
     # Almost copy of widgetRepo::init but for client-side rendering
@@ -706,7 +742,6 @@ define [
         widget: (chunk, context, bodies, params) =>
           @childWidgetAdd()
           chunk.map (chunk) =>
-
             callbackRender = (widget) =>
               @registerChild widget, params.name
               @resolveParamRefs widget, params, (actionParams) =>
