@@ -8,7 +8,8 @@ define [
   'cord!StructureTemplate'
   'cord!configPaths'
   'cord!templateLoader'
-], (_, dust, postal, cordCss, Context, isBrowser, StructureTemplate, configPaths, templateLoader) ->
+  'cord!cssManager'
+], (_, dust, postal, cordCss, Context, isBrowser, StructureTemplate, configPaths, templateLoader, cssManager) ->
 
   dust.onLoad = (tmplPath, callback) ->
     templateLoader.loadTemplate tmplPath, ->
@@ -580,18 +581,37 @@ define [
       """#{ html }#{ (widget.getInitCss(@ctx.id) for widget in @children).join '' }"""
 
 
-    # browser-only, include css-files widget
-    getWidgetCss: ->
-      console.log "#{ @constructor.name }::getWidgetCss"
+    getCssFiles: ->
+      ###
+      Returns list of full paths to css-files of this widget
+      @return Array[String]
+      ###
+      result = []
       if @css?
         if _.isArray @css
-          cordCss.insertCss "cord-s!#{ css }" for css in @css
+          result.push cssManager.expandPath(css, this) for css in @css
         else if @css
-          cordCss.insertCss "bundles/#{ @getDir() }", true
+          result.push cssManager.expandPath(@constructor.dirName, this)
+      result
+
+
+    loadCss: ->
+      ###
+      Load widget's css-files to the current page.
+      @browser-only
+      ###
+      cssManager.load cssFile for cssFile in @getCssFiles()
+
 
     debug: (method) ->
+      ###
+      Return identification string of the current widget for debug purposes
+      @param (optional) String method include optional "::method" suffix to the result
+      @return String
+      ###
       methodStr = if method? then "::#{ method }" else ''
       "#{ @getPath() }(#{ @ctx.id })#{ methodStr }"
+
 
     registerChild: (child, name) ->
 #      console.log "#{ @debug 'registerChild' } -> #{ child.debug() }"
@@ -634,7 +654,8 @@ define [
         require ["cord!bundles/#{ @getDir() }/#{ behaviourClass }"], (BehaviourClass) =>
           @behaviour = new BehaviourClass this
 
-      @getWidgetCss()
+      @loadCss()
+
 
     #
     # Almost copy of widgetRepo::init but for client-side rendering
