@@ -37,6 +37,11 @@ define [
             protocol: 'http'
             host: 'megaplan.hotfix'
             urlPrefix: 'api/v2/'
+            getUserPasswordCallback: (callback) ->
+              response = serviceContainer.get 'serverResponse'
+              response.writeHead 302,
+                Location: '/user/login/'
+              response.end()
           oauth2:
             clientId: 'CLIENT'
             secretKey: 'SECRET'

@@ -80,8 +80,7 @@ define [
       require ["cord-w!#{ path }#{ bundleSpec }"], (WidgetClass) =>
         widget = new WidgetClass
           repo: this
-
-        widget.setServiceContainer @serviceContainer
+          serviceContainer: @serviceContainer
 
         if widget.getPath() == '/cord/core//Switcher' and contextBundle?
           widget._contextBundle = contextBundle
@@ -173,6 +172,7 @@ define [
         widget = new WidgetClass
           context: ctx
           repo: this
+          serviceContainer: @serviceContainer
           extended: isExtended
 
         widget._isExtended = isExtended

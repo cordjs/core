@@ -47,6 +47,8 @@ define [
         protocol: 'http'
         host: '127.0.0.1:1337'
         urlPrefix: '_restAPI/http://megaplan.hotfix/api/v2/'
+        getUserPasswordCallback: (callback) ->
+          window.location.href = '/user/login/'
       oauth2:
         clientId: 'CLIENT'
         secretKey: 'SECRET'

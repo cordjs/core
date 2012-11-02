@@ -86,6 +86,7 @@ define [
       if params?
         @ctx = new Context(params.context) if params.context?
         @setRepo params.repo if params.repo?
+        @setServiceContainer params.serviceContainer if params.serviceContainer?
         @compileMode = params.compileMode if params.compileMode?
         @_isExtended = params.extended if params.extended?
 

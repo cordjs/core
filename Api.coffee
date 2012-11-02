@@ -28,18 +28,22 @@ define [
 
         console.log "Store tokens: #{accessToken}, #{refreshToken}" if global.CONFIG.debug?.oauth2
 
-        callback()
+        callback accessToken, refreshToken
 
 
     restoreTokens: (callback) ->
       @serviceContainer.eval 'cookie', (cookie) =>
-        @accessToken = cookie.get 'accessToken'
-        @refreshToken = cookie.get 'refreshToken'
+        accessToken = cookie.get 'accessToken'
+        refreshToken = cookie.get 'refreshToken'
 
-        console.log "Restore tokens: #{@accessToken}, #{@refreshToken}" if global.CONFIG.debug?.oauth2
+        console.log "Restore tokens: #{accessToken}, #{refreshToken}" if global.CONFIG.debug?.oauth2
 
-        callback()
+        callback accessToken, refreshToken
 
+    getTokensByUsernamePassword: (username, password, callback) ->
+      @serviceContainer.eval 'oauth2', (oauth2) =>
+        oauth2.grantAccessTokenByPassword username, password, (accessToken, refreshToken) =>
+          @storeTokens accessToken, refreshToken, callback
 
     get: ->
       args = Utils.parseArguments arguments,
@@ -55,12 +59,10 @@ define [
         @serviceContainer.eval 'request', (request) ->
           request.get requestUrl, requestParams, args.callback
 
-      @restoreTokens =>
-        if not @accessToken
+      @restoreTokens (accessToken, refreshToken) =>
+        if not accessToken
           @options.getUserPasswordCallback (username, password) =>
-            @serviceContainer.eval 'oauth2', (oauth2) =>
-              oauth2.grantAccessTokenByPassword username, password, (accessToken, refreshToken) =>
-                @storeTokens accessToken, refreshToken, ->
-                  processRequest(accessToken)
+            @getTokensByUsernamePassword (accessToken, refreshToken) =>
+              processRequest(accessToken)
         else
-          processRequest(@accessToken)
+          processRequest(accessToken)

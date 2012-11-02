@@ -9,4 +9,5 @@ define [
       value ?= defaultValue
 
     set: (name, value, params) =>
-      $.cookie name, value, params
+      $.cookie name, value,
+        path: '/'
