@@ -581,10 +581,20 @@ define [
       """
 
 
-    # include all css-files, if rootWidget init
-    getInitCss: ->
-      html = (cssHelper.getHtmlLink(css) for css in @getCssFiles()).join ''
-      "#{ (widget.getInitCss() for widget in @children).join '' }#{ html }"
+    getInitCss: (alreadyAdded) ->
+      ###
+      Generates html head fragment with css-link tags that should be included for server-side generated page
+      @param (optional)Object alreadyAdded hash with list of already included css-files to avoid duplicate link-tags
+      @return String
+      ###
+      alreadyAdded ?= {}
+      addCss = []
+      for css in @getCssFiles()
+        if not alreadyAdded[css]
+          addCss.push css
+          alreadyAdded[css] = true
+      html = (cssHelper.getHtmlLink(css) for css in addCss).join ''
+      "#{ (widget.getInitCss(alreadyAdded) for widget in @children).join '' }#{ html }"
 
 
     getCssFiles: ->
