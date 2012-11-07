@@ -7,7 +7,7 @@ define [
   'cord!StructureTemplate'
   'cord!configPaths'
   'cord!templateLoader'
-  'cord!css/Helper'
+  'cord!css/helper'
 ], (_, dust, postal, Context, isBrowser, StructureTemplate, configPaths, templateLoader, cssHelper) ->
 
   dust.onLoad = (tmplPath, callback) ->
@@ -582,9 +582,9 @@ define [
 
 
     # include all css-files, if rootWidget init
-    getInitCss: (parentId) ->
+    getInitCss: ->
       html = (cssHelper.getHtmlLink(css) for css in @getCssFiles()).join ''
-      """#{ html }#{ (widget.getInitCss(@ctx.id) for widget in @children).join '' }"""
+      "#{ (widget.getInitCss() for widget in @children).join '' }#{ html }"
 
 
     getCssFiles: ->

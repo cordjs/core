@@ -1,6 +1,6 @@
 define [
   'jquery'
-  './Helper'
+  './helper'
 ], ($, helper) ->
 
   class BrowserManager

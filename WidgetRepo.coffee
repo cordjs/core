@@ -3,7 +3,6 @@ define [
   'cord!deferAggregator'
   'cord!Api'
   'underscore'
-  ''
 ], (postal, deferAggregator, Api, _) ->
 
   class WidgetRepo
