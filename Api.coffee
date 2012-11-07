@@ -45,24 +45,44 @@ define [
         oauth2.grantAccessTokenByPassword username, password, (accessToken, refreshToken) =>
           @storeTokens accessToken, refreshToken, callback
 
+    getTokensByRefreshToken: (refreshToken, callback) ->
+      @serviceContainer.eval 'oauth2', (oauth2) =>
+        oauth2.grantAccessTokenByRefreshToken refreshToken, (accessToken, refreshToken) =>
+          @storeTokens accessToken, refreshToken, callback
+
     get: ->
       args = Utils.parseArguments arguments,
         url: 'string'
         params: 'object'
         callback: 'function'
 
-      processRequest = (accessToken) =>
+      processRequest = (accessToken, refreshToken) =>
+        if not accessToken
+          @options.getUserPasswordCallback (username, password) =>
+            @getTokensByUsernamePassword username, password, (accessToken, refreshToken) =>
+              processRequest accessToken, refreshToken
+          false
+
         requestUrl = "#{@options.protocol}://#{@options.host}/#{@options.urlPrefix}#{args.url}"
         requestParams = _.extend @options.params, args.params
         requestParams.access_token = accessToken
 
-        @serviceContainer.eval 'request', (request) ->
-          request.get requestUrl, requestParams, args.callback
+        @serviceContainer.eval 'request', (request) =>
+          request.get requestUrl, requestParams, (response) =>
+            if response.error?
+              if response.error == 'invalid_grant' and refreshToken
+                @getTokensByRefreshToken refreshToken, processRequest
+              else
+                @options.getUserPasswordCallback (username, password) =>
+                  @getTokensByUsernamePassword username, password, (accessToken, refreshToken) =>
+                    processRequest accessToken, refreshToken
+            else
+              args.callback response
 
       @restoreTokens (accessToken, refreshToken) =>
         if not accessToken
           @options.getUserPasswordCallback (username, password) =>
-            @getTokensByUsernamePassword (accessToken, refreshToken) =>
-              processRequest(accessToken)
+            @getTokensByUsernamePassword username, password, (accessToken, refreshToken) =>
+              processRequest accessToken, refreshToken
         else
-          processRequest(accessToken)
+          processRequest accessToken, refreshToken
