@@ -89,7 +89,11 @@ define [],  ->
       ###
       bundle = @extractBundleByFilePath context
       info = @parsePathRaw "#{ path }@#{ bundle }"
-      "public/bundles#{ info.bundle }/widgets/#{ info.relativePath }"
+
+      # in case of css-import (using .css extension) result should be absolute url
+      prefix = if path.substr(-4) == '.css' then '/' else 'public/'
+
+      "#{ prefix }bundles#{ info.bundle }/widgets/#{ info.relativePath }"
 
 
     extractBundleByFilePath: (path) ->
