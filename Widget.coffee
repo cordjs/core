@@ -674,6 +674,17 @@ define [
       @loadCss()
 
 
+    createChildWidget: (type, callback) ->
+      ###
+      Dynamically creates new child widget with the given canonical type
+      @param String type new widget type (absolute or in context of the current widget)
+      @param Function(Widget) callback callback function to pass resulting child widget
+      ###
+      @widgetRepo.createWidget type, @getBundle(), (child) =>
+        @registerChild child
+        callback(child)
+
+
     #
     # Almost copy of widgetRepo::init but for client-side rendering
     # @browser-only

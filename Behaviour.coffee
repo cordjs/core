@@ -29,6 +29,9 @@ define [
       @initWidgetEvents(@widgetEvents)  if @widgetEvents
       @refreshElements()                if @elements
 
+      setTimeout =>
+        postal.publish "widget.#{ @id }.behaviour.init", {}
+      , 0
 
     $: (selector) ->
       $(selector, @el)
@@ -42,7 +45,15 @@ define [
         selector   = match[2]
 
         if selector is ''
-          $el.on(eventName, method) for $el in @rootEls
+          if eventName == 'init'
+            subscription = postal.subscribe
+              topic: "widget.#{ @id }.behaviour.init"
+              callback: ->
+                method()
+                subscription.unsubscribe()
+            @_widgetSubscriptions.push subscription
+          else
+            $el.on(eventName, method) for $el in @rootEls
         else
           $el.on(eventName, selector, method) for $el in @rootEls
 
@@ -132,3 +143,35 @@ define [
         $el.html out
 #        $el.on 'DOMNodeInserted', =>
 #          @widget.browserInit()
+
+
+    renderNewWidget: (widget, params, callback) ->
+      ###
+      Renders (via show method) the given widget with the given params, inserts it into DOM and initialtes.
+      Returns jquery-object referring to the widget's root element via callback argument.
+      @param Widget widget widget object
+      @param Object params key-value params for the widget default action
+      @param Function(jquery) callback callback which is called with the resulting jquery element
+      ###
+      widget.show params, (err, out) ->
+        if err then throw err
+        tmpId = '__cord_special_background_creation_container'
+        $tmp = $('#'+tmpId)
+        $tmp = $("<div style=\"display:none\" id=\"#{ tmpId }\"></div>").appendTo('body') if $tmp.length == 0
+        $tmp.one 'DOMNodeInserted', ->
+          widget.browserInit()
+          callback $('#'+widget.ctx.id)
+        $tmp.html widget.renderRootTag(out)
+
+
+    initChildWidget: (type, params, callback) ->
+      ###
+      Creates and initiates new child widget with the given type and params.
+      Returns jquery-object referring to the widget's root element via callback argument for further inserting the
+      widget to the right place in the DOM.
+      @param String type widget type in canonical format (absolute or in context of the current widget)
+      @param Object params key-value params for the widget default action
+      @param Function(jquery) callback callback which is called with the resulting jquery element
+      ###
+      @widget.createChildWidget type, (newWidget) =>
+        @renderNewWidget newWidget, params, callback
