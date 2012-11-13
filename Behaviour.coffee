@@ -151,7 +151,7 @@ define [
       Returns jquery-object referring to the widget's root element via callback argument.
       @param Widget widget widget object
       @param Object params key-value params for the widget default action
-      @param Function(jquery) callback callback which is called with the resulting jquery element
+      @param Function(jquery) callback callback which is called with the resulting jquery element and created object of widget
       ###
       widget.show params, (err, out) ->
         if err then throw err
@@ -171,7 +171,7 @@ define [
       widget to the right place in the DOM.
       @param String type widget type in canonical format (absolute or in context of the current widget)
       @param Object params key-value params for the widget default action
-      @param Function(jquery) callback callback which is called with the resulting jquery element
+      @param Function(jquery) callback callback which is called with the resulting jquery element and created object of widget
       ###
       @widget.createChildWidget type, (newWidget) =>
         @renderNewWidget newWidget, params, callback
