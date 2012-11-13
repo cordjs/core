@@ -160,7 +160,7 @@ define [
         $tmp = $("<div style=\"display:none\" id=\"#{ tmpId }\"></div>").appendTo('body') if $tmp.length == 0
         $tmp.one 'DOMNodeInserted', ->
           widget.browserInit()
-          callback $('#'+widget.ctx.id)
+          callback $('#'+widget.ctx.id), widget
         $tmp.html widget.renderRootTag(out)
 
 
