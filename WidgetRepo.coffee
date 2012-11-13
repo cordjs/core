@@ -104,7 +104,7 @@ define [
 
     dropWidget: (id) ->
       if @widgets[id]?
-        console.log "drop widget #{ @widgets[id].widget.constructor.name }(#{id})"
+#        console.log "drop widget #{ @widgets[id].widget.constructor.name }(#{id})"
         @widgets[id].widget.clean()
         @widgets[id].widget = null
         delete @widgets[id]

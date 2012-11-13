@@ -64,3 +64,6 @@ define [
 
     isDeferred: (name) ->
       @[name] is ':deferred'
+
+    isEmpty: (name) ->
+      (not @[name]?) or @isDeferred(name)
