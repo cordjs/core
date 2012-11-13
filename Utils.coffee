@@ -21,7 +21,7 @@ define [
       map
 
 
-    @dateFormat = (text) ->
+    @dateFormat = (text, format = 'simple') ->
       date = new Date(text)
       now = new Date()
       daysDiff = (now - date) / (1000 * 60 * 60 * 24)
@@ -39,15 +39,22 @@ define [
         10: 'ноября'
         11: 'декабря'
 
+      detailed = format == 'detailed'
+      console.log detailed, format
+      time = date.getHours() + ':' + date.getMinutes()
+
       ## Сегодня
       if date.getDate() == now.getDate() and date.getMonth() == now.getMonth() and date.getYear() == now.getYear()
-        return 'сегодня'
+        if detailed
+          return 'сегодня в ' + time
+        else
+          return 'сегодня'
       ## Вчера
       else if daysDiff < 1 and daysDiff >= 0
-        return 'вчера в ' + date.getHours() + ':' + date.getMinutes()
+        return 'вчера в ' + time
       ## Завтра
       else if daysDiff > -1 and daysDiff <= 0
-        return 'завтра в ' + date.getHours() + ':' + date.getMinutes()
+        return 'завтра в ' + time
       else
         ## но в этом году
         if date.getYear() == now.getYear()
