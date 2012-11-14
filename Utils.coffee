@@ -29,6 +29,7 @@ define [
       return n0
 
     @dateFormat = (text, format = 'simple') ->
+      return '' if !text
       date = new Date(text.split('+')[0])
       now = new Date()
       daysDiff = (now - date) / (1000 * 60 * 60 * 24)
