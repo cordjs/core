@@ -20,9 +20,16 @@ define [
 
       map
 
+    @morphology = (number, n0, n1, n2) ->
+      number = number % 100
+      number = number % 10 if number > 19
+
+      return n2 if number >= 2 and number <= 4
+      return n1 if number == 1
+      return n0
 
     @dateFormat = (text, format = 'simple') ->
-      date = new Date(text)
+      date = new Date(text.split('+')[0])
       now = new Date()
       daysDiff = (now - date) / (1000 * 60 * 60 * 24)
       months =
@@ -40,7 +47,6 @@ define [
         11: 'декабря'
 
       detailed = format == 'detailed'
-      console.log detailed, format
       time = date.getHours() + ':' + date.getMinutes()
 
       ## Сегодня
@@ -58,7 +64,10 @@ define [
       else
         ## но в этом году
         if date.getYear() == now.getYear()
-          return date.getDate() + ' ' + months[ date.getMonth() ]
+          if detailed
+            return date.getDate() + ' ' + months[ date.getMonth() ] + ' в ' + time
+          else
+            return date.getDate() + ' ' + months[ date.getMonth() ]
         else
           return date.getDate() + ' ' + months[ date.getMonth() ] + ' ' + date.getFullYear()
 
