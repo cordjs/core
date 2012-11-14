@@ -44,18 +44,19 @@ define [
         eventName  = match[1]
         selector   = match[2]
 
-        if selector is ''
-          if eventName == 'init'
-            subscription = postal.subscribe
-              topic: "widget.#{ @id }.behaviour.init"
-              callback: ->
-                method()
-                subscription.unsubscribe()
-            @_widgetSubscriptions.push subscription
+        do (method) =>
+          if selector is ''
+            if eventName == 'init' || eventName == 'destroy'
+              subscription = postal.subscribe
+                topic: "widget.#{ @id }.behaviour.#{ eventName }"
+                callback: ->
+                  method()
+                  subscription.unsubscribe()
+              @_widgetSubscriptions.push subscription
+            else
+              $el.on(eventName, method) for $el in @rootEls
           else
-            $el.on(eventName, method) for $el in @rootEls
-        else
-          $el.on(eventName, selector, method) for $el in @rootEls
+            $el.on(eventName, selector, method) for $el in @rootEls
 
     initWidgetEvents: (events) ->
       for fieldName, method of events
@@ -84,6 +85,7 @@ define [
         @[value] = @$(key)
 
     clean: ->
+      postal.publish "widget.#{ @id }.behaviour.destroy", {}
       subscription.unsubscribe() for subscription in @_widgetSubscriptions
       @_widgetSubscriptions = []
       @widget = null
