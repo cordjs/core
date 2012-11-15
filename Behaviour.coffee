@@ -44,7 +44,7 @@ define [
         eventName  = match[1]
         selector   = match[2]
 
-        do (method) =>
+        do (method, eventName, selector) =>
           if selector is ''
             if eventName == 'init' || eventName == 'destroy'
               subscription = postal.subscribe
