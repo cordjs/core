@@ -69,7 +69,7 @@ define [
 
         @serviceContainer.eval 'request', (request) =>
           request.get requestUrl, requestParams, (response) =>
-            if response.error?
+            if response?.error?
               if response.error == 'invalid_grant' and refreshToken
                 @getTokensByRefreshToken refreshToken, processRequest
               else
