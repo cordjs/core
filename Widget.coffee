@@ -57,18 +57,6 @@ define [
       @constructor.bundle
 
 
-    resetChildren: ->
-      ###
-      Cleanup all internal state about child widgets.
-      This method is called when performing full re-rendering of the widget.
-      ###
-      @children = []
-      @childByName = {}
-      @childById = {}
-      @childBindings = {}
-      @_dirtyChildren = false
-
-
     constructor: (params) ->
       ###
       Constructor
@@ -194,10 +182,11 @@ define [
 
 
     cleanChildren: ->
-      if @_structTemplate? and @_structTemplate != ':empty'
-        @_structTemplate.unassignWidget widget for widget in @children
-      @widgetRepo.dropWidget(widget.ctx.id) for widget in @children
-      @resetChildren()
+      if @children.length
+        if @_structTemplate? and @_structTemplate != ':empty'
+          @_structTemplate.unassignWidget widget for widget in @children
+        @widgetRepo.dropWidget(widget.ctx.id) for widget in @children
+        @resetChildren()
 
 
     compileTemplate: (callback) ->
@@ -319,8 +308,7 @@ define [
 
       actualRender = =>
         @markRenderStarted()
-        if @_dirtyChildren
-          @cleanChildren()
+        @cleanChildren()
         dust.render tmplPath, @getBaseContext().push(@ctx), callback
         @markRenderFinished()
 
@@ -630,6 +618,17 @@ define [
       "#{ @getPath() }(#{ @ctx.id })#{ methodStr }"
 
 
+    resetChildren: ->
+      ###
+      Cleanup all internal state about child widgets.
+      This method is called when performing full re-rendering of the widget.
+      ###
+      @children = []
+      @childByName = {}
+      @childById = {}
+      @childBindings = {}
+
+
     registerChild: (child, name) ->
 #      console.log "#{ @debug 'registerChild' } -> #{ child.debug() }"
       @children.push child
@@ -637,8 +636,10 @@ define [
       @childByName[name] = child if name?
       @widgetRepo.registerParent child, this
 
+
     unbindChild: (child) ->
       ###
+      Removes the given widget from the list of children on the current widget
       @param Widget child child widget object
       ###
       index = @children.indexOf child
@@ -650,6 +651,7 @@ define [
             delete @childByName[name]
       else
         throw "Trying to remove unexistent child of widget #{ @constructor.name }(#{ @ctx.id }), child: #{ child.constructor.name }(#{ child.ctx.id })"
+
 
     getBehaviourClass: ->
       if not @behaviourClass?
@@ -708,7 +710,6 @@ define [
 
     markRenderFinished: ->
       @_renderInProgress = false
-      @_dirtyChildren = true
       if @_childWidgetCounter == 0
         postal.publish "widget.#{ @ctx.id }.render.children.complete", {}
 
