@@ -289,7 +289,7 @@ define [
       ###
       Decides wether to call extended template parsing of self-template parsing and calls it.
       ###
-      console.log "renderTemplate(#{ @constructor.name })" if global.CONFIG.debug?.widget
+      console.log @debug('renderTemplate') if global.CONFIG.debug?.widget
 
       @getStructTemplate (tmpl) =>
         if tmpl != ':empty' and tmpl.struct.extend?
@@ -302,7 +302,7 @@ define [
       ###
       Usual way of rendering template via dust.
       ###
-      console.log "_renderSelfTemplate(#{ @constructor.name})" if global.CONFIG.debug?.widget
+      console.log @debug('_renderSelfTemplate') if global.CONFIG.debug?.widget
 
       tmplPath = @getPath()
 

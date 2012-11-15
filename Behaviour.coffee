@@ -124,6 +124,7 @@ define [
 
     render: ->
       # renderTemplate will clean this behaviour, so we must save links...
+      # console.log "re-render #{ @widget.debug() }"
       widget = @widget
       $el = @$el
       widget.renderTemplate (err, out) ->
