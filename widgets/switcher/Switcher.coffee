@@ -18,6 +18,10 @@ define [
         # also we should empty new widget params if they doesn't set
         params.widgetParams ?= {}
 
+      for param of params
+        continue if param is 'widget' or param is 'widgetParams'
+        params.widgetParams[param] = params[param]
+
       @ctx.set
         widgetType: params.widget
         widgetParams: params.widgetParams
