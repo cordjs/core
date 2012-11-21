@@ -265,7 +265,7 @@ define [
           else
             params[paramName] = data.value
 
-          console.log "(wi) push binding event of parent (#{ envelope.topic }) for child widget #{ childWidget.constructor.name }::#{ childWidget.ctx.id }::#{ paramName } -> #{ data.value }"
+          console.log "(wi) push binding event of parent (#{ envelope.topic }) for child widget #{ childWidget.debug(paramName) } -> #{ data.value }"
           deferAggregator.fireAction childWidget, 'default', params
       childWidget.addSubscription subscription
       subscription
