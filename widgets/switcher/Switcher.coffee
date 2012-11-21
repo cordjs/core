@@ -5,7 +5,7 @@ define [
 
   class Switcher extends Widget
 
-    _defaultAction: (params, callback) ->
+    _defaultAction: (params) ->
 
       if @_contextBundle? and params.widget?
         nameInfo = nameResolver.getFullInfo "#{ params.widget }@#{ @_contextBundle }"
@@ -19,10 +19,10 @@ define [
         params.widgetParams ?= {}
 
       for param of params
-        continue if param is 'widget' or param is 'widgetParams'
-        params.widgetParams[param] = params[param]
+        if not (param is 'widget' or param is 'widgetParams')
+#          params.widgetParams = _.clone(params.widgetParams)
+          params.widgetParams[param] = params[param]
 
       @ctx.set
         widgetType: params.widget
         widgetParams: params.widgetParams
-      callback()

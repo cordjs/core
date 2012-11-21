@@ -104,7 +104,7 @@ define [
       if @behaviour?
         @behaviour.clean()
         @behaviour = null
-      subscription.unsubscribe() for subscription in @_subscriptions
+      @cleanSubscriptions()
       @_subscriptions = []
 
 
@@ -115,6 +115,10 @@ define [
       All such subscritiptions need to be registered to be able to clean them up later (see @cleanChildren())
       ###
       @_subscriptions.push subscription
+
+
+    cleanSubscriptions: ->
+      subscription.unsubscribe() for subscription in @_subscriptions
 
 
     setRepo: (repo) ->
@@ -146,32 +150,49 @@ define [
       @jsonAction 'default', params, callback
 
 
+    _doAction: (action, params, callback) ->
+      called = false
+      wrappedCallback = =>
+        called = true
+        callback()
+      if @["_#{ action }Action"](params, wrappedCallback) != 'block' and not called
+        wrappedCallback()
+
+
     showAction: (action, params, callback) ->
-      @["_#{ action }Action"] params, =>
-        console.log "showAction #{ @constructor.name}::_#{ action }Action: params:", params, " context:", @ctx if global.CONFIG.debug?.widget
+      @_doAction action, params, =>
+        console.log "showAction #{ @debug "_#{ action }Action" } -> params:", params, " context:", @ctx if global.CONFIG.debug?.widget
         @renderTemplate callback
 
     jsonAction: (action, params, callback) ->
-      @["_#{ action }Action"] params, =>
+      @_doAction action, params, =>
+        console.log "jsonAction #{ @debug "_#{ action }Action" } -> params:", params, " context:", @ctx if global.CONFIG.debug?.widget
         @renderJson callback
 
     fireAction: (action, params) ->
       ###
       Just call action (change context) and do not output anything
       ###
-      @["_#{ action }Action"] params, =>
+      @_doAction action, params, =>
         console.log "fireAction #{ @debug "_#{ action }Action" } -> params:", params, " context:", @ctx
 
-
-    ##
-    # Action that generates/modifies widget context according to the given params
-    # Should be overriden in particular widget
-    # @private
-    # @param Map params some arbitrary params for the action
-    # @param Function callback callback function that must be called after action completion
-    ##
     _defaultAction: (params, callback) ->
-      callback()
+      ###
+      Action that generates/modifies widget context according to the given params
+      Should be overriden in particular widget.
+
+      If there is need to block widget rendering untill action is completed, you can return 'block' string and
+      asynchronously call callback function when long-running actions is complete and neccessary data is obtained
+      and set to the context. But preferrable and more performant way is to use deferred values of context
+      (see Context::setDeferred).
+
+      @private
+      @param Map params some arbitrary params for the action
+      @param (optional) Function callback callback function that can be called explicitly after action completion
+      ###
+
+      # by default do nothing
+
 
     renderJson: (callback) ->
       callback null, JSON.stringify(@ctx)
@@ -689,18 +710,22 @@ define [
         callback(child)
 
 
-    #
-    # Almost copy of widgetRepo::init but for client-side rendering
-    # @browser-only
-    #
     browserInit: (stopPropagateWidget) ->
+      ###
+      Almost copy of widgetRepo::init but for client-side rendering
+      @browser-only
+      @param Widget stopPropageteWidget widget for which method should stop pass browserInit to child widgets
+      ###
+
       if this != stopPropagateWidget
         for widgetId, bindingMap of @childBindings
+          @widgetRepo.getById(widgetId).cleanSubscriptions()
           for ctxName, paramName of bindingMap
             @widgetRepo.subscribePushBinding @ctx.id, ctxName, @childById[widgetId], paramName
 
         for childWidget in @children
-          childWidget.browserInit stopPropagateWidget
+          if not childWidget.behaviour?
+            childWidget.browserInit stopPropagateWidget
 
         @initBehaviour()
 
