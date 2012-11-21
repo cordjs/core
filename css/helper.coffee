@@ -27,20 +27,24 @@ define [
         shortPath += '.css' if shortPath.substr(-4) != '.css'
         "/bundles/#{ contextWidget.getDir() }/#{ shortPath }"
       else
-        # canonical path format
-        info = configPaths.pasePathRaw "#{ shortPath }@#{ contextWidget.getBundle() }"
-
-        relativePath = info.relativePath
-        nameParts = relativePath.split '/'
-        widgetClassName = nameParts.pop()
-        if cordWidgetHelper.classNameFormat.test widgetClassName
-          dirName = widgetClassName.charAt(0).toLowerCase() + widgetClassName.slice(1)
-          nameParts.push(dirName)
-          relativePath = nameParts.join('/') + "/#{ dirName }.css"
+        if shortPath.substr(0,8) == '/vendor/'
+          shortPath += '.css' if shortPath.substr(-4) != '.css'
+          return shortPath
         else
-          relativePath += '.css' if relativePath.substr(-4) != '.css'
+          # canonical path format
+          info = configPaths.pasePathRaw "#{ shortPath }@#{ contextWidget.getBundle() }"
 
-        "/bundles#{ info.bundle }/widgets/#{ relativePath }"
+          relativePath = info.relativePath
+          nameParts = relativePath.split '/'
+          widgetClassName = nameParts.pop()
+          if cordWidgetHelper.classNameFormat.test widgetClassName
+            dirName = widgetClassName.charAt(0).toLowerCase() + widgetClassName.slice(1)
+            nameParts.push(dirName)
+            relativePath = nameParts.join('/') + "/#{ dirName }.css"
+          else
+            relativePath += '.css' if relativePath.substr(-4) != '.css'
+
+          return "/bundles#{ info.bundle }/widgets/#{ relativePath }"
 
 
 

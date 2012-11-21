@@ -30,7 +30,10 @@ define [
 
     @dateFormat = (text, format = 'simple') ->
       return '' if !text
-      date = new Date(text.split('+')[0])
+      if text == 'now'
+        date = new Date()
+      else
+        date = new Date(text.split('+')[0])
       now = new Date()
       daysDiff = (now - date) / (1000 * 60 * 60 * 24)
       months =
