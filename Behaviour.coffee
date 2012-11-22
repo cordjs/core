@@ -159,12 +159,13 @@ define [
       ###
       widget.show params, (err, out) ->
         if err then throw err
-        tmpId = '__cord_special_background_creation_container'
+        tmpId = _.uniqueId '__cord_special_tmp_background_creation_container'
         $tmp = $('#'+tmpId)
         $tmp = $("<div style=\"display:none\" id=\"#{ tmpId }\"></div>").appendTo('body') if $tmp.length == 0
         $tmp.one 'DOMNodeInserted', ->
           widget.browserInit()
           callback $('#'+widget.ctx.id), widget
+          $tmp.remove()
         $tmp.html widget.renderRootTag(out)
 
 
