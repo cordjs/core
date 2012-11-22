@@ -258,7 +258,7 @@ define [
 
       @widgetRepo.registerNewExtendWidget this
 
-      @["_#{ action }Action"] params, =>
+      @_doAction action, params, =>
         console.log "injectAction #{ @getPath() }::_#{ action }Action: params:", params, " context:", @ctx
         @getStructTemplate (tmpl) =>
           @_injectRender tmpl, callback
