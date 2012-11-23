@@ -692,10 +692,7 @@ define [
       behaviourClass = @getBehaviourClass()
       if behaviourClass
         require ["cord!/#{ @getDir() }/#{ behaviourClass }"], (BehaviourClass) =>
-          setTimeout =>
-            if !@behaviour?
-              @behaviour = new BehaviourClass this
-          , 0
+          @behaviour = new BehaviourClass this
 
       @loadCss()
 
