@@ -15,6 +15,8 @@ require.config
     'underscore':       'vendor/underscore/underscore'
     'requirejs':        'vendor/requirejs/require'
     'the-box':          'vendor/the-box/app'
+    'moment':           'vendor/moment/moment'
+    'moment-ru':        'vendor/moment/lang/ru'
 
   shim:
     'dustjs-linkedin':

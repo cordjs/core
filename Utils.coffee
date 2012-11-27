@@ -1,5 +1,13 @@
 define [
-], ->
+  'moment'
+  'cord!isBrowser'
+], (moment, isBrowser) ->
+
+  if isBrowser
+    momentru = require ['moment-ru'], (ru) =>
+      moment.lang 'ru'
+  else
+    moment.lang 'ru'
 
   class Utils
 
@@ -30,11 +38,18 @@ define [
 
     @dateFormat = (text, format = 'simple') ->
       return '' if !text
+
       if text == 'now'
-        date = new Date()
+        date = moment()
       else
-        date = new Date(text.split('+')[0])
+        date = moment(text, 'YYYY-MM-DD HH:mm:ss')
+
+      # в идеале написать date.calendar()
+      # дока http://momentjs.com/docs/
+
+      date = date.toDate()
       now = new Date()
+
       daysDiff = (now - date) / (1000 * 60 * 60 * 24)
       months =
         0:  'января'
