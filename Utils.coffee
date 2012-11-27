@@ -36,6 +36,22 @@ define [
       return n1 if number == 1
       return n0
 
+    @monthFormat = (month) ->
+      months =
+        0:  'января'
+        1:  'февраля'
+        2:  'марта'
+        3:  'апреля'
+        4:  'мая'
+        5:  'июня'
+        6:  'июля'
+        7:  'августа'
+        8:  'сентября'
+        9:  'октября'
+        10: 'ноября'
+        11: 'декабря'
+      months[month]
+
     @dateFormat = (text, format = 'simple') ->
       return '' if !text
 
@@ -51,19 +67,6 @@ define [
       now = new Date()
 
       daysDiff = (now - date) / (1000 * 60 * 60 * 24)
-      months =
-        0:  'января'
-        1:  'февраля'
-        2:  'марта'
-        3:  'апреля'
-        4:  'мая'
-        5:  'июня'
-        6:  'июля'
-        7:  'августа'
-        8:  'сентября'
-        9:  'октября'
-        10: 'ноября'
-        11: 'декабря'
 
       detailed = format == 'detailed'
       time = date.getHours() + ':' + date.getMinutes()
@@ -84,12 +87,25 @@ define [
         ## но в этом году
         if date.getYear() == now.getYear()
           if detailed
-            return date.getDate() + ' ' + months[ date.getMonth() ] + ' в ' + time
+            return date.getDate() + ' ' + Utils.monthFormat(date.getMonth()) + ' в ' + time
           else
-            return date.getDate() + ' ' + months[ date.getMonth() ]
+            return date.getDate() + ' ' + Utils.monthFormat(date.getMonth())
         else
-          return date.getDate() + ' ' + months[ date.getMonth() ] + ' ' + date.getFullYear()
+          return date.getDate() + ' ' + Utils.monthFormat(date.getMonth()) + ' ' + date.getFullYear()
 
+    @phoneNumberFormat = (number) ->
+      if number.length == 7
+        number = [
+          number.substr(0,3)
+          number.substr(3,2)
+          number.substr(5,2)
+        ].join '-'
+      else if number.length == 6
+        number = [
+          number.substr(0,3)
+          number.substr(3,3)
+        ].join '-'
+      number
 
     @stripTags = (input, allowed) ->
       ###
