@@ -64,7 +64,8 @@ define [
           false
 
         requestUrl = "#{@options.protocol}://#{@options.host}/#{@options.urlPrefix}#{args.url}"
-        requestParams = _.extend @options.params, args.params
+        defaultParams = _.clone @options.params
+        requestParams = _.extend defaultParams, args.params
         requestParams.access_token = accessToken
 
         @serviceContainer.eval 'request', (request) =>
