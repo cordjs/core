@@ -10,7 +10,7 @@ define [
       ### Дефолтные настройки ###
       defaultOptions =
         protocol: 'http'
-        host: 'localhost'
+        host: 'megaplan.megaplan.ru'
         urlPrefix: ''
         params: []
         getUserPasswordCallback: (callback) -> callback 'jedi', 'jedi'
@@ -50,12 +50,26 @@ define [
         oauth2.grantAccessTokenByRefreshToken refreshToken, (accessToken, refreshToken) =>
           @storeTokens accessToken, refreshToken, callback
 
-    get: ->
+    get: (url, params, callback) ->
+      @send 'get', url, params, callback
+
+    post: (url, params, callback) ->
+      @send 'post', url, params, callback
+
+    put: (url, params, callback) ->
+      @send 'put', url, params, callback
+
+    del: (url, params, callback) ->
+      @send 'del', url, params, callback
+
+    send: ->
+      method = arguments[0];
       args = Utils.parseArguments arguments,
         url: 'string'
         params: 'object'
         callback: 'function'
 
+      console.log args
       processRequest = (accessToken, refreshToken) =>
         if not accessToken
           @options.getUserPasswordCallback (username, password) =>
@@ -69,7 +83,7 @@ define [
         requestParams.access_token = accessToken
 
         @serviceContainer.eval 'request', (request) =>
-          request.get requestUrl, requestParams, (response) =>
+          request[method] requestUrl, requestParams, (response) =>
             if response?.error?
               if response.error == 'invalid_grant' and refreshToken
                 @getTokensByRefreshToken refreshToken, processRequest
