@@ -8,7 +8,7 @@ http          = require 'http'
 serverStatic  = require 'node-static'
 
 configPaths   = require './configPaths'
-host          = '127.0.0.1'
+host          = '192.168.63.208'
 port          = '1337'
 
 pathDir   = fs.realpathSync '.'
