@@ -35,7 +35,7 @@ define [
         serviceContainer.set 'config',
           api:
             protocol: 'http'
-            host: 'megaplan.hotfix'
+            host: 'megaplan.megaplan.ru'
             urlPrefix: 'api/v2/'
             getUserPasswordCallback: (callback) ->
               response = serviceContainer.get 'serverResponse'
@@ -43,10 +43,10 @@ define [
                 Location: '/user/login/'
               response.end()
           oauth2:
-            clientId: 'CLIENT'
-            secretKey: 'SECRET'
+            clientId: 'ce8fcad010ef4d10a337574645d69ac8'
+            secretKey: '2168c151f895448e911243f5c6d6cdc6'
             endpoints:
-              accessToken: 'http://megaplan.hotfix/oauth/access_token'
+              accessToken: 'http://megaplan.megaplan.ru/oauth/access_token'
 
         ###
           Это надо перенести в более кошерное место

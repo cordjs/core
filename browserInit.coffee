@@ -48,14 +48,14 @@ define [
       api:
         protocol: 'http'
         host: '127.0.0.1:1337'
-        urlPrefix: '_restAPI/http://megaplan.hotfix/api/v2/'
+        urlPrefix: '_restAPI/http://megaplan.megaplan.ru/api/v2/'
         getUserPasswordCallback: (callback) ->
           window.location.href = '/user/login/'
       oauth2:
-        clientId: 'CLIENT'
-        secretKey: 'SECRET'
+        clientId: 'ce8fcad010ef4d10a337574645d69ac8'
+        secretKey: '2168c151f895448e911243f5c6d6cdc6'
         endpoints:
-          accessToken: 'http://127.0.0.1:1337/_restAPI/http://megaplan.hotfix/oauth/access_token'
+          accessToken: 'http://127.0.0.1:1337/_restAPI/http://megaplan.megaplan.ru/oauth/access_token'
 
     ###
       Это надо перенести в более кошерное место
