@@ -180,3 +180,6 @@ define [
       ###
       @widget.createChildWidget type, (newWidget) =>
         @renderNewWidget newWidget, params, callback
+
+    getServiceContainer: =>
+      @widget.getServiceContainer()
