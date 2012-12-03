@@ -69,7 +69,6 @@ define [
         params: 'object'
         callback: 'function'
 
-      console.log args
       processRequest = (accessToken, refreshToken) =>
         if not accessToken
           @options.getUserPasswordCallback (username, password) =>
