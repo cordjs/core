@@ -93,6 +93,25 @@ define [
         else
           return date.getDate() + ' ' + Utils.monthFormat(date.getMonth()) + ' ' + date.getFullYear()
 
+
+    @dateDiffInDays = (date) ->
+      today = new Date()
+      date = new Date date
+
+      seconds = ( date - today ) / 1000
+      seconds / ( 60 * 60 * 24 )
+
+
+    @getAgeByBirthday = (date) ->
+      today = new Date()
+      birthDate = new Date(date)
+      years = today.getFullYear() - birthDate.getFullYear()
+      months = today.getMonth() - birthDate.getMonth()
+      if (months < 0) or (months == 0 and today.getDate() < birthDate.getDate())
+        years--
+      years
+
+
     @phoneNumberFormat = (number) ->
       if number.length == 7
         number = [

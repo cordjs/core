@@ -6,6 +6,9 @@ define [
 
   class Api
 
+    accessToken: false
+    refreshToken: false
+
     constructor: (serviceContainer, options) ->
       ### Дефолтные настройки ###
       defaultOptions =
@@ -22,6 +25,10 @@ define [
 
 
     storeTokens: (accessToken, refreshToken, callback) ->
+      # Кеширование токенов
+      @accessToken = accessToken
+      @refreshToken = refreshToken
+
       @serviceContainer.eval 'cookie', (cookie) =>
         cookie.set 'accessToken', accessToken
         cookie.set 'refreshToken', refreshToken
@@ -32,18 +39,25 @@ define [
 
 
     restoreTokens: (callback) ->
-      @serviceContainer.eval 'cookie', (cookie) =>
-        accessToken = cookie.get 'accessToken'
-        refreshToken = cookie.get 'refreshToken'
+      #Возвращаем из локального кеша
+      if @accessToken and @refreshToken
+        console.log "Restore tokens from local cache: #{@accessToken}, #{@refreshToken}" if global.CONFIG.debug?.oauth2
+        callback @accessToken, @refreshToken
+      else
+        @serviceContainer.eval 'cookie', (cookie) =>
+          accessToken = cookie.get 'accessToken'
+          refreshToken = cookie.get 'refreshToken'
 
-        console.log "Restore tokens: #{accessToken}, #{refreshToken}" if global.CONFIG.debug?.oauth2
+          console.log "Restore tokens: #{accessToken}, #{refreshToken}" if global.CONFIG.debug?.oauth2
 
-        callback accessToken, refreshToken
+          callback accessToken, refreshToken
+
 
     getTokensByUsernamePassword: (username, password, callback) ->
       @serviceContainer.eval 'oauth2', (oauth2) =>
         oauth2.grantAccessTokenByPassword username, password, (accessToken, refreshToken) =>
           @storeTokens accessToken, refreshToken, callback
+
 
     getTokensByRefreshToken: (refreshToken, callback) ->
       @serviceContainer.eval 'oauth2', (oauth2) =>

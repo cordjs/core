@@ -4,6 +4,9 @@ define [
 
   class OAuth2
 
+    deferredRefreshTokenCallbacks: []
+    refreshTokenRequested: false
+
     constructor: (serviceContainer, options)->
       defaultOptions =
         clientId: ''
@@ -31,11 +34,26 @@ define [
 
     ## Получение токена по grant_type = refresh_token (токен обновления)
     grantAccessTokenByRefreshToken: (refreshToken, callback) =>
+      @deferredRefreshTokenCallbacks.push callback
+
       params =
         grant_type: 'refresh_token'
         refresh_token: refreshToken
         client_id: @options.clientId
 
+      if @refreshTokenRequested
+        console.log "========================================================================"
+        console.log "Refresh token already requested"
+        console.log "========================================================================"
+
+      return if @refreshTokenRequested
+      @refreshTokenRequested = true
+
       @serviceContainer.eval 'request', (request) =>
         request.get @options.endpoints.accessToken, params, (result) =>
-          callback result.access_token, result.refresh_token
+
+          for callback in @deferredRefreshTokenCallbacks
+            callback result.access_token, result.refresh_token
+
+          @deferredRefreshTokenCallbacks = []
+          @refreshTokenRequested = false
