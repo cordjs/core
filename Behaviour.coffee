@@ -122,17 +122,22 @@ define [
       @refreshElements()
       @el
 
-    render: ->
-      console.log "#{ @widget.debug 're-render' }"
 
-      # renderTemplate will clean this behaviour, so we must save links...
-      widget = @widget
-      $el = @$el
-      widget.renderTemplate (err, out) ->
-        if err then throw err
-        $el.one 'DOMNodeInserted', ->
-          widget.browserInit()
-        $el.html out
+    render: ->
+      console.log "#{ @widget.debug 'defer-re-render' }"
+
+      @defer 'render', =>
+        if @widget?
+          console.log "#{ @widget.debug 're-render' }"
+          # renderTemplate will clean this behaviour, so we must save links...
+          widget = @widget
+          $el = @$el
+          widget.renderTemplate (err, out) ->
+            if err then throw err
+            $el.one 'DOMNodeInserted', ->
+              widget.browserInit()
+            $el.html out
+
 
     renderInline: (name) ->
       ###
@@ -180,3 +185,15 @@ define [
       ###
       @widget.createChildWidget type, (newWidget) =>
         @renderNewWidget newWidget, params, callback
+
+    defer: (id, fn) ->
+      @defers ?= {}
+      if @defers[id]?
+        @defers[id]++
+      else
+        @defers[id] = 1
+        setTimeout =>
+          fn()
+          delete @defers[id]
+        , 0
+

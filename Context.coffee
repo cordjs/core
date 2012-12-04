@@ -1,15 +1,20 @@
 define [
   'postal'
-], (postal) ->
+  'underscore'
+], (postal, _) ->
 
   class Context
 
-    constructor: (arg) ->
-      if typeof arg is 'object'
-        for key, value of arg
+    constructor: (arg1, arg2) ->
+      if typeof arg1 is 'object'
+        for key, value of arg1
           @[key] = value
       else
-        @id = arg
+        @id = arg1
+        if arg2
+          for key, value of arg2
+            @[key] = if _.isFunction value then value() else value
+
 
     set: (args...) ->
       triggerChange = false

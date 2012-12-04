@@ -82,7 +82,7 @@ define [
           rootWidget._isExtended = true
           widgetRepo.setRootWidget rootWidget
 
-          rootWidget.showAction action, params, (err, output) ->
+          rootWidget.show params, (err, output) ->
             if err then throw err
             res.writeHead 200, 'Content-Type': 'text/html'
             res.end output
