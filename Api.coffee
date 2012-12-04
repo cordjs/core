@@ -96,7 +96,7 @@ define [
         requestParams.access_token = accessToken
 
         @serviceContainer.eval 'request', (request) =>
-          request[method] requestUrl, requestParams, (response) =>
+          request[method] requestUrl, requestParams, (response, error) =>
             if response?.error?
               if response.error == 'invalid_grant' and refreshToken
                 @getTokensByRefreshToken refreshToken, processRequest
@@ -105,7 +105,7 @@ define [
                   @getTokensByUsernamePassword username, password, (accessToken, refreshToken) =>
                     processRequest accessToken, refreshToken
             else
-              args.callback response
+              args.callback response, error
 
       @restoreTokens (accessToken, refreshToken) =>
         if not accessToken

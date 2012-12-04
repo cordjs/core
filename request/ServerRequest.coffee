@@ -53,4 +53,4 @@ define [
             console.log body if global.CONFIG.debug?.request == 'full'
             console.log "========================================================================"
 
-        argssss.callback body if typeof argssss.callback == 'function'
+        argssss.callback body, error if typeof argssss.callback == 'function'
