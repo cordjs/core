@@ -70,7 +70,8 @@ define [
 
       detailed = format == 'detailed'
       minutes = date.getMinutes()
-      time = date.getHours() + ':' + (if minutes < 10 then '0' else '') + minutes
+      hours = date.getHours()
+      time = (if hours < 10 then '0' else '') + hours + ':' + (if minutes < 10 then '0' else '') + minutes
       
       ## Сегодня
       if date.getDate() == now.getDate() and date.getMonth() == now.getMonth() and date.getYear() == now.getYear()
