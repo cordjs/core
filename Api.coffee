@@ -6,11 +6,14 @@ define [
 
   class Api
 
+    accessToken: false
+    refreshToken: false
+
     constructor: (serviceContainer, options) ->
       ### Дефолтные настройки ###
       defaultOptions =
         protocol: 'http'
-        host: 'localhost'
+        host: 'megaplan.megaplan.ru'
         urlPrefix: ''
         params: []
         getUserPasswordCallback: (callback) -> callback 'jedi', 'jedi'
@@ -22,6 +25,10 @@ define [
 
 
     storeTokens: (accessToken, refreshToken, callback) ->
+      # Кеширование токенов
+      @accessToken = accessToken
+      @refreshToken = refreshToken
+
       @serviceContainer.eval 'cookie', (cookie) =>
         cookie.set 'accessToken', accessToken
         cookie.set 'refreshToken', refreshToken
@@ -32,25 +39,45 @@ define [
 
 
     restoreTokens: (callback) ->
-      @serviceContainer.eval 'cookie', (cookie) =>
-        accessToken = cookie.get 'accessToken'
-        refreshToken = cookie.get 'refreshToken'
+      #Возвращаем из локального кеша
+      if @accessToken and @refreshToken
+        console.log "Restore tokens from local cache: #{@accessToken}, #{@refreshToken}" if global.CONFIG.debug?.oauth2
+        callback @accessToken, @refreshToken
+      else
+        @serviceContainer.eval 'cookie', (cookie) =>
+          accessToken = cookie.get 'accessToken'
+          refreshToken = cookie.get 'refreshToken'
 
-        console.log "Restore tokens: #{accessToken}, #{refreshToken}" if global.CONFIG.debug?.oauth2
+          console.log "Restore tokens: #{accessToken}, #{refreshToken}" if global.CONFIG.debug?.oauth2
 
-        callback accessToken, refreshToken
+          callback accessToken, refreshToken
+
 
     getTokensByUsernamePassword: (username, password, callback) ->
       @serviceContainer.eval 'oauth2', (oauth2) =>
         oauth2.grantAccessTokenByPassword username, password, (accessToken, refreshToken) =>
           @storeTokens accessToken, refreshToken, callback
 
+
     getTokensByRefreshToken: (refreshToken, callback) ->
       @serviceContainer.eval 'oauth2', (oauth2) =>
         oauth2.grantAccessTokenByRefreshToken refreshToken, (accessToken, refreshToken) =>
           @storeTokens accessToken, refreshToken, callback
 
-    get: ->
+    get: (url, params, callback) ->
+      @send 'get', url, params, callback
+
+    post: (url, params, callback) ->
+      @send 'post', url, params, callback
+
+    put: (url, params, callback) ->
+      @send 'put', url, params, callback
+
+    del: (url, params, callback) ->
+      @send 'del', url, params, callback
+
+    send: ->
+      method = arguments[0];
       args = Utils.parseArguments arguments,
         url: 'string'
         params: 'object'
@@ -69,7 +96,7 @@ define [
         requestParams.access_token = accessToken
 
         @serviceContainer.eval 'request', (request) =>
-          request.get requestUrl, requestParams, (response) =>
+          request[method] requestUrl, requestParams, (response) =>
             if response?.error?
               if response.error == 'invalid_grant' and refreshToken
                 @getTokensByRefreshToken refreshToken, processRequest

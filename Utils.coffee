@@ -63,26 +63,25 @@ define [
       # в идеале написать date.calendar()
       # дока http://momentjs.com/docs/
 
+      daysDiff = (moment(date).sod().toDate() - moment().sod().toDate())/86400000
+
       date = date.toDate()
       now = new Date()
 
-      daysDiff = (now - date) / (1000 * 60 * 60 * 24)
-
       detailed = format == 'detailed'
-      time = date.getHours() + ':' + date.getMinutes()
-
+      minutes = date.getMinutes()
+      hours = date.getHours()
+      time = (if hours < 10 then '0' else '') + hours + ':' + (if minutes < 10 then '0' else '') + minutes
+      
       ## Сегодня
       if date.getDate() == now.getDate() and date.getMonth() == now.getMonth() and date.getYear() == now.getYear()
-        if detailed
-          return 'сегодня в ' + time
-        else
-          return 'сегодня'
+          return 'сегодня' + (if detailed then (' в ' + time) else '')
       ## Вчера
-      else if daysDiff < 1 and daysDiff >= 0
-        return 'вчера в ' + time
+      else if daysDiff == -1
+        return 'вчера' + (if detailed then (' в ' + time) else '')
       ## Завтра
-      else if daysDiff > -1 and daysDiff <= 0
-        return 'завтра в ' + time
+      else if daysDiff == 1
+        return 'завтра' + (if detailed then (' в ' + time) else '')
       else
         ## но в этом году
         if date.getYear() == now.getYear()
@@ -92,6 +91,25 @@ define [
             return date.getDate() + ' ' + Utils.monthFormat(date.getMonth())
         else
           return date.getDate() + ' ' + Utils.monthFormat(date.getMonth()) + ' ' + date.getFullYear()
+
+
+    @dateDiffInDays = (date) ->
+      today = new Date()
+      date = new Date date
+
+      seconds = ( date - today ) / 1000
+      seconds / ( 60 * 60 * 24 )
+
+
+    @getAgeByBirthday = (date) ->
+      today = new Date()
+      birthDate = new Date(date)
+      years = today.getFullYear() - birthDate.getFullYear()
+      months = today.getMonth() - birthDate.getMonth()
+      if (months < 0) or (months == 0 and today.getDate() < birthDate.getDate())
+        years--
+      years
+
 
     @phoneNumberFormat = (number) ->
       if number.length == 7

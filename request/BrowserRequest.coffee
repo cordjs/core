@@ -6,15 +6,26 @@ define [
 
   class BrowserRequest
 
+
     constructor: (serviceContainer, options) ->
       defaultOptions =
         json: true
 
       @options = _.extend defaultOptions, options
       @serviceContainer = serviceContainer
+      @METHODS = ['get', 'post', 'put', 'del']
 
+      for method in @METHODS
+        @[method] = ((method) =>
+          (url, params, callback) =>
+            @send(method, url, params, callback))(method)
 
-    get: (url, params, callback) ->
+    send: (method, url, params, callback) ->
+
+      method = method.toLowerCase()
+      console.log('Unknown method:'+method) if method not in @METHODS
+      method = 'del' if method is 'delete'
+
       argssss = Utils.parseArguments arguments,
         url: 'string'
         params: 'object'
@@ -28,13 +39,13 @@ define [
         json: true
 
       startRequest = new Date() if global.CONFIG.debug?.request
-      window.curly.get argssss.url, options, (error, response, body) =>
+      window.curly[method] argssss.url, options, (error, response, body) =>
         if global.CONFIG.debug?.request
           stopRequest = new Date()
           seconds = (stopRequest - startRequest) / 1000
 
           if global.CONFIG.debug?.request == 'simple'
-            console.log "ServerRequest ( #{ seconds } s): #{argssss.url}"
+            console.log "ServerRequest ( #{ seconds } s): #{method} #{argssss.url}"
           else
             console.log "========================================================================( #{ seconds } s)"
             console.log "ServerRequest: #{argssss.url}"

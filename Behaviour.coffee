@@ -186,6 +186,7 @@ define [
       @widget.createChildWidget type, (newWidget) =>
         @renderNewWidget newWidget, params, callback
 
+
     defer: (id, fn) ->
       @defers ?= {}
       if @defers[id]?
@@ -197,3 +198,6 @@ define [
           delete @defers[id]
         , 0
 
+
+    getServiceContainer: ->
+      @widget.getServiceContainer()
