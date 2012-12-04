@@ -132,7 +132,7 @@ define [
       @param (optional)Object params custom params, accepted by widget
       ###
 
-      if @constructor.params? or @constructor.initialCtx? # may be initialCtx is not necessary here
+      if not @constructor._paramRules? and (@constructor.params? or @constructor.initialCtx?) # may be initialCtx is not necessary here
         @constructor.initParamRules()
 
       if params?
@@ -162,7 +162,7 @@ define [
       subscriptions left from the dissapered widgets.
       ###
 
-      console.log "clean #{ @getPath() }(#{ @ctx.id })"
+      console.log @debug('clean')
 
       @cleanChildren()
       if @behaviour?
@@ -239,40 +239,46 @@ define [
       callback?()
 
 
+    _handleOnShow: (callback) ->
+      if @onShow?
+        if @onShow(callback) != ':block'
+          callback()
+      else
+        callback()
+
+
     #
     # Main method to call if you want to show rendered widget template
     # @public
     # @final
     #
     show: (params, callback) ->
-      @showAction 'default', params, callback
+      @_doAction 'default', params, =>
+        console.log "#{ @debug 'show' } -> params:", params, " context:", @ctx if global.CONFIG.debug?.widget
+        @_handleOnShow =>
+          @renderTemplate callback
 
     showJson: (params, callback) ->
-      @jsonAction 'default', params, callback
+      @_doAction 'default', params, =>
+        console.log "#{ @debug 'showJson' } -> params:", params, " context:", @ctx if global.CONFIG.debug?.widget
+        @_handleOnShow =>
+          @renderJson callback
 
 
     _doAction: (action, params, callback) ->
       if @constructor.params? or @constructor.initialCtx?
         @processParams params, callback
-      else
+      else if @["_#{ action }Action"]?
         console.warn "WARNING: Old style actions (#{ @debug '_defaultAction()' }) are deprecated! You should refactor your code!"
         called = false
         wrappedCallback = =>
           called = true
           callback()
         if @["_#{ action }Action"](params, wrappedCallback) != 'block' and not called
-          wrappedCallback()
+          callback()
+      else
+        callback()
 
-
-    showAction: (action, params, callback) ->
-      @_doAction action, params, =>
-        console.log "showAction #{ @debug "_#{ action }Action" } -> params:", params, " context:", @ctx if global.CONFIG.debug?.widget
-        @renderTemplate callback
-
-    jsonAction: (action, params, callback) ->
-      @_doAction action, params, =>
-        console.log "jsonAction #{ @debug "_#{ action }Action" } -> params:", params, " context:", @ctx if global.CONFIG.debug?.widget
-        @renderJson callback
 
     fireAction: (action, params) ->
       ###
@@ -281,7 +287,8 @@ define [
       @_doAction action, params, =>
         console.log "fireAction #{ @debug "_#{ action }Action" } -> params:", params, " context:", @ctx
 
-    _defaultAction: (params, callback) ->
+
+#    _defaultAction: (params, callback) ->
       ###
       Action that generates/modifies widget context according to the given params
       Should be overriden in particular widget.
@@ -365,8 +372,9 @@ define [
 
       @_doAction action, params, =>
         console.log "injectAction #{ @getPath() }::_#{ action }Action: params:", params, " context:", @ctx
-        @getStructTemplate (tmpl) =>
-          @_injectRender tmpl, callback
+        @_handleOnShow =>
+          @getStructTemplate (tmpl) =>
+            @_injectRender tmpl, callback
 
 
     _injectRender: (tmpl, callback) ->
