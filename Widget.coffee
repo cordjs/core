@@ -47,6 +47,67 @@ define [
     _structTemplate: null
     _isExtended: false
 
+
+    @initParamRules: ->
+      ###
+      Prepares rules for handling incoming params of the widget.
+      Converts params static attribute of the class into _paramRules array which defines behaviour of processParams
+       method of the widget.
+      ###
+
+      handleStringCallback = (rule, methodName) =>
+        if @prototype[methodName]
+          callback =  @prototype[methodName]
+          if _.isFunction callback
+            rule.callback = callback
+          else
+            throw new Error("Callback #{ methodName } is not a function")
+        else
+          throw new Error("#{ methodName } doesn't exist")
+
+      @_paramRules = {}
+      for param, info of @params
+        rule = {}
+
+        if _.isFunction info
+          rule.type = ':callback'
+          rule.callback = info
+        else if _.isString info
+          if info.charAt(0) == ':'
+            if info == ':ctx'
+              rule.type = ':setSame'
+            else if info.substr(0, 5) == ':ctx.'
+              rule.type = ':set'
+              rule.ctxName = info.trim().substr(5)
+            else
+              throw "Invalid special string value for param '#{ param }': #{ info }!"
+          else
+            rule.type = ':callback'
+            handleStringCallback(rule, info)
+        else if _.isObject info
+          if info.callback?
+            rule.type = ':callback'
+            if _.isString info.callback
+              handleStringCallback(rule, info.callback)
+            else if _.isFunction info.callback
+              rule.callback = info.callback
+          else if info.set
+            rule.type = ':set'
+            rule.ctxName = info.set
+          else
+            rule.type = ':setSame'
+
+        splittedParams = param.trim().split(/\s*,\s*/)
+        rule.id = splittedParams.join ','
+        if splittedParams.length > 1
+          rule.multiArgs = true
+          rule.params = splittedParams
+          console.log splittedParams
+        for name in splittedParams
+          @_paramRules[name] ?= []
+          @_paramRules[name].push rule
+
+
     getPath: ->
       @constructor.path
 
@@ -71,6 +132,9 @@ define [
       @param (optional)Object params custom params, accepted by widget
       ###
 
+      if not @constructor._paramRules? and (@constructor.params? or @constructor.initialCtx?) # may be initialCtx is not necessary here
+        @constructor.initParamRules()
+
       if params?
         @ctx = new Context(params.context) if params.context?
         @setRepo params.repo if params.repo?
@@ -86,7 +150,7 @@ define [
           id = 'rwdt-' + _.uniqueId()
         else
           id = (if isBrowser then 'b' else 'n') + 'wdt-' + _.uniqueId()
-        @ctx = new Context(id)
+        @ctx = new Context(id, @constructor.initialCtx)
 
 
     clean: ->
@@ -98,7 +162,7 @@ define [
       subscriptions left from the dissapered widgets.
       ###
 
-      console.log "clean #{ @getPath() }(#{ @ctx.id })"
+      console.log @debug('clean')
 
       @cleanChildren()
       if @behaviour?
@@ -138,36 +202,83 @@ define [
       @serviceContainer
 
 
+    processParams: (params, callback) ->
+      ###
+      Main "reactor" to the widget's API params change from outside.
+      Changes widget's context variables according to the rules, defined in "params" static configuration of the widget.
+      Rules are applied only to defined input params.
+      @param Object params changed params
+      @param (optional)Function callback function to be called after processing.
+      ###
+
+      console.log "#{ @debug 'processParams' } -> ", params
+      rules = @constructor._paramRules
+      processedRules = {}
+      specialParams = ['match', 'history', 'shim', 'trigger']
+      for name, value of params
+        if rules[name]?
+          for rule in rules[name]
+            if rule.hasValidation and not rule.validate(value)
+              throw "Validation of param '#{ name }' of widget #{ @debug() } is not passed!"
+            else
+              switch rule.type
+                when ':setSame' then @ctx.setSingle name, value
+                when ':set' then @ctx.setSingle rule.ctxName, value
+                when ':callback'
+                  if rule.multiArgs
+                    if not processedRules[rule.id]
+                      args = (params[multiName] for multiName in rule.params)
+                      rule.callback.apply(this, args)
+                      processedRules[rule.id] = true
+                  else
+                    rule.callback.call(this, value)
+                else
+                  throw new Error("Invalid param rule type: '#{ rule.type }'")
+        else if specialParams.indexOf(name) == -1
+          throw "Widget #{ @getPath() } is not accepting param with name #{ name }!"
+      callback?()
+
+
+    _handleOnShow: (callback) ->
+      if @onShow?
+        if @onShow(callback) != ':block'
+          callback()
+      else
+        callback()
+
+
     #
     # Main method to call if you want to show rendered widget template
     # @public
     # @final
     #
     show: (params, callback) ->
-      @showAction 'default', params, callback
+      @_doAction 'default', params, =>
+        console.log "#{ @debug 'show' } -> params:", params, " context:", @ctx if global.CONFIG.debug?.widget
+        @_handleOnShow =>
+          @renderTemplate callback
 
     showJson: (params, callback) ->
-      @jsonAction 'default', params, callback
+      @_doAction 'default', params, =>
+        console.log "#{ @debug 'showJson' } -> params:", params, " context:", @ctx if global.CONFIG.debug?.widget
+        @_handleOnShow =>
+          @renderJson callback
 
 
     _doAction: (action, params, callback) ->
-      called = false
-      wrappedCallback = =>
-        called = true
+      if @constructor.params? or @constructor.initialCtx?
+        @processParams params, callback
+      else if @["_#{ action }Action"]?
+        console.warn "WARNING: Old style actions (#{ @debug '_defaultAction()' }) are deprecated! You should refactor your code!"
+        called = false
+        wrappedCallback = =>
+          called = true
+          callback()
+        if @["_#{ action }Action"](params, wrappedCallback) != 'block' and not called
+          callback()
+      else
         callback()
-      if @["_#{ action }Action"](params, wrappedCallback) != 'block' and not called
-        wrappedCallback()
 
-
-    showAction: (action, params, callback) ->
-      @_doAction action, params, =>
-        console.log "showAction #{ @debug "_#{ action }Action" } -> params:", params, " context:", @ctx if global.CONFIG.debug?.widget
-        @renderTemplate callback
-
-    jsonAction: (action, params, callback) ->
-      @_doAction action, params, =>
-        console.log "jsonAction #{ @debug "_#{ action }Action" } -> params:", params, " context:", @ctx if global.CONFIG.debug?.widget
-        @renderJson callback
 
     fireAction: (action, params) ->
       ###
@@ -176,7 +287,8 @@ define [
       @_doAction action, params, =>
         console.log "fireAction #{ @debug "_#{ action }Action" } -> params:", params, " context:", @ctx
 
-    _defaultAction: (params, callback) ->
+
+#    _defaultAction: (params, callback) ->
       ###
       Action that generates/modifies widget context according to the given params
       Should be overriden in particular widget.
@@ -260,8 +372,9 @@ define [
 
       @_doAction action, params, =>
         console.log "injectAction #{ @getPath() }::_#{ action }Action: params:", params, " context:", @ctx
-        @getStructTemplate (tmpl) =>
-          @_injectRender tmpl, callback
+        @_handleOnShow =>
+          @getStructTemplate (tmpl) =>
+            @_injectRender tmpl, callback
 
 
     _injectRender: (tmpl, callback) ->
@@ -753,7 +866,7 @@ define [
 
 
     subscribeValueChange: (params, name, value, callback) ->
-      postal.subscribe
+      subscription = postal.subscribe
         topic: "widget.#{ @ctx.id }.change.#{ value }"
         callback: (data) ->
           # param with name "params" is a special case and we should expand the value as key-value pairs
@@ -767,6 +880,8 @@ define [
           else
             params[name] = data.value
           callback()
+          subscription.unsubscribe()
+
 
     _buildBaseContext: ->
       if @compileMode
@@ -811,12 +926,13 @@ define [
               for name in needToWait
                 if @ctx.isDeferred name
                   waitCounter++
-                  postal.subscribe
+                  subscription = postal.subscribe
                     topic: "widget.#{ @ctx.id }.change.#{ name }"
                     callback: (data) ->
                       waitCounter--
                       if waitCounter == 0 and waitCounterFinish
                         showCallback()
+                      subscription.unsubscribe()
 
               waitCounterFinish = true
               if waitCounter == 0

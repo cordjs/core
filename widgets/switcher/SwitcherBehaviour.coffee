@@ -5,7 +5,4 @@ define [
   class SwitcherBehaviour extends Behaviour
 
     widgetEvents:
-      'widgetType': 'onWidgetChange'
-
-    onWidgetChange: (data) =>
-      @render()
+      'widgetType': 'render'
