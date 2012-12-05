@@ -55,18 +55,20 @@ define [
     @dateFormat = (text, format = 'simple') ->
       return '' if !text
 
+      now = moment()
+
       if text == 'now'
-        date = moment()
+        date = now
       else
         date = moment(text, 'YYYY-MM-DD HH:mm:ss')
 
       # в идеале написать date.calendar()
       # дока http://momentjs.com/docs/
 
-      daysDiff = (moment(date).sod().toDate() - moment().sod().toDate())/86400000
+      daysDiff = (date.sod().toDate() - now.sod().toDate()) / 86400000
 
       date = date.toDate()
-      now = new Date()
+      now = now.toDate()
 
       detailed = format == 'detailed'
       minutes = date.getMinutes()
