@@ -7,8 +7,7 @@ define [
 
   class RestApi extends Widget
 
-    showAction: (action, params, callback) ->
-      
+    show: (params, callback) ->
       serverRequest = @serviceContainer.get('serverRequest')
       serverResponse = @serviceContainer.get('serverResponse')
 
