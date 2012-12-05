@@ -46,6 +46,8 @@ define [
 
           if global.CONFIG.debug?.request == 'simple'
             console.log "BrowserRequest ( #{ seconds } s): #{method} #{argssss.url}"
+            if method isnt 'get'
+              console.log body
           else
             console.log "========================================================================( #{ seconds } s)"
             console.log "BrowserRequest: #{method} #{argssss.url}"
