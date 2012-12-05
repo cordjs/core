@@ -91,6 +91,7 @@ define [
           false
 
         requestUrl = "#{@options.protocol}://#{@options.host}/#{@options.urlPrefix}#{args.url}"
+        requestUrl += ( if requestUrl.lastIndexOf("?") == -1 then "?" else "&" ) + "access_token=#{accessToken}"
         defaultParams = _.clone @options.params
         requestParams = _.extend defaultParams, args.params
         requestParams.access_token = accessToken

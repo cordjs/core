@@ -45,10 +45,10 @@ define [
           seconds = (stopRequest - startRequest) / 1000
 
           if global.CONFIG.debug?.request == 'simple'
-            console.log "ServerRequest ( #{ seconds } s): #{method} #{argssss.url}"
+            console.log "BrowserRequest ( #{ seconds } s): #{method} #{argssss.url}"
           else
             console.log "========================================================================( #{ seconds } s)"
-            console.log "ServerRequest: #{method} #{argssss.url}"
+            console.log "BrowserRequest: #{method} #{argssss.url}"
             console.log argssss.params
             console.log body if global.CONFIG.debug?.request == 'full'
             console.log "========================================================================"

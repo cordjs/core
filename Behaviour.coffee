@@ -134,8 +134,19 @@ define [
           $el = @$el
           widget.renderTemplate (err, out) ->
             if err then throw err
-            $el.one 'DOMNodeInserted', ->
-              widget.browserInit()
+
+            oneMore = false
+            wait = ->
+              oneMore = false
+              setTimeout ->
+                if not oneMore
+                  $el.off 'DOMNodeInserted'
+                  widget.browserInit()
+              , 0
+
+            $el.on 'DOMNodeInserted', ->
+              oneMore = true
+              wait()
             $el.html out
 
 
