@@ -50,7 +50,7 @@ define [
         host: '127.0.0.1:1337'
         urlPrefix: '_restAPI/http://megaplan.megaplan.ru/api/v2/'
         getUserPasswordCallback: (callback) ->
-          window.location.href = '/user/login/'
+          window.location.href = '/user/login/?back=' + window.location.pathname
       oauth2:
         clientId: 'ce8fcad010ef4d10a337574645d69ac8'
         secretKey: '2168c151f895448e911243f5c6d6cdc6'
@@ -76,6 +76,10 @@ define [
     serviceContainer.def 'api', ['config'], (get, done) ->
       requirejs ['cord!/cord/core/Api'], (Api) ->
         done null, new Api serviceContainer, get('config').api
+
+    serviceContainer.def 'user', ['api'], (get, done) ->
+      get('api').get 'employee/current/', (response) =>
+        done null, response
 
     ###
     ###
