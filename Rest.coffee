@@ -31,7 +31,7 @@ define [
       @request options, callback
 
 
-    delete: (data, callback) ->
+    del: (data, callback) ->
       options = _.extend {
         type: 'DELETE'
       }, data
