@@ -78,12 +78,14 @@ define [
       delete cleanParams.placeholder
       delete cleanParams.name
       delete cleanParams.class
+      delete cleanParams.timeout
 
       info =
         widget: widgetRef.uid
         params: cleanParams
       info.class = params.class if params.class
       info.name = params.name if params.name
+      info.timeout = parseInt(params.timeout) if params.timeout
 
       swRef.placeholders[placeholderName].push info
 

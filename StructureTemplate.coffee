@@ -1,4 +1,6 @@
-define [], ->
+define [
+  'cord!isBrowser'
+], (isBrowser) ->
 
   class StructureTemplate
 
@@ -54,15 +56,38 @@ define [], ->
               if item.widget?
                 @getWidget item.widget, (widget) =>
                   @ownerWidget.registerChild widget, item.name
+
+                  complete = false
+
                   @ownerWidget.resolveParamRefs widget, item.params, (params) ->
-                    resolvedPlaceholders[name].push
-                      type: 'widget'
-                      widget: widget.ctx.id
-                      params: params
-                      class: item.class
-                    waitCounter--
-                    if waitCounter == 0 and waitCounterFinish
-                      returnCallback()
+                    if not complete
+                      complete = true
+                      resolvedPlaceholders[name].push
+                        type: 'widget'
+                        widget: widget.ctx.id
+                        params: params
+                        class: item.class
+                        timeout: item.timeout
+                      waitCounter--
+                      if waitCounter == 0 and waitCounterFinish
+                        returnCallback()
+                    else
+                      postal.publish "widget.#{ widget.ctx.id }.deferred.ready", params
+
+                  if isBrowser and item.timeout? > 0
+                    setTimeout ->
+                      if not complete
+                        complete = true
+                        resolvedPlaceholders[name].push
+                          type: 'timeouted-widget'
+                          widget: widget.ctx.id
+                          class: item.class
+                          timeout: item.timeout
+                        waitCounter--
+                        if waitCounter == 0 and waitCounterFinish
+                          returnCallback()
+                    , item.timeout
+
               else
                 @getWidget item.inline, (widget) ->
                   resolvedPlaceholders[name].push

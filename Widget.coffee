@@ -585,13 +585,43 @@ define [
 
             waitCounter++
 
+            complete = false
             widget.show info.params, (err, out) ->
               if err then throw err
-              placeholderOut[placeholderOrder[widgetId]] = widget.renderRootTag out, info.class
+              if not complete
+                complete = true
+                placeholderOut[placeholderOrder[widgetId]] = widget.renderRootTag out, info.class
 
-              waitCounter--
-              if waitCounter == 0 and waitCounterFinish
-                returnCallback()
+                waitCounter--
+                if waitCounter == 0 and waitCounterFinish
+                  returnCallback()
+              else
+                require ['jquery'], ($) =>
+                  $el = $('#' + @ctx.id)
+                  if $el.length == 1
+                    $el.one 'DOMNodeInserted', ->
+                      alert("urrraaa!")
+                    $el.html out
+                  else
+                    throw new Error("Widget template is not inserted yet!!!")
+
+            console.log "#{ widget.debug() } info.timeout = ", info.timeout
+            if isBrowser and info.timeout? and info.timeout > 0
+              setTimeout ->
+                if not complete
+                  complete = true
+                  placeholderOut[placeholderOrder[widgetId]] =
+                    widget.renderRootTag '<b>Hardcode Stub Text!!</b>', info.class
+                  waitCounter--
+                  if waitCounter == 0 and waitCounterFinish
+                    returnCallback()
+
+              , info.timeout
+
+          else if info.type = 'timeouted-widget'
+            placeholderOrder[widgetId] = i
+
+
           else
             placeholderOrder[info.template] = i
 
