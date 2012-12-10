@@ -39,8 +39,9 @@ define [
             urlPrefix: 'api/v2/'
             getUserPasswordCallback: (callback) ->
               response = serviceContainer.get 'serverResponse'
+              request = serviceContainer.get 'serverRequest'
               response.writeHead 302,
-                Location: '/user/login/'
+                Location: '/user/login/?back=' + request.url
               response.end()
           oauth2:
             clientId: 'ce8fcad010ef4d10a337574645d69ac8'
@@ -67,6 +68,11 @@ define [
         serviceContainer.def 'api', ['config'], (get, done) ->
           requirejs ['cord!/cord/core/Api'], (Api) ->
             done null, new Api serviceContainer, get('config').api
+
+        serviceContainer.def 'user', ['api'], (get, done) ->
+          console.log "serviceContainer.def 'user'"
+          get('api').get 'employee/current/', (response) =>
+            done null, response
 
         ###
         ###

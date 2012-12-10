@@ -7,12 +7,12 @@ define [
 
   class RestApi extends Widget
 
-    showAction: (action, params, callback) ->
+    show: (params, callback) ->
       serverRequest = @serviceContainer.get('serverRequest')
       serverResponse = @serviceContainer.get('serverResponse')
 
       options =
-        method: serverRequest.method
+        type: serverRequest.method
         url: decodeURIComponent /^\/_restAPI\/(.*)$/.exec(serverRequest.url)[1]
         headers:
           'Accept': serverRequest.headers.accept
@@ -22,7 +22,7 @@ define [
 
       switch serverRequest.method
 
-        when 'POST'
+        when 'POST', 'PUT', 'DELETE'
           body = ''
           serverRequest.on 'data', (data) ->
             body += data

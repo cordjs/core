@@ -45,12 +45,14 @@ define [
           seconds = (stopRequest - startRequest) / 1000
 
           if global.CONFIG.debug?.request == 'simple'
-            console.log "ServerRequest ( #{ seconds } s): #{method} #{argssss.url}"
+            console.log "BrowserRequest ( #{ seconds } s): #{method} #{argssss.url}"
+            if method isnt 'get'
+              console.log body
           else
             console.log "========================================================================( #{ seconds } s)"
-            console.log "ServerRequest: #{argssss.url}"
+            console.log "BrowserRequest: #{method} #{argssss.url}"
             console.log argssss.params
             console.log body if global.CONFIG.debug?.request == 'full'
             console.log "========================================================================"
 
-        argssss.callback body if typeof argssss.callback == 'function'
+        argssss.callback body, error if typeof argssss.callback == 'function'

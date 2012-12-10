@@ -23,6 +23,22 @@ define [
       @request options, callback
 
 
+    put: (data, callback) ->
+      options = _.extend {
+        type: 'PUT'
+      }, data
+
+      @request options, callback
+
+
+    del: (data, callback) ->
+      options = _.extend {
+        type: 'DELETE'
+      }, data
+
+      @request options, callback
+
+
     browserUrlParse: (sUrl) ->
       if $
         urlParse = document.createElement 'a'
