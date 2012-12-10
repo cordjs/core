@@ -596,8 +596,8 @@ define [
                 if waitCounter == 0 and waitCounterFinish
                   returnCallback()
               else
-                require ['jquery'], ($) =>
-                  $el = $('#' + @ctx.id)
+                require ['jquery'], ($) ->
+                  $el = $('#' + widget.ctx.id)
                   if $el.length == 1
                     $el.one 'DOMNodeInserted', ->
                       alert("urrraaa!")
@@ -618,8 +618,27 @@ define [
 
               , info.timeout
 
-          else if info.type = 'timeouted-widget'
+          else if info.type == 'timeouted-widget'
             placeholderOrder[widgetId] = i
+
+            placeholderOut[placeholderOrder[widgetId]] =
+              widget.renderRootTag '<b>Hardcode Stub Text!!</b>', info.class
+
+            subscription = postal.subscribe
+              topic: "widget.#{ widgetId }.deferred.ready"
+              callback: (params) ->
+                widget.show params, (err, out) ->
+                  if err then throw err
+                  require ['jquery'], ($) ->
+                    $el = $('#' + widgetId)
+                    if $el.length == 1
+                      $el.one 'DOMNodeInserted', ->
+                        alert("urrraaa!")
+                      $el.html out
+                    else
+                      throw new Error("Widget template is not inserted yet!!!")
+                subscription.unsubscribe()
+
 
 
           else

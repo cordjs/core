@@ -1,6 +1,7 @@
 define [
   'cord!isBrowser'
-], (isBrowser) ->
+  'postal'
+], (isBrowser, postal) ->
 
   class StructureTemplate
 
@@ -74,7 +75,7 @@ define [
                     else
                       postal.publish "widget.#{ widget.ctx.id }.deferred.ready", params
 
-                  if isBrowser and item.timeout? > 0
+                  if isBrowser and item.timeout? and item.timeout > 0
                     setTimeout ->
                       if not complete
                         complete = true

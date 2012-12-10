@@ -23,6 +23,7 @@ require.config
     'dustjs-linkedin':
       exports: 'dust'
     'dustjs-helpers':
+      deps: ['dustjs-linkedin']
       exports: 'dust'
     'underscore':
       exports: '_'
