@@ -1,6 +1,6 @@
 define [
   'underscore'
-  'dustjs-linkedin'
+  'dustjs-helpers'
   'postal'
   'cord!Context'
   'cord!isBrowser'
