@@ -619,7 +619,7 @@ define [
               else
                 require ['cord!utils/DomHelper'], (DomHelper) ->
                   DomHelper.insertHtml widgetId, out, ->
-                    alert("urrraaa!")
+                    widget.browserInit()
 
             console.log "#{ widget.debug() } info.timeout = ", info.timeout
             if isBrowser and info.timeout? and info.timeout > 0
@@ -655,7 +655,7 @@ define [
                   if err then throw err
                   require ['cord!utils/DomHelper'], (DomHelper) ->
                     DomHelper.insertHtml widgetId, out, ->
-                      alert("urrraaa!")
+                      widget.browserInit()
                 subscription.unsubscribe()
 
 
