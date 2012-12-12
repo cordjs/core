@@ -1,7 +1,8 @@
 define [
   'jquery'
   'postal'
-], ($, postal) ->
+  'cord!utils/DomHelper'
+], ($, postal, DomHelper) ->
 
   class Behaviour
 
@@ -134,20 +135,8 @@ define [
           $el = @$el
           widget.renderTemplate (err, out) ->
             if err then throw err
-
-            oneMore = false
-            wait = ->
-              oneMore = false
-              setTimeout ->
-                if not oneMore
-                  $el.off 'DOMNodeInserted'
-                  widget.browserInit()
-              , 0
-
-            $el.on 'DOMNodeInserted', ->
-              oneMore = true
-              wait()
-            $el.html out
+            DomHelper.insertHtml widget.ctx.id, out, ->
+              widget.browserInit()
 
 
     renderInline: (name) ->

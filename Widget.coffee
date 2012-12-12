@@ -571,6 +571,7 @@ define [
       waitCounter = 0
       waitCounterFinish = false
 
+
       i = 0
       placeholderOrder = {}
       phs = @ctx[':placeholders'] ? []
@@ -580,6 +581,26 @@ define [
         do (info) =>
           widgetId = info.widget
           widget = @widgetRepo.getById widgetId
+
+          renderTimeoutTemplate = ->
+            tmplPath = "#{ info.timeoutTemplateOwner.getDir() }/#{ info.timeoutTemplate }"
+
+            actualRender = ->
+              dust.render tmplPath, info.timeoutTemplateOwner.getBaseContext().push(info.timeoutTemplateOwner.ctx), (err, out) ->
+                if err then throw err
+                placeholderOut[placeholderOrder[widgetId]] = widget.renderRootTag out, info.class
+                waitCounter--
+                if waitCounter == 0 and waitCounterFinish
+                  returnCallback()
+
+            if dust.cache[tmplPath]?
+              actualRender()
+            else
+              # todo: load via cord-t
+              require ["text!bundles/#{ tmplPath }"], (tmplString) =>
+                dust.loadSource tmplString, tmplPath
+                actualRender()
+
           if info.type == 'widget'
             placeholderOrder[widgetId] = i
 
@@ -596,14 +617,9 @@ define [
                 if waitCounter == 0 and waitCounterFinish
                   returnCallback()
               else
-                require ['jquery'], ($) ->
-                  $el = $('#' + widget.ctx.id)
-                  if $el.length == 1
-                    $el.one 'DOMNodeInserted', ->
-                      alert("urrraaa!")
-                    $el.html out
-                  else
-                    throw new Error("Widget template is not inserted yet!!!")
+                require ['cord!utils/DomHelper'], (DomHelper) ->
+                  DomHelper.insertHtml widgetId, out, ->
+                    alert("urrraaa!")
 
             console.log "#{ widget.debug() } info.timeout = ", info.timeout
             if isBrowser and info.timeout? and info.timeout > 0
@@ -612,23 +628,7 @@ define [
                   complete = true
 
                   if info.timeoutTemplate?
-                    tmplPath = "#{ info.timeoutTemplateOwner.getDir() }/#{ info.timeoutTemplate }"
-
-                    actualRender = ->
-                      dust.render tmplPath, info.timeoutTemplateOwner.getBaseContext().push(info.timeoutTemplateOwner.ctx), (err, out) ->
-                        if err then throw err
-                        placeholderOut[placeholderOrder[widgetId]] = widget.renderRootTag out, info.class
-                        waitCounter--
-                        if waitCounter == 0 and waitCounterFinish
-                          returnCallback()
-
-                    if dust.cache[tmplPath]?
-                      actualRender()
-                    else
-                      # todo: load via cord-t
-                      require ["text!bundles/#{ tmplPath }"], (tmplString) =>
-                        dust.loadSource tmplString, tmplPath
-                        actualRender()
+                    renderTimeoutTemplate()
                   else
                     placeholderOut[placeholderOrder[widgetId]] =
                       widget.renderRootTag '<b>Hardcode Stub Text!!</b>', info.class
@@ -643,23 +643,7 @@ define [
 
             if info.timeoutTemplate?
               waitCounter++
-              tmplPath = "#{ info.timeoutTemplateOwner.getDir() }/#{ info.timeoutTemplate }"
-
-              actualRender = ->
-                dust.render tmplPath, info.timeoutTemplateOwner.getBaseContext().push(info.timeoutTemplateOwner.ctx), (err, out) ->
-                  if err then throw err
-                  placeholderOut[placeholderOrder[widgetId]] = widget.renderRootTag out, info.class
-                  waitCounter--
-                  if waitCounter == 0 and waitCounterFinish
-                    returnCallback()
-
-              if dust.cache[tmplPath]?
-                actualRender()
-              else
-                # todo: load via cord-t
-                require ["text!bundles/#{ tmplPath }"], (tmplString) =>
-                  dust.loadSource tmplString, tmplPath
-                  actualRender()
+              renderTimeoutTemplate()
             else
               placeholderOut[placeholderOrder[widgetId]] =
                 widget.renderRootTag '<b>Hardcode Stub Text!!</b>', info.class
@@ -669,14 +653,9 @@ define [
               callback: (params) ->
                 widget.show params, (err, out) ->
                   if err then throw err
-                  require ['jquery'], ($) ->
-                    $el = $('#' + widgetId)
-                    if $el.length == 1
-                      $el.one 'DOMNodeInserted', ->
-                        alert("urrraaa!")
-                      $el.html out
-                    else
-                      throw new Error("Widget template is not inserted yet!!!")
+                  require ['cord!utils/DomHelper'], (DomHelper) ->
+                    DomHelper.insertHtml widgetId, out, ->
+                      alert("urrraaa!")
                 subscription.unsubscribe()
 
 
@@ -724,7 +703,7 @@ define [
       @param Function() callback callback which should be called when replacement is done (async)
       ###
 
-      require ['jquery'], ($) =>
+      require ['jquery', 'cord!utils/DomHelper'], ($, DomHelper) =>
         waitCounter = 0
         waitCounterFinish = false
 
@@ -754,11 +733,9 @@ define [
             if replaceHints[name].replace
               waitCounter++
               @_renderPlaceholder name, (out) =>
-                $el = $('#' + @_getPlaceholderDomId name)
-                if $el.length == 1
-                  $el.one 'DOMNodeInserted', reduceWaitCounter
-                  $el.html out
-                else
+                try
+                  DomHelper.insertHtml @_getPlaceholderDomId(name), out, reduceWaitCounter
+                catch e
                   console.log "WARNING: Trying to replace unexistent placeholder with name \"#{ name }\" " +
                     "in widget #{ @debug() }"
                   reduceWaitCounter()
