@@ -65,7 +65,7 @@ define [
       @structure.extend = @_extend
 
 
-    addPlaceholderContent: (surroundingWidget, placeholderName, widget, params) ->
+    addPlaceholderContent: (surroundingWidget, placeholderName, widget, params, timeoutTemplateName) ->
       @extendPhaseFinished = true
 
       swRef = @registerWidget surroundingWidget
@@ -86,6 +86,7 @@ define [
       info.class = params.class if params.class
       info.name = params.name if params.name
       info.timeout = parseInt(params.timeout) if params.timeout
+      info.timeoutTemplate = timeoutTemplateName if timeoutTemplateName?
 
       swRef.placeholders[placeholderName].push info
 

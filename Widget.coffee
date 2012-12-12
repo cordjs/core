@@ -610,19 +610,59 @@ define [
               setTimeout ->
                 if not complete
                   complete = true
-                  placeholderOut[placeholderOrder[widgetId]] =
-                    widget.renderRootTag '<b>Hardcode Stub Text!!</b>', info.class
-                  waitCounter--
-                  if waitCounter == 0 and waitCounterFinish
-                    returnCallback()
+
+                  if info.timeoutTemplate?
+                    tmplPath = "#{ info.timeoutTemplateOwner.getDir() }/#{ info.timeoutTemplate }"
+
+                    actualRender = ->
+                      dust.render tmplPath, info.timeoutTemplateOwner.getBaseContext().push(info.timeoutTemplateOwner.ctx), (err, out) ->
+                        if err then throw err
+                        placeholderOut[placeholderOrder[widgetId]] = widget.renderRootTag out, info.class
+                        waitCounter--
+                        if waitCounter == 0 and waitCounterFinish
+                          returnCallback()
+
+                    if dust.cache[tmplPath]?
+                      actualRender()
+                    else
+                      # todo: load via cord-t
+                      require ["text!bundles/#{ tmplPath }"], (tmplString) =>
+                        dust.loadSource tmplString, tmplPath
+                        actualRender()
+                  else
+                    placeholderOut[placeholderOrder[widgetId]] =
+                      widget.renderRootTag '<b>Hardcode Stub Text!!</b>', info.class
+                    waitCounter--
+                    if waitCounter == 0 and waitCounterFinish
+                      returnCallback()
 
               , info.timeout
 
           else if info.type == 'timeouted-widget'
             placeholderOrder[widgetId] = i
 
-            placeholderOut[placeholderOrder[widgetId]] =
-              widget.renderRootTag '<b>Hardcode Stub Text!!</b>', info.class
+            if info.timeoutTemplate?
+              waitCounter++
+              tmplPath = "#{ info.timeoutTemplateOwner.getDir() }/#{ info.timeoutTemplate }"
+
+              actualRender = ->
+                dust.render tmplPath, info.timeoutTemplateOwner.getBaseContext().push(info.timeoutTemplateOwner.ctx), (err, out) ->
+                  if err then throw err
+                  placeholderOut[placeholderOrder[widgetId]] = widget.renderRootTag out, info.class
+                  waitCounter--
+                  if waitCounter == 0 and waitCounterFinish
+                    returnCallback()
+
+              if dust.cache[tmplPath]?
+                actualRender()
+              else
+                # todo: load via cord-t
+                require ["text!bundles/#{ tmplPath }"], (tmplString) =>
+                  dust.loadSource tmplString, tmplPath
+                  actualRender()
+            else
+              placeholderOut[placeholderOrder[widgetId]] =
+                widget.renderRootTag '<b>Hardcode Stub Text!!</b>', info.class
 
             subscription = postal.subscribe
               topic: "widget.#{ widgetId }.deferred.ready"
@@ -1088,12 +1128,25 @@ define [
         # Widget-block (compile mode)
         #
         widget: (chunk, context, bodies, params) =>
+
+          bodyStringList = null
+          bodyRe = /(body_[0-9]+)/g
+          collectBodies = (name, bodyString, bodies = {}) ->
+            bodies[name] = bodyString
+            matchBodies = bodyString.match bodyRe
+            for depName in matchBodies
+              if not bodies[depName]?
+                bodies[depName] = bodyStringList[depName]
+                collectBodies depName, bodyStringList[depName], bodies
+            bodies
+
           chunk.map (chunk) =>
 
             require [
               "cord-w!#{ params.type }@#{ @getBundle() }"
-              "cord!widgetCompiler"
-            ], (WidgetClass, widgetCompiler) =>
+              'cord!widgetCompiler'
+              'fs'
+            ], (WidgetClass, widgetCompiler, fs) =>
 
               widget = new WidgetClass true
 
@@ -1101,7 +1154,28 @@ define [
                 ph = params.placeholder ? 'default'
                 sw = context.surroundingWidget
 
-                widgetCompiler.addPlaceholderContent sw, ph, widget, params
+                timeoutTemplateName = null
+                if bodies.timeout?
+                  @_timeoutBlockCounter ?= 0
+
+                  timeoutTemplateName = "__timeout_#{ @_timeoutBlockCounter++ }.html.js"
+                  tmplPath = "#{ @getDir() }/#{ timeoutTemplateName }"
+                  # todo: detect bundles or vendor dir correctly
+                  tmplFullPath = "./#{ configPaths.PUBLIC_PREFIX }/bundles/#{ tmplPath }"
+
+                  bodyFnName = bodies.timeout.name
+                  bodyStringList = widgetCompiler.extractBodiesAsStringList @compiledSource
+                  bodyList = collectBodies bodyFnName, bodies.timeout.toString()
+
+                  tmplString = "(function(){dust.register(\"#{ tmplPath }\", #{ bodyFnName }); " \
+                             + "#{ _.values(bodyList).join '' }; return #{ bodyFnName };})();"
+
+                  fs.writeFile tmplFullPath, tmplString, (err)->
+                    if err then throw err
+                    console.log "template saved #{ tmplFullPath }"
+
+
+                widgetCompiler.addPlaceholderContent sw, ph, widget, params, timeoutTemplateName
               else if bodies.block?
                 throw "Name must be explicitly defined for the inline-widget with body placeholders (#{ @constructor.name } -> #{ widget.constructor.name })!" if not params.name? or params.name == ''
                 widgetCompiler.registerWidget widget, params.name
@@ -1127,7 +1201,7 @@ define [
 
           bodyStringList = null
           bodyRe = /(body_[0-9]+)/g
-          collectBodies = (name, bodyString, bodies = {}) =>
+          collectBodies = (name, bodyString, bodies = {}) ->
             bodies[name] = bodyString
             matchBodies = bodyString.match bodyRe
             for depName in matchBodies

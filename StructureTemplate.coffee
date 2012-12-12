@@ -69,6 +69,8 @@ define [
                         params: params
                         class: item.class
                         timeout: item.timeout
+                        timeoutTemplate: item.timeoutTemplate
+                        timeoutTemplateOwner: if item.timeoutTemplate? then @ownerWidget else undefined
                       waitCounter--
                       if waitCounter == 0 and waitCounterFinish
                         returnCallback()
@@ -76,7 +78,7 @@ define [
                       postal.publish "widget.#{ widget.ctx.id }.deferred.ready", params
 
                   if isBrowser and item.timeout? and item.timeout > 0
-                    setTimeout ->
+                    setTimeout =>
                       if not complete
                         complete = true
                         resolvedPlaceholders[name].push
@@ -84,6 +86,8 @@ define [
                           widget: widget.ctx.id
                           class: item.class
                           timeout: item.timeout
+                          timeoutTemplate: item.timeoutTemplate
+                          timeoutTemplateOwner: if item.timeoutTemplate? then @ownerWidget else undefined
                         waitCounter--
                         if waitCounter == 0 and waitCounterFinish
                           returnCallback()
