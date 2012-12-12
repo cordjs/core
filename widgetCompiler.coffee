@@ -1,7 +1,9 @@
 define [
   'underscore'
   'dustjs-linkedin'
-], (_, dust) ->
+  'cord!configPaths'
+  'fs'
+], (_, dust, configPaths, fs) ->
 
   class WidgetCompiler
 
@@ -141,6 +143,35 @@ define [
         bodyId++
         startIdx = endIdx
       result
+
+    bodyRe: /(body_[0-9]+)/g
+    saveBodyTemplate: (bodyFn, compiledSource, tmplPath) ->
+
+      bodyStringList = null
+      collectBodies = (name, bodyString, bodies = {}) =>
+        bodies[name] = bodyString
+        matchBodies = bodyString.match @bodyRe
+        for depName in matchBodies
+          if not bodies[depName]?
+            bodies[depName] = bodyStringList[depName]
+            collectBodies depName, bodyStringList[depName], bodies
+        bodies
+
+      # todo: detect bundles or vendor dir correctly
+      tmplFullPath = "./#{ configPaths.PUBLIC_PREFIX }/bundles/#{ tmplPath }"
+
+      bodyFnName = bodyFn.name
+      bodyStringList = @extractBodiesAsStringList compiledSource
+      bodyList = collectBodies bodyFnName, bodyFn.toString()
+
+      tmplString = "(function(){dust.register(\"#{ tmplPath }\", #{ bodyFnName }); " \
+                 + "#{ _.values(bodyList).join '' }; return #{ bodyFnName };})();"
+
+      fs.writeFile tmplFullPath, tmplString, (err)->
+        if err then throw err
+        console.log "template saved #{ tmplFullPath }"
+
+
 
   #
   # Preventing loading of partials during widget compilation

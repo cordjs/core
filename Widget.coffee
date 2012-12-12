@@ -1105,25 +1105,11 @@ define [
         # Widget-block (compile mode)
         #
         widget: (chunk, context, bodies, params) =>
-
-          bodyStringList = null
-          bodyRe = /(body_[0-9]+)/g
-          collectBodies = (name, bodyString, bodies = {}) ->
-            bodies[name] = bodyString
-            matchBodies = bodyString.match bodyRe
-            for depName in matchBodies
-              if not bodies[depName]?
-                bodies[depName] = bodyStringList[depName]
-                collectBodies depName, bodyStringList[depName], bodies
-            bodies
-
           chunk.map (chunk) =>
-
             require [
               "cord-w!#{ params.type }@#{ @getBundle() }"
               'cord!widgetCompiler'
-              'fs'
-            ], (WidgetClass, widgetCompiler, fs) =>
+            ], (WidgetClass, widgetCompiler) =>
 
               widget = new WidgetClass true
 
@@ -1137,25 +1123,14 @@ define [
 
                   timeoutTemplateName = "__timeout_#{ @_timeoutBlockCounter++ }.html.js"
                   tmplPath = "#{ @getDir() }/#{ timeoutTemplateName }"
-                  # todo: detect bundles or vendor dir correctly
-                  tmplFullPath = "./#{ configPaths.PUBLIC_PREFIX }/bundles/#{ tmplPath }"
-
-                  bodyFnName = bodies.timeout.name
-                  bodyStringList = widgetCompiler.extractBodiesAsStringList @compiledSource
-                  bodyList = collectBodies bodyFnName, bodies.timeout.toString()
-
-                  tmplString = "(function(){dust.register(\"#{ tmplPath }\", #{ bodyFnName }); " \
-                             + "#{ _.values(bodyList).join '' }; return #{ bodyFnName };})();"
-
-                  fs.writeFile tmplFullPath, tmplString, (err)->
-                    if err then throw err
-                    console.log "template saved #{ tmplFullPath }"
-
+                  widgetCompiler.saveBodyTemplate(bodies.timeout, @compiledSource, tmplPath)
 
                 widgetCompiler.addPlaceholderContent sw, ph, widget, params, timeoutTemplateName
+
               else if bodies.block?
                 throw "Name must be explicitly defined for the inline-widget with body placeholders (#{ @constructor.name } -> #{ widget.constructor.name })!" if not params.name? or params.name == ''
                 widgetCompiler.registerWidget widget, params.name
+
               else
                 # ???
 
@@ -1175,23 +1150,10 @@ define [
         # Inline - block of sub-template to place into surrounding widget's placeholder (compiler only)
         #
         inline: (chunk, context, bodies, params) =>
-
-          bodyStringList = null
-          bodyRe = /(body_[0-9]+)/g
-          collectBodies = (name, bodyString, bodies = {}) ->
-            bodies[name] = bodyString
-            matchBodies = bodyString.match bodyRe
-            for depName in matchBodies
-              if not bodies[depName]?
-                bodies[depName] = bodyStringList[depName]
-                collectBodies depName, bodyStringList[depName], bodies
-            bodies
-
           chunk.map (chunk) =>
             require [
               'cord!widgetCompiler'
-              'fs'
-            ], (widgetCompiler, fs) =>
+            ], (widgetCompiler) =>
               if bodies.block?
                 # todo: check other params and output warning
                 params ?= {}
@@ -1200,23 +1162,11 @@ define [
                 cls = params.class ? ''
                 if context.surroundingWidget?
                   ph = params?.placeholder ? 'default'
-
                   sw = context.surroundingWidget
 
                   templateName = "__inline_#{ name }.html.js"
                   tmplPath = "#{ @getDir() }/#{ templateName }"
-                  # todo: detect bundles or vendor dir correctly
-                  tmplFullPath = "./#{ configPaths.PUBLIC_PREFIX }/bundles/#{ tmplPath }"
-
-                  bodyStringList = widgetCompiler.extractBodiesAsStringList @compiledSource
-                  bodyList = collectBodies bodies.block.name, bodies.block.toString()
-
-                  tmplString = "(function(){dust.register(\"#{ tmplPath }\", #{ bodies.block.name }); " \
-                             + "#{ _.values(bodyList).join '' }; return #{ bodies.block.name };})();"
-
-                  fs.writeFile tmplFullPath, tmplString, (err)->
-                    if err then throw err
-                    console.log "template saved #{ tmplFullPath }"
+                  widgetCompiler.saveBodyTemplate(bodies.block, @compiledSource, tmplPath)
 
                   widgetCompiler.addPlaceholderInline sw, ph, this, templateName, name, tag, cls
 
