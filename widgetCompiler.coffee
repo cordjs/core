@@ -1,6 +1,6 @@
 define [
   'underscore'
-  'dustjs-linkedin'
+  'dustjs-helpers'
   'cord!configPaths'
   'fs'
 ], (_, dust, configPaths, fs) ->
