@@ -130,14 +130,14 @@ define [
 
       @return Object(String, String) key-value pairs of function names and corresponding function definition string
       ###
-      startIdx = compiledSource.indexOf 'function body_0(chk,ctx){return chk.'
+      startIdx = compiledSource.indexOf 'function body_0(chk,ctx){return chk'
       endIdx = compiledSource.lastIndexOf 'return body_0;})();'
       bodiesPart = compiledSource.substr startIdx, endIdx - startIdx
       result = {}
       startIdx = 0
       bodyId = 0
       while startIdx != -1
-        endIdx = bodiesPart.indexOf "function body_#{ bodyId + 1 }(chk,ctx){return chk."
+        endIdx = bodiesPart.indexOf "function body_#{ bodyId + 1 }(chk,ctx){return chk"
         len = if endIdx == -1 then compiledSource.length else endIdx - startIdx
         result['body_'+bodyId] = bodiesPart.substr startIdx, len
         bodyId++

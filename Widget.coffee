@@ -1113,6 +1113,7 @@ define [
 
               widget = new WidgetClass true
 
+              emptyBodyRe = /^function body_[0-9]+\(chk,ctx\)\{return chk;\}$/ # todo: move to static
               if context.surroundingWidget?
                 ph = params.placeholder ? 'default'
                 sw = context.surroundingWidget
@@ -1127,14 +1128,14 @@ define [
 
                 widgetCompiler.addPlaceholderContent sw, ph, widget, params, timeoutTemplateName
 
-              else if bodies.block?
+              else if bodies.block? && not emptyBodyRe.test(bodies.block.toString())
                 throw "Name must be explicitly defined for the inline-widget with body placeholders (#{ @constructor.name } -> #{ widget.constructor.name })!" if not params.name? or params.name == ''
                 widgetCompiler.registerWidget widget, params.name
 
               else
                 # ???
 
-              if bodies.block?
+              if bodies.block? && not emptyBodyRe.test(bodies.block.toString())
                 ctx = @getBaseContext().push(@ctx)
                 ctx.surroundingWidget = widget
 
