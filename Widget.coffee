@@ -582,11 +582,14 @@ define [
           widgetId = info.widget
           widget = @widgetRepo.getById widgetId
 
+          timeoutTemplateOwner = info.timeoutTemplateOwner
+          delete info.timeoutTemplateOwner
+
           renderTimeoutTemplate = ->
-            tmplPath = "#{ info.timeoutTemplateOwner.getDir() }/#{ info.timeoutTemplate }"
+            tmplPath = "#{ timeoutTemplateOwner.getDir() }/#{ info.timeoutTemplate }"
 
             actualRender = ->
-              dust.render tmplPath, info.timeoutTemplateOwner.getBaseContext().push(info.timeoutTemplateOwner.ctx), (err, out) ->
+              dust.render tmplPath, timeoutTemplateOwner.getBaseContext().push(timeoutTemplateOwner.ctx), (err, out) ->
                 if err then throw err
                 placeholderOut[placeholderOrder[widgetId]] = widget.renderRootTag out, info.class
                 waitCounter--
@@ -657,8 +660,6 @@ define [
                     DomHelper.insertHtml widgetId, out, ->
                       widget.browserInit()
                 subscription.unsubscribe()
-
-
 
           else
             placeholderOrder[info.template] = i
