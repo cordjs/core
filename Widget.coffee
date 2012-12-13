@@ -566,6 +566,7 @@ define [
       classList.push cls if cls
       $el.attr('class', classList.join ' ')
 
+
     _renderPlaceholder: (name, callback) ->
       placeholderOut = []
       returnCallback = ->
@@ -573,7 +574,6 @@ define [
 
       waitCounter = 0
       waitCounterFinish = false
-
 
       i = 0
       placeholderOrder = {}
@@ -625,6 +625,7 @@ define [
               else
                 require ['cord!utils/DomHelper'], (DomHelper) ->
                   DomHelper.insertHtml widgetId, out, ->
+                    widget._delayedRender = false
                     widget.browserInit()
 
             console.log "#{ widget.debug() } info.timeout = ", info.timeout
@@ -632,7 +633,7 @@ define [
               setTimeout ->
                 if not complete
                   complete = true
-
+                  widget._delayedRender = true
                   if info.timeoutTemplate?
                     renderTimeoutTemplate()
                   else
@@ -647,6 +648,7 @@ define [
           else if info.type == 'timeouted-widget'
             placeholderOrder[widgetId] = i
 
+            widget._delayedRender = true
             if info.timeoutTemplate?
               waitCounter++
               renderTimeoutTemplate()
@@ -661,6 +663,7 @@ define [
                   if err then throw err
                   require ['cord!utils/DomHelper'], (DomHelper) ->
                     DomHelper.insertHtml widgetId, out, ->
+                      widget._delayedRender = false
                       widget.browserInit()
                 subscription.unsubscribe()
 
@@ -898,7 +901,7 @@ define [
       @param Widget stopPropageteWidget widget for which method should stop pass browserInit to child widgets
       ###
 
-      if this != stopPropagateWidget
+      if this != stopPropagateWidget and not @_delayedRender
         for widgetId, bindingMap of @childBindings
           @widgetRepo.getById(widgetId).cleanSubscriptions()
           for ctxName, paramName of bindingMap
