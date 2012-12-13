@@ -1,6 +1,6 @@
 define [
   'underscore'
-  'dustjs-linkedin'
+  'dustjs-helpers'
   'postal'
   'cord!Context'
   'cord!isBrowser'
@@ -571,6 +571,7 @@ define [
       waitCounter = 0
       waitCounterFinish = false
 
+
       i = 0
       placeholderOrder = {}
       phs = @ctx[':placeholders'] ? []
@@ -580,18 +581,85 @@ define [
         do (info) =>
           widgetId = info.widget
           widget = @widgetRepo.getById widgetId
+
+          renderTimeoutTemplate = ->
+            tmplPath = "#{ info.timeoutTemplateOwner.getDir() }/#{ info.timeoutTemplate }"
+
+            actualRender = ->
+              dust.render tmplPath, info.timeoutTemplateOwner.getBaseContext().push(info.timeoutTemplateOwner.ctx), (err, out) ->
+                if err then throw err
+                placeholderOut[placeholderOrder[widgetId]] = widget.renderRootTag out, info.class
+                waitCounter--
+                if waitCounter == 0 and waitCounterFinish
+                  returnCallback()
+
+            if dust.cache[tmplPath]?
+              actualRender()
+            else
+              # todo: load via cord-t
+              require ["text!bundles/#{ tmplPath }"], (tmplString) =>
+                dust.loadSource tmplString, tmplPath
+                actualRender()
+
           if info.type == 'widget'
             placeholderOrder[widgetId] = i
 
             waitCounter++
 
+            complete = false
             widget.show info.params, (err, out) ->
               if err then throw err
-              placeholderOut[placeholderOrder[widgetId]] = widget.renderRootTag out, info.class
+              if not complete
+                complete = true
+                placeholderOut[placeholderOrder[widgetId]] = widget.renderRootTag out, info.class
 
-              waitCounter--
-              if waitCounter == 0 and waitCounterFinish
-                returnCallback()
+                waitCounter--
+                if waitCounter == 0 and waitCounterFinish
+                  returnCallback()
+              else
+                require ['cord!utils/DomHelper'], (DomHelper) ->
+                  DomHelper.insertHtml widgetId, out, ->
+                    widget.browserInit()
+
+            console.log "#{ widget.debug() } info.timeout = ", info.timeout
+            if isBrowser and info.timeout? and info.timeout > 0
+              setTimeout ->
+                if not complete
+                  complete = true
+
+                  if info.timeoutTemplate?
+                    renderTimeoutTemplate()
+                  else
+                    placeholderOut[placeholderOrder[widgetId]] =
+                      widget.renderRootTag '<b>Hardcode Stub Text!!</b>', info.class
+                    waitCounter--
+                    if waitCounter == 0 and waitCounterFinish
+                      returnCallback()
+
+              , info.timeout
+
+          else if info.type == 'timeouted-widget'
+            placeholderOrder[widgetId] = i
+
+            if info.timeoutTemplate?
+              waitCounter++
+              renderTimeoutTemplate()
+            else
+              placeholderOut[placeholderOrder[widgetId]] =
+                widget.renderRootTag '<b>Hardcode Stub Text!!</b>', info.class
+
+            subscription = postal.subscribe
+              topic: "widget.#{ widgetId }.deferred.ready"
+              callback: (params) ->
+                widget.show params, (err, out) ->
+                  if err then throw err
+                  require ['cord!utils/DomHelper'], (DomHelper) ->
+                    DomHelper.insertHtml widgetId, out, ->
+                      widget.browserInit()
+                subscription.unsubscribe()
+
+
+
           else
             placeholderOrder[info.template] = i
 
@@ -635,7 +703,7 @@ define [
       @param Function() callback callback which should be called when replacement is done (async)
       ###
 
-      require ['jquery'], ($) =>
+      require ['jquery', 'cord!utils/DomHelper'], ($, DomHelper) =>
         waitCounter = 0
         waitCounterFinish = false
 
@@ -665,11 +733,9 @@ define [
             if replaceHints[name].replace
               waitCounter++
               @_renderPlaceholder name, (out) =>
-                $el = $('#' + @_getPlaceholderDomId name)
-                if $el.length == 1
-                  $el.one 'DOMNodeInserted', reduceWaitCounter
-                  $el.html out
-                else
+                try
+                  DomHelper.insertHtml @_getPlaceholderDomId(name), out, reduceWaitCounter
+                catch e
                   console.log "WARNING: Trying to replace unexistent placeholder with name \"#{ name }\" " +
                     "in widget #{ @debug() }"
                   reduceWaitCounter()
@@ -1040,26 +1106,36 @@ define [
         #
         widget: (chunk, context, bodies, params) =>
           chunk.map (chunk) =>
-
             require [
               "cord-w!#{ params.type }@#{ @getBundle() }"
-              "cord!widgetCompiler"
+              'cord!widgetCompiler'
             ], (WidgetClass, widgetCompiler) =>
 
               widget = new WidgetClass true
 
+              emptyBodyRe = /^function body_[0-9]+\(chk,ctx\)\{return chk;\}$/ # todo: move to static
               if context.surroundingWidget?
                 ph = params.placeholder ? 'default'
                 sw = context.surroundingWidget
 
-                widgetCompiler.addPlaceholderContent sw, ph, widget, params
-              else if bodies.block?
+                timeoutTemplateName = null
+                if bodies.timeout?
+                  @_timeoutBlockCounter ?= 0
+
+                  timeoutTemplateName = "__timeout_#{ @_timeoutBlockCounter++ }.html.js"
+                  tmplPath = "#{ @getDir() }/#{ timeoutTemplateName }"
+                  widgetCompiler.saveBodyTemplate(bodies.timeout, @compiledSource, tmplPath)
+
+                widgetCompiler.addPlaceholderContent sw, ph, widget, params, timeoutTemplateName
+
+              else if bodies.block? && not emptyBodyRe.test(bodies.block.toString())
                 throw "Name must be explicitly defined for the inline-widget with body placeholders (#{ @constructor.name } -> #{ widget.constructor.name })!" if not params.name? or params.name == ''
                 widgetCompiler.registerWidget widget, params.name
+
               else
                 # ???
 
-              if bodies.block?
+              if bodies.block? && not emptyBodyRe.test(bodies.block.toString())
                 ctx = @getBaseContext().push(@ctx)
                 ctx.surroundingWidget = widget
 
@@ -1075,23 +1151,10 @@ define [
         # Inline - block of sub-template to place into surrounding widget's placeholder (compiler only)
         #
         inline: (chunk, context, bodies, params) =>
-
-          bodyStringList = null
-          bodyRe = /(body_[0-9]+)/g
-          collectBodies = (name, bodyString, bodies = {}) =>
-            bodies[name] = bodyString
-            matchBodies = bodyString.match bodyRe
-            for depName in matchBodies
-              if not bodies[depName]?
-                bodies[depName] = bodyStringList[depName]
-                collectBodies depName, bodyStringList[depName], bodies
-            bodies
-
           chunk.map (chunk) =>
             require [
               'cord!widgetCompiler'
-              'fs'
-            ], (widgetCompiler, fs) =>
+            ], (widgetCompiler) =>
               if bodies.block?
                 # todo: check other params and output warning
                 params ?= {}
@@ -1100,23 +1163,11 @@ define [
                 cls = params.class ? ''
                 if context.surroundingWidget?
                   ph = params?.placeholder ? 'default'
-
                   sw = context.surroundingWidget
 
                   templateName = "__inline_#{ name }.html.js"
                   tmplPath = "#{ @getDir() }/#{ templateName }"
-                  # todo: detect bundles or vendor dir correctly
-                  tmplFullPath = "./#{ configPaths.PUBLIC_PREFIX }/bundles/#{ tmplPath }"
-
-                  bodyStringList = widgetCompiler.extractBodiesAsStringList @compiledSource
-                  bodyList = collectBodies bodies.block.name, bodies.block.toString()
-
-                  tmplString = "(function(){dust.register(\"#{ tmplPath }\", #{ bodies.block.name }); " \
-                             + "#{ _.values(bodyList).join '' }; return #{ bodies.block.name };})();"
-
-                  fs.writeFile tmplFullPath, tmplString, (err)->
-                    if err then throw err
-                    console.log "template saved #{ tmplFullPath }"
+                  widgetCompiler.saveBodyTemplate(bodies.block, @compiledSource, tmplPath)
 
                   widgetCompiler.addPlaceholderInline sw, ph, this, templateName, name, tag, cls
 

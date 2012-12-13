@@ -9,6 +9,7 @@ require.config
   paths:
     'postal':           'vendor/postal/postal'
     'dustjs-linkedin':  'vendor/dustjs/dustjs-full'
+    'dustjs-helpers':   'vendor/dustjs/dustjs-helpers'
     'jquery':           'vendor/jquery/jquery'
     'jquery.cookie':    'vendor/jquery/plugins/jquery.cookie'
     'curly':            'vendor/curly/browser'
@@ -20,6 +21,9 @@ require.config
 
   shim:
     'dustjs-linkedin':
+      exports: 'dust'
+    'dustjs-helpers':
+      deps: ['dustjs-linkedin']
       exports: 'dust'
     'underscore':
       exports: '_'

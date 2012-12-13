@@ -1,7 +1,9 @@
 define [
   'underscore'
-  'dustjs-linkedin'
-], (_, dust) ->
+  'dustjs-helpers'
+  'cord!configPaths'
+  'fs'
+], (_, dust, configPaths, fs) ->
 
   class WidgetCompiler
 
@@ -65,7 +67,7 @@ define [
       @structure.extend = @_extend
 
 
-    addPlaceholderContent: (surroundingWidget, placeholderName, widget, params) ->
+    addPlaceholderContent: (surroundingWidget, placeholderName, widget, params, timeoutTemplateName) ->
       @extendPhaseFinished = true
 
       swRef = @registerWidget surroundingWidget
@@ -78,12 +80,15 @@ define [
       delete cleanParams.placeholder
       delete cleanParams.name
       delete cleanParams.class
+      delete cleanParams.timeout
 
       info =
         widget: widgetRef.uid
         params: cleanParams
       info.class = params.class if params.class
       info.name = params.name if params.name
+      info.timeout = parseInt(params.timeout) if params.timeout
+      info.timeoutTemplate = timeoutTemplateName if timeoutTemplateName?
 
       swRef.placeholders[placeholderName].push info
 
@@ -125,19 +130,48 @@ define [
 
       @return Object(String, String) key-value pairs of function names and corresponding function definition string
       ###
-      startIdx = compiledSource.indexOf 'function body_0(chk,ctx){return chk.'
+      startIdx = compiledSource.indexOf 'function body_0(chk,ctx){return chk'
       endIdx = compiledSource.lastIndexOf 'return body_0;})();'
       bodiesPart = compiledSource.substr startIdx, endIdx - startIdx
       result = {}
       startIdx = 0
       bodyId = 0
       while startIdx != -1
-        endIdx = bodiesPart.indexOf "function body_#{ bodyId + 1 }(chk,ctx){return chk."
+        endIdx = bodiesPart.indexOf "function body_#{ bodyId + 1 }(chk,ctx){return chk"
         len = if endIdx == -1 then compiledSource.length else endIdx - startIdx
         result['body_'+bodyId] = bodiesPart.substr startIdx, len
         bodyId++
         startIdx = endIdx
       result
+
+    bodyRe: /(body_[0-9]+)/g
+    saveBodyTemplate: (bodyFn, compiledSource, tmplPath) ->
+
+      bodyStringList = null
+      collectBodies = (name, bodyString, bodies = {}) =>
+        bodies[name] = bodyString
+        matchBodies = bodyString.match @bodyRe
+        for depName in matchBodies
+          if not bodies[depName]?
+            bodies[depName] = bodyStringList[depName]
+            collectBodies depName, bodyStringList[depName], bodies
+        bodies
+
+      # todo: detect bundles or vendor dir correctly
+      tmplFullPath = "./#{ configPaths.PUBLIC_PREFIX }/bundles/#{ tmplPath }"
+
+      bodyFnName = bodyFn.name
+      bodyStringList = @extractBodiesAsStringList compiledSource
+      bodyList = collectBodies bodyFnName, bodyFn.toString()
+
+      tmplString = "(function(){dust.register(\"#{ tmplPath }\", #{ bodyFnName }); " \
+                 + "#{ _.values(bodyList).join '' }; return #{ bodyFnName };})();"
+
+      fs.writeFile tmplFullPath, tmplString, (err)->
+        if err then throw err
+        console.log "template saved #{ tmplFullPath }"
+
+
 
   #
   # Preventing loading of partials during widget compilation

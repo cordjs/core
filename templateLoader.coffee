@@ -1,6 +1,6 @@
 define [
   'cord-w'
-  'dustjs-linkedin'
+  'dustjs-helpers'
   'cord!configPaths'
 ], (cord, dust, pathConfig) ->
 
