@@ -47,7 +47,7 @@ define [
     serviceContainer.def 'config', ->
       api:
         protocol: 'http'
-        host: '127.0.0.1:1337'
+        host: '192.168.63.208:1337'
         urlPrefix: '_restAPI/http://megaplan.megaplan.ru/api/v2/'
         getUserPasswordCallback: (callback) ->
           window.location.href = '/user/login/?back=' + window.location.pathname
@@ -55,7 +55,7 @@ define [
         clientId: 'ce8fcad010ef4d10a337574645d69ac8'
         secretKey: '2168c151f895448e911243f5c6d6cdc6'
         endpoints:
-          accessToken: 'http://127.0.0.1:1337/_restAPI/http://megaplan.megaplan.ru/oauth/access_token'
+          accessToken: 'http://192.168.63.208:1337/_restAPI/http://megaplan.megaplan.ru/oauth/access_token'
 
     ###
       Это надо перенести в более кошерное место
