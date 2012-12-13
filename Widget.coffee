@@ -79,6 +79,8 @@ define [
             else if info.substr(0, 5) == ':ctx.'
               rule.type = ':set'
               rule.ctxName = info.trim().substr(5)
+            else if info == ':ignore'
+              rule.type = ':ignore'
             else
               throw "Invalid special string value for param '#{ param }': #{ info }!"
           else
@@ -214,7 +216,7 @@ define [
       console.log "#{ @debug 'processParams' } -> ", params
       rules = @constructor._paramRules
       processedRules = {}
-      specialParams = ['match', 'history', 'shim', 'trigger']
+      specialParams = ['match', 'history', 'shim', 'trigger', 'params']
       for name, value of params
         if rules[name]?
           for rule in rules[name]
@@ -232,6 +234,7 @@ define [
                       processedRules[rule.id] = true
                   else
                     rule.callback.call(this, value)
+                when ':ignore'
                 else
                   throw new Error("Invalid param rule type: '#{ rule.type }'")
         else if specialParams.indexOf(name) == -1
