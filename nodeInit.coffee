@@ -8,7 +8,18 @@ http          = require 'http'
 serverStatic  = require 'node-static'
 
 configPaths   = require './configPaths'
-host          = '127.0.0.1'
+
+getNetworkInterfaceIps = ->
+  interfaces = require('os').networkInterfaces()
+  addresses = []
+  for k of interfaces
+      for k2 of interfaces[k]
+          address = interfaces[k][k2]
+          if address.family == 'IPv4' and not address.internal
+              addresses.push(address.address)
+  return addresses
+
+host = getNetworkInterfaceIps().pop()
 port          = '1337'
 
 pathDir   = fs.realpathSync '.'
@@ -59,7 +70,6 @@ exports.startServer = startServer = (callback) ->
             else
               res.writeHead err.status, err.headers;
               res.end()
-#  .listen(port, host)
   .listen(port)
   callback?()
 
