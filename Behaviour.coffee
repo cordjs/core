@@ -132,7 +132,6 @@ define [
           console.log "#{ @widget.debug 're-render' }"
           # renderTemplate will clean this behaviour, so we must save links...
           widget = @widget
-          $el = @$el
           widget.renderTemplate (err, out) ->
             if err then throw err
             DomHelper.insertHtml widget.ctx.id, out, ->

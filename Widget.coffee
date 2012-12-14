@@ -79,6 +79,8 @@ define [
             else if info.substr(0, 5) == ':ctx.'
               rule.type = ':set'
               rule.ctxName = info.trim().substr(5)
+            else if info == ':ignore'
+              rule.type = ':ignore'
             else
               throw "Invalid special string value for param '#{ param }': #{ info }!"
           else
@@ -214,7 +216,7 @@ define [
       console.log "#{ @debug 'processParams' } -> ", params
       rules = @constructor._paramRules
       processedRules = {}
-      specialParams = ['match', 'history', 'shim', 'trigger']
+      specialParams = ['match', 'history', 'shim', 'trigger', 'params']
       for name, value of params
         if rules[name]?
           for rule in rules[name]
@@ -232,6 +234,7 @@ define [
                       processedRules[rule.id] = true
                   else
                     rule.callback.call(this, value)
+                when ':ignore'
                 else
                   throw new Error("Invalid param rule type: '#{ rule.type }'")
         else if specialParams.indexOf(name) == -1
@@ -563,6 +566,7 @@ define [
       classList.push cls if cls
       $el.attr('class', classList.join ' ')
 
+
     _renderPlaceholder: (name, callback) ->
       placeholderOut = []
       returnCallback = ->
@@ -570,7 +574,6 @@ define [
 
       waitCounter = 0
       waitCounterFinish = false
-
 
       i = 0
       placeholderOrder = {}
@@ -582,11 +585,14 @@ define [
           widgetId = info.widget
           widget = @widgetRepo.getById widgetId
 
+          timeoutTemplateOwner = info.timeoutTemplateOwner
+          delete info.timeoutTemplateOwner
+
           renderTimeoutTemplate = ->
-            tmplPath = "#{ info.timeoutTemplateOwner.getDir() }/#{ info.timeoutTemplate }"
+            tmplPath = "#{ timeoutTemplateOwner.getDir() }/#{ info.timeoutTemplate }"
 
             actualRender = ->
-              dust.render tmplPath, info.timeoutTemplateOwner.getBaseContext().push(info.timeoutTemplateOwner.ctx), (err, out) ->
+              dust.render tmplPath, timeoutTemplateOwner.getBaseContext().push(timeoutTemplateOwner.ctx), (err, out) ->
                 if err then throw err
                 placeholderOut[placeholderOrder[widgetId]] = widget.renderRootTag out, info.class
                 waitCounter--
@@ -619,6 +625,7 @@ define [
               else
                 require ['cord!utils/DomHelper'], (DomHelper) ->
                   DomHelper.insertHtml widgetId, out, ->
+                    widget._delayedRender = false
                     widget.browserInit()
 
             console.log "#{ widget.debug() } info.timeout = ", info.timeout
@@ -626,7 +633,7 @@ define [
               setTimeout ->
                 if not complete
                   complete = true
-
+                  widget._delayedRender = true
                   if info.timeoutTemplate?
                     renderTimeoutTemplate()
                   else
@@ -641,6 +648,7 @@ define [
           else if info.type == 'timeouted-widget'
             placeholderOrder[widgetId] = i
 
+            widget._delayedRender = true
             if info.timeoutTemplate?
               waitCounter++
               renderTimeoutTemplate()
@@ -655,10 +663,9 @@ define [
                   if err then throw err
                   require ['cord!utils/DomHelper'], (DomHelper) ->
                     DomHelper.insertHtml widgetId, out, ->
+                      widget._delayedRender = false
                       widget.browserInit()
                 subscription.unsubscribe()
-
-
 
           else
             placeholderOrder[info.template] = i
@@ -894,7 +901,7 @@ define [
       @param Widget stopPropageteWidget widget for which method should stop pass browserInit to child widgets
       ###
 
-      if this != stopPropagateWidget
+      if this != stopPropagateWidget and not @_delayedRender
         for widgetId, bindingMap of @childBindings
           @widgetRepo.getById(widgetId).cleanSubscriptions()
           for ctxName, paramName of bindingMap

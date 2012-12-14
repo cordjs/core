@@ -60,7 +60,7 @@ define [
 
                   complete = false
 
-                  @ownerWidget.resolveParamRefs widget, item.params, (params) ->
+                  @ownerWidget.resolveParamRefs widget, item.params, (params) =>
                     if not complete
                       complete = true
                       resolvedPlaceholders[name].push
