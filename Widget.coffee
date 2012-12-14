@@ -876,8 +876,11 @@ define [
         @behaviour = null
 
       behaviourClass = @getBehaviourClass()
+      
       if behaviourClass
         require ["cord!/#{ @getDir() }/#{ behaviourClass }"], (BehaviourClass) =>
+          if not BehaviourClass
+            console.log behaviourClass
           @behaviour = new BehaviourClass this
 
       @loadCss()
