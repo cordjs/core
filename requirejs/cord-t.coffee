@@ -1,5 +1,5 @@
 define [
-  'dustjs-linkedin'
+  'dustjs-helpers'
   'cord!configPaths'
 ], (dust, configPaths) ->
 
