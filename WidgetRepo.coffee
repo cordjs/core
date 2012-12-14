@@ -129,6 +129,7 @@ define [
       info.parent = null
       @rootWidget = widget
 
+
     getTemplateCode: ->
       """
       <script data-main="/bundles/cord/core/browserInit" src="/vendor/requirejs/require.js"></script>
@@ -143,7 +144,6 @@ define [
           CONFIG: #{ JSON.stringify(global.CONFIG_CLIENT) }
         };
       </script>
-
       """
 
     getTemplateCss: ->
@@ -153,6 +153,7 @@ define [
 
     endInit: ->
       @_initEnd = true
+
 
     ##
      #
@@ -217,6 +218,7 @@ define [
           @_currentExtendList.push widget
       # initializing DOM bindings of widgets in reverse order (leafs of widget tree - first)
       @bind(id) for id in @_widgetOrder.reverse()
+
 
     bind: (widgetId) ->
       if @widgets[widgetId]?
@@ -294,14 +296,12 @@ define [
             @dropWidget _oldRootWidget.ctx.id unless commonBaseWidget == _oldRootWidget
             @rootWidget.browserInit commonBaseWidget
 
+
     findAndCutMatchingExtendWidget: (widgetPath) ->
       result = null
       counter = 0
-#      console.log "@_currentExtendList = ", @_currentExtendList
       for extendWidget in @_currentExtendList
-#        console.log "#{ widgetPath } == #{ extendWidget.getPath() }"
         if widgetPath == extendWidget.getPath()
-          found = true
           # removing all extend tree below found widget
           @_currentExtendList.shift() while counter--
           # ... and prepending extend tree with the new widgets
