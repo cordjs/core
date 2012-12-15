@@ -907,9 +907,10 @@ define [
 
       if behaviourClass
         require ["cord!/#{ @getDir() }/#{ behaviourClass }"], (BehaviourClass) =>
-          if not BehaviourClass
-            console.log behaviourClass
-          @behaviour = new BehaviourClass this
+          if BehaviourClass instanceof Function 
+            @behaviour = new BehaviourClass this
+          else
+            console.log 'WRONG BEHAVIOUR CLASS:', behaviourClass
 
       @loadCss()
 
