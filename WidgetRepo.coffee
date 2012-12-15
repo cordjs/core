@@ -175,11 +175,8 @@ define [
           serviceContainer: @serviceContainer
           extended: isExtended
 
-        widget._isExtended = isExtended
-
         if @_pushBindings[ctx.id]?
           for ctxName, paramName of @_pushBindings[ctx.id]
-            #console.log "#{ paramName }=\"^#{ ctxName }\" for #{ ctx.id }"
             @subscribePushBinding parentId, ctxName, widget, paramName
 
         @widgets[ctx.id] =
@@ -222,6 +219,7 @@ define [
 
     bind: (widgetId) ->
       if @widgets[widgetId]?
+        @widgets[widgetId].widget.bindChildEvents()
         @widgets[widgetId].widget.initBehaviour()
       else
         throw "Try to use uninitialized widget with id = #{ widgetId }"
