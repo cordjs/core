@@ -631,7 +631,6 @@ define [
                     widget._delayedRender = false
                     widget.browserInit()
 
-            console.log "#{ widget.debug() } info.timeout = ", info.timeout
             if isBrowser and info.timeout? and info.timeout > 0
               setTimeout ->
                 if not complete
