@@ -35,7 +35,10 @@ define [
       , 0
 
     $: (selector) ->
-      $(selector, @el)
+      if @rootEls.length
+        $(selector, @rootEls[0])
+      else
+        $(selector)
 
     delegateEvents: (events) ->
       for key, method of events
