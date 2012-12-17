@@ -2,20 +2,23 @@ define [
   'underscore'
   'dustjs-helpers'
   'postal'
+  'monologue' + (if document? then '' else '.js')
+  'cord!Module'
   'cord!Context'
   'cord!isBrowser'
   'cord!StructureTemplate'
   'cord!configPaths'
   'cord!templateLoader'
   'cord!css/helper'
-], (_, dust, postal, Context, isBrowser, StructureTemplate, configPaths, templateLoader, cssHelper) ->
+], (_, dust, postal, Monologue, Module, Context, isBrowser, StructureTemplate, configPaths, templateLoader, cssHelper) ->
 
   dust.onLoad = (tmplPath, callback) ->
     templateLoader.loadTemplate tmplPath, ->
       callback null, ''
 
 
-  class Widget
+  class Widget extends Module
+    @include Monologue.prototype
 
     # Enable special mode for building structure tree of widget
     compileMode: false
@@ -144,7 +147,7 @@ define [
         @compileMode = params.compileMode if params.compileMode?
         @_isExtended = params.extended if params.extended?
 
-      @_subscriptions = []
+      @_postalSubscriptions = []
       @resetChildren()
 
       if not @ctx?
@@ -171,7 +174,7 @@ define [
         @behaviour.clean()
         @behaviour = null
       @cleanSubscriptions()
-      @_subscriptions = []
+      @_postalSubscriptions = []
 
 
     addSubscription: (subscription) ->
@@ -180,11 +183,11 @@ define [
 
       All such subscritiptions need to be registered to be able to clean them up later (see @cleanChildren())
       ###
-      @_subscriptions.push subscription
+      @_postalSubscriptions.push subscription
 
 
     cleanSubscriptions: ->
-      subscription.unsubscribe() for subscription in @_subscriptions
+      subscription.unsubscribe() for subscription in @_postalSubscriptions
 
 
     setRepo: (repo) ->
@@ -628,7 +631,6 @@ define [
                     widget._delayedRender = false
                     widget.browserInit()
 
-            console.log "#{ widget.debug() } info.timeout = ", info.timeout
             if isBrowser and info.timeout? and info.timeout > 0
               setTimeout ->
                 if not complete
@@ -869,6 +871,31 @@ define [
       else
         @behaviourClass
 
+
+    bindChildEvents: ->
+      if @constructor.childEvents?
+        #console.log "#{ @debug 'bindChildEvents' }", @constructor.childEvents
+        for eventDef, callback of @constructor.childEvents
+          eventDef = eventDef.split ' '
+          childName = eventDef[0]
+          topic = eventDef[1]
+          if @childByName[childName]?
+            if _.isString callback
+              if @[callback]
+                name = callback
+                callback =  @[callback]
+                if not _.isFunction callback
+                  throw new Error("Callback #{ name } is not a function")
+              else
+                throw new Error("Callback #{ callback } doesn't exist")
+            else if not _.isFunction callback
+              throw new Error("Invalid child widget callback definition: [#{ childName }, #{ topic }]")
+
+            @childByName[childName].on(topic, callback).withContext(this)
+          else
+            throw new Error("Trying to subscribe for event '#{ topic }' of unexistent child with name '#{ childName }'")
+
+
     # @browser-only
     initBehaviour: ->
       if @behaviour?
@@ -876,9 +903,13 @@ define [
         @behaviour = null
 
       behaviourClass = @getBehaviourClass()
+
       if behaviourClass
         require ["cord!/#{ @getDir() }/#{ behaviourClass }"], (BehaviourClass) =>
-          @behaviour = new BehaviourClass this
+          if BehaviourClass instanceof Function 
+            @behaviour = new BehaviourClass this
+          else
+            console.log 'WRONG BEHAVIOUR CLASS:', behaviourClass
 
       @loadCss()
 
@@ -902,6 +933,8 @@ define [
       ###
 
       if this != stopPropagateWidget and not @_delayedRender
+        @bindChildEvents()
+
         for widgetId, bindingMap of @childBindings
           @widgetRepo.getById(widgetId).cleanSubscriptions()
           for ctxName, paramName of bindingMap

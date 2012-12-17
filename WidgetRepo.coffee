@@ -129,6 +129,7 @@ define [
       info.parent = null
       @rootWidget = widget
 
+
     getTemplateCode: ->
       """
       <script data-main="/bundles/cord/core/browserInit" src="/vendor/requirejs/require.js"></script>
@@ -143,7 +144,6 @@ define [
           CONFIG: #{ JSON.stringify(global.CONFIG_CLIENT) }
         };
       </script>
-
       """
 
     getTemplateCss: ->
@@ -153,6 +153,7 @@ define [
 
     endInit: ->
       @_initEnd = true
+
 
     ##
      #
@@ -174,11 +175,8 @@ define [
           serviceContainer: @serviceContainer
           extended: isExtended
 
-        widget._isExtended = isExtended
-
         if @_pushBindings[ctx.id]?
           for ctxName, paramName of @_pushBindings[ctx.id]
-            #console.log "#{ paramName }=\"^#{ ctxName }\" for #{ ctx.id }"
             @subscribePushBinding parentId, ctxName, widget, paramName
 
         @widgets[ctx.id] =
@@ -218,8 +216,10 @@ define [
       # initializing DOM bindings of widgets in reverse order (leafs of widget tree - first)
       @bind(id) for id in @_widgetOrder.reverse()
 
+
     bind: (widgetId) ->
       if @widgets[widgetId]?
+        @widgets[widgetId].widget.bindChildEvents()
         @widgets[widgetId].widget.initBehaviour()
       else
         throw "Try to use uninitialized widget with id = #{ widgetId }"
@@ -294,14 +294,12 @@ define [
             @dropWidget _oldRootWidget.ctx.id unless commonBaseWidget == _oldRootWidget
             @rootWidget.browserInit commonBaseWidget
 
+
     findAndCutMatchingExtendWidget: (widgetPath) ->
       result = null
       counter = 0
-#      console.log "@_currentExtendList = ", @_currentExtendList
       for extendWidget in @_currentExtendList
-#        console.log "#{ widgetPath } == #{ extendWidget.getPath() }"
         if widgetPath == extendWidget.getPath()
-          found = true
           # removing all extend tree below found widget
           @_currentExtendList.shift() while counter--
           # ... and prepending extend tree with the new widgets

@@ -8,6 +8,7 @@ require.config
 
   paths:
     'postal':           'vendor/postal/postal'
+    'monologue':        'vendor/postal/monologue'
     'dustjs-linkedin':  'vendor/dustjs/dustjs-full'
     'dustjs-helpers':   'vendor/dustjs/dustjs-helpers'
     'jquery':           'vendor/jquery/jquery'
