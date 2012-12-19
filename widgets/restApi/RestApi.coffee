@@ -31,7 +31,9 @@ define [
           serverRequest.on 'end', (data) ->
             body = Buffer.concat buffers
             options.data = qs.parse body.toString 'utf8'
-            options.body = body
+            
+            if serverRequest.headers['content-type'].toLowerCase().indexOf('multipart/form-data') >= 0
+              options.body = body
             request options
 
         when 'GET'
