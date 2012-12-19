@@ -15,7 +15,8 @@ define [
         type: serverRequest.method
         url: decodeURIComponent /^\/_restAPI\/(.*)$/.exec(serverRequest.url)[1]
         headers:
-          'Accept': serverRequest.headers.accept
+          'Accept': 'application/json'
+          'Content-Type': serverRequest.headers['content-Type'] || serverRequest.headers['content-type']
 
       request = (options) =>
         @request options, serverResponse, callback
@@ -23,12 +24,14 @@ define [
       switch serverRequest.method
 
         when 'POST', 'PUT', 'DELETE'
-          body = ''
-          serverRequest.on 'data', (data) ->
-            body += data
+          buffers = []
+          serverRequest.on 'data', (chunk) ->
+            buffers.push chunk
 
           serverRequest.on 'end', (data) ->
-            options.data = qs.parse body
+            body = Buffer.concat buffers
+            options.data = qs.parse body.toString 'utf8'
+            options.body = body
             request options
 
         when 'GET'

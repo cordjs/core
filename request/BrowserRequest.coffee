@@ -37,6 +37,7 @@ define [
       options =
         query: argssss.params
         json: true
+        form: argssss.params.form
 
       startRequest = new Date() if global.CONFIG.debug?.request
       window.curly[method] argssss.url, options, (error, response, body) =>
