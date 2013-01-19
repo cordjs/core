@@ -127,6 +127,7 @@ define [
         ].join '-'
       number
 
+
     @stripTags = (input, allowed) ->
       ###
         A JavaScript equivalent of PHP’s strip_tags
@@ -143,3 +144,11 @@ define [
           return $0
         else
           return '';
+
+
+    @getNameInitials = (name) ->
+      nameInitials = ''
+      nameInitials += part.charAt(0).toUpperCase() + '.' for part in name.split(' ')
+
+      nameInitials
+
