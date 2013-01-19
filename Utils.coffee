@@ -114,6 +114,9 @@ define [
 
 
     @phoneNumberFormat = (number) ->
+      if not number
+        return ''
+        
       if number.length == 7
         number = [
           number.substr(0,3)
