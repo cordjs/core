@@ -34,10 +34,16 @@ define [
       argssss.url = argssss.params.url if !argssss.url and argssss.params.url?
       argssss.callback = params.callback if !argssss.callback and argssss.params.callback?
 
-      options =
-        query: argssss.params
-        json: true
-        form: argssss.params.form
+      if (method == 'get')
+        options =
+          query: argssss.params
+          json: true
+      else
+        options =
+          query: ''
+          json: argssss.params
+          form: argssss.params.form
+
 
       console.log "BrowserRequest: #{method} #{argssss.url}"
       startRequest = new Date() if global.CONFIG.debug?.request

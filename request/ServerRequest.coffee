@@ -34,9 +34,13 @@ define [
       argssss.url = argssss.params.url if !argssss.url and argssss.params.url?
       argssss.callback = params.callback if !argssss.callback and argssss.params.callback?
 
-      options =
-        query: argssss.params
-        json: true
+      if (method == 'get')
+        options =
+          query: argssss.params
+          json: true
+      else
+        options =
+          json: argssss.params
 
       startRequest = new Date() if global.CONFIG.debug?.request
       curly[method] argssss.url, options, (error, response, body) =>

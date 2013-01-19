@@ -86,7 +86,7 @@ define [
               options.json = 'true'
               delete options.dataType
 
-            if options.method != 'POST'
+            if options.method == 'GET'
               options.url += '?' + qs.stringify options.data if options.data?
 
             request options, (error, response, body) ->

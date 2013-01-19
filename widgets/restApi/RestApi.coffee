@@ -30,11 +30,11 @@ define [
 
           serverRequest.on 'end', (data) ->
             body = Buffer.concat buffers
-            options.data = qs.parse body.toString 'utf8'
-            
-            if serverRequest.headers['content-type'].toLowerCase().indexOf('multipart/form-data') >= 0
-              options.body = body
-            console.log 'BODY!!!', options.data
+            #options.data = qs.parse body.toString 'utf8'
+            #if serverRequest.headers['content-type'].toLowerCase().indexOf('multipart/form-data') >= 0
+            options.body = body
+            console.log 'BODY!!!', body.toString 'utf8'
+            debugger
             request options
 
         when 'GET'
