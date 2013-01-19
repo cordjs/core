@@ -39,6 +39,7 @@ define [
         json: true
         form: argssss.params.form
 
+      console.log "BrowserRequest: #{method} #{argssss.url}"
       startRequest = new Date() if global.CONFIG.debug?.request
       window.curly[method] argssss.url, options, (error, response, body) =>
         if global.CONFIG.debug?.request

@@ -34,6 +34,7 @@ define [
             
             if serverRequest.headers['content-type'].toLowerCase().indexOf('multipart/form-data') >= 0
               options.body = body
+            console.log 'BODY!!!', options.data
             request options
 
         when 'GET'
@@ -43,4 +44,8 @@ define [
 
     request: (options, res, callback) ->
       Rest.request options, (body, error, response) ->
+        #For debug reasons
+        if response.statusCode != 200
+          console.log 'API ERROR:', body
+          console.log response.body
         callback null, body

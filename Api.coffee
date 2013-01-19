@@ -15,7 +15,7 @@ define [
         protocol: 'http'
         host: 'megaplan.megaplan.ru'
         urlPrefix: ''
-        params: []
+        params: {}
         getUserPasswordCallback: (callback) -> callback 'jedi', 'jedi'
       @options = _.extend defaultOptions, options
 
