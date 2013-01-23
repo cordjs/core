@@ -1,6 +1,6 @@
 define [
   'cord!configPaths'
-], (configPaths)->
+], (configPaths) ->
 
   classNameFormat: /^[A-Z][A-Za-z0-9]*$/
 
@@ -11,7 +11,8 @@ define [
 
     nameParts = relativePath.split '/'
     widgetClassName = nameParts.pop()
-    throw "Widget class name should start with CAP letter: #{ widgetClassName }!" if not @classNameFormat.test widgetClassName
+    if not @classNameFormat.test(widgetClassName)
+      throw new Error("Widget class name should start with CAP letter: #{ widgetClassName }!")
     dirName = widgetClassName.charAt(0).toLowerCase() + widgetClassName.slice(1)
     nameParts.push(dirName)
     relativeDir = nameParts.join('/')
