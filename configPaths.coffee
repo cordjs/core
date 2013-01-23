@@ -16,6 +16,7 @@ define [],  ->
       'text':           dir + 'vendor/requirejs/plugins/text'
       'cord':           dir + 'bundles/cord/core/requirejs/cord'
       'cord-w':         dir + 'bundles/cord/core/requirejs/cord-w'
+      'cord-m':         dir + 'bundles/cord/core/requirejs/cord-m'
       'cord-t':         dir + 'bundles/cord/core/requirejs/cord-t'
 
     parsePathRaw: (path) ->
