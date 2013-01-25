@@ -1,16 +1,19 @@
 define [
-  'underscore'
-  'dustjs-helpers'
-  'postal'
-  'monologue' + (if document? then '' else '.js')
-  'cord!Module'
-  'cord!Context'
-  'cord!isBrowser'
-  'cord!StructureTemplate'
+  'cord!Collection'
   'cord!configPaths'
-  'cord!templateLoader'
+  'cord!Context'
   'cord!css/helper'
-], (_, dust, postal, Monologue, Module, Context, isBrowser, StructureTemplate, configPaths, templateLoader, cssHelper) ->
+  'cord!isBrowser'
+  'cord!Model'
+  'cord!Module'
+  'cord!StructureTemplate'
+  'cord!templateLoader'
+  'dustjs-helpers'
+  'monologue' + (if document? then '' else '.js')
+  'postal'
+  'underscore'
+], (Collection, configPaths, Context, cssHelper, isBrowser, Model, Module,StructureTemplate, templateLoader,
+    dust, Monologue, postal, _) ->
 
   dust.onLoad = (tmplPath, callback) ->
     templateLoader.loadTemplate tmplPath, ->
@@ -27,7 +30,7 @@ define [
     widgetRepo = null
 
     # service container
-    serviceContainer = null
+    container = null
 
     # widget context
     ctx: null
@@ -49,6 +52,8 @@ define [
 
     _structTemplate: null
     _isExtended: false
+
+    _modelBindings: null
 
 
     @initParamRules: ->
@@ -107,7 +112,6 @@ define [
         if splittedParams.length > 1
           rule.multiArgs = true
           rule.params = splittedParams
-          console.log splittedParams
         for name in splittedParams
           @_paramRules[name] ?= []
           @_paramRules[name].push rule
@@ -140,12 +144,18 @@ define [
       if not @constructor._paramRules? and (@constructor.params? or @constructor.initialCtx?) # may be initialCtx is not necessary here
         @constructor.initParamRules()
 
+      @_modelBindings = {}
       if params?
-        @ctx = new Context(params.context) if params.context?
+        if params.context?
+          if params.context instanceof Context
+            @ctx = params.context
+          else
+            @ctx = new Context(params.context)
         @setRepo params.repo if params.repo?
         @setServiceContainer params.serviceContainer if params.serviceContainer?
         @compileMode = params.compileMode if params.compileMode?
         @_isExtended = params.extended if params.extended?
+        @_modelBindings = params.modelBindings if params.modelBindings?
 
       @_postalSubscriptions = []
       @resetChildren()
@@ -175,6 +185,7 @@ define [
         @behaviour = null
       @cleanSubscriptions()
       @_postalSubscriptions = []
+      @_modelBindings = {}
 
 
     addSubscription: (subscription) ->
@@ -200,11 +211,11 @@ define [
 
 
     setServiceContainer: (serviceContainer) =>
-      @serviceContainer = serviceContainer
+      @container = serviceContainer
 
 
     getServiceContainer: =>
-      @serviceContainer
+      @container
 
 
     processParams: (params, callback) ->
@@ -216,7 +227,7 @@ define [
       @param (optional)Function callback function to be called after processing.
       ###
 
-      console.log "#{ @debug 'processParams' } -> ", params
+      console.log "#{ @debug 'processParams' } -> ", params if global.CONFIG.debug?.widget
       rules = @constructor._paramRules
       processedRules = {}
       specialParams = ['match', 'history', 'shim', 'trigger', 'params']
@@ -227,8 +238,8 @@ define [
               throw "Validation of param '#{ name }' of widget #{ @debug() } is not passed!"
             else
               switch rule.type
-                when ':setSame' then @ctx.setSingle name, value
-                when ':set' then @ctx.setSingle rule.ctxName, value
+                when ':setSame' then @ctx.set(name, value)
+                when ':set' then @ctx.set(rule.ctxName, value)
                 when ':callback'
                   if rule.multiArgs
                     if not processedRules[rule.id]
@@ -237,6 +248,8 @@ define [
                       processedRules[rule.id] = true
                   else
                     rule.callback.call(this, value)
+                    if value instanceof Model or value instanceof Collection
+                      @_modelBindings[name] = value
                 when ':ignore'
                 else
                   throw new Error("Invalid param rule type: '#{ rule.type }'")
@@ -292,24 +305,6 @@ define [
       ###
       @_doAction action, params, =>
         console.log "fireAction #{ @debug "_#{ action }Action" } -> params:", params, " context:", @ctx
-
-
-#    _defaultAction: (params, callback) ->
-      ###
-      Action that generates/modifies widget context according to the given params
-      Should be overriden in particular widget.
-
-      If there is need to block widget rendering untill action is completed, you can return 'block' string and
-      asynchronously call callback function when long-running actions is complete and neccessary data is obtained
-      and set to the context. But preferrable and more performant way is to use deferred values of context
-      (see Context::setDeferred).
-
-      @private
-      @param Map params some arbitrary params for the action
-      @param (optional) Function callback callback function that can be called explicitly after action completion
-      ###
-
-      # by default do nothing
 
 
     renderJson: (callback) ->
@@ -766,14 +761,21 @@ define [
 
 
     getInitCode: (parentId) ->
-      parentStr = if parentId? then ", '#{ parentId }'" else ''
+      parentStr = if parentId? then ",'#{ parentId }'" else ''
 
       namedChilds = {}
       for name, widget of @childByName
         namedChilds[widget.ctx.id] = name
 
+      serializedModelBindings = {}
+      for key, value of @_modelBindings
+        serializedModelBindings[key] = value.serializeLink()
+
+      jsonParams = [@ctx, namedChilds, @childBindings, serializedModelBindings]
+      jsonParamsString = (jsonParams.map (x) -> JSON.stringify(x)).join(',')
+
       """
-      wi.init('#{ @getPath() }', #{ JSON.stringify @ctx }, #{ JSON.stringify namedChilds }, #{ JSON.stringify @childBindings }, #{ @_isExtended }#{ parentStr });
+      wi.init('#{ @getPath() }',#{ jsonParamsString },#{ @_isExtended }#{ parentStr });
       #{ (widget.getInitCode(@ctx.id) for widget in @children).join '' }
       """
 
@@ -874,7 +876,6 @@ define [
 
     bindChildEvents: ->
       if @constructor.childEvents?
-        #console.log "#{ @debug 'bindChildEvents' }", @constructor.childEvents
         for eventDef, callback of @constructor.childEvents
           eventDef = eventDef.split ' '
           childName = eventDef[0]
@@ -896,6 +897,30 @@ define [
             throw new Error("Trying to subscribe for event '#{ topic }' of unexistent child with name '#{ childName }'")
 
 
+    bindModelEvents: ->
+      ###
+      Subscribes to model events for model-params came to widget.
+      ###
+      rules = @constructor._paramRules
+      for name, target of @_modelBindings
+        if rules[name]?
+          if target instanceof Model
+            target.on 'change', (changed) =>
+              for rule in rules[name]
+                switch rule.type
+                  when ':setSame' then @ctx.set(name, changed)
+                  when ':set' then @ctx.set(rule.ctxName, changed)
+                  when ':callback'
+                    if rule.multiArgs
+                      (params = {})[name] = changed
+                      args = (params[multiName] for multiName in rule.params)
+                      rule.callback.apply(this, args)
+                    else
+                      rule.callback.call(this, changed)
+          else if target instanceof Collection
+            ;# stub
+
+
     # @browser-only
     initBehaviour: ->
       if @behaviour?
@@ -906,7 +931,7 @@ define [
 
       if behaviourClass
         require ["cord!/#{ @getDir() }/#{ behaviourClass }"], (BehaviourClass) =>
-          if BehaviourClass instanceof Function 
+          if BehaviourClass instanceof Function
             @behaviour = new BehaviourClass this
           else
             console.log 'WRONG BEHAVIOUR CLASS:', behaviourClass
@@ -934,6 +959,7 @@ define [
 
       if this != stopPropagateWidget and not @_delayedRender
         @bindChildEvents()
+        @bindModelEvents()
 
         for widgetId, bindingMap of @childBindings
           @widgetRepo.getById(widgetId).cleanSubscriptions()

@@ -8,8 +8,8 @@ define [
   class RestApi extends Widget
 
     show: (params, callback) ->
-      serverRequest = @serviceContainer.get('serverRequest')
-      serverResponse = @serviceContainer.get('serverResponse')
+      serverRequest = @container.get('serverRequest')
+      serverResponse = @container.get('serverResponse')
 
       options =
         type: serverRequest.method

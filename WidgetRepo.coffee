@@ -1,9 +1,14 @@
 define [
-  'postal'
-  'cord!deferAggregator'
   'cord!Api'
+  'cord!Collection'
+  'cord!Context'
+  'cord!deferAggregator'
+  'cord!Model'
+  'cord!ModelRepo'
+  'cord!utils/Future'
+  'postal'
   'underscore'
-], (postal, deferAggregator, Api, _) ->
+], (Api, Collection, Context, deferAggregator, Model, ModelRepo, Future, postal, _) ->
 
   class WidgetRepo
     widgets: null
@@ -130,13 +135,69 @@ define [
       @rootWidget = widget
 
 
+    _unserializeModelBindings: (serializedBindings, callback) ->
+      ###
+      Simply replaces serialized links to models and collections to the actual restored instances of those
+       models and collections in the given map.
+      @param Object serializedBindings
+      @param Function(Object) callback "result" callback with the converted map
+      ###
+      promise = new Future
+      result = {}
+      for key, value of serializedBindings
+        if Collection.isSerializedLink(value)
+          promise.fork()
+          Collection.unserializeLink value, @serviceContainer, (collection) ->
+            result[key] = collection
+            promise.resolve()
+        else if Model.isSerializedLink(value)
+          promise.fork()
+          Model.unserializeLink value, @serviceContainer, (model) ->
+            result[key] = model
+            promise.resolve()
+
+      promise.done ->
+        callback(result)
+
+
+    initRepo: (repoServiceName, collections, promise) ->
+      ###
+      Helper method used in generated initialization code to restore models came from server in the browser
+      @browser-only
+      @param String repoServiceName name of the model repository service name
+      @param Object collections list of serialized registered collections keyed with their names
+      @param Future promise a promise that must be resolved when collections are initialized
+      ###
+      @serviceContainer.eval repoServiceName, (repo) ->
+        repo.setCollections(collections)
+        promise.resolve()
+
+
+    getModelsInitCode: ->
+      ###
+      Generates code for passing and initialing of all model repositories from server-side into browser.
+      Loops through service container to find all repository services.
+      ###
+      result = []
+      for key, val of @serviceContainer
+        if val? and key.substr(0, 9) == '_box_val_' and val.isReady and val.val instanceof ModelRepo
+          result.push("wi.initRepo('#{ key.substr(9) }', #{ JSON.stringify(val.val) }, p.fork());")
+      result.join("\n")
+
+
     getTemplateCode: ->
       """
       <script data-main="/bundles/cord/core/browserInit" src="/vendor/requirejs/require.js"></script>
       <script>
           function cordcorewidgetinitializerbrowser(wi) {
-            #{ @rootWidget.getInitCode() }
-            wi.endInit();
+            requirejs(['cord!utils/Future'], function(Future) {
+              p = new Future();
+              #{ @getModelsInitCode() }
+              p.done(function() {
+                #{ @rootWidget.getInitCode() }
+                wi.endInit();
+              });
+            });
           };
       </script>
       <script>
@@ -155,11 +216,12 @@ define [
       @_initEnd = true
 
 
-    ##
-     #
-     # @browser-only
-     ##
-    init: (widgetPath, ctx, namedChilds, childBindings, isExtended, parentId) ->
+    init: (widgetPath, ctx, namedChilds, childBindings, modelBindings, isExtended, parentId) ->
+      ###
+      Restores widget's state after transferring from server to browser (initial html-page loading)
+      @browser-only
+      ###
+
       @_loadingCount++
       @_widgetOrder.push ctx.id
 
@@ -168,11 +230,19 @@ define [
         for ctxName, paramName of bindingMap
           @_pushBindings[widgetId][ctxName] = paramName
 
-      require ["cord-w!#{ widgetPath }"], (WidgetClass) =>
+      callbackPromise = new Future
+
+      require ["cord-w!#{ widgetPath }"],       callbackPromise.callback()
+      Context.fromJSON ctx, @serviceContainer,  callbackPromise.callback()
+      @_unserializeModelBindings modelBindings, callbackPromise.callback()
+
+      callbackPromise.done (WidgetClass, ctx, modelBindings) =>
+
         widget = new WidgetClass
           context: ctx
           repo: this
           serviceContainer: @serviceContainer
+          modelBindings: modelBindings
           extended: isExtended
 
         if @_pushBindings[ctx.id]?
@@ -219,8 +289,10 @@ define [
 
     bind: (widgetId) ->
       if @widgets[widgetId]?
-        @widgets[widgetId].widget.bindChildEvents()
-        @widgets[widgetId].widget.initBehaviour()
+        w = @widgets[widgetId].widget
+        w.bindChildEvents()
+        w.bindModelEvents()
+        w.initBehaviour()
       else
         throw "Try to use uninitialized widget with id = #{ widgetId }"
 
@@ -237,6 +309,7 @@ define [
         @widgets[id].widget
       else
         throw "Try to get uninitialized widget with id = #{ id }"
+
 
     #
     # Subscribes child widget to the parent widget's context variable change event
