@@ -114,6 +114,9 @@ define [
 
 
     @phoneNumberFormat = (number) ->
+      if not number
+        return ''
+        
       if number.length == 7
         number = [
           number.substr(0,3)
@@ -126,6 +129,7 @@ define [
           number.substr(3,3)
         ].join '-'
       number
+
 
     @stripTags = (input, allowed) ->
       ###
@@ -143,3 +147,11 @@ define [
           return $0
         else
           return '';
+
+
+    @getNameInitials = (name) ->
+      nameInitials = ''
+      nameInitials += part.charAt(0).toUpperCase() + '.' for part in name.split(' ')
+
+      nameInitials
+
