@@ -1,7 +1,10 @@
 define [
+  'cord!Collection'
+  'cord!Model'
+  'cord!utils/Future'
   'postal'
   'underscore'
-], (postal, _) ->
+], (Collection, Model, Future, postal, _) ->
 
   class Context
 
@@ -13,7 +16,7 @@ define [
         @id = arg1
         if arg2
           for key, value of arg2
-            @[key] = if _.isFunction value then value() else value
+            @[key] = value
 
 
     set: (args...) ->
@@ -72,3 +75,36 @@ define [
 
     isEmpty: (name) ->
       (not @[name]?) or @isDeferred(name)
+
+
+    toJSON: ->
+      result = {}
+      for key, value of this
+        if value instanceof Collection
+          result[key] = value.serializeLink()
+        else if value instanceof Model
+          result[key] = value.serializeLink()
+        else
+          result[key] = value
+      result
+
+
+    @fromJSON: (obj, ioc, callback) ->
+      promise = new Future
+      for key, value of obj
+        do (key, value) ->
+          if Collection.isSerializedLink(value)
+            promise.fork()
+            Collection.unserializeLink value, ioc, (collection) ->
+              obj[key] = collection
+              promise.resolve()
+          else if Model.isSerializedLink(value)
+            promise.fork()
+            Model.unserializeLink value, ioc, (model) ->
+              obj[key] = model
+              promise.resolve()
+          else
+            obj[key] = value
+
+      promise.done =>
+        callback(new this(obj))
