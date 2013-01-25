@@ -86,6 +86,10 @@ define [
       get('api').get 'employee/current/', (response) =>
         done null, response
 
+    serviceContainer.def 'discussRepo', (get, done) ->
+      requirejs ['cord-m!/megaplan/front/talk//DiscussRepo'], (DiscussRepo) ->
+        done null, new DiscussRepo(serviceContainer)
+
     ###
     ###
 
