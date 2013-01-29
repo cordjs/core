@@ -92,7 +92,10 @@ define [
           else
             return date.getDate() + ' ' + Utils.monthFormat(date.getMonth())
         else
-          return date.getDate() + ' ' + Utils.monthFormat(date.getMonth()) + ' ' + date.getFullYear()
+          if detailed
+            return date.getDate() + ' ' + Utils.monthFormat(date.getMonth()) + ' ' + date.getFullYear() + ' в ' + time
+          else
+            return date.getDate() + ' ' + Utils.monthFormat(date.getMonth()) + ' ' + date.getFullYear()
 
 
     @dateDiffInDays = (date) ->

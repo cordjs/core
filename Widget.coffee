@@ -167,8 +167,6 @@ define [
       subscriptions left from the dissapered widgets.
       ###
 
-      console.log @debug('clean')
-
       @cleanChildren()
       if @behaviour?
         @behaviour.clean()
@@ -216,7 +214,6 @@ define [
       @param (optional)Function callback function to be called after processing.
       ###
 
-      console.log "#{ @debug 'processParams' } -> ", params
       rules = @constructor._paramRules
       processedRules = {}
       specialParams = ['match', 'history', 'shim', 'trigger', 'params']
