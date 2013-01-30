@@ -1,8 +1,9 @@
 define [
   'cord!Module'
+  'cord!utils/Future'
   'monologue' + (if document? then '' else '.js')
   'underscore'
-], (Module, Monologue, _) ->
+], (Module, Future, Monologue, _) ->
 
   class Collection extends Module
     #@include Monologue.prototype
@@ -22,6 +23,10 @@ define [
     _byId: null
 
     _initialized: false
+
+    # partially loaded collection properties
+    _loadedStart: 4294967295
+    _loadedEnd: -1
 
 
     @generateName: (options) ->
@@ -55,7 +60,7 @@ define [
       @_id = options.id ? 0
 
 
-    sync: (returnMode, callback) ->
+    sync: (returnMode, params, callback) ->
       ###
       Initiates synchronization of the collection with some backend and fires callback denending of given return mode
       @param String returnMode :sync -  return only after sync with server
@@ -70,9 +75,13 @@ define [
       if _.isFunction(returnMode)
         callback = returnMode
         returnMode = ':sync'
+        params = {}
+      else if _.isFunction(params)
+        callback = params
+        params = {}
       returnMode ?= ':sync'
 
-      console.log "#{ @debug 'sync' } -> ", returnMode
+      console.log "#{ @debug 'sync' } -> ", returnMode, @_loadedStart, @_loadedEnd
 
       syncQuery = false
       if not (returnMode == ':cache' and @_initialized)
@@ -80,15 +89,29 @@ define [
         queryParams.filterId = @_filterId if @_filterType == ':backend'
         queryParams.fields = @_fields
         queryParams.id = @_id if @_id
+        queryParams.page = params.page if params.page?
+        queryParams.pageSize = params.pageSize if params.pageSize?
         @repo.query queryParams, (models) =>
           needCallback = not (@_initialized and syncQuery)
           syncQuery = true
-          @_models = []
-          @_byId = {}
-          if @_filterType == ':local' and _.isFunction(@_filterFunction)
-            @_models.push(model) if @_filterFunction(model)
+          if queryParams.page? and queryParams.pageSize?
+            # appending/replacing new models to the collection according to the paging options
+            loadingStart = (queryParams.page - 1) * queryParams.pageSize
+            loadingEnd = loadingStart + queryParams.pageSize - 1
+            if loadingStart <= @_loadedStart and loadingEnd >= @_loadedEnd
+              @_models = models
+              @_loadedStart = loadingStart
+              @_loadedEnd = loadingEnd
+            else if loadingStart <= @_loadedStart
+              @_models = models.concat(@_models.slice(@_models.length - (@_loadedEnd - loadingEnd)))
+              @_loadedStart = loadingStart
+            else if loadingEnd >= @_loadedEnd
+              @_models = @_models.slice(0, loadingStart - @_loadedStart).concat(models)
+              @_loadedEnd = loadingEnd
           else
             @_models = models
+            @_loadedStart = 0
+            @_loadedEnd = models.length - 1
 
           model.setCollection(this) for model in @_models
           @_reindexModels()
@@ -124,6 +147,59 @@ define [
       @_byId = {}
       @_byId[m.id] = m for m in @_models
 
+
+    # paging related
+
+    getPage: (page, size, callback) ->
+      ###
+      Obtains and returns in callback portion of models of the collection according to given paging params
+      @param Int page number of the page
+      @param Int size page size
+      @param Function(Array[Model]) callback "result"-callback with the list of the requested models
+      ###
+      start = (page - 1) * size
+      end = start + size - 1
+
+      promise = (new Future).fork()
+      if @_loadedStart <= start and @_loadedEnd >= end
+        promise.resolve()
+      else
+
+        [loadPage, loadSize] = @_calculateLoadPageOptions(start, end)
+
+        @sync ':sync',
+          page: loadPage
+          pageSize: loadSize
+        , ->
+          promise.resolve()
+
+      promise.done =>
+        callback(@toArray().slice(start, end))
+
+
+    _calculateLoadPageOptions: (start, end) ->
+      ###
+      Calculate optimal page number and size for the needed range
+      @param Int start starting position needed
+      @param Int end ending position needed
+      @return [Int, Int] tuple with page number and page size to request from backend
+      ###
+      loadStart = if start < @_loadedStart then start else @_loadedEnd + 1
+      loadEnd = if end > @_loadedEnd then end else @_loadedStart - 1
+      loadSize = loadEnd - loadStart + 1
+      if loadStart < loadSize
+        loadPage = 1
+        loadSize += loadStart
+      else
+        loadPage = Math.floor(loadStart / loadSize)
+        while not (loadPage * loadSize <= loadStart and (loadPage + 1) * loadSize > loadEnd)
+          loadSize++
+          if loadPage * loadSize - 1 > loadStart
+            loadPage--
+        loadPage++
+      [loadPage, loadSize]
+
+
     # serialization related
 
     toJSON: ->
@@ -132,6 +208,8 @@ define [
       filterId: @_filterId
       orderBy: @_orderBy
       fields: @_fields
+      start: @_loadedStart
+      end: @_loadedEnd
 
 
     @fromJSON: (repo, name, obj) ->
@@ -142,6 +220,8 @@ define [
       collection._filterId = obj.filterId
       collection._orderBy = obj.orderBy
       collection._fields = obj.fields
+      collection._loadedStart = obj.start
+      collection._loadedEnd = obj.end
 
       collection._reindexModels()
       collection._initialized = (collection._models.length > 0)
@@ -186,4 +266,4 @@ define [
       @return String
       ###
       methodStr = if method? then "::#{ method }" else ''
-      "#{ @constructor.name }(#{ @name })#{ methodStr }"
+      "#{ @repo.constructor.name }::#{ @constructor.name }#{ methodStr }"

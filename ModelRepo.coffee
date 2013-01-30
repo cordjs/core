@@ -168,8 +168,9 @@ define [
       urlParams = []
       if not params.id?
         urlParams.push("_filter=#{ params.filterId }") if params.filterId?
-        urlParams.push("_sortBy=#{ params.orderBy }") if params.orderBy?
-        urlParams.push("_page=1&_pagesize=10")
+        urlParams.push("_sortby=#{ params.orderBy }") if params.orderBy?
+        urlParams.push("_page=#{ params.page }") if params.page?
+        urlParams.push("_pagesize=#{ params.pageSize }") if params.pageSize?
 
       commonFields = []
       calcFields = []
