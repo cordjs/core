@@ -918,7 +918,7 @@ define [
                     else
                       rule.callback.call(this, changed)
           else if target instanceof Collection
-            ;# stub
+            true# stub
 
 
     # @browser-only
@@ -1177,7 +1177,8 @@ define [
               'cord!widgetCompiler'
             ], (WidgetClass, widgetCompiler) =>
 
-              widget = new WidgetClass true
+              widget = new WidgetClass
+                compileMode: true
 
               emptyBodyRe = /^function body_[0-9]+\(chk,ctx\)\{return chk;\}$/ # todo: move to static
               if context.surroundingWidget?
