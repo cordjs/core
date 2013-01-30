@@ -169,11 +169,11 @@ define [
         tmpId = _.uniqueId '__cord_special_tmp_background_creation_container'
         $tmp = $('#'+tmpId)
         $tmp = $("<div style=\"display:none\" id=\"#{ tmpId }\"></div>").appendTo('body') if $tmp.length == 0
-        $tmp.one 'DOMNodeInserted', ->
+
+        DomHelper.insertHtml tmpId, widget.renderRootTag(out), ->
           widget.browserInit()
           callback $('#'+widget.ctx.id), widget
           $tmp.remove()
-        $tmp.html widget.renderRootTag(out)
 
 
     initChildWidget: (type, params, callback) ->
@@ -203,3 +203,13 @@ define [
 
     getServiceContainer: ->
       @widget.getServiceContainer()
+
+
+    debug: (method) ->
+      ###
+      Return identification string of the current widget for debug purposes
+      @param (optional) String method include optional "::method" suffix to the result
+      @return String
+      ###
+      methodStr = if method? then "::#{ method }" else ''
+      "#{ @widget.getPath() }Behaviuor(#{ @widget.ctx.id })#{ methodStr }"
