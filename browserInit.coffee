@@ -13,6 +13,8 @@ require.config
     'dustjs-helpers':   'vendor/dustjs/dustjs-helpers'
     'jquery':           'vendor/jquery/jquery'
     'jquery.cookie':    'vendor/jquery/plugins/jquery.cookie'
+    'jquery.color':     'vendor/jquery/plugins/jquery.color'
+    'jquery.scrollTo':  'vendor/jquery/plugins/jquery.scrollTo'
     'curly':            'vendor/curly/browser'
     'underscore':       'vendor/underscore/underscore'
     'requirejs':        'vendor/requirejs/require'
