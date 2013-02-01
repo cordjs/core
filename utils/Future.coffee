@@ -51,15 +51,16 @@ define [], () ->
       this
 
 
-    resolve: ->
+    resolve: (args...) ->
       ###
       Indicates that one of the waiting values is ready.
-      In there is no value remaining in the aggregate and done method is already callled
+      If there are some arguments passed then they are passed unchanged to the done-callback.
+      If there is no value remaining in the aggregate and done method is already called
        than callback is fired immedialtely.
       Should have according fork() call before.
       ###
-
       if @_counter > 0
+        @_callbackArgs = [args] if args.length > 0
         @_counter--
         @_runCallback() if @_counter == 0 and @_callback?
       else
@@ -87,7 +88,6 @@ define [], () ->
 
       @see example 2 in class documentation block
       ###
-
       @fork()
       order = @_order++
       @_callbackArgs ?= {}
@@ -100,7 +100,6 @@ define [], () ->
       ###
       Fires resulting callback defined in done with right list of arguments.
       ###
-
       if @_callbackArgs?
         args = []
         for i in [0..@_order-1]
