@@ -177,8 +177,6 @@ define [
       subscriptions left from the dissapered widgets.
       ###
 
-      console.log @debug('clean')
-
       @cleanChildren()
       if @behaviour?
         @behaviour.clean()
