@@ -1,10 +1,11 @@
 define [
-  'cord!Module'
   'cord!Collection'
   'cord!Model'
+  'cord!Module'
+  'cord!utils/Future'
   'underscore'
   'monologue' + (if document? then '' else '.js')
-], (Module, Collection, Model, _, Monologue) ->
+], (Collection, Model, Module, Future, _, Monologue) ->
 
   class ModelRepo extends Module
     @include Monologue.prototype
@@ -185,20 +186,34 @@ define [
       @restResource + (if params.id? then ('/' + params.id) else '') + '/?' + urlParams.join('&')
 
 
-    save: (models...) ->
+    save: (model) ->
       ###
       Persists list of given models to the backend
+      @param Model model model to save
+      @return Future(response, error)
       ###
-      for model in models
-        do (model) =>
-          @container.eval 'api', (api) =>
-            @emit 'change', model
-            api.put @restResource + '/' + model.id, model.getChangedFields(), (response, error) =>
-              if error
-                @emit 'error', error
-              else
-                model.resetChangedFields()
-                @emit 'sync', model
+      promise = (new Future).fork()
+      @container.eval 'api', (api) =>
+        if model.id
+          @emit 'change', model
+          api.put @restResource + '/' + model.id, model.getChangedFields(), (response, error) =>
+            if error
+              @emit 'error', error
+            else
+              model.resetChangedFields()
+              @emit 'sync', model
+            promise.resolve(response, error)
+        else
+          api.post @restResource, model.getChangedFields(), (response, error) =>
+            if error
+              @emit 'error', error
+            else
+              model.id = response.id
+              model.resetChangedFields()
+              @emit 'sync', model
+            promise.resolve(response, error)
+      promise
+
 
 
     debug: (method) ->

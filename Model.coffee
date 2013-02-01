@@ -52,6 +52,8 @@ define [
           @[key] = val
           @_fieldNames.push(key) if @_fieldNames.indexOf(key) == -1
 
+      this
+
 
     # syntax sugar
 
