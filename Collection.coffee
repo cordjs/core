@@ -97,23 +97,29 @@ define [
           if queryParams.page? and queryParams.pageSize?
             # appending/replacing new models to the collection according to the paging options
             loadingStart = (queryParams.page - 1) * queryParams.pageSize
-            loadingEnd = loadingStart + queryParams.pageSize - 1
-            if loadingStart <= @_loadedStart and loadingEnd >= @_loadedEnd
-              @_models = models
-              @_loadedStart = loadingStart
-              @_loadedEnd = loadingEnd
-            else if loadingStart <= @_loadedStart
-              @_models = models.concat(@_models.slice(@_models.length - (@_loadedEnd - loadingEnd)))
-              @_loadedStart = loadingStart
-            else if loadingEnd >= @_loadedEnd
-              @_models = @_models.slice(0, loadingStart - @_loadedStart).concat(models)
-              @_loadedEnd = loadingEnd
+#            loadingEnd = loadingStart + queryParams.pageSize - 1
+
+            for model, i in models
+              model.setCollection(this)
+              @_models[loadingStart + i] = model
+
+#            if loadingStart <= @_loadedStart and loadingEnd >= @_loadedEnd
+#              @_models = models
+#              @_loadedStart = loadingStart
+#              @_loadedEnd = loadingEnd
+#            else if loadingStart <= @_loadedStart
+#              @_models = models.concat(@_models.slice(@_models.length - (@_loadedEnd - loadingEnd)))
+#              @_loadedStart = loadingStart
+#            else if loadingEnd >= @_loadedEnd
+#              @_models = @_models.slice(0, loadingStart - @_loadedStart).concat(models)
+#              @_loadedEnd = loadingEnd
           else
             @_models = models
             @_loadedStart = 0
             @_loadedEnd = models.length - 1
 
-          model.setCollection(this) for model in @_models
+            model.setCollection(this) for model in @_models
+
           @_reindexModels()
           @_initialized = true
 
@@ -145,7 +151,9 @@ define [
 
     _reindexModels: ->
       @_byId = {}
-      @_byId[m.id] = m for m in @_models
+      for m in @_models
+        if m != undefined
+          @_byId[m.id] = m
 
 
     # paging related
@@ -164,7 +172,6 @@ define [
       if @_loadedStart <= start and @_loadedEnd >= end
         promise.resolve()
       else
-
         [loadPage, loadSize] = @_calculateLoadPageOptions(start, end)
 
         @sync ':sync',
