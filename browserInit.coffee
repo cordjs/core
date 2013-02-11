@@ -85,7 +85,7 @@ define [
         done null, new Api serviceContainer, get('config').api
 
     serviceContainer.def 'user', ['api'], (get, done) ->
-      get('api').get 'employee/current/', (response) =>
+      get('api').get 'employee/current/?_extra=user.id', (response) =>
         done null, response
 
     serviceContainer.def 'discussRepo', (get, done) ->

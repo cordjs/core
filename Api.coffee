@@ -106,7 +106,7 @@ define [
                   @getTokensByUsernamePassword username, password, (accessToken, refreshToken) =>
                     processRequest accessToken, refreshToken
             else
-              args.callback response, error
+              args.callback response, error if args.callback
 
       @restoreTokens (accessToken, refreshToken) =>
         if not accessToken

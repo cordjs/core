@@ -153,6 +153,8 @@ define [
 
 
     @getNameInitials = (name) ->
+      if not name
+        return ''
       nameInitials = ''
       nameInitials += part.charAt(0).toUpperCase() + '.' for part in name.split(' ')
 
