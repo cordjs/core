@@ -957,7 +957,7 @@ define [
 
       if this != stopPropagateWidget and not @_delayedRender
         @bindChildEvents()
-        @bindModelEvents()
+#        @bindModelEvents()
 
         for widgetId, bindingMap of @childBindings
           @widgetRepo.getById(widgetId).cleanSubscriptions()
