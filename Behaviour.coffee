@@ -1,8 +1,9 @@
 define [
+  'cord!utils/Defer'
+  'cord!utils/DomHelper'
   'jquery'
   'postal'
-  'cord!utils/DomHelper'
-], ($, postal, DomHelper) ->
+], (Defer, DomHelper, $, postal) ->
 
   class Behaviour
 
@@ -30,15 +31,16 @@ define [
       @initWidgetEvents(@widgetEvents)  if @widgetEvents
       @refreshElements()                if @elements
 
-      setTimeout =>
+      Defer.nextTick =>
         postal.publish "widget.#{ @id }.behaviour.init", {}
-      , 0
+
 
     $: (selector) ->
       if @rootEls.length
         $(selector, @rootEls[0])
       else
         $(selector)
+
 
     delegateEvents: (events) ->
       for key, method of events
@@ -62,12 +64,14 @@ define [
           else
             $el.on(eventName, selector, method) for $el in @rootEls
 
+
     initWidgetEvents: (events) ->
       for fieldName, method of events
         subscription = postal.subscribe
           topic: "widget.#{ @id }.change.#{ fieldName }"
           callback: @_getMethod method
         @_widgetSubscriptions.push subscription
+
 
     _getMethod: (method) ->
       if typeof(method) is 'function'
@@ -84,9 +88,11 @@ define [
           true
       method
 
+
     refreshElements: ->
       for key, value of @elements
         @[value] = @$(key)
+
 
     clean: ->
       postal.publish "widget.#{ @id }.behaviour.destroy", {}
@@ -97,10 +103,12 @@ define [
       @el = null
       @$el = null
 
+
     html: (element) ->
       @el.html(element.el or element)
       @refreshElements()
       @el
+
 
     append: (elements...) ->
       elements = (e.el or e for e in elements)
@@ -108,16 +116,19 @@ define [
       @refreshElements()
       @el
 
+
     appendTo: (element) ->
       @el.appendTo(element.el or element)
       @refreshElements()
       @el
+
 
     prepend: (elements...) ->
       elements = (e.el or e for e in elements)
       @el.prepend(elements...)
       @refreshElements()
       @el
+
 
     replace: (element) ->
       [previous, @el] = [@el, $(element.el or element)]
@@ -196,10 +207,9 @@ define [
         @defers[id]++
       else
         @defers[id] = 1
-        setTimeout =>
+        Defer.nextTick =>
           fn()
           delete @defers[id]
-        , 0
 
 
     getServiceContainer: ->

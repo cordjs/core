@@ -1,6 +1,7 @@
 define [
+  'cord!utils/Defer'
   'underscore'
-], (_) ->
+], (Defer, _) ->
 
   class DeferAggregator
 
@@ -13,10 +14,9 @@ define [
       else
         @defers[id] = {} if not @defers[id]?
         @defers[id][action] = params
-        setTimeout =>
+        Defer.nextTick =>
           widget.fireAction action, @defers[id][action]
           delete @defers[id][action]
-        , 0
 
 
   new DeferAggregator
