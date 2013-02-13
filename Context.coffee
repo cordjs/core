@@ -1,10 +1,11 @@
 define [
   'cord!Collection'
   'cord!Model'
+  'cord!utils/Defer'
   'cord!utils/Future'
   'postal'
   'underscore'
-], (Collection, Model, Future, postal, _) ->
+], (Collection, Model, Defer, Future, postal, _) ->
 
   class Context
 
@@ -35,9 +36,8 @@ define [
         triggerChange = true
 
       if triggerChange
-        setTimeout =>
+        Defer.nextTick =>
           postal.publish "widget.#{ @id }.someChange", {}
-        , 0
 
 
     setSingle: (name, newValue) ->
@@ -56,13 +56,12 @@ define [
       @[name] = newValue if typeof newValue != 'undefined'
 
       if triggerChange
-        setTimeout =>
+        Defer.nextTick =>
           console.log "publish widget.#{ @id }.change.#{ name }" if global.CONFIG.debug?.widget
           postal.publish "widget.#{ @id }.change.#{ name }",
             name: name
             value: newValue
             oldValue: oldValue
-        , 0
 
       triggerChange
 
