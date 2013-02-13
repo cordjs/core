@@ -241,7 +241,12 @@ define [
                 when ':callback'
                   if rule.multiArgs
                     if not processedRules[rule.id]
-                      args = (params[multiName] for multiName in rule.params)
+                      args = []
+                      for multiName in rule.params
+                        value = params[multiName]
+                        if value instanceof Model or value instanceof Collection
+                          @_modelBindings[multiName] = value
+                        args.push(value)
                       rule.callback.apply(this, args)
                       processedRules[rule.id] = true
                   else
