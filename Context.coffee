@@ -46,7 +46,7 @@ define [
       if newValue?
         if @[name]?
           oldValue = @[name]
-          if oldValue != newValue
+          if oldValue != newValue and newValue != ':deferred'
             triggerChange = true
         else
           triggerChange = true
