@@ -14,12 +14,12 @@ define [
 
 
     constructor: (attrs) ->
+      @_fieldNames = []
       @_changed = {}
       @_load(attrs) if attrs
 
 
     _load: (attrs) ->
-      @_fieldNames = []
       for key, value of attrs
         @[key] = value
         @_fieldNames.push(key)
