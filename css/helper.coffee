@@ -1,6 +1,7 @@
 define [
   'cord-w'
-], (cordWidgetHelper) ->
+  'cord!configPaths'
+], (cordWidgetHelper,configPaths) ->
 
   class Helper
     ###
@@ -32,7 +33,7 @@ define [
           return shortPath
         else
           # canonical path format
-          info = configPaths.pasePathRaw "#{ shortPath }@#{ contextWidget.getBundle() }"
+          info = configPaths.parsePathRaw "#{ shortPath }@#{ contextWidget.getBundle() }"
 
           relativePath = info.relativePath
           nameParts = relativePath.split '/'
