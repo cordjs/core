@@ -15,6 +15,7 @@ require.config
     'jquery.cookie':    'vendor/jquery/plugins/jquery.cookie'
     'jquery.color':     'vendor/jquery/plugins/jquery.color'
     'jquery.scrollTo':  'vendor/jquery/plugins/jquery.scrollTo'
+    'jquery.dotdotdot':  'vendor/jquery/plugins/jquery.dotdotdot'
     'curly':            'vendor/curly/browser'
     'underscore':       'vendor/underscore/underscore'
     'requirejs':        'vendor/requirejs/require'
