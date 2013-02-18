@@ -71,7 +71,7 @@ define [
 
         serviceContainer.def 'user', ['api'], (get, done) ->
           console.log "serviceContainer.def 'user'"
-          get('api').get 'employee/current/', (response) =>
+          get('api').get 'employee/current/?_extra=user.id', (response) =>
             done null, response
 
         serviceContainer.def 'discussRepo', (get, done) ->
