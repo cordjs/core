@@ -7,7 +7,7 @@ require.config
   urlArgs: "uid=" + (new Date()).getTime()
 
   paths:
-    'postal':           'vendor/postal/postal'
+    'postal':           'vendor/postal/postal_lite'
     'monologue':        'vendor/postal/monologue'
     'dustjs-linkedin':  'vendor/dustjs/dustjs-full'
     'dustjs-helpers':   'vendor/dustjs/dustjs-helpers'
