@@ -160,3 +160,9 @@ define [
 
       nameInitials
 
+    #Smart divide array into two pieces, where first piece should contain at least minFirst, and second not less than minSecond
+    @smartArraySlice = (inputArray, minFirst, minSecond) ->
+      if (inputArray.length < minFirst + minSecond)
+        return { first: inputArray, second: [] }
+      else
+        return { first: inputArray.slice(0, minFirst), second: inputArray.slice(minFirst) }
