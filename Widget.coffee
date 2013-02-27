@@ -907,22 +907,23 @@ define [
       ###
       rules = @constructor._paramRules
       for name, target of @_modelBindings
-        if rules[name]?
-          if target instanceof Model
-            target.on 'change', (changed) =>
-              for rule in rules[name]
-                switch rule.type
-                  when ':setSame' then @ctx.set(name, changed)
-                  when ':set' then @ctx.set(rule.ctxName, changed)
-                  when ':callback'
-                    if rule.multiArgs
-                      (params = {})[name] = changed
-                      args = (params[multiName] for multiName in rule.params)
-                      rule.callback.apply(this, args)
-                    else
-                      rule.callback.call(this, changed)
-          else if target instanceof Collection
-            true# stub
+        do (name) =>
+          if rules[name]?
+            if target instanceof Model
+              target.on 'change', (changed) =>
+                for rule in rules[name]
+                  switch rule.type
+                    when ':setSame' then @ctx.set(name, changed)
+                    when ':set' then @ctx.set(rule.ctxName, changed)
+                    when ':callback'
+                      if rule.multiArgs
+                        (params = {})[name] = changed
+                        args = (params[multiName] for multiName in rule.params)
+                        rule.callback.apply(this, args)
+                      else
+                        rule.callback.call(this, changed)
+            else if target instanceof Collection
+              true# stub
 
 
     # @browser-only
