@@ -97,11 +97,14 @@ define [
           if queryParams.page? and queryParams.pageSize?
             # appending/replacing new models to the collection according to the paging options
             loadingStart = (queryParams.page - 1) * queryParams.pageSize
-#            loadingEnd = loadingStart + queryParams.pageSize - 1
+            loadingEnd = loadingStart + models.length - 1
 
             for model, i in models
               model.setCollection(this)
               @_models[loadingStart + i] = model
+
+            @_loadedStart = loadingStart if loadingStart < @_loadedStart
+            @_loadedEnd = loadingEnd if loadingEnd > @_loadedEnd
 
 #            if loadingStart <= @_loadedStart and loadingEnd >= @_loadedEnd
 #              @_models = models
@@ -166,7 +169,7 @@ define [
       @param Function(Array[Model]) callback "result"-callback with the list of the requested models
       ###
       start = (page - 1) * size
-      end = start + size - 1
+      end = start + size
 
       promise = (new Future).fork()
       if @_loadedStart <= start and @_loadedEnd >= end
