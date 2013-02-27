@@ -8,11 +8,12 @@ define [
   'cord!Module'
   'cord!StructureTemplate'
   'cord!templateLoader'
+  'cord!utils/Future'
   'dustjs-helpers'
   'monologue' + (if document? then '' else '.js')
   'postal'
   'underscore'
-], (Collection, configPaths, Context, cssHelper, isBrowser, Model, Module,StructureTemplate, templateLoader,
+], (Collection, configPaths, Context, cssHelper, isBrowser, Model, Module,StructureTemplate, templateLoader, Future,
     dust, Monologue, postal, _) ->
 
   dust.onLoad = (tmplPath, callback) ->
@@ -1050,30 +1051,21 @@ define [
 
         deferred: (chunk, context, bodies, params) =>
           deferredKeys = params.params.split /[, ]/
-          needToWait = (name for name in deferredKeys when @ctx.isDeferred name)
+          needToWait = (name for name in deferredKeys when @ctx.isDeferred(name))
 
           # there are deferred params, handling block async...
           if needToWait.length > 0
-            chunk.map (chunk) =>
-              waitCounter = 0
-              waitCounterFinish = false
-
-              for name in needToWait
-                if @ctx.isDeferred name
-                  waitCounter++
-                  subscription = postal.subscribe
-                    topic: "widget.#{ @ctx.id }.change.#{ name }"
-                    callback: (data) ->
-                      waitCounter--
-                      if waitCounter == 0 and waitCounterFinish
-                        showCallback()
-                      subscription.unsubscribe()
-
-              waitCounterFinish = true
-              if waitCounter == 0
-                showCallback()
-
-              showCallback = ->
+            promise = new Future
+            for name in needToWait
+              do (name) =>
+                promise.fork()
+                subscription = postal.subscribe
+                  topic: "widget.#{ @ctx.id }.change.#{ name }"
+                  callback: ->
+                    promise.resolve()
+                    subscription.unsubscribe()
+            chunk.map (chunk) ->
+              promise.done ->
                 chunk.render bodies.block, context
                 chunk.end()
           # no deffered params, parsing block immedialely
