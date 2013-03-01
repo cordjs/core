@@ -48,7 +48,7 @@ define [
           accessToken = cookie.get 'accessToken'
           refreshToken = cookie.get 'refreshToken'
 
-          console.log "Restore tokens: #{accessToken}, #{refreshToken}" if global.CONFIG.debug?.oauth2
+          console.log "Restore tokens: #{accessToken}, #{refreshToken}" if global.CONFIG.debug.oauth2
 
           callback accessToken, refreshToken
 

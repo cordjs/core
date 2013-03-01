@@ -45,7 +45,7 @@ define [
           form: argssss.params.form
 
 
-      console.log "BrowserRequest: #{method} #{argssss.url}"
+      console.log "BrowserRequest: #{method} #{argssss.url}" if global.CONFIG.debug?.request != 'simple'
       startRequest = new Date() if global.CONFIG.debug?.request
       window.curly[method] argssss.url, options, (error, response, body) =>
         if global.CONFIG.debug?.request
@@ -53,7 +53,9 @@ define [
           seconds = (stopRequest - startRequest) / 1000
 
           if global.CONFIG.debug?.request == 'simple'
-            console.log "BrowserRequest ( #{ seconds } s): #{method} #{argssss.url}"
+            url = argssss.url.replace('http://127.0.0.1:1337/_restAPI/', '')
+            url = url.replace(/(&|\?)?access_token=[^&]+/, '')
+            console.log "BrowserRequest ( #{ seconds } s): #{method} #{url}"
             if method isnt 'get'
               console.log body
           else
