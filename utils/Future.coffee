@@ -76,7 +76,7 @@ define [], () ->
       @_runCallback() if @_counter == 0
 
 
-    callback: ->
+    callback: (neededArgs...) ->
       ###
       Generates callback proxy function to be used in return-in-async-callback functions
        which allows to avoid callback-indentation hell by merging callback callback calls
@@ -92,7 +92,14 @@ define [], () ->
       order = @_order++
       @_callbackArgs ?= {}
       (args...) =>
-        @_callbackArgs[order] = args
+        if neededArgs.length
+          result = []
+          for i in neededArgs
+            result.push args[i]
+        else
+          result = args
+
+        @_callbackArgs[order] = result
         @resolve()
 
 
