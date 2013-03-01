@@ -55,6 +55,7 @@ define [
 
     _modelBindings: null
 
+    _subscribeOnAnyChild: null
 
     @initParamRules: ->
       ###
@@ -876,28 +877,35 @@ define [
       else
         @behaviourClass
 
-
+    #Special selector for children ':any' - subscribes on all child widgets
     bindChildEvents: ->
       if @constructor.childEvents?
         for eventDef, callback of @constructor.childEvents
           eventDef = eventDef.split ' '
           childName = eventDef[0]
           topic = eventDef[1]
-          if @childByName[childName]?
-            if _.isString callback
-              if @[callback]
-                name = callback
-                callback =  @[callback]
-                if not _.isFunction callback
-                  throw new Error("Callback #{ name } is not a function")
-              else
-                throw new Error("Callback #{ callback } doesn't exist")
-            else if not _.isFunction callback
-              throw new Error("Invalid child widget callback definition: [#{ childName }, #{ topic }]")
+          if _.isString callback
+            if @[callback]
+              name = callback
+              callback =  @[callback]
+              if not _.isFunction callback
+                throw new Error("Callback #{ name } is not a function")
+            else
+              throw new Error("Callback #{ callback } doesn't exist")
+          else if not _.isFunction callback
+            throw new Error("Invalid child widget callback definition: [#{ childName }, #{ topic }]")
 
-            @childByName[childName].on(topic, callback).withContext(this)
+          if childName == ':any'
+            @_subscribeOnAnyChild = [] if !@_subscribeOnAnyChild
+            @_subscribeOnAnyChild.push {topic: topic, callback:callback}
+            
+            for child of @childById
+              @childById[child].on(topic, callback).withContext(this)
           else
-            throw new Error("Trying to subscribe for event '#{ topic }' of unexistent child with name '#{ childName }'")
+            if @childByName[childName]?
+              @childByName[childName].on(topic, callback).withContext(this)
+            else
+              throw new Error("Trying to subscribe for event '#{ topic }' of unexistent child with name '#{ childName }'")
 
 
     bindModelEvents: ->
@@ -950,6 +958,9 @@ define [
       ###
       @widgetRepo.createWidget type, @getBundle(), (child) =>
         @registerChild child
+        if (@_subscribeOnAnyChild)
+          for option in @_subscribeOnAnyChild
+            child.on(option.topic, option.callback).withContext(this)
         callback(child)
 
 
