@@ -17,7 +17,7 @@ define [
       Adds css-file to the page if it is not already loaded
       ###
       if not @_loadedFiles[cssFile]?
-        console.log "CssManager::load(#{ cssFile })"
+#        console.log "CssManager::load(#{ cssFile })"
         $('head').append(helper.getHtmlLink cssFile)
         @_loadedFiles[cssFile] = true
 

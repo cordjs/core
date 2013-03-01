@@ -43,17 +43,17 @@ define [
     setSingle: (name, newValue) ->
       triggerChange = false
 
-      if newValue?
-        if @[name]?
+      if newValue != undefined
+        if @[name]? and @[name] isnt ':deferred'
           oldValue = @[name]
           if oldValue != newValue and newValue != ':deferred'
             triggerChange = true
         else
           triggerChange = true
 
-#      console.log "setSingle -> #{ name } = #{ newValue } (oldValue = #{ @[name] }) trigger = #{ triggerChange }"
+#      console.log "setSingle -> #{ name } = #{ newValue } (oldValue = #{ @[name] }) trigger = #{ triggerChange } -> #{ (new Date).getTime() }"
 
-      @[name] = newValue if typeof newValue != 'undefined'
+      @[name] = newValue if newValue != undefined
 
       if triggerChange
         Defer.nextTick =>

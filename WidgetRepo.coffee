@@ -22,7 +22,12 @@ define [
     _initEnd: false
     _widgetOrder: null
     _pushBindings: null
+
+    # list of widgets which build main hierarchy of widget's via #extend template calls
+    # begins from the most specific widget (leaf) and ends with most common (root) which doesn't extend another widget
     _currentExtendList: null
+    # temporary list of new widgets which are meant to replace several widgets at the beginnign of extend list during
+    # page switching process (processing new route)
     _newExtendList: null
 
 
@@ -369,6 +374,11 @@ define [
 
 
     findAndCutMatchingExtendWidget: (widgetPath) ->
+      ###
+      Finds common point and reorganizes extend list.
+      Finds if the target widget is already somewhere in the current extend list.
+      If there is - removes all widgets before it from extend list and adds new ones (if there are) instead of them.
+      ###
       result = null
       counter = 0
       for extendWidget in @_currentExtendList

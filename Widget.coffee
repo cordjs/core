@@ -899,7 +899,7 @@ define [
           if childName == ':any'
             @_subscribeOnAnyChild = [] if !@_subscribeOnAnyChild
             @_subscribeOnAnyChild.push {topic: topic, callback:callback}
-            
+
             for child of @childById
               @childById[child].on(topic, callback).withContext(this)
           else
