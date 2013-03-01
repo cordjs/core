@@ -1,6 +1,7 @@
 define [
   'jquery'
-], ($) ->
+  './browser/Defer'
+], ($, Defer) ->
 
   class DomHelper
 
@@ -15,18 +16,15 @@ define [
 
       $el = $('#' + id)
       if $el.length == 1
-        oneMore = false
-        wait = ->
-          oneMore = false
-          setTimeout ->
-            if not oneMore
+        cnt = 0
+        wait = (c) ->
+          Defer.nextTick ->
+            if c == cnt
               $el.off 'DOMNodeInserted'
               callback?()
-          , 0
 
         $el.on 'DOMNodeInserted', ->
-          oneMore = true
-          wait()
+          wait(++cnt)
         $el.html html
       else
         throw new Error("There is no DOM element with such id: [#{ id }]!")
