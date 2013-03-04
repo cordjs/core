@@ -182,7 +182,6 @@ define [
         $tmp = $("<div style=\"display:none\" id=\"#{ tmpId }\"></div>").appendTo('body') if $tmp.length == 0
 
         DomHelper.insertHtml tmpId, widget.renderRootTag(out), ->
-          widget.bindModelEvents()
           widget.browserInit()
           callback $('#'+widget.ctx.id), widget
           $tmp.remove()

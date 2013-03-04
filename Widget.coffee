@@ -199,6 +199,8 @@ define [
 
     cleanSubscriptions: ->
       subscription.unsubscribe() for subscription in @_postalSubscriptions
+      for name, mb of @_modelBindings
+        mb.subscription?.unsubscribe()
 
 
     setRepo: (repo) ->
@@ -216,6 +218,23 @@ define [
 
     getServiceContainer: =>
       @container
+
+
+    _registerModelBinding: (name, value) ->
+      ###
+      Handles situation when widget's incoming param is model of collection.
+      @param String name param name
+      @param Any value param value which should be checked to be model or collection and handled accordingly
+      ###
+      if isBrowser and @_modelBindings[name]?
+        mb = @_modelBindings[name]
+        if value != mb.model
+          if mb.subscription?
+            mb.subscription.unsubscribe()
+          delete @_modelBindings[name]
+      if value instanceof Model or value instanceof Collection
+        @_modelBindings[name] ?= {}
+        @_modelBindings[name].model = value
 
 
     processParams: (params, callback) ->
@@ -246,15 +265,13 @@ define [
                       args = []
                       for multiName in rule.params
                         value = params[multiName]
-                        if value instanceof Model or value instanceof Collection
-                          @_modelBindings[multiName] = value
+                        @_registerModelBinding(multiName, value)
                         args.push(value)
                       rule.callback.apply(this, args)
                       processedRules[rule.id] = true
                   else
+                    @_registerModelBinding(name, value)
                     rule.callback.call(this, value)
-                    if value instanceof Model or value instanceof Collection
-                      @_modelBindings[name] = value
                 when ':ignore'
                 else
                   throw new Error("Invalid param rule type: '#{ rule.type }'")
@@ -773,8 +790,8 @@ define [
         namedChilds[widget.ctx.id] = name
 
       serializedModelBindings = {}
-      for key, value of @_modelBindings
-        serializedModelBindings[key] = value.serializeLink()
+      for key, mb of @_modelBindings
+        serializedModelBindings[key] = mb.model.serializeLink()
 
       jsonParams = [@ctx, namedChilds, @childBindings, serializedModelBindings]
       jsonParamsString = (jsonParams.map (x) -> JSON.stringify(x)).join(',')
@@ -914,11 +931,11 @@ define [
       Subscribes to model events for model-params came to widget.
       ###
       rules = @constructor._paramRules
-      for name, target of @_modelBindings
-        do (name) =>
-          if rules[name]?
-            if target instanceof Model
-              target.on 'change', (changed) =>
+      for name, mb of @_modelBindings
+        if not mb.subscription? and rules[name]?
+          do (name) =>
+            if mb.model instanceof Model
+              mb.subscription = mb.model.on 'change', (changed) =>
                 for rule in rules[name]
                   switch rule.type
                     when ':setSame' then @ctx.set(name, changed)
@@ -930,7 +947,7 @@ define [
                         rule.callback.apply(this, args)
                       else
                         rule.callback.call(this, changed)
-            else if target instanceof Collection
+            else if mb.model instanceof Collection
               true# stub
 
 
@@ -975,7 +992,7 @@ define [
 
       if this != stopPropagateWidget and not @_delayedRender
         @bindChildEvents()
-#        @bindModelEvents()
+        @bindModelEvents()
 
         for widgetId, bindingMap of @childBindings
           @widgetRepo.getById(widgetId).cleanSubscriptions()
