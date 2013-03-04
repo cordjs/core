@@ -345,6 +345,20 @@ define [
         @resetChildren()
 
 
+    sentenceChildrenToDeath: ->
+      child.sentenceToDeath() for child in @children
+
+
+    sentenceToDeath: ->
+      @cleanSubscriptions()
+      @_sentenced = true
+      @sentenceChildrenToDeath()
+
+
+    isSentenced: ->
+      @_sentenced?
+
+
     compileTemplate: (callback) ->
       if not @compileMode
         callback 'not in compile mode', ''
@@ -1005,6 +1019,8 @@ define [
 
         @initBehaviour()
 
+        @emit 'render.complete'
+
 
     markRenderStarted: ->
       @_renderInProgress = true
@@ -1034,18 +1050,19 @@ define [
       subscription = postal.subscribe
         topic: "widget.#{ @ctx.id }.change.#{ value }"
         callback: (data) ->
-          # param with name "params" is a special case and we should expand the value as key-value pairs
-          # of widget's params
-          if name == 'params'
-            if _.isObject data.value
-              for subName, subValue of data.value
-                params[subName] = subValue
+          if data.value != ':deferred'
+            # param with name "params" is a special case and we should expand the value as key-value pairs
+            # of widget's params
+            if name == 'params'
+              if _.isObject data.value
+                for subName, subValue of data.value
+                  params[subName] = subValue
+              else
+                # todo: warning?
             else
-              # todo: warning?
-          else
-            params[name] = data.value
-          callback()
-          subscription.unsubscribe()
+              params[name] = data.value
+            callback()
+            subscription.unsubscribe()
 
 
     _buildBaseContext: ->
@@ -1090,9 +1107,10 @@ define [
                 promise.fork()
                 subscription = postal.subscribe
                   topic: "widget.#{ @ctx.id }.change.#{ name }"
-                  callback: ->
-                    promise.resolve()
-                    subscription.unsubscribe()
+                  callback: (data) ->
+                    if data.value != ':deferred'
+                      promise.resolve()
+                      subscription.unsubscribe()
             chunk.map (chunk) ->
               promise.done ->
                 chunk.render bodies.block, context

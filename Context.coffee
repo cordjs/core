@@ -67,7 +67,17 @@ define [
 
 
     setDeferred: (args...) ->
-      (@[name] = ':deferred') for name in args
+      for name in args
+        do (name) =>
+          oldValue = @[name]
+          @[name] = ':deferred'
+          Defer.nextTick =>
+            console.log "publish widget.#{ @id }.change.#{ name }" if global.CONFIG.debug?.widget
+            postal.publish "widget.#{ @id }.change.#{ name }",
+              name: name
+              value: ':deferred'
+              oldValue: oldValue
+
 
     isDeferred: (name) ->
       @[name] is ':deferred'

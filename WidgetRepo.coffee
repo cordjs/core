@@ -330,21 +330,22 @@ define [
       subscription = postal.subscribe
         topic: "widget.#{ parentWidgetId }.change.#{ ctxName }"
         callback: (data, envelope) ->
-          params = {}
+          if not childWidget.isSentenced()
+            params = {}
 
-          # param with name "params" is a special case and we should expand the value as key-value pairs
-          # of widget's params
-          if paramName == 'params'
-            if _.isObject data.value
-              for subName, subValue of data.value
-                params[subName] = subValue
+            # param with name "params" is a special case and we should expand the value as key-value pairs
+            # of widget's params
+            if paramName == 'params'
+              if _.isObject data.value
+                for subName, subValue of data.value
+                  params[subName] = subValue
+              else
+                # todo: warning?
             else
-              # todo: warning?
-          else
-            params[paramName] = data.value
+              params[paramName] = data.value
 
-          console.log "(wi) push binding event of parent (#{ envelope.topic }) for child widget #{ childWidget.debug(paramName) } -> #{ data.value }"
-          deferAggregator.fireAction childWidget, 'default', params
+            console.log "(wi) push binding event of parent (#{ envelope.topic }) for child widget #{ childWidget.debug(paramName) } -> #{ data.value }"
+            deferAggregator.fireAction childWidget, 'default', params
       childWidget.addSubscription subscription
       subscription
 

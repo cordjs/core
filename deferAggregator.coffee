@@ -1,7 +1,8 @@
 define [
   'cord!utils/Defer'
+  'cord!utils/Future'
   'underscore'
-], (Defer, _) ->
+], (Defer, Future, _) ->
 
   class DeferAggregator
 
@@ -9,14 +10,37 @@ define [
 
     fireAction: (widget, action, params) ->
       id = widget.ctx.id
-      if @defers[id]?[action]?
-        _.extend @defers[id][action], params
+      if @defers[id]?
+        df = @defers[id]
+        _.extend(df.params, params)
+        for key, value of params
+          if value == ':deferred'
+            if not df.deferredParams[key]?
+              df.promise.fork()
+              df.deferredParams[key] = true
+          else if df.deferredParams[key]?
+            df.promise.resolve()
+            df.deferredParams[key] = null
       else
-        @defers[id] = {} if not @defers[id]?
-        @defers[id][action] = params
-        Defer.nextTick =>
-          widget.fireAction action, @defers[id][action]
-          delete @defers[id][action]
+        df =
+          action: action
+          params: params
+          promise: (new Future).fork()
+          deferredParams: {}
+        @defers[id] = df
+
+        for key, value of params
+          if value == ':deferred'
+            df.deferredParams[key] = true
+            df.promise.fork()
+
+        Defer.nextTick ->
+          df.promise.resolve()
+
+        df.promise.done =>
+          if not widget.isSentenced()
+            widget.fireAction df.action, df.params
+          delete @defers[id]
 
 
   new DeferAggregator

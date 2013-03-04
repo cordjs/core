@@ -140,6 +140,7 @@ define [
 
     render: ->
       console.log "#{ @widget.debug 'defer-re-render' }"
+      @widget.sentenceChildrenToDeath()
 
       @defer 'render', =>
         if @widget?
