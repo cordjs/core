@@ -45,12 +45,12 @@ define [
     delegateEvents: (events) ->
       for key, method of events
 
-        method     = @_getMethod method
+        method     = @_getMethod(method)
         match      = key.match(/^(\S+)\s*(.*)$/)
         eventName  = match[1]
         selector   = match[2]
 
-        do (method, eventName, selector) =>
+        do (method) =>
           if selector is ''
             if eventName == 'init' || eventName == 'destroy'
               subscription = postal.subscribe
@@ -69,24 +69,24 @@ define [
       for fieldName, method of events
         subscription = postal.subscribe
           topic: "widget.#{ @id }.change.#{ fieldName }"
-          callback: @_getMethod method
+          callback: @_getMethod(method)
         @_widgetSubscriptions.push subscription
 
 
     _getMethod: (method) ->
       if typeof(method) is 'function'
       # Always return true from event handlers
-        method = do (method) => =>
-          method.apply(this, arguments)
+        result = =>
+          method.apply(this, arguments) if not @widget.isSentenced()
           true
       else
         unless @[method]
           throw new Error("#{method} doesn't exist")
 
-        method = do (method) => =>
-          @[method].apply(this, arguments)
+        result = =>
+          @[method].apply(this, arguments) if not @widget.isSentenced()
           true
-      method
+      result
 
 
     refreshElements: ->
