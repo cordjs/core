@@ -3,12 +3,13 @@ define [
   'cord!Collection'
   'cord!Context'
   'cord!deferAggregator'
+  'cord!isBrowser'
   'cord!Model'
   'cord!ModelRepo'
   'cord!utils/Future'
   'postal'
   'underscore'
-], (Api, Collection, Context, deferAggregator, Model, ModelRepo, Future, postal, _) ->
+], (Api, Collection, Context, deferAggregator, isBrowser, Model, ModelRepo, Future, postal, _) ->
 
   class WidgetRepo
     widgets: null
@@ -18,8 +19,9 @@ define [
     request: null
     response: null
 
-    _loadingCount: 0
-    _initEnd: false
+    # auxilliary varialbes for widget initialization support on page loading at browser side
+    _initPromise: null
+    _parentPromises: null
     _widgetOrder: null
     _pushBindings: null
 
@@ -37,6 +39,9 @@ define [
       @_pushBindings = {}
       @_currentExtendList = []
       @_newExtendList = []
+      if isBrowser
+        @_initPromise = new Future
+        @_parentPromises = {}
 
 
     setServiceContainer: (serviceContainer) =>
@@ -217,8 +222,14 @@ define [
         #{ @rootWidget.getInitCss() }
       """
 
+
     endInit: ->
-      @_initEnd = true
+      @_initPromise.done =>
+        @setupBindings()
+        # for GC
+        @_parentPromises = null
+        @_initPromise = null
+        @_pushBindings = null
 
 
     init: (widgetPath, ctx, namedChilds, childBindings, modelBindings, isExtended, parentId) ->
@@ -227,16 +238,17 @@ define [
       @browser-only
       ###
 
-      @_loadingCount++
-      @_widgetOrder.push ctx.id
+      @_widgetOrder.push(ctx.id)
 
       for widgetId, bindingMap of childBindings
         @_pushBindings[widgetId] = {}
         for ctxName, paramName of bindingMap
           @_pushBindings[widgetId][ctxName] = paramName
 
-      callbackPromise = new Future
+      @_initPromise.fork()
+      @_parentPromises[ctx.id] = (new Future).fork()
 
+      callbackPromise = new Future
       require ["cord-w!#{ widgetPath }"],       callbackPromise.callback()
       Context.fromJSON ctx, @serviceContainer,  callbackPromise.callback()
       @_unserializeModelBindings modelBindings, callbackPromise.callback()
@@ -252,34 +264,23 @@ define [
 
         if @_pushBindings[ctx.id]?
           for ctxName, paramName of @_pushBindings[ctx.id]
-            @subscribePushBinding parentId, ctxName, widget, paramName
+            @subscribePushBinding(parentId, ctxName, widget, paramName)
 
         @widgets[ctx.id] =
           widget: widget
           namedChilds: namedChilds
 
-        completeFunc = =>
-          @_loadingCount--
-          if @_loadingCount == 0 and @_initEnd
-            @setupBindings()
+        @_parentPromises[ctx.id].resolve()
 
         if parentId?
-          retryCounter = 0
-          timeoutFunc = =>
-            if @widgets[parentId]?
-              @widgets[parentId].widget.registerChild widget, @widgets[parentId].namedChilds[ctx.id] ? null
-              if widgetPath == '/cord/core//Switcher'
-                widget._contextBundle = @widgets[parentId].widget.getBundle()
-              completeFunc()
-            else if retryCounter < 10
-              console.log "widget load timeout activated", retryCounter
-              setTimeout timeoutFunc, retryCounter++
-            else
-              throw "Try to use uninitialized parent widget with id = #{ parentId } - couldn't load parent widget within timeout!"
-          timeoutFunc()
+          @_parentPromises[parentId].done =>
+            @widgets[parentId].widget.registerChild(widget, @widgets[parentId].namedChilds[ctx.id] ? null)
+            if widgetPath == '/cord/core//Switcher'
+              widget._contextBundle = @widgets[parentId].widget.getBundle()
+            @_initPromise.resolve()
         else
           @rootWidget = widget
-          completeFunc()
+          @_initPromise.resolve()
 
 
     setupBindings: ->
@@ -287,9 +288,10 @@ define [
       for id in @_widgetOrder
         widget = @widgets[id].widget
         if widget._isExtended
-          @_currentExtendList.push widget
+          @_currentExtendList.push(widget)
       # initializing DOM bindings of widgets in reverse order (leafs of widget tree - first)
       @bind(id) for id in @_widgetOrder.reverse()
+      @_widgetOrder = null
 
 
     bind: (widgetId) ->
