@@ -62,7 +62,10 @@ define [
             else
               $el.on(eventName, method) for $el in @rootEls
           else
-            $el.on(eventName, selector, method) for $el in @rootEls
+            if eventName == 'scroll'
+              $(selector, $el).on(eventName, method) for $el in @rootEls
+            else
+              $el.on(eventName, selector, method) for $el in @rootEls
 
 
     initWidgetEvents: (events) ->
