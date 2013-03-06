@@ -70,10 +70,12 @@ define [
 
     initWidgetEvents: (events) ->
       for fieldName, method of events
-        subscription = postal.subscribe
-          topic: "widget.#{ @id }.change.#{ fieldName }"
-          callback: @_getMethod(method)
-        @_widgetSubscriptions.push subscription
+        do (method) =>
+          subscription = postal.subscribe
+            topic: "widget.#{ @id }.change.#{ fieldName }"
+            callback: (data) =>
+              (@_getMethod(method))(data) if data.value != ':deferred'
+          @_widgetSubscriptions.push subscription
 
 
     _getMethod: (method) ->
@@ -142,7 +144,7 @@ define [
 
 
     render: ->
-      console.log "#{ @widget.debug 'defer-re-render' }"
+#      console.log "#{ @widget.debug 'defer-re-render' }"
       @widget.sentenceChildrenToDeath()
 
       @defer 'render', =>

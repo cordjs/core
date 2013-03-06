@@ -326,7 +326,7 @@ define [
       Just call action (change context) and do not output anything
       ###
       @_doAction action, params, =>
-        console.log "fireAction #{ @debug "_#{ action }Action" } -> params:", params, " context:", @ctx
+        console.log "#{ @debug 'fireAction' } -> ", params #, " context:", @ctx
 
 
     renderJson: (callback) ->
