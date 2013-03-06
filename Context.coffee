@@ -41,15 +41,17 @@ define [
 
 
     setSingle: (name, newValue) ->
-      triggerChange = false
-
       if newValue != undefined
-        if @[name]? and @[name] isnt ':deferred'
-          oldValue = @[name]
-          if oldValue != newValue and newValue != ':deferred'
-            triggerChange = true
+        if @[name] == ':deferred'
+          triggerChange = (newValue != ':deferred')
         else
-          triggerChange = true
+          oldValue = @[name]
+          if oldValue == null
+            triggerChange = (newValue != null)
+          else
+            triggerChange = (newValue != oldValue)
+      else
+        triggerChange = false
 
 #      console.log "setSingle -> #{ name } = #{ newValue } (oldValue = #{ @[name] }) trigger = #{ triggerChange } -> #{ (new Date).getTime() }"
 
@@ -68,15 +70,7 @@ define [
 
     setDeferred: (args...) ->
       for name in args
-        do (name) =>
-          oldValue = @[name]
-          @[name] = ':deferred'
-          Defer.nextTick =>
-            console.log "publish widget.#{ @id }.change.#{ name }" if global.CONFIG.debug?.widget
-            postal.publish "widget.#{ @id }.change.#{ name }",
-              name: name
-              value: ':deferred'
-              oldValue: oldValue
+        @setSingle(name, ':deferred')
 
 
     isDeferred: (name) ->
