@@ -45,7 +45,7 @@ define [
     delegateEvents: (events) ->
       for key, method of events
 
-        method     = @_getMethod(method)
+        method     = @_getEventMethod(method)
         match      = key.match(/^(\S+)\s*(.*)$/)
         eventName  = match[1]
         selector   = match[2]
@@ -70,27 +70,30 @@ define [
 
     initWidgetEvents: (events) ->
       for fieldName, method of events
-        do (method) =>
-          subscription = postal.subscribe
-            topic: "widget.#{ @id }.change.#{ fieldName }"
-            callback: (data) =>
-              (@_getMethod(method))(data) if data.value != ':deferred'
-          @_widgetSubscriptions.push subscription
+        subscription = postal.subscribe
+          topic: "widget.#{ @id }.change.#{ fieldName }"
+          callback: @_getWidgetEventMethod(method)
+        @_widgetSubscriptions.push(subscription)
 
 
-    _getMethod: (method) ->
+    _getEventMethod: (method) ->
+      m = @_getHandlerFunction(method)
+      =>
+        m.apply(this, arguments) if not @widget.isSentenced()
+        true
+
+
+    _getWidgetEventMethod: (method) ->
+      m = @_getHandlerFunction(method)
+      => m.apply(this, arguments) if not @widget.isSentenced() and arguments[0].value != ':deferred'
+
+
+    _getHandlerFunction: (method) ->
       if typeof(method) is 'function'
-      # Always return true from event handlers
-        result = =>
-          method.apply(this, arguments) if not @widget.isSentenced()
-          true
+        result = method
       else
-        unless @[method]
-          throw new Error("#{method} doesn't exist")
-
-        result = =>
-          @[method].apply(this, arguments) if not @widget.isSentenced()
-          true
+        throw new Error("#{method} doesn't exist") unless @[method]
+        result = @[method]
       result
 
 
