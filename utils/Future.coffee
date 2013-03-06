@@ -36,9 +36,12 @@ define [], () ->
     ###
 
     _counter: 0
-    _callback: null
+    _callbacks: null
     _order: 0
     _callbackArgs: null
+
+    constructor: ->
+      @_callbacks = []
 
 
     fork: ->
@@ -62,7 +65,7 @@ define [], () ->
       if @_counter > 0
         @_callbackArgs = [args] if args.length > 0
         @_counter--
-        @_runCallback() if @_counter == 0 and @_callback?
+        @_runCallbacks() if @_counter == 0 and @_callbacks?
       else
         throw new Error("Future::resolve is called more times than Future::fork!")
 
@@ -71,9 +74,10 @@ define [], () ->
       ###
       Defines callback function to be called when future is completed.
       If all waiting values are already resolved then callback is fired immedialtely.
+      If done method is called several times than all passed functions will be called.
       ###
-      @_callback = callback
-      @_runCallback() if @_counter == 0
+      @_callbacks.push(callback)
+      @_runCallbacks() if @_counter == 0
 
 
     callback: (neededArgs...) ->
@@ -103,19 +107,19 @@ define [], () ->
         @resolve()
 
 
-    _runCallback: ->
+    _runCallbacks: ->
       ###
-      Fires resulting callback defined in done with right list of arguments.
+      Fires resulting callback functions defined by done with right list of arguments.
       ###
       if @_callbackArgs?
         args = []
         for i in [0..@_order-1]
           args = args.concat(@_callbackArgs[i])
-        @_callback.apply(null, args)
+        callback.apply(null, args) for callback in @_callbacks
 
         @_order = 0
         @_callbackArgs = null
       else
-        @_callback()
+        callback() for callback in @_callbacks
 
-      @_callback = null
+      @_callbacks = []
