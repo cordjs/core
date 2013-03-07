@@ -79,7 +79,7 @@ define [
     _getEventMethod: (method) ->
       m = @_getHandlerFunction(method)
       =>
-        m.apply(this, arguments) if not @widget.isSentenced()
+        m.apply(this, arguments) #if not @widget.isSentenced()
         true
 
 
