@@ -22,6 +22,8 @@ require.config
     'the-box':          'vendor/the-box/app'
     'moment':           'vendor/moment/moment'
     'moment-ru':        'vendor/moment/lang/ru'
+    'sockjs':           'vendor/sockjs/sockjs'
+    'ecomet':           'bundles/megaplan/front/common/utils/Ecomet'
 
   shim:
     'dustjs-linkedin':
@@ -59,6 +61,9 @@ define [
         urlPrefix: '_restAPI/http://megaplan.megaplan.ru/api/v2/'
         getUserPasswordCallback: (callback) ->
           window.location.href = '/user/login/?back=' + window.location.pathname
+      ecomet:
+        host: 'megaplan.megaplan.ru'
+        authUri: '/SdfCommon/EcometOauth/auth'
       oauth2:
         clientId: 'ce8fcad010ef4d10a337574645d69ac8'
         secretKey: '2168c151f895448e911243f5c6d6cdc6'
@@ -92,6 +97,10 @@ define [
     serviceContainer.def 'discussRepo', (get, done) ->
       requirejs ['cord-m!/megaplan/front/talk//DiscussRepo'], (DiscussRepo) ->
         done null, new DiscussRepo(serviceContainer)
+
+    serviceContainer.def 'ecomet', (get, done) ->
+      requirejs ['ecomet'], (Ecomet) ->
+        done null, new Ecomet(serviceContainer)
 
     ###
     ###
