@@ -65,7 +65,7 @@ define [], () ->
       if @_counter > 0
         @_callbackArgs = [args] if args.length > 0
         @_counter--
-        @_runCallbacks() if @_counter == 0 and @_callbacks?
+        @_runCallbacks() if @_counter == 0 and @_callbacks.length > 0
       else
         throw new Error("Future::resolve is called more times than Future::fork!")
 
