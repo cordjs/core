@@ -40,7 +40,8 @@ define [], () ->
     _order: 0
     _callbackArgs: null
 
-    constructor: ->
+    constructor: (initialCounter = 0) ->
+      @_counter = initialCounter
       @_callbacks = []
 
 
