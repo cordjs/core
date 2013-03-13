@@ -196,16 +196,22 @@ define [
           $tmp.remove()
 
 
-    initChildWidget: (type, params, callback) ->
+    initChildWidget: (type, name, params, callback) ->
       ###
       Creates and initiates new child widget with the given type and params.
       Returns jquery-object referring to the widget's root element via callback argument for further inserting the
       widget to the right place in the DOM.
       @param String type widget type in canonical format (absolute or in context of the current widget)
+      @param (optional)String name optional name for the new widget
       @param Object params key-value params for the widget default action
       @param Function(jquery) callback callback which is called with the resulting jquery element and created object of widget
       ###
-      @widget.createChildWidget type, (newWidget) =>
+      if _.isObject(name)
+        callback = params
+        params = name
+        name = null
+
+      @widget.createChildWidget type, name, (newWidget) =>
         @renderNewWidget newWidget, params, callback
 
 
