@@ -41,6 +41,8 @@ define [
       else
         $(selector)
 
+    addSubscription: (subscriptionDef)->
+      @_widgetSubscriptions.push subscriptionDef
 
     delegateEvents: (events) ->
       for key, method of events

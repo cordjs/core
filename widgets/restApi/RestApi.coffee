@@ -44,6 +44,7 @@ define [
       Rest.request options, (body, error, response) ->
         #For debug reasons
         if response.statusCode != 200
+          console.log options.url
           console.log 'API ERROR:', body
           console.log response.body
         callback null, body
