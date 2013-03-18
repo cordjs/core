@@ -178,6 +178,8 @@ define [
       @param Object collections list of serialized registered collections keyed with their names
       @param Future promise a promise that must be resolved when collections are initialized
       ###
+      collections = JSON.parse(decodeURIComponent(escape(collections))) # decode utf-8 and parse
+
       @serviceContainer.eval repoServiceName, (repo) ->
         repo.setCollections(collections)
         promise.resolve()
@@ -191,7 +193,8 @@ define [
       result = []
       for key, val of @serviceContainer
         if val? and key.substr(0, 9) == '_box_val_' and val.isReady and val.val instanceof ModelRepo
-          result.push("wi.initRepo('#{ key.substr(9) }', #{ JSON.stringify(val.val) }, p.fork());")
+          escapedString = unescape(encodeURIComponent(JSON.stringify(val.val))).replace(/[\\']/g, '\\$&')
+          result.push("wi.initRepo('#{ key.substr(9) }', '#{ escapedString }', p.fork());")
       result.join("\n")
 
 
