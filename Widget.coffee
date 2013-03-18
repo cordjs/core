@@ -807,11 +807,14 @@ define [
       for key, mb of @_modelBindings
         serializedModelBindings[key] = mb.model.serializeLink()
 
-      jsonParams = [@ctx, namedChilds, @childBindings, serializedModelBindings]
+      # filter bad unicode characters before sending data to browser
+      ctxString = unescape(encodeURIComponent(JSON.stringify(@ctx))).replace(/[\\']/g, '\\$&')
+
+      jsonParams = [namedChilds, @childBindings, serializedModelBindings]
       jsonParamsString = (jsonParams.map (x) -> JSON.stringify(x)).join(',')
 
       """
-      wi.init('#{ @getPath() }',#{ jsonParamsString },#{ @_isExtended }#{ parentStr });
+      wi.init('#{ @getPath() }','#{ ctxString }',#{ jsonParamsString },#{ @_isExtended }#{ parentStr });
       #{ (widget.getInitCode(@ctx.id) for widget in @children).join '' }
       """
 

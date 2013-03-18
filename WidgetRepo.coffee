@@ -237,6 +237,7 @@ define [
       Restores widget's state after transferring from server to browser (initial html-page loading)
       @browser-only
       ###
+      ctx = JSON.parse(decodeURIComponent(escape(ctx))) # decode utf-8 and parse
 
       @_widgetOrder.push(ctx.id)
 
