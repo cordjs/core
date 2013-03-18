@@ -2,10 +2,11 @@ define [
   'cord!Collection'
   'cord!Model'
   'cord!Module'
+  'cord!utils/Defer'
   'cord!utils/Future'
   'underscore'
   'monologue' + (if document? then '' else '.js')
-], (Collection, Model, Module, Future, _, Monologue) ->
+], (Collection, Model, Module, Defer, Future, _, Monologue) ->
 
   class ModelRepo extends Module
     @include Monologue.prototype
@@ -172,6 +173,7 @@ define [
         urlParams.push("_sortby=#{ params.orderBy }") if params.orderBy?
         urlParams.push("_page=#{ params.page }") if params.page?
         urlParams.push("_pagesize=#{ params.pageSize }") if params.pageSize?
+        urlParams.push("_slice=#{ params.start },#{ params.end }") if params.start? or params.end?
 
       commonFields = []
       calcFields = []
@@ -192,7 +194,7 @@ define [
       @param Model model model to save
       @return Future(response, error)
       ###
-      promise = (new Future).fork()
+      promise = new Future(1)
       @container.eval 'api', (api) =>
         if model.id
           @emit 'change', model
@@ -211,9 +213,18 @@ define [
               model.id = response.id
               model.resetChangedFields()
               @emit 'sync', model
+              @_suggestNewModelToCollections(model)
             promise.resolve(response, error)
       promise
 
+
+    _suggestNewModelToCollections: (model) ->
+      ###
+      Notifies all available collections to check if they need to refresh with the new model
+      ###
+      Defer.nextTick =>
+        for name, collection of @_collections
+          collection.checkNewModel(model)
 
 
     debug: (method) ->

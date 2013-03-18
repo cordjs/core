@@ -6,7 +6,7 @@ define [
 ], (Module, Future, Monologue, _) ->
 
   class Collection extends Module
-    #@include Monologue.prototype
+    @include Monologue.prototype
 
     _filterType: ':none' # :none | :local | :backend
     _filterId: null
@@ -27,6 +27,8 @@ define [
     # partially loaded collection properties
     _loadedStart: 4294967295
     _loadedEnd: -1
+
+    _hasLimits: null
 
 
     @generateName: (options) ->
@@ -85,20 +87,25 @@ define [
 
       syncQuery = false
       if not (returnMode == ':cache' and @_initialized)
-        queryParams = orderBy: @_orderBy
-        queryParams.filterId = @_filterId if @_filterType == ':backend'
-        queryParams.fields = @_fields
-        queryParams.id = @_id if @_id
-        queryParams.page = params.page if params.page?
-        queryParams.pageSize = params.pageSize if params.pageSize?
+        queryParams =
+          fields: @_fields
+        if @_id
+          queryParams.id = @_id
+        else
+          queryParams.orderBy = @_orderBy
+          queryParams.filterId = @_filterId if @_filterType == ':backend'
+          queryParams.start = params.start if params.start?
+          queryParams.end = (params.end + 1)  if params.end?
+        if params.start == -20
+          console.error "test"
         @repo.query queryParams, (models) =>
           needCallback = not (@_initialized and syncQuery)
           syncQuery = true
-          if queryParams.page? and queryParams.pageSize?
-            # appending/replacing new models to the collection according to the paging options
-            loadingStart = (queryParams.page - 1) * queryParams.pageSize
-            loadingEnd = loadingStart + models.length - 1
+          if queryParams.start? and queryParams.end?
+            loadingStart = params.start
+            loadingEnd = params.end
 
+            # appending/replacing new models to the collection according to the paging options
             for model, i in models
               model.setCollection(this)
               @_models[loadingStart + i] = model
@@ -106,20 +113,13 @@ define [
             @_loadedStart = loadingStart if loadingStart < @_loadedStart
             @_loadedEnd = loadingEnd if loadingEnd > @_loadedEnd
 
-#            if loadingStart <= @_loadedStart and loadingEnd >= @_loadedEnd
-#              @_models = models
-#              @_loadedStart = loadingStart
-#              @_loadedEnd = loadingEnd
-#            else if loadingStart <= @_loadedStart
-#              @_models = models.concat(@_models.slice(@_models.length - (@_loadedEnd - loadingEnd)))
-#              @_loadedStart = loadingStart
-#            else if loadingEnd >= @_loadedEnd
-#              @_models = @_models.slice(0, loadingStart - @_loadedStart).concat(models)
-#              @_loadedEnd = loadingEnd
+            @_hasLimits = (@_hasLimits != false)
+
           else
             @_models = models
             @_loadedStart = 0
             @_loadedEnd = models.length - 1
+            @_hasLimits = false
 
             model.setCollection(this) for model in @_models
 
@@ -159,6 +159,51 @@ define [
           @_byId[m.id] = m
 
 
+    checkNewModel: (model) ->
+      ###
+      Checks if the new model is related to this collection. If it is reloads collection from the backend.
+      @param Model model the new model
+      ###
+      if not @_id
+        queryParams =
+          orderBy: @_orderBy
+          fields: @_fields
+        queryParams.filterId = @_filterId if @_filterType == ':backend'
+        if @_hasLimits
+          queryParams.start = @_loadedStart
+          queryParams.end = @_loadedEnd
+        @repo.query queryParams, (models) =>
+          newId = model.id
+          found = false
+          for m in models
+            if m.id == newId
+              found = true
+              break
+          if found
+            if queryParams.start? and queryParams.end?
+              loadingStart = queryParams.start
+              loadingEnd = queryParams.end
+
+              # appending/replacing new models to the collection according to the paging options
+              for model, i in models
+                model.setCollection(this)
+                @_models[loadingStart + i] = model
+
+              @_loadedStart = loadingStart if loadingStart < @_loadedStart
+              @_loadedEnd = loadingEnd if loadingEnd > @_loadedEnd
+
+            else
+              @_models = models
+              @_loadedStart = 0
+              @_loadedEnd = models.length - 1
+
+              model.setCollection(this) for model in @_models
+
+            @_reindexModels()
+
+            @emit 'change', [model]
+
+
     # paging related
 
     getPage: (page, size, callback) ->
@@ -168,23 +213,25 @@ define [
       @param Int size page size
       @param Function(Array[Model]) callback "result"-callback with the list of the requested models
       ###
+      #console.log "#{ @debug 'getPage' }(#{page}, #{size})"
+
       start = (page - 1) * size
-      end = start + size
+      end = start + size - 1
 
       promise = (new Future).fork()
       if @_loadedStart <= start and @_loadedEnd >= end
         promise.resolve()
       else
-        [loadPage, loadSize] = @_calculateLoadPageOptions(start, end)
+        [loadStart, loadEnd] = @_calculateLoadPageOptions(start, end)
 
         @sync ':sync',
-          page: loadPage
-          pageSize: loadSize
+          start: loadStart
+          end: loadEnd
         , ->
           promise.resolve()
 
       promise.done =>
-        callback(@toArray().slice(start, end))
+        callback(@toArray().slice(start, end + 1))
 
 
     _calculateLoadPageOptions: (start, end) ->
@@ -196,18 +243,7 @@ define [
       ###
       loadStart = if start < @_loadedStart then start else @_loadedEnd + 1
       loadEnd = if end > @_loadedEnd then end else @_loadedStart - 1
-      loadSize = loadEnd - loadStart + 1
-      if loadStart < loadSize
-        loadPage = 1
-        loadSize += loadStart
-      else
-        loadPage = Math.floor(loadStart / loadSize)
-        while not (loadPage * loadSize <= loadStart and (loadPage + 1) * loadSize > loadEnd)
-          loadSize++
-          if loadPage * loadSize - 1 > loadStart
-            loadPage--
-        loadPage++
-      [loadPage, loadSize]
+      [loadStart, loadEnd]
 
 
     # serialization related
