@@ -47,13 +47,25 @@ define [
 
 
     $: (selector) ->
-      if @rootEls.length
+      ###
+      Creates jQuery object with the given selector in the context of this widget.
+      Multiple root element of the widget (when there are several inlines) are also supported by aggregation or results.
+      @param String selector jquery selector
+      @return jQuery
+      ###
+      if @rootEls.length == 1
         $(selector, @rootEls[0])
+      else if @rootEls.length
+        result = $()
+        result = result.add(selector, el) for el in @rootEls
+        result
       else
         $(selector)
 
+
     addSubscription: (subscriptionDef)->
       @_widgetSubscriptions.push subscriptionDef
+
 
     delegateEvents: (events) ->
       for key, method of events
