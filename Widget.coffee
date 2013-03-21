@@ -968,8 +968,12 @@ define [
               true# stub
 
 
-    # @browser-only
-    initBehaviour: ->
+    initBehaviour: ($domRoot) ->
+      ###
+      Correctly (re)creates the behaviour instance for the widget if there is defined behaviour
+      @browser-only
+      @param jQuery $domRoot injected DOM root for the widget
+      ###
       if @behaviour?
         @behaviour.clean()
         @behaviour = null
@@ -979,9 +983,9 @@ define [
       if behaviourClass
         require ["cord!/#{ @getDir() }/#{ behaviourClass }"], (BehaviourClass) =>
           if BehaviourClass instanceof Function
-            @behaviour = new BehaviourClass this
+            @behaviour = new BehaviourClass(this, $domRoot)
           else
-            console.log 'WRONG BEHAVIOUR CLASS:', behaviourClass
+            console.err 'WRONG BEHAVIOUR CLASS:', behaviourClass
 
       @loadCss()
 
@@ -1005,12 +1009,17 @@ define [
         callback(child)
 
 
-    browserInit: (stopPropagateWidget) ->
+    browserInit: (stopPropagateWidget, $domRoot) ->
       ###
       Almost copy of widgetRepo::init but for client-side rendering
       @browser-only
-      @param Widget stopPropageteWidget widget for which method should stop pass browserInit to child widgets
+      @param (optional)Widget stopPropageteWidget widget for which method should stop pass browserInit to child widgets
+      @param (optional)jQuery domRoot injected DOM root for the widget or it's children
       ###
+
+      if stopPropagateWidget? and not (stopPropagateWidget instanceof Widget)
+        $domRoot = stopPropagateWidget
+        stopPropagateWidget = undefined
 
       if this != stopPropagateWidget and not @_delayedRender
         @bindChildEvents()
@@ -1023,9 +1032,9 @@ define [
 
         for childWidget in @children
           if not childWidget.behaviour?
-            childWidget.browserInit stopPropagateWidget
+            childWidget.browserInit(stopPropagateWidget, $domRoot)
 
-        @initBehaviour()
+        @initBehaviour($domRoot)
 
         @emit 'render.complete'
 

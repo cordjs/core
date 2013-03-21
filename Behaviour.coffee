@@ -9,12 +9,23 @@ define [
 
     rootEls: null
 
-    constructor: (widget) ->
+    constructor: (widget, $domRoot) ->
+      ###
+      @param Widget widget
+      @param (optional)jQuery $domRoot prepared root element of the widget or of some widget's parent
+      ###
       @_widgetSubscriptions = []
       @widget = widget
       @id = widget.ctx.id
 
-      @el  = $('#' + @widget.ctx.id )
+      if $domRoot
+        if $domRoot.attr('id') == @id
+          @el = $domRoot
+        else
+          @el = $('#' + @id, $domRoot)
+      else
+        @el  = $('#' + @id)
+
       @$el = @el
 
       @rootEls = []
@@ -188,14 +199,9 @@ define [
       ###
       widget.show params, (err, out) ->
         if err then throw err
-        tmpId = _.uniqueId '__cord_special_tmp_background_creation_container'
-        $tmp = $('#'+tmpId)
-        $tmp = $("<div style=\"display:none\" id=\"#{ tmpId }\"></div>").appendTo('body') if $tmp.length == 0
-
-        DomHelper.insertHtml tmpId, widget.renderRootTag(out), ->
-          widget.browserInit()
-          callback $('#'+widget.ctx.id), widget
-          $tmp.remove()
+        $el = $(widget.renderRootTag(out))
+        widget.browserInit($el)
+        callback($el, widget)
 
 
     initChildWidget: (type, name, params, callback) ->
