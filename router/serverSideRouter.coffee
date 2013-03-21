@@ -78,6 +78,10 @@ define [
           requirejs ['cord-m!/megaplan/front/talk//DiscussRepo'], (DiscussRepo) ->
             done null, new DiscussRepo(serviceContainer)
 
+        serviceContainer.def 'userStats', ['api'], (get, done) ->
+          get('api').get 'userStat/', (response) =>
+            done null, response
+
         ###
         ###
 
