@@ -47,14 +47,14 @@ define [
         if global.CONFIG.debug?.request
           stopRequest = new Date()
           seconds = (stopRequest - startRequest) / 1000
-          global.CONFIG.debug.request = 'full'
-          if global.CONFIG.debug?.request == 'simple'
-            console.log "ServerRequest (#{ seconds } s): #{method} #{argssss.url}"
-          else
-            console.log "========================================================================( #{ seconds } s)"
-            console.log "ServerRequest: #{method} #{argssss.url}"
-            console.log argssss.params
-            console.log body if global.CONFIG.debug?.request == 'full'
-            console.log "========================================================================"
+          #global.CONFIG.debug.request = 'full'
+          #if global.CONFIG.debug?.request == 'simple'
+          console.log "ServerRequest (#{ seconds } s): #{method} #{argssss.url}"
+          #else
+          #  console.log "========================================================================( #{ seconds } s)"
+          #  console.log "ServerRequest: #{method} #{argssss.url}"
+          #  console.log argssss.params
+          #  console.log body if global.CONFIG.debug?.request == 'full'
+          #  console.log "========================================================================"
 
         argssss.callback body, error if typeof argssss.callback == 'function'
