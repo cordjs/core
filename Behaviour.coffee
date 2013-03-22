@@ -184,6 +184,9 @@ define [
             if err then throw err
             DomHelper.insertHtml widget.ctx.id, out, ->
               widget.browserInit()
+#            $newWidgetRoot = $(widget.renderRootTag(out))
+#            widget.browserInit($newWidgetRoot)
+#            $('#'+widget.ctx.id).replaceWith($newWidgetRoot)
 
 
     renderInline: (name) ->
