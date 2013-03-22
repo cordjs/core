@@ -70,13 +70,16 @@ define [
             done null, new Api serviceContainer, get('config').api
 
         serviceContainer.def 'user', ['api'], (get, done) ->
-          console.log "serviceContainer.def 'user'"
           get('api').get 'employee/current/?_extra=user.id', (response) =>
             done null, response
 
         serviceContainer.def 'discussRepo', (get, done) ->
           requirejs ['cord-m!/megaplan/front/talk//DiscussRepo'], (DiscussRepo) ->
             done null, new DiscussRepo(serviceContainer)
+
+        serviceContainer.def 'userStats', ['api'], (get, done) ->
+          get('api').get 'userStat/', (response) =>
+            done null, response
 
         ###
         ###

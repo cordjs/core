@@ -12,7 +12,7 @@ define [
       ###
       Returns link-tag html for the given css file
       ###
-      "<link href=\"#{ path }\" rel=\"stylesheet\" />"
+      "<link href=\"#{ path }?uid=#{ (new Date()).getTime() }\" rel=\"stylesheet\" />"
 
 
     expandPath: (shortPath, contextWidget) ->
