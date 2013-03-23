@@ -685,13 +685,18 @@ define [
                 if waitCounter == 0 and waitCounterFinish
                   returnCallback()
               else
-                require ['cord!utils/DomHelper'], (DomHelper) ->
-                  DomHelper.insertHtml widgetId, out, ->
-                    widget._delayedRender = false
-                    widget.browserInit()
+                # insert actual content of the widget instead of timeout stub, inserted before
+                # @browser-only
+                widget._delayedRender = false
+                $newRoot = $(widget.renderRootTag(out))
+                widget.browserInit($newRoot)
+                # todo: add css waiter here
+                require ['jquery'], ($) ->
+                  $('#'+widget.ctx.id).replaceWith($newRoot)
 
             if isBrowser and info.timeout? and info.timeout > 0
               setTimeout ->
+                # if the widget has not been rendered within given timeout, render stub template from the {:timeout} block
                 if not complete
                   complete = true
                   widget._delayedRender = true
