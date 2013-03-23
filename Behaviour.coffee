@@ -172,9 +172,11 @@ define [
 
 
     render: ->
-#      console.log "#{ @widget.debug 'defer-re-render' }"
+      ###
+      Fully re-render and replace all widget's contents by killing all child widgets and re-rendering own template.
+      Works using defer async in order to collapse several simultaineous calls of render into one.
+      ###
       @widget.sentenceChildrenToDeath()
-
       @defer 'render', =>
         if @widget?
           console.log "#{ @widget.debug 're-render' }"
@@ -182,11 +184,9 @@ define [
           widget = @widget
           widget.renderTemplate (err, out) ->
             if err then throw err
-            DomHelper.insertHtml widget.ctx.id, out, ->
-              widget.browserInit()
-#            $newWidgetRoot = $(widget.renderRootTag(out))
-#            widget.browserInit($newWidgetRoot)
-#            $('#'+widget.ctx.id).replaceWith($newWidgetRoot)
+            $newWidgetRoot = $(widget.renderRootTag(out))
+            widget.browserInit($newWidgetRoot)
+            $('#'+widget.ctx.id).replaceWith($newWidgetRoot)
 
 
     renderInline: (name) ->
@@ -194,7 +194,6 @@ define [
       Re-renders inline with the given name
       @param String name inline's name to render
       ###
-
       @widget.renderInline name, (err, out) =>
         if err then throw err
         id = @widget.ctx[':inlines'][name].id

@@ -563,7 +563,6 @@ define [
       ###
       Renders widget's inline-block by name
       ###
-
       console.log "#{ @constructor.name }::renderInline(#{ inlineName })" if global.CONFIG.debug?.widget
 
       if @ctx[':inlines'][inlineName]?
@@ -583,22 +582,44 @@ define [
       else
         throw "Trying to render unknown inline (name = #{ inlineName })!"
 
-    renderRootTag: (content, cls) ->
-      classList = []
-      classList.push @cssClass if @cssClass
-      classList.push cls if cls
-      classAttr = if classList.length then " class=\"#{ classList.join ' ' }\"" else ""
+
+    renderRootTag: (content) ->
+      ###
+      Builds and returns correct html-code of the widget's root tag with the given rendered contents.
+      @param String content rendered template of the widget
+      @return String
+      ###
+      classString = @_buildClassString()
+      classAttr = if classString.length then ' class="' + classString + '"' else ''
       "<#{ @rootTag } id=\"#{ @ctx.id }\"#{ classAttr }>#{ content }</#{ @rootTag }>"
 
-    replaceClass: (cls) ->
+
+    replaceModifierClass: (cls) ->
       ###
+      Sets the new modifier class(es) (replacing the old if threre was) and immediately updates widget's root element
+       with new "class" attribute in DOM.
+      @param String cls space-separeted list of new modifier classes
       @browser-only
       ###
-      $el = $('#'+@ctx.id)
+      @setModifierClass(cls)
+      require ['jquery'], ($) =>
+        $('#'+@ctx.id).attr('class', @_buildClassString())
+
+
+    _buildClassString: ->
       classList = []
-      classList.push @cssClass if @cssClass
-      classList.push cls if cls
-      $el.attr('class', classList.join ' ')
+      classList.push(@cssClass) if @cssClass
+      classList.push(@ctx._modifierClass) if @ctx._modifierClass
+      classList.join(' ')
+
+
+    setModifierClass: (cls) ->
+      ###
+      Save modifier classes came from the template in the state of the widget.
+      Need it to be able to restore when widget is re-rendered and the root tag is recreated.
+      @param String class space-separeted list of css class-names
+      ###
+      @ctx._modifierClass = cls
 
 
     _renderPlaceholder: (name, callback) ->
@@ -617,7 +638,8 @@ define [
       for info in ph
         do (info) =>
           widgetId = info.widget
-          widget = @widgetRepo.getById widgetId
+          widget = @widgetRepo.getById(widgetId)
+          widget.setModifierClass(info.class) if info.type != 'inline'
 
           timeoutTemplateOwner = info.timeoutTemplateOwner
           delete info.timeoutTemplateOwner
@@ -628,7 +650,7 @@ define [
             actualRender = ->
               dust.render tmplPath, timeoutTemplateOwner.getBaseContext().push(timeoutTemplateOwner.ctx), (err, out) ->
                 if err then throw err
-                placeholderOut[placeholderOrder[widgetId]] = widget.renderRootTag out, info.class
+                placeholderOut[placeholderOrder[widgetId]] = widget.renderRootTag(out)
                 waitCounter--
                 if waitCounter == 0 and waitCounterFinish
                   returnCallback()
@@ -651,7 +673,7 @@ define [
               if err then throw err
               if not complete
                 complete = true
-                placeholderOut[placeholderOrder[widgetId]] = widget.renderRootTag out, info.class
+                placeholderOut[placeholderOrder[widgetId]] = widget.renderRootTag(out)
 
                 waitCounter--
                 if waitCounter == 0 and waitCounterFinish
@@ -671,7 +693,7 @@ define [
                     renderTimeoutTemplate()
                   else
                     placeholderOut[placeholderOrder[widgetId]] =
-                      widget.renderRootTag '<b>Hardcode Stub Text!!</b>', info.class
+                      widget.renderRootTag('<b>Hardcode Stub Text!!</b>')
                     waitCounter--
                     if waitCounter == 0 and waitCounterFinish
                       returnCallback()
@@ -687,7 +709,7 @@ define [
               renderTimeoutTemplate()
             else
               placeholderOut[placeholderOrder[widgetId]] =
-                widget.renderRootTag '<b>Hardcode Stub Text!!</b>', info.class
+                widget.renderRootTag('<b>Hardcode Stub Text!!</b>')
 
             subscription = postal.subscribe
               topic: "widget.#{ widgetId }.deferred.ready"
@@ -785,7 +807,7 @@ define [
                 do (item, i) =>
                   widget = @widgetRepo.getById item.widget
                   waitCounter++
-                  widget.replaceClass item.class
+                  widget.replaceModifierClass(item.class)
                   structTmpl.replacePlaceholders replaceHints[name].items[i], widget.ctx[':placeholders'], ->
                     widget.fireAction 'default', item.params
                     reduceWaitCounter()
@@ -1091,19 +1113,20 @@ define [
     _buildNormalBaseContext: ->
       dust.makeBase
 
-        #
-        # Widget-block
-        #
         widget: (chunk, context, bodies, params) =>
+          ###
+          {#widget/} block handling
+          ###
           @childWidgetAdd()
           chunk.map (chunk) =>
             callbackRender = (widget) =>
               @registerChild widget, params.name
               @resolveParamRefs widget, params, (actionParams) =>
+                widget.setModifierClass(params.class)
                 widget.show actionParams, (err, out) =>
                   @childWidgetComplete()
                   if err then throw err
-                  chunk.end widget.renderRootTag(out, params.class)
+                  chunk.end widget.renderRootTag(out)
 
             if bodies.block?
               @getStructTemplate (tmpl) ->
