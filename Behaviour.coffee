@@ -110,7 +110,9 @@ define [
 
     _getWidgetEventMethod: (method) ->
       m = @_getHandlerFunction(method)
-      => m.apply(this, arguments) if not @widget.isSentenced() and arguments[0].value != ':deferred'
+      =>
+        if not @widget.isSentenced() and arguments[0].value != ':deferred' and not arguments[0].initMode
+          m.apply(this, arguments)
 
 
     _getHandlerFunction: (method) ->

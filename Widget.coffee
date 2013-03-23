@@ -288,16 +288,22 @@ define [
         callback()
 
 
-    #
-    # Main method to call if you want to show rendered widget template
-    # @public
-    # @final
-    #
     show: (params, callback) ->
+      ###
+      Main method to call if you want to show rendered widget template
+      @param Object params params to pass to the widget processor
+      @param Function(err, String) callback callback to be called when widget's template is rendered
+      @public
+      @final
+      ###
+      @ctx.setInitMode(true) # to avoid handle context change events in the behaviour during initial processing
       @_doAction 'default', params, =>
         console.log "#{ @debug 'show' } -> params:", params, " context:", @ctx if global.CONFIG.debug?.widget
         @_handleOnShow =>
-          @renderTemplate callback
+          @renderTemplate (err, out) =>
+            @ctx.setInitMode(false)
+            callback(err, out)
+
 
     showJson: (params, callback) ->
       @_doAction 'default', params, =>
