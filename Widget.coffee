@@ -688,11 +688,11 @@ define [
                 # insert actual content of the widget instead of timeout stub, inserted before
                 # @browser-only
                 widget._delayedRender = false
-                $newRoot = $(widget.renderRootTag(out))
-                widget.browserInit($newRoot)
-                # todo: add css waiter here
                 require ['jquery'], ($) ->
-                  $('#'+widget.ctx.id).replaceWith($newRoot)
+                  $newRoot = $(widget.renderRootTag(out))
+                  widget.browserInit($newRoot)
+                  # todo: add css waiter here
+                  $('#'+widgetId).replaceWith($newRoot)
 
             if isBrowser and info.timeout? and info.timeout > 0
               setTimeout ->
@@ -775,15 +775,8 @@ define [
                                  and which should not
       @param Function() callback callback which should be called when replacement is done (async)
       ###
-
       require ['jquery', 'cord!utils/DomHelper'], ($, DomHelper) =>
-        waitCounter = 0
-        waitCounterFinish = false
-
-        reduceWaitCounter = ->
-          waitCounter--
-          if waitCounter == 0 and waitCounterFinish
-            callback()
+        promise = new Future
 
         ph = {}
         @ctx[':placeholders'] ?= []
@@ -804,29 +797,27 @@ define [
         for name, items of ph
           do (name) =>
             if replaceHints[name].replace
-              waitCounter++
+              promise.fork()
               @_renderPlaceholder name, (out) =>
                 try
-                  DomHelper.insertHtml @_getPlaceholderDomId(name), out, reduceWaitCounter
+                  DomHelper.insertHtml @_getPlaceholderDomId(name), out, -> promise.resolve()
                 catch e
                   console.log "WARNING: Trying to replace unexistent placeholder with name \"#{ name }\" " +
                     "in widget #{ @debug() }"
-                  reduceWaitCounter()
+                  promise.resolve()
             else
               i = 0
               for item in items
                 do (item, i) =>
                   widget = @widgetRepo.getById item.widget
-                  waitCounter++
+                  promise.fork()
                   widget.replaceModifierClass(item.class)
                   structTmpl.replacePlaceholders replaceHints[name].items[i], widget.ctx[':placeholders'], ->
                     widget.fireAction 'default', item.params
-                    reduceWaitCounter()
+                    promise.resolve()
                 i++
 
-        waitCounterFinish = true
-        if waitCounter == 0
-          callback()
+        promise.done(callback)
 
 
     getInitCode: (parentId) ->
