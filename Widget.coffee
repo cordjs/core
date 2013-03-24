@@ -24,6 +24,7 @@ define [
   class Widget extends Module
     @include Monologue.prototype
 
+
     # Enable special mode for building structure tree of widget
     compileMode: false
 
@@ -58,7 +59,11 @@ define [
 
     _subscribeOnAnyChild: null
 
-    @initParamRules: ->
+    # promise to load widget completely (with all styles and behaviours, including children)
+    _widgetReadyPromise: null
+
+
+    @_initParamRules: ->
       ###
       Prepares rules for handling incoming params of the widget.
       Converts params static attribute of the class into _paramRules array which defines behaviour of processParams
@@ -119,14 +124,44 @@ define [
           @_paramRules[name].push rule
 
 
+    @_initCss: (restoreMode) ->
+      ###
+      Start to load CSS-files immediately when the first instance of the widget is instantiated on dynamically in the
+       browser.
+      @browser-only
+      ###
+      @_cssPromise = new Future
+      if not restoreMode
+        @_cssPromise.fork()
+        require ['cord!css/browserManager'], (cssManager) =>
+          #cssManager.load cssFile for cssFile in @getCssFiles()
+          @_cssPromise.when(cssManager.load(cssFile)) for cssFile in @::getCssFiles()
+          @_cssPromise.resolve()
+
+
     getPath: ->
       @constructor.path
+
 
     getDir: ->
       @constructor.relativeDirPath
 
+
     getBundle: ->
       @constructor.bundle
+
+
+    @_initialized: false
+
+    @_init: (restoreMode) ->
+      ###
+      Initializes some class-wide propreties and actions that must be done once for the widget class.
+      @param Boolean restoreMode indicates that widget is re-creating on the browser after passing from the server
+      ###
+      if @params? or @initialCtx? # may be initialCtx is not necessary here
+        @_initParamRules()
+      @_initCss(restoreMode) if isBrowser
+      @_initialized = true
 
 
     constructor: (params) ->
@@ -139,12 +174,13 @@ define [
       * repo (WidgetRepo) - inject widget repository (should be always set except in compileMode
       * compileMode (boolean) - turn on/off special compile mode of the widget (default - false)
       * extended (boolean) - mark widget as part of extend tree (default - false)
+      * restoreMode(boolean) - hint pointing that it's a recreation of the widget while passing from server to browser
+                               helpful to make few optimizations
 
       @param (optional)Object params custom params, accepted by widget
       ###
 
-      if not @constructor._paramRules? and (@constructor.params? or @constructor.initialCtx?) # may be initialCtx is not necessary here
-        @constructor.initParamRules()
+      @constructor._init(params.restoreMode) if not @constructor._initialized
 
       @_modelBindings = {}
       if params?
@@ -692,7 +728,8 @@ define [
                   $newRoot = $(widget.renderRootTag(out))
                   widget.browserInit($newRoot)
                   # todo: add css waiter here
-                  $('#'+widgetId).replaceWith($newRoot)
+                  widget.ready().done ->
+                    $('#'+widgetId).replaceWith($newRoot)
 
             if isBrowser and info.timeout? and info.timeout > 0
               setTimeout ->
@@ -800,6 +837,7 @@ define [
               promise.fork()
               @_renderPlaceholder name, (out) =>
                 try
+                  # todo: add css waiter here
                   DomHelper.insertHtml @_getPlaceholderDomId(name), out, -> promise.resolve()
                 catch e
                   console.log "WARNING: Trying to replace unexistent placeholder with name \"#{ name }\" " +
@@ -901,6 +939,7 @@ define [
       @childByName = {}
       @childById = {}
       @childBindings = {}
+      @_widgetReadyPromise = new Future(1) if isBrowser
 
 
     registerChild: (child, name) ->
@@ -1011,8 +1050,6 @@ define [
           else
             console.err 'WRONG BEHAVIOUR CLASS:', behaviourClass
 
-      @loadCss()
-
 
     createChildWidget: (type, name, callback) ->
       ###
@@ -1040,7 +1077,6 @@ define [
       @param (optional)Widget stopPropageteWidget widget for which method should stop pass browserInit to child widgets
       @param (optional)jQuery domRoot injected DOM root for the widget or it's children
       ###
-
       if stopPropagateWidget? and not (stopPropagateWidget instanceof Widget)
         $domRoot = stopPropagateWidget
         stopPropagateWidget = undefined
@@ -1054,13 +1090,26 @@ define [
           for ctxName, paramName of bindingMap
             @widgetRepo.subscribePushBinding @ctx.id, ctxName, @childById[widgetId], paramName
 
+        @_widgetReadyPromise.when(@constructor._cssPromise)
         for childWidget in @children
+          @_widgetReadyPromise.when(childWidget.ready())
           if not childWidget.behaviour?
             childWidget.browserInit(stopPropagateWidget, $domRoot)
 
         @initBehaviour($domRoot)
 
-        @emit 'render.complete'
+        @_widgetReadyPromise.resolve()
+        @_widgetReadyPromise.done =>
+          @emit 'render.complete'
+        @_widgetReadyPromise
+
+
+    ready: ->
+      ###
+      Returns the widget's 'ready' promise.
+      @return Future
+      ###
+      @_widgetReadyPromise
 
 
     markRenderStarted: ->
