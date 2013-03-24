@@ -39,6 +39,8 @@ define [], () ->
     _callbacks: null
     _order: 0
     _callbackArgs: null
+    _completed: false
+
 
     constructor: (initialCounter = 0) ->
       @_counter = initialCounter
@@ -51,6 +53,7 @@ define [], () ->
       Should be paired with following resolve() call.
       @return Future(self)
       ###
+      throw Error("Trying to use the completed promise!") if @_completed
       @_counter++
       this
 
@@ -69,6 +72,19 @@ define [], () ->
         @_runCallbacks() if @_counter == 0 and @_callbacks.length > 0
       else
         throw new Error("Future::resolve is called more times than Future::fork!")
+
+
+    when: (args...) ->
+      ###
+      Adds another future(promise)(s) as a condition of completion of this future
+      Can be called multiple times.
+      @param (variable)Future args another future which'll be waited
+      @return Future self
+      ###
+      for promise in args
+        @fork()
+        promise.done => @resolve()
+      this
 
 
     done: (callback) ->
@@ -112,14 +128,13 @@ define [], () ->
       ###
       Fires resulting callback functions defined by done with right list of arguments.
       ###
+      @_completed = true
       if @_callbackArgs?
         args = []
         for i in [0..@_order-1]
           args = args.concat(@_callbackArgs[i])
         callback.apply(null, args) for callback in @_callbacks
-
-        @_order = 0
-        @_callbackArgs = null
+        @_callbacks = []
       else
         callback() for callback in @_callbacks
 
