@@ -22,15 +22,15 @@ define [
       @param Widget contextWidget
       @return String
       ###
-
+      result = null
       if shortPath.substr(0, 1) != '/' and shortPath.indexOf '//' == -1
         # context of current widget
         shortPath += '.css' if shortPath.substr(-4) != '.css'
-        "/bundles/#{ contextWidget.getDir() }/#{ shortPath }"
+        result = "/bundles/#{ contextWidget.getDir() }/#{ shortPath }"
       else
         if shortPath.substr(0,8) == '/vendor/'
           shortPath += '.css' if shortPath.substr(-4) != '.css'
-          return shortPath
+          result = shortPath
         else
           # canonical path format
           info = configPaths.parsePathRaw "#{ shortPath }@#{ contextWidget.getBundle() }"
@@ -45,8 +45,8 @@ define [
           else
             relativePath += '.css' if relativePath.substr(-4) != '.css'
 
-          return "/bundles#{ info.bundle }/widgets/#{ relativePath }"
-
+          result = "/bundles#{ info.bundle }/widgets/#{ relativePath }"
+      "#{ result }?uid=#{ (new Date).getTime() }"
 
 
   new Helper

@@ -13,11 +13,25 @@ define [
       if typeof arg1 is 'object'
         for key, value of arg1
           @[key] = value
+
+        delete @[':initMode'] if @[':initMode']?
       else
         @id = arg1
         if arg2
           for key, value of arg2
             @[key] = value
+
+
+    setInitMode: (mode) ->
+      ###
+      Sets/unsets initialization mode during wich change events are marked with special tag.
+      This is needed to avoid behaviours to react on async changes that was triggered while widget's initial rendering.
+      @param Boolen mode enable of disable the init mode
+      ###
+      if mode
+        @[':initMode'] = true
+      else
+        delete @[':initMode']
 
 
     set: (args...) ->
@@ -58,12 +72,14 @@ define [
       @[name] = newValue if newValue != undefined
 
       if triggerChange
+        curInitMode = @[':initMode']
         Defer.nextTick =>
           console.log "publish widget.#{ @id }.change.#{ name }" if global.CONFIG.debug?.widget
           postal.publish "widget.#{ @id }.change.#{ name }",
             name: name
             value: newValue
             oldValue: oldValue
+            initMode: curInitMode
 
       triggerChange
 

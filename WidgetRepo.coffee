@@ -265,6 +265,7 @@ define [
           serviceContainer: @serviceContainer
           modelBindings: modelBindings
           extended: isExtended
+          restoreMode: true
 
         if @_pushBindings[ctx.id]?
           for ctxName, paramName of @_pushBindings[ctx.id]

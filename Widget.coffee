@@ -24,6 +24,7 @@ define [
   class Widget extends Module
     @include Monologue.prototype
 
+
     # Enable special mode for building structure tree of widget
     compileMode: false
 
@@ -58,7 +59,11 @@ define [
 
     _subscribeOnAnyChild: null
 
-    @initParamRules: ->
+    # promise to load widget completely (with all styles and behaviours, including children)
+    _widgetReadyPromise: null
+
+
+    @_initParamRules: ->
       ###
       Prepares rules for handling incoming params of the widget.
       Converts params static attribute of the class into _paramRules array which defines behaviour of processParams
@@ -119,14 +124,44 @@ define [
           @_paramRules[name].push rule
 
 
+    @_initCss: (restoreMode) ->
+      ###
+      Start to load CSS-files immediately when the first instance of the widget is instantiated on dynamically in the
+       browser.
+      @browser-only
+      ###
+      @_cssPromise = new Future
+      if not restoreMode
+        @_cssPromise.fork()
+        require ['cord!css/browserManager'], (cssManager) =>
+          #cssManager.load cssFile for cssFile in @getCssFiles()
+          @_cssPromise.when(cssManager.load(cssFile)) for cssFile in @::getCssFiles()
+          @_cssPromise.resolve()
+
+
     getPath: ->
       @constructor.path
+
 
     getDir: ->
       @constructor.relativeDirPath
 
+
     getBundle: ->
       @constructor.bundle
+
+
+    @_initialized: false
+
+    @_init: (restoreMode) ->
+      ###
+      Initializes some class-wide propreties and actions that must be done once for the widget class.
+      @param Boolean restoreMode indicates that widget is re-creating on the browser after passing from the server
+      ###
+      if @params? or @initialCtx? # may be initialCtx is not necessary here
+        @_initParamRules()
+      @_initCss(restoreMode) if isBrowser
+      @_initialized = true
 
 
     constructor: (params) ->
@@ -139,12 +174,13 @@ define [
       * repo (WidgetRepo) - inject widget repository (should be always set except in compileMode
       * compileMode (boolean) - turn on/off special compile mode of the widget (default - false)
       * extended (boolean) - mark widget as part of extend tree (default - false)
+      * restoreMode(boolean) - hint pointing that it's a recreation of the widget while passing from server to browser
+                               helpful to make few optimizations
 
       @param (optional)Object params custom params, accepted by widget
       ###
 
-      if not @constructor._paramRules? and (@constructor.params? or @constructor.initialCtx?) # may be initialCtx is not necessary here
-        @constructor.initParamRules()
+      @constructor._init(params.restoreMode) if not @constructor._initialized
 
       @_modelBindings = {}
       if params?
@@ -288,16 +324,22 @@ define [
         callback()
 
 
-    #
-    # Main method to call if you want to show rendered widget template
-    # @public
-    # @final
-    #
     show: (params, callback) ->
+      ###
+      Main method to call if you want to show rendered widget template
+      @param Object params params to pass to the widget processor
+      @param Function(err, String) callback callback to be called when widget's template is rendered
+      @public
+      @final
+      ###
+      @ctx.setInitMode(true) # to avoid handle context change events in the behaviour during initial processing
       @_doAction 'default', params, =>
         console.log "#{ @debug 'show' } -> params:", params, " context:", @ctx if global.CONFIG.debug?.widget
         @_handleOnShow =>
-          @renderTemplate callback
+          @renderTemplate (err, out) =>
+            @ctx.setInitMode(false)
+            callback(err, out)
+
 
     showJson: (params, callback) ->
       @_doAction 'default', params, =>
@@ -563,7 +605,6 @@ define [
       ###
       Renders widget's inline-block by name
       ###
-
       console.log "#{ @constructor.name }::renderInline(#{ inlineName })" if global.CONFIG.debug?.widget
 
       if @ctx[':inlines'][inlineName]?
@@ -583,22 +624,44 @@ define [
       else
         throw "Trying to render unknown inline (name = #{ inlineName })!"
 
-    renderRootTag: (content, cls) ->
-      classList = []
-      classList.push @cssClass if @cssClass
-      classList.push cls if cls
-      classAttr = if classList.length then " class=\"#{ classList.join ' ' }\"" else ""
+
+    renderRootTag: (content) ->
+      ###
+      Builds and returns correct html-code of the widget's root tag with the given rendered contents.
+      @param String content rendered template of the widget
+      @return String
+      ###
+      classString = @_buildClassString()
+      classAttr = if classString.length then ' class="' + classString + '"' else ''
       "<#{ @rootTag } id=\"#{ @ctx.id }\"#{ classAttr }>#{ content }</#{ @rootTag }>"
 
-    replaceClass: (cls) ->
+
+    replaceModifierClass: (cls) ->
       ###
+      Sets the new modifier class(es) (replacing the old if threre was) and immediately updates widget's root element
+       with new "class" attribute in DOM.
+      @param String cls space-separeted list of new modifier classes
       @browser-only
       ###
-      $el = $('#'+@ctx.id)
+      @setModifierClass(cls)
+      require ['jquery'], ($) =>
+        $('#'+@ctx.id).attr('class', @_buildClassString())
+
+
+    _buildClassString: ->
       classList = []
-      classList.push @cssClass if @cssClass
-      classList.push cls if cls
-      $el.attr('class', classList.join ' ')
+      classList.push(@cssClass) if @cssClass
+      classList.push(@ctx._modifierClass) if @ctx._modifierClass
+      classList.join(' ')
+
+
+    setModifierClass: (cls) ->
+      ###
+      Save modifier classes came from the template in the state of the widget.
+      Need it to be able to restore when widget is re-rendered and the root tag is recreated.
+      @param String class space-separeted list of css class-names
+      ###
+      @ctx._modifierClass = cls
 
 
     _renderPlaceholder: (name, callback) ->
@@ -617,7 +680,8 @@ define [
       for info in ph
         do (info) =>
           widgetId = info.widget
-          widget = @widgetRepo.getById widgetId
+          widget = @widgetRepo.getById(widgetId)
+          widget.setModifierClass(info.class) if info.type != 'inline'
 
           timeoutTemplateOwner = info.timeoutTemplateOwner
           delete info.timeoutTemplateOwner
@@ -628,7 +692,7 @@ define [
             actualRender = ->
               dust.render tmplPath, timeoutTemplateOwner.getBaseContext().push(timeoutTemplateOwner.ctx), (err, out) ->
                 if err then throw err
-                placeholderOut[placeholderOrder[widgetId]] = widget.renderRootTag out, info.class
+                placeholderOut[placeholderOrder[widgetId]] = widget.renderRootTag(out)
                 waitCounter--
                 if waitCounter == 0 and waitCounterFinish
                   returnCallback()
@@ -651,19 +715,25 @@ define [
               if err then throw err
               if not complete
                 complete = true
-                placeholderOut[placeholderOrder[widgetId]] = widget.renderRootTag out, info.class
+                placeholderOut[placeholderOrder[widgetId]] = widget.renderRootTag(out)
 
                 waitCounter--
                 if waitCounter == 0 and waitCounterFinish
                   returnCallback()
               else
-                require ['cord!utils/DomHelper'], (DomHelper) ->
-                  DomHelper.insertHtml widgetId, out, ->
-                    widget._delayedRender = false
-                    widget.browserInit()
+                # insert actual content of the widget instead of timeout stub, inserted before
+                # @browser-only
+                widget._delayedRender = false
+                require ['jquery'], ($) ->
+                  $newRoot = $(widget.renderRootTag(out))
+                  widget.browserInit($newRoot)
+                  # todo: add css waiter here
+                  widget.ready().done ->
+                    $('#'+widgetId).replaceWith($newRoot)
 
             if isBrowser and info.timeout? and info.timeout > 0
               setTimeout ->
+                # if the widget has not been rendered within given timeout, render stub template from the {:timeout} block
                 if not complete
                   complete = true
                   widget._delayedRender = true
@@ -671,7 +741,7 @@ define [
                     renderTimeoutTemplate()
                   else
                     placeholderOut[placeholderOrder[widgetId]] =
-                      widget.renderRootTag '<b>Hardcode Stub Text!!</b>', info.class
+                      widget.renderRootTag('<b>Hardcode Stub Text!!</b>')
                     waitCounter--
                     if waitCounter == 0 and waitCounterFinish
                       returnCallback()
@@ -687,7 +757,7 @@ define [
               renderTimeoutTemplate()
             else
               placeholderOut[placeholderOrder[widgetId]] =
-                widget.renderRootTag '<b>Hardcode Stub Text!!</b>', info.class
+                widget.renderRootTag('<b>Hardcode Stub Text!!</b>')
 
             subscription = postal.subscribe
               topic: "widget.#{ widgetId }.deferred.ready"
@@ -742,15 +812,8 @@ define [
                                  and which should not
       @param Function() callback callback which should be called when replacement is done (async)
       ###
-
       require ['jquery', 'cord!utils/DomHelper'], ($, DomHelper) =>
-        waitCounter = 0
-        waitCounterFinish = false
-
-        reduceWaitCounter = ->
-          waitCounter--
-          if waitCounter == 0 and waitCounterFinish
-            callback()
+        promise = new Future
 
         ph = {}
         @ctx[':placeholders'] ?= []
@@ -771,29 +834,28 @@ define [
         for name, items of ph
           do (name) =>
             if replaceHints[name].replace
-              waitCounter++
+              promise.fork()
               @_renderPlaceholder name, (out) =>
                 try
-                  DomHelper.insertHtml @_getPlaceholderDomId(name), out, reduceWaitCounter
+                  # todo: add css waiter here
+                  DomHelper.insertHtml @_getPlaceholderDomId(name), out, -> promise.resolve()
                 catch e
                   console.log "WARNING: Trying to replace unexistent placeholder with name \"#{ name }\" " +
                     "in widget #{ @debug() }"
-                  reduceWaitCounter()
+                  promise.resolve()
             else
               i = 0
               for item in items
                 do (item, i) =>
                   widget = @widgetRepo.getById item.widget
-                  waitCounter++
-                  widget.replaceClass item.class
+                  promise.fork()
+                  widget.replaceModifierClass(item.class)
                   structTmpl.replacePlaceholders replaceHints[name].items[i], widget.ctx[':placeholders'], ->
                     widget.fireAction 'default', item.params
-                    reduceWaitCounter()
+                    promise.resolve()
                 i++
 
-        waitCounterFinish = true
-        if waitCounter == 0
-          callback()
+        promise.done(callback)
 
 
     getInitCode: (parentId) ->
@@ -877,6 +939,7 @@ define [
       @childByName = {}
       @childById = {}
       @childBindings = {}
+      @_widgetReadyPromise = new Future(1) if isBrowser
 
 
     registerChild: (child, name) ->
@@ -911,6 +974,7 @@ define [
         null
       else
         @behaviourClass
+
 
     #Special selector for children ':any' - subscribes on all child widgets
     bindChildEvents: ->
@@ -968,8 +1032,12 @@ define [
               true# stub
 
 
-    # @browser-only
-    initBehaviour: ->
+    initBehaviour: ($domRoot) ->
+      ###
+      Correctly (re)creates the behaviour instance for the widget if there is defined behaviour
+      @browser-only
+      @param jQuery $domRoot injected DOM root for the widget
+      ###
       if @behaviour?
         @behaviour.clean()
         @behaviour = null
@@ -979,11 +1047,9 @@ define [
       if behaviourClass
         require ["cord!/#{ @getDir() }/#{ behaviourClass }"], (BehaviourClass) =>
           if BehaviourClass instanceof Function
-            @behaviour = new BehaviourClass this
+            @behaviour = new BehaviourClass(this, $domRoot)
           else
-            console.log 'WRONG BEHAVIOUR CLASS:', behaviourClass
-
-      @loadCss()
+            console.err 'WRONG BEHAVIOUR CLASS:', behaviourClass
 
 
     createChildWidget: (type, name, callback) ->
@@ -1005,13 +1071,18 @@ define [
         callback(child)
 
 
-    browserInit: (stopPropagateWidget) ->
+    browserInit: (stopPropagateWidget, $domRoot) ->
       ###
       Almost copy of widgetRepo::init but for client-side rendering
       @browser-only
-      @param Widget stopPropageteWidget widget for which method should stop pass browserInit to child widgets
+      @param (optional)Widget stopPropageteWidget widget for which method should stop pass browserInit to child widgets
+      @param (optional)jQuery domRoot injected DOM root for the widget or it's children
       ###
+      if stopPropagateWidget? and not (stopPropagateWidget instanceof Widget)
+        $domRoot = stopPropagateWidget
+        stopPropagateWidget = undefined
 
+#      console.log "#{ @debug 'browserInit' }(#{ $domRoot?[0].tagName })"
       if this != stopPropagateWidget and not @_delayedRender
         @bindChildEvents()
         @bindModelEvents()
@@ -1021,13 +1092,30 @@ define [
           for ctxName, paramName of bindingMap
             @widgetRepo.subscribePushBinding @ctx.id, ctxName, @childById[widgetId], paramName
 
-        for childWidget in @children
-          if not childWidget.behaviour?
-            childWidget.browserInit stopPropagateWidget
+        try
+          @_widgetReadyPromise.when(@constructor._cssPromise) if not @_widgetReadyPromise.completed()
+          for childWidget in @children
+            @_widgetReadyPromise.when(childWidget.ready()) if not @_widgetReadyPromise.completed()
+            if not childWidget.behaviour?
+              childWidget.browserInit(stopPropagateWidget, $domRoot)
+        catch e
+          console.warn "#{ @debug 'exception' }", e
+          throw e
 
-        @initBehaviour()
+        @initBehaviour($domRoot)
 
-        @emit 'render.complete'
+        @_widgetReadyPromise.resolve() if not @_widgetReadyPromise.completed()
+        @_widgetReadyPromise.done =>
+          @emit 'render.complete'
+        @_widgetReadyPromise
+
+
+    ready: ->
+      ###
+      Returns the widget's 'ready' promise.
+      @return Future
+      ###
+      @_widgetReadyPromise
 
 
     markRenderStarted: ->
@@ -1082,19 +1170,20 @@ define [
     _buildNormalBaseContext: ->
       dust.makeBase
 
-        #
-        # Widget-block
-        #
         widget: (chunk, context, bodies, params) =>
+          ###
+          {#widget/} block handling
+          ###
           @childWidgetAdd()
           chunk.map (chunk) =>
             callbackRender = (widget) =>
               @registerChild widget, params.name
               @resolveParamRefs widget, params, (actionParams) =>
+                widget.setModifierClass(params.class)
                 widget.show actionParams, (err, out) =>
                   @childWidgetComplete()
                   if err then throw err
-                  chunk.end widget.renderRootTag(out, params.class)
+                  chunk.end widget.renderRootTag(out)
 
             if bodies.block?
               @getStructTemplate (tmpl) ->
