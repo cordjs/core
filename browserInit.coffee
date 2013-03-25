@@ -12,6 +12,7 @@ require.config
     'dustjs-linkedin':  'vendor/dustjs/dustjs-full'
     'dustjs-helpers':   'vendor/dustjs/dustjs-helpers'
     'jquery':           'vendor/jquery/jquery'
+    'jquery.ui':        'vendor/jquery/ui/jquery-ui'
     'jquery.cookie':    'vendor/jquery/plugins/jquery.cookie'
     'jquery.color':     'vendor/jquery/plugins/jquery.color'
     'jquery.scrollTo':  'vendor/jquery/plugins/jquery.scrollTo'
