@@ -193,7 +193,9 @@ define [
         @setServiceContainer params.serviceContainer if params.serviceContainer?
         @compileMode = params.compileMode if params.compileMode?
         @_isExtended = params.extended if params.extended?
-        @_modelBindings = params.modelBindings if params.modelBindings?
+        if params.modelBindings?
+          @_modelBindings = params.modelBindings
+          @_initModelsEvents() if isBrowser
 
       @_postalSubscriptions = []
       @resetChildren()
@@ -221,6 +223,7 @@ define [
         @behaviour = null
       @cleanSubscriptions()
       @_postalSubscriptions = []
+      @cleanModelSubscriptions()
       @_modelBindings = {}
 
 
@@ -235,6 +238,9 @@ define [
 
     cleanSubscriptions: ->
       subscription.unsubscribe() for subscription in @_postalSubscriptions
+
+
+    cleanModelSubscriptions: ->
       for name, mb of @_modelBindings
         mb.subscription?.unsubscribe()
 
@@ -265,12 +271,51 @@ define [
       if isBrowser and @_modelBindings[name]?
         mb = @_modelBindings[name]
         if value != mb.model
-          if mb.subscription?
-            mb.subscription.unsubscribe()
+          mb.subscription.unsubscribe() if mb.subscription?
           delete @_modelBindings[name]
       if value instanceof Model or value instanceof Collection
         @_modelBindings[name] ?= {}
         @_modelBindings[name].model = value
+
+        @_bindModelParamEvents(name) if isBrowser
+
+
+    _initModelsEvents: ->
+      ###
+      Subscribes to model events for all model-params came to widget.
+      @browser-only
+      ###
+      for name of @_modelBindings
+        @_bindModelParamEvents(name)
+#      # make context to wait until widget's behaviour readiness before triggering events
+#      @ctx.setEventKeeper(@ready())
+#      @ready().done => @ctx.setEventKeeper(null)
+
+
+    _bindModelParamEvents: (name) ->
+      ###
+      Subscribes the widget to the model events if param with the given name is model
+      @browser-only
+      @param String name widget's param name
+      ###
+      mb = @_modelBindings[name]
+      rules = @constructor._paramRules
+      if not mb.subscription? and rules[name]?
+        if mb.model instanceof Model
+          mb.subscription = mb.model.on 'change', (changed) =>
+            for rule in rules[name]
+              switch rule.type
+                when ':setSame' then @ctx.set(name, changed)
+                when ':set' then @ctx.set(rule.ctxName, changed)
+                when ':callback'
+                  if rule.multiArgs
+                    (params = {})[name] = changed
+                    args = (params[multiName] for multiName in rule.params)
+                    rule.callback.apply(this, args)
+                  else
+                    rule.callback.call(this, changed)
+        else if mb.model instanceof Collection
+          true# stub
 
 
     processParams: (params, callback) ->
@@ -332,12 +377,13 @@ define [
       @public
       @final
       ###
-      @ctx.setInitMode(true) # to avoid handle context change events in the behaviour during initial processing
+      # to avoid handle context change events in the behaviour during initial processing
+      @ctx.setInitMode(true) if isBrowser
       @_doAction 'default', params, =>
         console.log "#{ @debug 'show' } -> params:", params, " context:", @ctx if global.CONFIG.debug?.widget
         @_handleOnShow =>
           @renderTemplate (err, out) =>
-            @ctx.setInitMode(false)
+            @ctx.setInitMode(false) if isBrowser
             callback(err, out)
 
 
@@ -393,6 +439,7 @@ define [
 
     sentenceToDeath: ->
       @cleanSubscriptions()
+      @cleanModelSubscriptions()
       @_sentenced = true
       @sentenceChildrenToDeath()
 
@@ -441,6 +488,7 @@ define [
           require ["text!#{ tmplStructureFile }"], (jsonString) =>
             dust.register tmplStructureFile, JSON.parse(jsonString)
             returnCallback()
+
 
     injectAction: (action, params, callback) ->
       ###
@@ -1007,31 +1055,6 @@ define [
               throw new Error("Trying to subscribe for event '#{ topic }' of unexistent child with name '#{ childName }'")
 
 
-    bindModelEvents: ->
-      ###
-      Subscribes to model events for model-params came to widget.
-      ###
-      rules = @constructor._paramRules
-      for name, mb of @_modelBindings
-        if not mb.subscription? and rules[name]?
-          do (name) =>
-            if mb.model instanceof Model
-              mb.subscription = mb.model.on 'change', (changed) =>
-                for rule in rules[name]
-                  switch rule.type
-                    when ':setSame' then @ctx.set(name, changed)
-                    when ':set' then @ctx.set(rule.ctxName, changed)
-                    when ':callback'
-                      if rule.multiArgs
-                        (params = {})[name] = changed
-                        args = (params[multiName] for multiName in rule.params)
-                        rule.callback.apply(this, args)
-                      else
-                        rule.callback.call(this, changed)
-            else if mb.model instanceof Collection
-              true# stub
-
-
     initBehaviour: ($domRoot) ->
       ###
       Correctly (re)creates the behaviour instance for the widget if there is defined behaviour
@@ -1085,7 +1108,6 @@ define [
 #      console.log "#{ @debug 'browserInit' }(#{ $domRoot?[0].tagName })"
       if this != stopPropagateWidget and not @_delayedRender
         @bindChildEvents()
-        @bindModelEvents()
 
         for widgetId, bindingMap of @childBindings
           @widgetRepo.getById(widgetId).cleanSubscriptions()

@@ -13,8 +13,7 @@ define [
       if typeof arg1 is 'object'
         for key, value of arg1
           @[key] = value
-
-        delete @[':initMode'] if @[':initMode']?
+        delete @[':initMode'] if @[':initMode']? # init mode can only be set later, not here
       else
         @id = arg1
         if arg2
@@ -103,7 +102,7 @@ define [
           result[key] = value.serializeLink()
         else if value instanceof Model
           result[key] = value.serializeLink()
-        else
+        else if key != ':initMode'
           result[key] = value
       result
 

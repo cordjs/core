@@ -303,7 +303,6 @@ define [
       if @widgets[widgetId]?
         w = @widgets[widgetId].widget
         w.bindChildEvents()
-        w.bindModelEvents()
         w.initBehaviour()
       else
         throw "Try to use uninitialized widget with id = #{ widgetId }"
