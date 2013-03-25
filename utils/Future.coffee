@@ -124,6 +124,10 @@ define [], () ->
         @resolve()
 
 
+    completed: ->
+      @_completed
+
+
     _runCallbacks: ->
       ###
       Fires resulting callback functions defined by done with right list of arguments.
