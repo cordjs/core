@@ -975,6 +975,7 @@ define [
       else
         @behaviourClass
 
+
     #Special selector for children ':any' - subscribes on all child widgets
     bindChildEvents: ->
       if @constructor.childEvents?
@@ -1081,6 +1082,7 @@ define [
         $domRoot = stopPropagateWidget
         stopPropagateWidget = undefined
 
+#      console.log "#{ @debug 'browserInit' }(#{ $domRoot?[0].tagName })"
       if this != stopPropagateWidget and not @_delayedRender
         @bindChildEvents()
         @bindModelEvents()
@@ -1090,15 +1092,19 @@ define [
           for ctxName, paramName of bindingMap
             @widgetRepo.subscribePushBinding @ctx.id, ctxName, @childById[widgetId], paramName
 
-        @_widgetReadyPromise.when(@constructor._cssPromise)
-        for childWidget in @children
-          @_widgetReadyPromise.when(childWidget.ready())
-          if not childWidget.behaviour?
-            childWidget.browserInit(stopPropagateWidget, $domRoot)
+        try
+          @_widgetReadyPromise.when(@constructor._cssPromise) if not @_widgetReadyPromise.completed()
+          for childWidget in @children
+            @_widgetReadyPromise.when(childWidget.ready()) if not @_widgetReadyPromise.completed()
+            if not childWidget.behaviour?
+              childWidget.browserInit(stopPropagateWidget, $domRoot)
+        catch e
+          console.warn "#{ @debug 'exception' }", e
+          throw e
 
         @initBehaviour($domRoot)
 
-        @_widgetReadyPromise.resolve()
+        @_widgetReadyPromise.resolve() if not @_widgetReadyPromise.completed()
         @_widgetReadyPromise.done =>
           @emit 'render.complete'
         @_widgetReadyPromise
