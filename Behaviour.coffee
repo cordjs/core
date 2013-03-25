@@ -9,12 +9,23 @@ define [
 
     rootEls: null
 
-    constructor: (widget) ->
+    constructor: (widget, $domRoot) ->
+      ###
+      @param Widget widget
+      @param (optional)jQuery $domRoot prepared root element of the widget or of some widget's parent
+      ###
       @_widgetSubscriptions = []
       @widget = widget
       @id = widget.ctx.id
 
-      @el  = $('#' + @widget.ctx.id )
+      if $domRoot
+        if $domRoot.attr('id') == @id
+          @el = $domRoot
+        else
+          @el = $('#' + @id, $domRoot)
+      else
+        @el  = $('#' + @id)
+
       @$el = @el
 
       @rootEls = []
@@ -36,13 +47,25 @@ define [
 
 
     $: (selector) ->
-      if @rootEls.length
+      ###
+      Creates jQuery object with the given selector in the context of this widget.
+      Multiple root element of the widget (when there are several inlines) are also supported by aggregation or results.
+      @param String selector jquery selector
+      @return jQuery
+      ###
+      if @rootEls.length == 1
         $(selector, @rootEls[0])
+      else if @rootEls.length
+        result = $()
+        result = result.add(selector, el) for el in @rootEls
+        result
       else
         $(selector)
 
+
     addSubscription: (subscriptionDef)->
       @_widgetSubscriptions.push subscriptionDef
+
 
     delegateEvents: (events) ->
       for key, method of events
@@ -87,7 +110,9 @@ define [
 
     _getWidgetEventMethod: (method) ->
       m = @_getHandlerFunction(method)
-      => m.apply(this, arguments) if not @widget.isSentenced() and arguments[0].value != ':deferred'
+      =>
+        if not @widget.isSentenced() and arguments[0].value != ':deferred' and not arguments[0].initMode
+          m.apply(this, arguments)
 
 
     _getHandlerFunction: (method) ->
@@ -149,9 +174,11 @@ define [
 
 
     render: ->
-#      console.log "#{ @widget.debug 'defer-re-render' }"
+      ###
+      Fully re-render and replace all widget's contents by killing all child widgets and re-rendering own template.
+      Works using defer async in order to collapse several simultaineous calls of render into one.
+      ###
       @widget.sentenceChildrenToDeath()
-
       @defer 'render', =>
         if @widget?
           console.log "#{ @widget.debug 're-render' }"
@@ -159,8 +186,9 @@ define [
           widget = @widget
           widget.renderTemplate (err, out) ->
             if err then throw err
-            DomHelper.insertHtml widget.ctx.id, out, ->
-              widget.browserInit()
+            $newWidgetRoot = $(widget.renderRootTag(out))
+            widget.browserInit($newWidgetRoot)
+            $('#'+widget.ctx.id).replaceWith($newWidgetRoot)
 
 
     renderInline: (name) ->
@@ -168,7 +196,6 @@ define [
       Re-renders inline with the given name
       @param String name inline's name to render
       ###
-
       @widget.renderInline name, (err, out) =>
         if err then throw err
         id = @widget.ctx[':inlines'][name].id
@@ -188,14 +215,9 @@ define [
       ###
       widget.show params, (err, out) ->
         if err then throw err
-        tmpId = _.uniqueId '__cord_special_tmp_background_creation_container'
-        $tmp = $('#'+tmpId)
-        $tmp = $("<div style=\"display:none\" id=\"#{ tmpId }\"></div>").appendTo('body') if $tmp.length == 0
-
-        DomHelper.insertHtml tmpId, widget.renderRootTag(out), ->
-          widget.browserInit()
-          callback $('#'+widget.ctx.id), widget
-          $tmp.remove()
+        $el = $(widget.renderRootTag(out))
+        widget.browserInit($el)
+        callback($el, widget)
 
 
     initChildWidget: (type, name, params, callback) ->

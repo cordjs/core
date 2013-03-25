@@ -70,7 +70,6 @@ define [
             done null, new Api serviceContainer, get('config').api
 
         serviceContainer.def 'user', ['api'], (get, done) ->
-          console.log "serviceContainer.def 'user'"
           get('api').get 'employee/current/?_extra=user.id', (response) =>
             done null, response
 
