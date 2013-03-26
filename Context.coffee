@@ -13,6 +13,8 @@ define [
       if typeof arg1 is 'object'
         for key, value of arg1
           @[key] = value
+
+        delete @[':initMode'] if @[':initMode']?
       else
         @id = arg1
         if arg2

@@ -187,8 +187,8 @@ define [
           widget.renderTemplate (err, out) ->
             if err then throw err
             $newWidgetRoot = $(widget.renderRootTag(out))
-            widget.browserInit($newWidgetRoot)
-            $('#'+widget.ctx.id).replaceWith($newWidgetRoot)
+            widget.browserInit($newWidgetRoot).done ->
+              $('#'+widget.ctx.id).replaceWith($newWidgetRoot)
 
 
     renderInline: (name) ->
@@ -216,8 +216,8 @@ define [
       widget.show params, (err, out) ->
         if err then throw err
         $el = $(widget.renderRootTag(out))
-        widget.browserInit($el)
-        callback($el, widget)
+        widget.browserInit($el).done ->
+          callback($el, widget)
 
 
     initChildWidget: (type, name, params, callback) ->

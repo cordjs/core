@@ -24,6 +24,7 @@ define [
   class Widget extends Module
     @include Monologue.prototype
 
+
     # Enable special mode for building structure tree of widget
     compileMode: false
 
@@ -58,7 +59,11 @@ define [
 
     _subscribeOnAnyChild: null
 
-    @initParamRules: ->
+    # promise to load widget completely (with all styles and behaviours, including children)
+    _widgetReadyPromise: null
+
+
+    @_initParamRules: ->
       ###
       Prepares rules for handling incoming params of the widget.
       Converts params static attribute of the class into _paramRules array which defines behaviour of processParams
@@ -119,14 +124,44 @@ define [
           @_paramRules[name].push rule
 
 
+    @_initCss: (restoreMode) ->
+      ###
+      Start to load CSS-files immediately when the first instance of the widget is instantiated on dynamically in the
+       browser.
+      @browser-only
+      ###
+      @_cssPromise = new Future
+      if not restoreMode
+        @_cssPromise.fork()
+        require ['cord!css/browserManager'], (cssManager) =>
+          #cssManager.load cssFile for cssFile in @getCssFiles()
+          @_cssPromise.when(cssManager.load(cssFile)) for cssFile in @::getCssFiles()
+          @_cssPromise.resolve()
+
+
     getPath: ->
       @constructor.path
+
 
     getDir: ->
       @constructor.relativeDirPath
 
+
     getBundle: ->
       @constructor.bundle
+
+
+    @_initialized: false
+
+    @_init: (restoreMode) ->
+      ###
+      Initializes some class-wide propreties and actions that must be done once for the widget class.
+      @param Boolean restoreMode indicates that widget is re-creating on the browser after passing from the server
+      ###
+      if @params? or @initialCtx? # may be initialCtx is not necessary here
+        @_initParamRules()
+      @_initCss(restoreMode) if isBrowser
+      @_initialized = true
 
 
     constructor: (params) ->
@@ -139,12 +174,13 @@ define [
       * repo (WidgetRepo) - inject widget repository (should be always set except in compileMode
       * compileMode (boolean) - turn on/off special compile mode of the widget (default - false)
       * extended (boolean) - mark widget as part of extend tree (default - false)
+      * restoreMode(boolean) - hint pointing that it's a recreation of the widget while passing from server to browser
+                               helpful to make few optimizations
 
       @param (optional)Object params custom params, accepted by widget
       ###
 
-      if not @constructor._paramRules? and (@constructor.params? or @constructor.initialCtx?) # may be initialCtx is not necessary here
-        @constructor.initParamRules()
+      @constructor._init(params.restoreMode) if not @constructor._initialized
 
       @_modelBindings = {}
       if params?
@@ -685,13 +721,19 @@ define [
                 if waitCounter == 0 and waitCounterFinish
                   returnCallback()
               else
-                require ['cord!utils/DomHelper'], (DomHelper) ->
-                  DomHelper.insertHtml widgetId, out, ->
-                    widget._delayedRender = false
-                    widget.browserInit()
+                # insert actual content of the widget instead of timeout stub, inserted before
+                # @browser-only
+                widget._delayedRender = false
+                require ['jquery'], ($) ->
+                  $newRoot = $(widget.renderRootTag(out))
+                  widget.browserInit($newRoot)
+                  # todo: add css waiter here
+                  widget.ready().done ->
+                    $('#'+widgetId).replaceWith($newRoot)
 
             if isBrowser and info.timeout? and info.timeout > 0
               setTimeout ->
+                # if the widget has not been rendered within given timeout, render stub template from the {:timeout} block
                 if not complete
                   complete = true
                   widget._delayedRender = true
@@ -770,15 +812,8 @@ define [
                                  and which should not
       @param Function() callback callback which should be called when replacement is done (async)
       ###
-
       require ['jquery', 'cord!utils/DomHelper'], ($, DomHelper) =>
-        waitCounter = 0
-        waitCounterFinish = false
-
-        reduceWaitCounter = ->
-          waitCounter--
-          if waitCounter == 0 and waitCounterFinish
-            callback()
+        promise = new Future
 
         ph = {}
         @ctx[':placeholders'] ?= []
@@ -799,29 +834,28 @@ define [
         for name, items of ph
           do (name) =>
             if replaceHints[name].replace
-              waitCounter++
+              promise.fork()
               @_renderPlaceholder name, (out) =>
                 try
-                  DomHelper.insertHtml @_getPlaceholderDomId(name), out, reduceWaitCounter
+                  # todo: add css waiter here
+                  DomHelper.insertHtml @_getPlaceholderDomId(name), out, -> promise.resolve()
                 catch e
                   console.log "WARNING: Trying to replace unexistent placeholder with name \"#{ name }\" " +
                     "in widget #{ @debug() }"
-                  reduceWaitCounter()
+                  promise.resolve()
             else
               i = 0
               for item in items
                 do (item, i) =>
                   widget = @widgetRepo.getById item.widget
-                  waitCounter++
+                  promise.fork()
                   widget.replaceModifierClass(item.class)
                   structTmpl.replacePlaceholders replaceHints[name].items[i], widget.ctx[':placeholders'], ->
                     widget.fireAction 'default', item.params
-                    reduceWaitCounter()
+                    promise.resolve()
                 i++
 
-        waitCounterFinish = true
-        if waitCounter == 0
-          callback()
+        promise.done(callback)
 
 
     getInitCode: (parentId) ->
@@ -905,6 +939,7 @@ define [
       @childByName = {}
       @childById = {}
       @childBindings = {}
+      @_widgetReadyPromise = new Future(1) if isBrowser
 
 
     registerChild: (child, name) ->
@@ -939,6 +974,7 @@ define [
         null
       else
         @behaviourClass
+
 
     #Special selector for children ':any' - subscribes on all child widgets
     bindChildEvents: ->
@@ -1015,8 +1051,6 @@ define [
           else
             console.err 'WRONG BEHAVIOUR CLASS:', behaviourClass
 
-      @loadCss()
-
 
     createChildWidget: (type, name, callback) ->
       ###
@@ -1044,11 +1078,11 @@ define [
       @param (optional)Widget stopPropageteWidget widget for which method should stop pass browserInit to child widgets
       @param (optional)jQuery domRoot injected DOM root for the widget or it's children
       ###
-
       if stopPropagateWidget? and not (stopPropagateWidget instanceof Widget)
         $domRoot = stopPropagateWidget
         stopPropagateWidget = undefined
 
+#      console.log "#{ @debug 'browserInit' }(#{ $domRoot?[0].tagName })"
       if this != stopPropagateWidget and not @_delayedRender
         @bindChildEvents()
         @bindModelEvents()
@@ -1058,13 +1092,30 @@ define [
           for ctxName, paramName of bindingMap
             @widgetRepo.subscribePushBinding @ctx.id, ctxName, @childById[widgetId], paramName
 
-        for childWidget in @children
-          if not childWidget.behaviour?
-            childWidget.browserInit(stopPropagateWidget, $domRoot)
+        try
+          @_widgetReadyPromise.when(@constructor._cssPromise) if not @_widgetReadyPromise.completed()
+          for childWidget in @children
+            @_widgetReadyPromise.when(childWidget.ready()) if not @_widgetReadyPromise.completed()
+            if not childWidget.behaviour?
+              childWidget.browserInit(stopPropagateWidget, $domRoot)
+        catch e
+          console.warn "#{ @debug 'exception' }", e
+          throw e
 
         @initBehaviour($domRoot)
 
-        @emit 'render.complete'
+        @_widgetReadyPromise.resolve() if not @_widgetReadyPromise.completed()
+        @_widgetReadyPromise.done =>
+          @emit 'render.complete'
+        @_widgetReadyPromise
+
+
+    ready: ->
+      ###
+      Returns the widget's 'ready' promise.
+      @return Future
+      ###
+      @_widgetReadyPromise
 
 
     markRenderStarted: ->
