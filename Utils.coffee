@@ -155,10 +155,10 @@ define [
     @getNameInitials = (name) ->
       if not name
         return ''
-      nameInitials = ''
-      nameInitials += part.charAt(0).toUpperCase() + '.' for part in name.split(' ')
+      nameSplited = name.split(' ')
 
-      nameInitials
+      nameInitials = nameSplited[0].charAt(0).toUpperCase() + '.' + nameSplited[1].charAt(0).toUpperCase() + '.'
+
 
     #Smart divide array into two pieces, where first piece should contain at least minFirst, and second not less than minSecond
     @smartArraySlice = (inputArray, minFirst, minSecond) ->
