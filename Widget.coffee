@@ -1046,15 +1046,6 @@ define [
       result
 
 
-    loadCss: ->
-      ###
-      Load widget's css-files to the current page.
-      @browser-only
-      ###
-      require ['cord!css/browserManager'], (cssManager) =>
-        cssManager.load cssFile for cssFile in @getCssFiles()
-
-
     debug: (method) ->
       ###
       Return identification string of the current widget for debug purposes
