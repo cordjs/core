@@ -1,9 +1,8 @@
 define [
   'cord!utils/Defer'
-  'cord!utils/DomHelper'
   'jquery'
   'postal'
-], (Defer, DomHelper, $, postal) ->
+], (Defer, $, postal) ->
 
   class Behaviour
 

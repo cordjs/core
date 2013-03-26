@@ -870,10 +870,11 @@ define [
               callback: (params) ->
                 widget.show params, (err, out) ->
                   if err then throw err
-                  require ['cord!utils/DomHelper'], (DomHelper) ->
-                    DomHelper.insertHtml widgetId, out, ->
-                      widget._delayedRender = false
-                      widget.browserInit()
+                  require ['jquery'], ($) ->
+                    widget._delayedRender = false
+                    $newRoot = $(widget.renderRootTag(out))
+                    widget.browserInit($newRoot) ->
+                      $('#'+widgetId).replaceWith($newRoot)
                 subscription.unsubscribe()
 
           else
