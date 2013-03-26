@@ -61,6 +61,12 @@ define [
 
     # promise to load widget completely (with all styles and behaviours, including children)
     _widgetReadyPromise: null
+    # indicates that browserInit was already called. Initially should be true
+    # and reset in certain places via _resetWidgetReady() method
+    _browserInitialized: true
+
+    # temporary helper data container for inline-block processing
+    _inlinesRuntimeInfo: null
 
 
     @_initParamRules: ->
@@ -199,6 +205,10 @@ define [
 
       @_postalSubscriptions = []
       @resetChildren()
+
+      if isBrowser
+        @_browserInitialized = true
+        @_widgetReadyPromise = new Future
 
       if not @ctx?
         if @compileMode
@@ -494,6 +504,7 @@ define [
       ###
       @browser-only
       ###
+      console.log "#{ @debug 'injectAction' }", params if global.CONFIG.debug?.widget
 
       @widgetRepo.registerNewExtendWidget this
 
@@ -508,17 +519,51 @@ define [
       ###
       @browser-only
       ###
+      console.log "#{ @debug '_injectRender' }" if global.CONFIG.debug?.widget
+
+      @_resetWidgetReady()
 
       extendWidgetInfo = if tmpl != ':empty' then tmpl.struct.extend else null
       if extendWidgetInfo?
         extendWidget = @widgetRepo.findAndCutMatchingExtendWidget tmpl.struct.widgets[extendWidgetInfo.widget].path
         if extendWidget?
+          readyPromise = new Future(1)
+          @_inlinesRuntimeInfo =
+            list: {}
+            hasInlines: false
+            # The promise must complete when widget is ready (after browserInit). Only after that
+            # the placeholders' contents containing inline-bodies of this widget will be added to the DOM-tree.
+            initPromise: new Future(1)
+
           tmpl.assignWidget extendWidgetInfo.widget, extendWidget
-          tmpl.replacePlaceholders extendWidgetInfo.widget, extendWidget.ctx[':placeholders'], =>
+          cb = new Future
+          require ['jquery'], cb.callback()
+          tmpl.replacePlaceholders extendWidgetInfo.widget, extendWidget.ctx[':placeholders'], cb.callback()
+          cb.done ($) =>
             @registerChild extendWidget
             @resolveParamRefs extendWidget, extendWidgetInfo.params, (params) ->
               extendWidget.fireAction 'default', params
-              callback extendWidget
+              readyPromise.resolve()
+
+            # if there are inlines owned by this widget
+            if @_inlinesRuntimeInfo.hasInlines
+              $el = $()
+              # collect all placeholder roots with all inlines to pass to the behaviour
+              for name, info of @_inlinesRuntimeInfo.list
+                $el = $el.add(info.domRoot)
+                # this future will be resolved in replacePlaceholders() when the inline block will be added to the DOM
+                info.addedPromise = new Future(1)
+                readyPromise.when(info.addedPromise)
+              @browserInit($el).done =>
+                @_inlinesRuntimeInfo.initPromise.resolve()
+            else
+              @_inlinesRuntimeInfo.initPromise.resolve()
+
+            readyPromise.done =>
+              @_inlinesRuntimeInfo = null
+              callback(extendWidget)
+
+        # if not extendsWidget? (if it's a new widget in extend tree)
         else
           tmpl.getWidget extendWidgetInfo.widget, (extendWidget) =>
             @registerChild extendWidget
@@ -551,6 +596,8 @@ define [
       Decides wether to call extended template parsing of self-template parsing and calls it.
       ###
       console.log @debug('renderTemplate') if global.CONFIG.debug?.widget
+
+      @_resetWidgetReady() # allowing to call browserInit() after template re-render is reasonable
 
       @getStructTemplate (tmpl) =>
         if tmpl != ':empty' and tmpl.struct.extend?
@@ -655,6 +702,8 @@ define [
       ###
       console.log "#{ @constructor.name }::renderInline(#{ inlineName })" if global.CONFIG.debug?.widget
 
+      @_resetWidgetReady() # if inline is rendered, it will be necessary to call browserInit()
+
       if @ctx[':inlines'][inlineName]?
         template = @ctx[':inlines'][inlineName].template
         tmplPath = "#{ @getDir() }/#{ template }"
@@ -682,6 +731,16 @@ define [
       classString = @_buildClassString()
       classAttr = if classString.length then ' class="' + classString + '"' else ''
       "<#{ @rootTag } id=\"#{ @ctx.id }\"#{ classAttr }>#{ content }</#{ @rootTag }>"
+
+
+    renderPlaceholderTag: (name, content) ->
+      ###
+      Wraps content with appropriate placeholder root tag and returns resulting HTML
+      @param String name name of the placeholder
+      @param String content html-contents of the placeholder
+      @return String
+      ###
+      "<div id=\"#{ @_getPlaceholderDomId(name) }\">#{ content }</div>"
 
 
     replaceModifierClass: (cls) ->
@@ -713,12 +772,15 @@ define [
 
 
     _renderPlaceholder: (name, callback) ->
+      ###
+      Render contents of the placeholder with the given name
+      @param String name name of the placeholder to render
+      @param Function(String, Array) callback result-callback with resulting HTML and special helper structure with
+                                     information about contents (needed by replacePlaceholders() method)
+      ###
       placeholderOut = []
-      returnCallback = ->
-        callback(placeholderOut.join '')
-
-      waitCounter = 0
-      waitCounterFinish = false
+      renderInfo = []
+      promise = new Future
 
       i = 0
       placeholderOrder = {}
@@ -727,6 +789,8 @@ define [
 
       for info in ph
         do (info) =>
+          promise.fork()
+
           widgetId = info.widget
           widget = @widgetRepo.getById(widgetId)
           widget.setModifierClass(info.class) if info.type != 'inline'
@@ -741,9 +805,8 @@ define [
               dust.render tmplPath, timeoutTemplateOwner.getBaseContext().push(timeoutTemplateOwner.ctx), (err, out) ->
                 if err then throw err
                 placeholderOut[placeholderOrder[widgetId]] = widget.renderRootTag(out)
-                waitCounter--
-                if waitCounter == 0 and waitCounterFinish
-                  returnCallback()
+                renderInfo.push(type: 'timeout-stub', widget: widget)
+                promise.resolve()
 
             if dust.cache[tmplPath]?
               actualRender()
@@ -756,18 +819,14 @@ define [
           if info.type == 'widget'
             placeholderOrder[widgetId] = i
 
-            waitCounter++
-
             complete = false
             widget.show info.params, (err, out) ->
               if err then throw err
               if not complete
                 complete = true
                 placeholderOut[placeholderOrder[widgetId]] = widget.renderRootTag(out)
-
-                waitCounter--
-                if waitCounter == 0 and waitCounterFinish
-                  returnCallback()
+                renderInfo.push(type: 'widget', widget: widget)
+                promise.resolve()
               else
                 # insert actual content of the widget instead of timeout stub, inserted before
                 # @browser-only
@@ -775,7 +834,6 @@ define [
                 require ['jquery'], ($) ->
                   $newRoot = $(widget.renderRootTag(out))
                   widget.browserInit($newRoot)
-                  # todo: add css waiter here
                   widget.ready().done ->
                     $('#'+widgetId).replaceWith($newRoot)
 
@@ -790,9 +848,8 @@ define [
                   else
                     placeholderOut[placeholderOrder[widgetId]] =
                       widget.renderRootTag('<b>Hardcode Stub Text!!</b>')
-                    waitCounter--
-                    if waitCounter == 0 and waitCounterFinish
-                      returnCallback()
+                    renderInfo.push(type: 'timeout-stub', widget: widget)
+                    promise.resolve()
 
               , info.timeout
 
@@ -801,11 +858,12 @@ define [
 
             widget._delayedRender = true
             if info.timeoutTemplate?
-              waitCounter++
               renderTimeoutTemplate()
             else
               placeholderOut[placeholderOrder[widgetId]] =
                 widget.renderRootTag('<b>Hardcode Stub Text!!</b>')
+              renderInfo.push(type: 'timeout-stub', widget: widget)
+              promise.resolve()
 
             subscription = postal.subscribe
               topic: "widget.#{ widgetId }.deferred.ready"
@@ -824,22 +882,20 @@ define [
             inlineId = "inline-#{ widget.ctx.id }-#{ info.name }"
             classAttr = info.class ? ''
             classAttr = if classAttr then "class=\"#{ classAttr }\"" else ''
-            waitCounter++
             widget.ctx[':inlines'] ?= {}
             widget.ctx[':inlines'][info.name] =
               id: inlineId
               template: info.template
             widget.renderInline info.name, (err, out) ->
               if err then throw err
-              placeholderOut[placeholderOrder[info.template]] = "<#{ info.tag } id=\"#{ inlineId }\"#{ classAttr }>#{ out }</#{ info.tag }>"
-              waitCounter--
-              if waitCounter == 0 and waitCounterFinish
-                returnCallback()
+              placeholderOut[placeholderOrder[info.template]] =
+                "<#{ info.tag } id=\"#{ inlineId }\"#{ classAttr }>#{ out }</#{ info.tag }>"
+              renderInfo.push(type: 'inline', name: info.name, widget: widget)
+              promise.resolve()
           i++
 
-      waitCounterFinish = true
-      if waitCounter == 0
-        returnCallback()
+      promise.done ->
+        callback(placeholderOut.join(''), renderInfo)
 
 
     _getPlaceholderDomId: (name) ->
@@ -848,6 +904,19 @@ define [
 
     definePlaceholders: (placeholders) ->
       @ctx[':placeholders'] = placeholders
+
+
+    # group of helper methods to organize waiting and consistent initialization of widget's inline blocks
+
+    setInlineDomRoot: (name, domRoot) ->
+      @_inlinesRuntimeInfo.hasInlines = true
+      @_inlinesRuntimeInfo.list[name] = domRoot: domRoot
+
+    getInlinesInitPromise: ->
+      @_inlinesRuntimeInfo.initPromise
+
+    resolveInlineAddedPromise: (name) ->
+      @_inlinesRuntimeInfo.list[name].addedPromise.resolve()
 
 
     replacePlaceholders: (placeholders, structTmpl, replaceHints, callback) ->
@@ -860,8 +929,8 @@ define [
                                  and which should not
       @param Function() callback callback which should be called when replacement is done (async)
       ###
-      require ['jquery', 'cord!utils/DomHelper'], ($, DomHelper) =>
-        promise = new Future
+      require ['jquery'], ($) =>
+        readyPromise = new Future
 
         ph = {}
         @ctx[':placeholders'] ?= []
@@ -882,28 +951,46 @@ define [
         for name, items of ph
           do (name) =>
             if replaceHints[name].replace
-              promise.fork()
-              @_renderPlaceholder name, (out) =>
-                try
-                  # todo: add css waiter here
-                  DomHelper.insertHtml @_getPlaceholderDomId(name), out, -> promise.resolve()
-                catch e
-                  console.log "WARNING: Trying to replace unexistent placeholder with name \"#{ name }\" " +
-                    "in widget #{ @debug() }"
-                  promise.resolve()
+              readyPromise.fork()
+              @_renderPlaceholder name, (out, renderInfo) =>
+                $el = $(@renderPlaceholderTag(name, out))
+                aggregatePromise = new Future # full placeholders members initialization promise
+                hasInlines = false
+                for info in renderInfo
+                  if info.type == 'inline'
+                    info.widget.setInlineDomRoot(info.name, $el)
+                    # wait for owner widget's browserInit() completion. See _injectRender() method.
+                    aggregatePromise.when(info.widget.getInlinesInitPromise())
+                    hasInlines = true
+                  else if info.type == 'widget'
+                    aggregatePromise.when(info.widget.browserInit($el))
+                # if there are inlines we must complete the function (fire callback) before aggregatePromise completion
+                # to avoid deadlock with the inlinesInitiPromise which will never complete if we don't go out.
+                readyPromise.resolve() if hasInlines
+                aggregatePromise.done =>
+                  # Inserting placeholder contents to the DOM-tree only after full behaviour initialization of all
+                  # included widgets and inlines. Timeout-stubs are not waited yet as they haven't any behaviour
+                  # initialization support yet.
+                  $('#'+@_getPlaceholderDomId(name)).replaceWith($el)
+                  if hasInlines
+                    for info in renderInfo
+                      # inform inline's owner widget about adding it to the DOM-tree. See _injectRender() method.
+                      info.widget.resolveInlineAddedPromise(info.name) if info.type == 'inline'
+                  else
+                    readyPromise.resolve()
             else
               i = 0
               for item in items
                 do (item, i) =>
                   widget = @widgetRepo.getById item.widget
-                  promise.fork()
+                  readyPromise.fork()
                   widget.replaceModifierClass(item.class)
                   structTmpl.replacePlaceholders replaceHints[name].items[i], widget.ctx[':placeholders'], ->
                     widget.fireAction 'default', item.params
-                    promise.resolve()
+                    readyPromise.resolve()
                 i++
 
-        promise.done(callback)
+        readyPromise.done(callback)
 
 
     getInitCode: (parentId) ->
@@ -987,7 +1074,15 @@ define [
       @childByName = {}
       @childById = {}
       @childBindings = {}
-      @_widgetReadyPromise = new Future(1) if isBrowser
+
+
+    _resetWidgetReady: ->
+      ###
+      Resets widget's browser-side initialization state to be able to correctly run browserInit()
+      ###
+      if isBrowser
+        @_widgetReadyPromise = new Future(1)
+        @_browserInitialized = false
 
 
     registerChild: (child, name) ->
@@ -1101,35 +1196,36 @@ define [
       @param (optional)Widget stopPropageteWidget widget for which method should stop pass browserInit to child widgets
       @param (optional)jQuery domRoot injected DOM root for the widget or it's children
       ###
-      if stopPropagateWidget? and not (stopPropagateWidget instanceof Widget)
-        $domRoot = stopPropagateWidget
-        stopPropagateWidget = undefined
+      if not @_browserInitialized and not @_delayedRender
+        @_browserInitialized = true
 
-#      console.log "#{ @debug 'browserInit' }(#{ $domRoot?[0].tagName })"
-      if this != stopPropagateWidget and not @_delayedRender
-        @bindChildEvents()
+        if stopPropagateWidget? and not (stopPropagateWidget instanceof Widget)
+          $domRoot = stopPropagateWidget
+          stopPropagateWidget = undefined
 
-        for widgetId, bindingMap of @childBindings
-          @widgetRepo.getById(widgetId).cleanSubscriptions()
-          for ctxName, paramName of bindingMap
-            @widgetRepo.subscribePushBinding @ctx.id, ctxName, @childById[widgetId], paramName
+        if this != stopPropagateWidget and not @_delayedRender
+          @bindChildEvents()
 
-        try
-          @_widgetReadyPromise.when(@constructor._cssPromise) if not @_widgetReadyPromise.completed()
+          for widgetId, bindingMap of @childBindings
+            @widgetRepo.getById(widgetId).cleanSubscriptions()
+            for ctxName, paramName of bindingMap
+              @widgetRepo.subscribePushBinding @ctx.id, ctxName, @childById[widgetId], paramName
+
+          @_widgetReadyPromise.when(@constructor._cssPromise)
           for childWidget in @children
-            @_widgetReadyPromise.when(childWidget.ready()) if not @_widgetReadyPromise.completed()
+            # we should not wait for readiness of the child widget if it is going to render later (with timeout-stub)
+            @_widgetReadyPromise.when(childWidget.ready()) if not childWidget._delayedRender
             if not childWidget.behaviour?
               childWidget.browserInit(stopPropagateWidget, $domRoot)
-        catch e
-          console.warn "#{ @debug 'exception' }", e
-          throw e
 
-        @initBehaviour($domRoot)
+          @initBehaviour($domRoot)
 
-        @_widgetReadyPromise.resolve() if not @_widgetReadyPromise.completed()
-        @_widgetReadyPromise.done =>
-          @emit 'render.complete'
-        @_widgetReadyPromise
+          @_widgetReadyPromise.resolve()
+          @_widgetReadyPromise.done =>
+            @emit 'render.complete'
+          @_widgetReadyPromise
+      else
+        console.warn "#{ @debug 'browserInit::duplicate!!' }" if not @_delayedRender
 
 
     ready: ->
@@ -1248,7 +1344,7 @@ define [
             name = params?.name ? 'default'
             @_renderPlaceholder name, (out) =>
               @childWidgetComplete()
-              chunk.end "<div id=\"#{ @_getPlaceholderDomId name }\">#{ out }</div>"
+              chunk.end @renderPlaceholderTag(name, out)
 
         #
         # Widget initialization script generator

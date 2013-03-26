@@ -32,7 +32,10 @@ define [
       @rootEls.push @el if @el.length == 1
 
       if widget.ctx[':inlines']?
-        @rootEls.push $('#'+info.id) for inlineName, info of widget.ctx[':inlines']
+        if $domRoot
+          @rootEls.push $('#'+info.id, $domRoot) for inlineName, info of widget.ctx[':inlines']
+        else
+          @rootEls.push $('#'+info.id) for inlineName, info of widget.ctx[':inlines']
 
       @events       = @constructor.events unless @events
       @widgetEvents = @constructor.widgetEvents unless @widgetEvents
