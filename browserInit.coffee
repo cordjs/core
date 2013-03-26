@@ -17,7 +17,7 @@ require.config
     'jquery.color':     'vendor/jquery/plugins/jquery.color'
     'jquery.scrollTo':  'vendor/jquery/plugins/jquery.scrollTo'
     'jquery.dotdotdot': 'vendor/jquery/plugins/jquery.dotdotdot'
-    'jquery.autosize':  'vendor/jquery/plugins/jquery.autosize'
+    'jquery.jeditable': 'vendor/jquery/plugins/jquery.jeditable'
     'curly':            'vendor/curly/browser'
     'underscore':       'vendor/underscore/underscore'
     'requirejs':        'vendor/requirejs/require'
