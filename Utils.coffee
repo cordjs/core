@@ -157,7 +157,10 @@ define [
         return ''
       nameSplited = name.split(' ')
 
-      nameInitials = nameSplited[0].charAt(0).toUpperCase() + '.' + nameSplited[1].charAt(0).toUpperCase() + '.'
+      nameInitials = nameSplited[0].charAt(0).toUpperCase() + '.'
+      nameInitials += nameSplited[1].charAt(0).toUpperCase() + '.' if nameSplited[1]
+
+      nameInitials
 
 
     #Smart divide array into two pieces, where first piece should contain at least minFirst, and second not less than minSecond
