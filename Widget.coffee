@@ -528,12 +528,7 @@ define [
         extendWidget = @widgetRepo.findAndCutMatchingExtendWidget tmpl.struct.widgets[extendWidgetInfo.widget].path
         if extendWidget?
           readyPromise = new Future(1)
-          @_inlinesRuntimeInfo =
-            list: {}
-            hasInlines: false
-            # The promise must complete when widget is ready (after browserInit). Only after that
-            # the placeholders' contents containing inline-bodies of this widget will be added to the DOM-tree.
-            initPromise: new Future(1)
+          @_inlinesRuntimeInfo = []
 
           tmpl.assignWidget extendWidgetInfo.widget, extendWidget
           cb = new Future
@@ -546,18 +541,11 @@ define [
               readyPromise.resolve()
 
             # if there are inlines owned by this widget
-            if @_inlinesRuntimeInfo.hasInlines
+            if @_inlinesRuntimeInfo.length
               $el = $()
               # collect all placeholder roots with all inlines to pass to the behaviour
-              for name, info of @_inlinesRuntimeInfo.list
-                $el = $el.add(info.domRoot)
-                # this future will be resolved in replacePlaceholders() when the inline block will be added to the DOM
-                info.addedPromise = new Future(1)
-                readyPromise.when(info.addedPromise)
-              @browserInit($el).done =>
-                @_inlinesRuntimeInfo.initPromise.resolve()
-            else
-              @_inlinesRuntimeInfo.initPromise.resolve()
+              $el = $el.add(domRoot) for domRoot in @_inlinesRuntimeInfo
+              readyPromise.when(@browserInit($el))
 
             readyPromise.done =>
               @_inlinesRuntimeInfo = null
@@ -919,17 +907,12 @@ define [
       @ctx[':placeholders'] = placeholders
 
 
-    # group of helper methods to organize waiting and consistent initialization of widget's inline blocks
-
-    setInlineDomRoot: (name, domRoot) ->
-      @_inlinesRuntimeInfo.hasInlines = true
-      @_inlinesRuntimeInfo.list[name] = domRoot: domRoot
-
-    getInlinesInitPromise: ->
-      @_inlinesRuntimeInfo.initPromise
-
-    resolveInlineAddedPromise: (name) ->
-      @_inlinesRuntimeInfo.list[name].addedPromise.resolve()
+    addInlineDomRoot: (domRoot) ->
+      ###
+      Helper method to aggregate inlines' root elements of this widget to be able to pass them to the browserInit later
+      @param jQuery domRoot the new root element of the inline to add
+      ###
+      @_inlinesRuntimeInfo.push(domRoot)
 
 
     replacePlaceholders: (placeholders, structTmpl, replaceHints, callback) ->
@@ -969,29 +952,17 @@ define [
                 $el = $(@renderPlaceholderTag(name, out))
                 @ctx[':placeholders'][name].domRoot = $el
                 aggregatePromise = new Future # full placeholders members initialization promise
-                hasInlines = false
                 for info in renderInfo
-                  if info.type == 'inline'
-                    info.widget.setInlineDomRoot(info.name, $el)
-                    # wait for owner widget's browserInit() completion. See _injectRender() method.
-                    aggregatePromise.when(info.widget.getInlinesInitPromise())
-                    hasInlines = true
-                  else if info.type == 'widget'
-                    aggregatePromise.when(info.widget.browserInit($el))
-                # if there are inlines we must complete the function (fire callback) before aggregatePromise completion
-                # to avoid deadlock with the inlinesInitiPromise which will never complete if we don't go out.
-                readyPromise.resolve() if hasInlines
+                  switch info.type
+                    when 'inline' then info.widget.addInlineDomRoot($el)
+                    when 'widget' then aggregatePromise.when(info.widget.browserInit($el))
+                    #when 'timeout-stub' then aggregatePromise.when(info.widget.timeoutReady())
                 aggregatePromise.done =>
                   # Inserting placeholder contents to the DOM-tree only after full behaviour initialization of all
-                  # included widgets and inlines. Timeout-stubs are not waited yet as they haven't any behaviour
-                  # initialization support yet.
+                  # included widgets but not inline-blocks. Timeout-stubs are not waited for yet as they have no
+                  # any behaviour initialization support yet.
                   $('#'+@_getPlaceholderDomId(name)).replaceWith($el)
-                  if hasInlines
-                    for info in renderInfo
-                      # inform inline's owner widget about adding it to the DOM-tree. See _injectRender() method.
-                      info.widget.resolveInlineAddedPromise(info.name) if info.type == 'inline'
-                  else
-                    readyPromise.resolve()
+                  readyPromise.resolve()
             else
               i = 0
               for item in items
