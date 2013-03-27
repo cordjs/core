@@ -831,13 +831,20 @@ define [
                 # insert actual content of the widget instead of timeout stub, inserted before
                 # @browser-only
                 widget._delayedRender = false
-                require ['jquery'], ($) ->
-                  $newRoot = $(widget.renderRootTag(out))
-                  widget.browserInit($newRoot)
-                  widget.ready().done ->
-                    $('#'+widgetId).replaceWith($newRoot)
+                if not promise.completed()
+                  placeholderOut[placeholderOrder[widgetId]] = widget.renderRootTag(out)
+                  renderInfo.push(type: 'widget', widget: widget)
+                else
+                  require ['jquery'], ($) ->
+                    $newRoot = $(widget.renderRootTag(out))
+                    widget.browserInit($newRoot).done ->
+                      $curEl = $('#'+widgetId, info.domRoot)
+                      if $curEl.length == 1
+                        $curEl.replaceWith($newRoot)
+                      else
+                        throw new Error("Timeouted widget can't find his place: #{ widget.debug() }, #{ $curEl }!")
 
-            if isBrowser and info.timeout? and info.timeout > 0
+            if isBrowser and info.timeout? and info.timeout >= 0
               setTimeout ->
                 # if the widget has not been rendered within given timeout, render stub template from the {:timeout} block
                 if not complete
@@ -865,17 +872,22 @@ define [
               renderInfo.push(type: 'timeout-stub', widget: widget)
               promise.resolve()
 
-            subscription = postal.subscribe
-              topic: "widget.#{ widgetId }.deferred.ready"
-              callback: (params) ->
-                widget.show params, (err, out) ->
-                  if err then throw err
+            info.timeoutPromise.done ->
+              widget.show params, (err, out) ->
+                if err then throw err
+                widget._delayedRender = false
+                if not promise.completed()
+                  placeholderOut[placeholderOrder[widgetId]] = widget.renderRootTag(out)
+                  renderInfo.push(type: 'widget', widget: widget)
+                else
                   require ['jquery'], ($) ->
-                    widget._delayedRender = false
                     $newRoot = $(widget.renderRootTag(out))
-                    widget.browserInit($newRoot) ->
-                      $('#'+widgetId).replaceWith($newRoot)
-                subscription.unsubscribe()
+                    widget.browserInit($newRoot).done ->
+                      $curEl = $('#'+widgetId, info.domRoot)
+                      if $curEl.length == 1
+                        $curEl.replaceWith($newRoot)
+                      else
+                        throw new Error("Timeouted widget can't find his place: #{ widget.debug() }, #{ $curEl }!")
 
           else
             placeholderOrder[info.template] = i
@@ -955,6 +967,7 @@ define [
               readyPromise.fork()
               @_renderPlaceholder name, (out, renderInfo) =>
                 $el = $(@renderPlaceholderTag(name, out))
+                @ctx[':placeholders'][name].domRoot = $el
                 aggregatePromise = new Future # full placeholders members initialization promise
                 hasInlines = false
                 for info in renderInfo
@@ -1188,6 +1201,8 @@ define [
       @param (optional)Widget stopPropageteWidget widget for which method should stop pass browserInit to child widgets
       @param (optional)jQuery domRoot injected DOM root for the widget or it's children
       ###
+      console.log "#{ @debug 'browserInit' }" if global.CONFIG.debug?.widget
+
       if not @_browserInitialized and not @_delayedRender
         @_browserInitialized = true
 
@@ -1215,6 +1230,11 @@ define [
           @_widgetReadyPromise.resolve()
           @_widgetReadyPromise.done =>
             @emit 'render.complete'
+
+          setTimeout =>
+            console.error "#{ @debug 'incompleteBrowserInit!' }" if not @_widgetReadyPromise.completed()
+          , 5000
+
           @_widgetReadyPromise
       else
         console.warn "#{ @debug 'browserInit::duplicate!!' }" if not @_delayedRender
