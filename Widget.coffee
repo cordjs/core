@@ -860,7 +860,7 @@ define [
               renderInfo.push(type: 'timeout-stub', widget: widget)
               promise.resolve()
 
-            info.timeoutPromise.done ->
+            info.timeoutPromise.done (params) ->
               widget.show params, (err, out) ->
                 if err then throw err
                 widget._delayedRender = false

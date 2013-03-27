@@ -1,7 +1,7 @@
 define [
   'cord!isBrowser'
-  'postal'
-], (isBrowser, postal) ->
+  'cord!utils/Future'
+], (isBrowser, Future) ->
 
   class StructureTemplate
 
