@@ -32,6 +32,7 @@ define [
           widget.definePlaceholders resolvedPlaceholders
           callback widget
 
+
     getWidgetByName: (name, callback) ->
       if @struct.widgetsByName[name]?
         @getWidget @struct.widgetsByName[name], callback

@@ -1202,8 +1202,11 @@ define [
           @_widgetReadyPromise.done =>
             @emit 'render.complete'
 
+          # This code is for debugging puroses: it clarifies if there are some bad situations
+          # when widget doesn't become ready at all even after 5 seconds. Likely that points to some errors in logic.
+          savedPromiseForTimeoutCheck = @_widgetReadyPromise
           setTimeout =>
-            console.error "#{ @debug 'incompleteBrowserInit!' }" if not @_widgetReadyPromise.completed()
+            console.error "#{ @debug 'incompleteBrowserInit!' }" if not savedPromiseForTimeoutCheck.completed()
           , 5000
 
           @_widgetReadyPromise
