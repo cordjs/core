@@ -743,10 +743,11 @@ define [
         $('#'+@ctx.id).attr('class', @_buildClassString())
 
 
-    _buildClassString: ->
+    _buildClassString: (dynamicClass) ->
       classList = []
       classList.push(@cssClass) if @cssClass
       classList.push(@ctx._modifierClass) if @ctx._modifierClass
+      classList.push(dynamicClass) if dynamicClass
       classList.join(' ')
 
 
@@ -881,12 +882,13 @@ define [
             placeholderOrder[info.template] = i
 
             inlineId = "inline-#{ widget.ctx.id }-#{ info.name }"
-            classAttr = info.class ? ''
-            classAttr = if classAttr then "class=\"#{ classAttr }\"" else ''
+            classString = widget._buildClassString(info.class)
+            classAttr = if classString.length then ' class="' + classString + '"' else ''
             widget.ctx[':inlines'] ?= {}
             widget.ctx[':inlines'][info.name] =
               id: inlineId
               template: info.template
+              class: info.class
             widget.renderInline info.name, (err, out) ->
               if err then throw err
               placeholderOut[placeholderOrder[info.template]] =
@@ -1143,7 +1145,7 @@ define [
           if BehaviourClass instanceof Function
             @behaviour = new BehaviourClass(this, $domRoot)
           else
-            console.err 'WRONG BEHAVIOUR CLASS:', behaviourClass
+            console.error 'WRONG BEHAVIOUR CLASS:', behaviourClass
 
 
     createChildWidget: (type, name, callback) ->
