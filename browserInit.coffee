@@ -18,7 +18,6 @@ require.config
     'jquery.scrollTo':  'vendor/jquery/plugins/jquery.scrollTo'
     'jquery.dotdotdot': 'vendor/jquery/plugins/jquery.dotdotdot'
     'jquery.jeditable': 'vendor/jquery/plugins/jquery.jeditable'
-    'jquery.autosize':  'vendor/jquery/plugins/jquery.autosize'
     'curly':            'vendor/curly/browser'
     'underscore':       'vendor/underscore/underscore'
     'requirejs':        'vendor/requirejs/require'

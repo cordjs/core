@@ -1,13 +1,14 @@
 define [
   'cord!utils/Defer'
-  'cord!utils/DomHelper'
   'jquery'
   'postal'
-], (Defer, DomHelper, $, postal) ->
+], (Defer, $, postal) ->
 
   class Behaviour
 
-    rootEls: null
+    # jQuery aggregate of all DOM-roots of the widget
+    # (widget can have multiple DOM-roots when it has several inline-blocks)
+    $rootEls: null
 
     constructor: (widget, $domRoot) ->
       ###
@@ -28,11 +29,10 @@ define [
 
       @$el = @el
 
-      @rootEls = []
-      @rootEls.push @el if @el.length == 1
+      @$rootEls = if @el.length == 1 then @el else $()
 
       if widget.ctx[':inlines']?
-        @rootEls.push $('#'+info.id) for inlineName, info of widget.ctx[':inlines']
+        @$rootEls = @$rootEls.add('#'+info.id, $domRoot) for inlineName, info of widget.ctx[':inlines']
 
       @events       = @constructor.events unless @events
       @widgetEvents = @constructor.widgetEvents unless @widgetEvents
@@ -49,16 +49,12 @@ define [
     $: (selector) ->
       ###
       Creates jQuery object with the given selector in the context of this widget.
-      Multiple root element of the widget (when there are several inlines) are also supported by aggregation or results.
+      Multiple root element of the widget (when there are several inlines) are also supported transparently.
       @param String selector jquery selector
       @return jQuery
       ###
-      if @rootEls.length == 1
-        $(selector, @rootEls[0])
-      else if @rootEls.length
-        result = $()
-        result = result.add(selector, el) for el in @rootEls
-        result
+      if @$rootEls.length > 0
+        $(selector, @$rootEls)
       else
         $(selector)
 
@@ -85,12 +81,20 @@ define [
                   subscription.unsubscribe()
               @_widgetSubscriptions.push subscription
             else
-              $el.on(eventName, method) for $el in @rootEls
+              @$rootEls.on(eventName, method)
           else
+            # special helper selector ##
+            # ##someId is replaced by #{widgets id}-someId
+            # in widget template it should look like id="{id}-someId"
+            if selector.substr(0, 2) == '##'
+              selector = '#' + @widget.ctx.id + '-' + selector.substr(2)
+
             if eventName == 'scroll'
-              $(selector, $el).on(eventName, method) for $el in @rootEls
+              # scroll event is not bubbling up, so it have to be bound without event delegation feature
+              # right to the element
+              $(selector, @$rootEls).on(eventName, method)
             else
-              $el.on(eventName, selector, method) for $el in @rootEls
+              @$rootEls.on(eventName, selector, method)
 
 
     initWidgetEvents: (events) ->
@@ -135,8 +139,7 @@ define [
       @_widgetSubscriptions = []
       @widget = null
       @el.off()#.remove()
-      @el = null
-      @$el = null
+      @el = @$el = null
 
 
     html: (element) ->

@@ -1,7 +1,7 @@
 define [
   'cord!isBrowser'
-  'postal'
-], (isBrowser, postal) ->
+  'cord!utils/Future'
+], (isBrowser, Future) ->
 
   class StructureTemplate
 
@@ -32,6 +32,7 @@ define [
           widget.definePlaceholders resolvedPlaceholders
           callback widget
 
+
     getWidgetByName: (name, callback) ->
       if @struct.widgetsByName[name]?
         @getWidget @struct.widgetsByName[name], callback
@@ -59,6 +60,7 @@ define [
                   @ownerWidget.registerChild widget, item.name
 
                   complete = false
+                  timeoutPromise = null
 
                   @ownerWidget.resolveParamRefs widget, item.params, (params) =>
                     if not complete
@@ -75,12 +77,13 @@ define [
                       if waitCounter == 0 and waitCounterFinish
                         returnCallback()
                     else
-                      postal.publish "widget.#{ widget.ctx.id }.deferred.ready", params
+                      timeoutPromise.resolve(params)
 
-                  if isBrowser and item.timeout? and item.timeout > 0
+                  if isBrowser and item.timeout? and item.timeout >= 0
                     setTimeout =>
                       if not complete
                         complete = true
+                        timeoutPromise = new Future(1)
                         resolvedPlaceholders[name].push
                           type: 'timeouted-widget'
                           widget: widget.ctx.id
@@ -88,6 +91,7 @@ define [
                           timeout: item.timeout
                           timeoutTemplate: item.timeoutTemplate
                           timeoutTemplateOwner: if item.timeoutTemplate? then @ownerWidget else undefined
+                          timeoutPromise: timeoutPromise
                         waitCounter--
                         if waitCounter == 0 and waitCounterFinish
                           returnCallback()

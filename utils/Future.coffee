@@ -1,4 +1,6 @@
-define [], () ->
+define [
+  'underscore'
+], (_) ->
 
   class Future
     ###
@@ -41,10 +43,21 @@ define [], () ->
     _callbackArgs: null
     _completed: false
 
+    # helpful to identify the future during debugging
+    _name: ''
 
-    constructor: (initialCounter = 0) ->
+
+    constructor: (initialCounter = 0, name = '') ->
+      ###
+      @param (optional)Int initialCounter initial state of counter, syntax sugar to avoid (new Future).fork().fork()
+      @param (optional)String name individual name of the future to separate it from others during debugging
+      ###
+      if initialCounter? and _.isString(initialCounter)
+        name = initialCounter
+        initialCounter = 0
       @_counter = initialCounter
       @_callbacks = []
+      @_name = name
 
 
     fork: ->
@@ -133,13 +146,30 @@ define [], () ->
       Fires resulting callback functions defined by done with right list of arguments.
       ###
       @_completed = true
+
+      # this is need to avoid duplicate callback calling in case of recursive coming here from callback function
+      callbacksCopy = @_callbacks
+      @_callbacks = []
+
       if @_callbackArgs?
         args = []
         for i in [0..@_order-1]
           args = args.concat(@_callbackArgs[i])
-        callback.apply(null, args) for callback in @_callbacks
-        @_callbacks = []
+        callback.apply(null, args) for callback in callbacksCopy
       else
-        callback() for callback in @_callbacks
+        callback() for callback in callbacksCopy
 
-      @_callbacks = []
+
+    _debug: (args...) ->
+      ###
+      Debug logging method, which logs future's name, counter, callback lenght, and given arguments.
+      Can emphasise futures with desired names by using console.warn.
+      ###
+      if @_name.indexOf('desired search in name') != -1
+        fn = console.warn
+      else
+        fn = console.log
+      args.unshift(@_name)
+      args.unshift(@_callbacks.length)
+      args.unshift(@_counter)
+      fn.apply(console, args)

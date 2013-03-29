@@ -33,4 +33,5 @@ define [
       WidgetClass.bundle = info.bundle
       WidgetClass.relativeDirPath = info.relativeDirPath
       WidgetClass.dirName = info.dirName
+      WidgetClass._initialized = false
       load WidgetClass
