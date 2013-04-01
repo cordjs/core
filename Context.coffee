@@ -53,13 +53,22 @@ define [
           postal.publish "widget.#{ @id }.someChange", {}
 
 
-    setSingle: (name, newValue) ->
+    setSingle: (name, newValue, callbackPromise) ->
+      ###
+      Sets single context param's value
+      @param String name param name
+      @param Any newValue param value
+      @param (optional)Future callbackPromise promise to support setWithCallback() method functionality
+      @return Boolean true if the change event was triggered (the value was changed)
+      ###
       if newValue != undefined
         if @[name] == ':deferred'
+          # if the current value special :deferred than event should be triggered even if the new value is null
           triggerChange = (newValue != ':deferred')
         else
           oldValue = @[name]
           if oldValue == null
+            # null needs special check because null == null in javascript isn't true
             triggerChange = (newValue != null)
           else
             triggerChange = (newValue != oldValue)
@@ -68,9 +77,11 @@ define [
 
 #      console.log "setSingle -> #{ name } = #{ newValue } (oldValue = #{ @[name] }) trigger = #{ triggerChange } -> #{ (new Date).getTime() }"
 
+      # never change value to 'undefined' (don't mix up with 'null' value)
       @[name] = newValue if newValue != undefined
 
       if triggerChange
+        callbackPromise.fork() if callbackPromise
         curInitMode = @[':initMode']
         Defer.nextTick =>
           console.log "publish widget.#{ @id }.change.#{ name }" if global.CONFIG.debug?.widget
@@ -79,6 +90,8 @@ define [
             value: newValue
             oldValue: oldValue
             initMode: curInitMode
+            callbackPromise: callbackPromise
+          callbackPromise.resolve() if callbackPromise
 
       triggerChange
 
@@ -91,8 +104,24 @@ define [
     isDeferred: (name) ->
       @[name] is ':deferred'
 
+
     isEmpty: (name) ->
       (not @[name]?) or @isDeferred(name)
+
+
+    setWithFeedback: (name, value) ->
+      ###
+      Sets the context param's value as usual but injects future to the event data and returns it.
+      By default if event handlers doesn't support injected callback promise, the future will be completed immediately
+       after calling all event handlers. But some event handlers can support the promise and defer their completion
+       depending of some of their async activity.
+      @param String name param name
+      @param Any value param value
+      @return Future
+      ###
+      callbackPromise = new Future
+      @setSingle(name, value, callbackPromise)
+      callbackPromise
 
 
     toJSON: ->
