@@ -1083,8 +1083,18 @@ define [
         for name, widget of @childByName
           if widget == child
             delete @childByName[name]
+            break
       else
         throw "Trying to remove unexistent child of widget #{ @constructor.name }(#{ @ctx.id }), child: #{ child.constructor.name }(#{ child.ctx.id })"
+
+
+    dropChild: (childId) ->
+      ###
+      Drops and unregisters the child widget with the given id
+      @param String childId
+      ###
+      @unbindChild(@childById[childId])
+      @widgetRepo.dropWidget(childId)
 
 
     getBehaviourClass: ->

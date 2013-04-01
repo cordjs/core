@@ -96,8 +96,6 @@ define [
           queryParams.filterId = @_filterId if @_filterType == ':backend'
           queryParams.start = params.start if params.start?
           queryParams.end = (params.end + 1)  if params.end?
-        if params.start == -20
-          console.error "test"
         @repo.query queryParams, (models) =>
           needCallback = not (@_initialized and syncQuery)
           syncQuery = true
@@ -180,10 +178,13 @@ define [
               found = true
               break
           if found
+            #modifyInstructions = List.calculateTransitionCommands(@_models, models)
             if queryParams.start? and queryParams.end?
               loadingStart = queryParams.start
               loadingEnd = queryParams.end
 
+              @_models = _.clone(@_models)
+              # todo: may be we should reset @_models here?
               # appending/replacing new models to the collection according to the paging options
               for model, i in models
                 model.setCollection(this)
@@ -201,7 +202,7 @@ define [
 
             @_reindexModels()
 
-            @emit 'change', [model]
+            @emit 'change'#, modifyInstructions
 
 
     # paging related
