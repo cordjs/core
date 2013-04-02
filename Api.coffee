@@ -13,7 +13,7 @@ define [
       ### Дефолтные настройки ###
       defaultOptions =
         protocol: 'http'
-        host: 'megaplan.megaplan.ru'
+        host: 'megaplan.megaplan'
         urlPrefix: ''
         params: {}
         getUserPasswordCallback: (callback) -> callback 'jedi', 'jedi'

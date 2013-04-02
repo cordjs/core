@@ -64,7 +64,7 @@ define [
         getUserPasswordCallback: (callback) ->
           window.location.href = '/user/login/?back=' + window.location.pathname
       ecomet:
-        host: 'megaplan.megaplan.ru'
+        host: 'megaplan.megaplan'
         authUri: '/SdfCommon/EcometOauth/auth'
       oauth2:
         clientId: 'ce8fcad010ef4d10a337574645d69ac8'
@@ -75,6 +75,12 @@ define [
     ###
       Это надо перенести в более кошерное место
     ###
+
+    #Global errors handling
+    requirejs.onError = (error)->
+      requirejs ['postal'], (postal)->
+        message = 'Ой! Кажется, нет связи, подождите, может восстановится.'
+        postal.publish 'notify.addMessage', {link:'', message: message, details: error.toString(), error:true, timeOut: 50000 }
 
     serviceContainer.def 'request', (get, done) ->
       requirejs ['cord!/cord/core/request/BrowserRequest'], (Request) ->
