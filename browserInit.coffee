@@ -64,7 +64,7 @@ define [
         getUserPasswordCallback: (callback) ->
           window.location.href = '/user/login/?back=' + window.location.pathname
       ecomet:
-        host: 'megaplan.megaplan'
+        host: 'megaplan.megaplan.ru'
         authUri: '/SdfCommon/EcometOauth/auth'
       oauth2:
         clientId: 'ce8fcad010ef4d10a337574645d69ac8'
