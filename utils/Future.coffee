@@ -38,10 +38,15 @@ define [
     ###
 
     _counter: 0
-    _callbacks: null
+    _doneCallbacks: null
+    _failCallbacks: null
     _order: 0
     _callbackArgs: null
+
+    # completed by any way
     _completed: false
+    # current state: pending, resolved or rejected
+    _state: 'pending'
 
     # helpful to identify the future during debugging
     _name: ''
@@ -56,7 +61,8 @@ define [
         name = initialCounter
         initialCounter = 0
       @_counter = initialCounter
-      @_callbacks = []
+      @_doneCallbacks = []
+      @_failCallbacks = []
       @_name = name
 
 
@@ -74,17 +80,37 @@ define [
     resolve: (args...) ->
       ###
       Indicates that one of the waiting values is ready.
-      If there are some arguments passed then they are passed unchanged to the done-callback.
+      If there are some arguments passed then they are passed unchanged to the done-callbacks.
       If there is no value remaining in the aggregate and done method is already called
        than callback is fired immedialtely.
       Should have according fork() call before.
       ###
       if @_counter > 0
-        @_callbackArgs = [args] if args.length > 0
         @_counter--
-        @_runCallbacks() if @_counter == 0 and @_callbacks.length > 0
+        if @_state != 'rejected'
+          @_callbackArgs = [args] if args.length > 0
+          @_runDoneCallbacks() if @_counter == 0 and @_doneCallbacks.length > 0
+          # not changing state to 'resolved' here because it is possible to call fork() again if done hasn't called yet
       else
         throw new Error("Future::resolve is called more times than Future::fork!")
+
+
+    reject: (args...) ->
+      ###
+      Indicates that the promise is rejected (failed) and fail-callbacks should be called.
+      If there are some arguments passed then they are passed unchanged to the done-callbacks.
+      If fail-method is already called than callbacks are fired immediately, otherwise they'll be fired
+       when fail-method is called.
+      Only first call of this method is important. Any subsequent calls does nothing but decrementing the counter.
+      ###
+      if @_counter > 0
+        @_counter--
+        if @_state != 'rejected'
+          @_state = 'rejected'
+          @_callbackArgs = [args] if args.length > 0
+          @_runFailCallbacks() if @_failCallbacks.length > 0
+      else
+        throw new Error("Future::reject is called more times than Future::fork!")
 
 
     when: (args...) ->
@@ -96,18 +122,32 @@ define [
       ###
       for promise in args
         @fork()
-        promise.done => @resolve()
+        promise
+          .done(=> @resolve())
+          .fail(=> @reject())
       this
 
 
     done: (callback) ->
       ###
-      Defines callback function to be called when future is completed.
+      Defines callback function to be called when future is resolved.
       If all waiting values are already resolved then callback is fired immedialtely.
       If done method is called several times than all passed functions will be called.
       ###
-      @_callbacks.push(callback)
-      @_runCallbacks() if @_counter == 0
+      @_doneCallbacks.push(callback)
+      @_runDoneCallbacks() if @_counter == 0 and @_state != 'rejected'
+      this
+
+
+    fail: (callback) ->
+      ###
+      Defines callback function to be called when future is rejected.
+      If all waiting values are already resolved then callback is fired immedialtely.
+      If done method is called several times than all passed functions will be called.
+      ###
+      @_failCallbacks.push(callback)
+      @_runFailCallbacks() if @_state == 'rejected'
+      this
 
 
     callback: (neededArgs...) ->
@@ -138,26 +178,56 @@ define [
 
 
     completed: ->
+      ###
+      Indicates that callbacks() are already called at least once and fork() cannot be called anymore
+      @return Boolean
+      ###
       @_completed
 
 
-    _runCallbacks: ->
+    state: ->
+      ###
+      Returns state of the promise - 'pending', 'resolved' or 'rejected'
+      @return String
+      ###
+      @_state
+
+
+    _runDoneCallbacks: ->
       ###
       Fires resulting callback functions defined by done with right list of arguments.
       ###
-      @_completed = true
-
+      @_state = 'resolved'
       # this is need to avoid duplicate callback calling in case of recursive coming here from callback function
-      callbacksCopy = @_callbacks
-      @_callbacks = []
+      callbacksCopy = @_doneCallbacks
+      @_doneCallbacks = []
+      @_runCallbacks(callbacksCopy)
+
+
+    _runFailCallbacks: ->
+      ###
+      Fires resulting callback functions defined by fail with right list of arguments.
+      ###
+      # this is need to avoid duplicate callback calling in case of recursive coming here from callback function
+      callbacksCopy = @_failCallbacks
+      @_failCallbacks = []
+      @_runCallbacks(callbacksCopy)
+
+
+    _runCallbacks: (callbacks) ->
+      ###
+      Helper-method to run list of callbacks.
+      @param Array(Function) callbacks
+      ###
+      @_completed = true
 
       if @_callbackArgs?
         args = []
         for i in [0..@_order-1]
           args = args.concat(@_callbackArgs[i])
-        callback.apply(null, args) for callback in callbacksCopy
+        callback.apply(null, args) for callback in callbacks
       else
-        callback() for callback in callbacksCopy
+        callback() for callback in callbacks
 
 
     _debug: (args...) ->
@@ -170,6 +240,6 @@ define [
       else
         fn = console.log
       args.unshift(@_name)
-      args.unshift(@_callbacks.length)
+      args.unshift(@_doneCallbacks.length)
       args.unshift(@_counter)
       fn.apply(console, args)
