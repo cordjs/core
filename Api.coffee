@@ -13,7 +13,7 @@ define [
       ### Дефолтные настройки ###
       defaultOptions =
         protocol: 'http'
-        host: 'megaplan.megaplan.ru'
+        host: 'megaplan.megaplan'
         urlPrefix: ''
         params: {}
         getUserPasswordCallback: (callback) -> callback 'jedi', 'jedi'
@@ -106,6 +106,10 @@ define [
                   @getTokensByUsernamePassword username, password, (accessToken, refreshToken) =>
                     processRequest accessToken, refreshToken
             else
+              if response.code == 500
+                message = 'Ой! Что-то случилось с сервером (('
+                postal.publish 'notify.addMessage', {link:'', message: message, details: response.message, error:true, timeOut: 30000 }
+
               args.callback response, error if args.callback
 
       @restoreTokens (accessToken, refreshToken) =>
