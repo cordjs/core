@@ -106,7 +106,7 @@ define [
                   @getTokensByUsernamePassword username, password, (accessToken, refreshToken) =>
                     processRequest accessToken, refreshToken
             else
-              if response.code == 500
+              if response && response.code == 500
                 message = 'Ой! Что-то случилось с сервером (('
                 postal.publish 'notify.addMessage', {link:'', message: message, details: response.message, error:true, timeOut: 30000 }
 
