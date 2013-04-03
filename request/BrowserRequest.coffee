@@ -6,7 +6,6 @@ define [
 
   class BrowserRequest
 
-
     constructor: (serviceContainer, options) ->
       defaultOptions =
         json: true
@@ -19,6 +18,7 @@ define [
         @[method] = ((method) =>
           (url, params, callback) =>
             @send(method, url, params, callback))(method)
+
 
     send: (method, url, params, callback) ->
 
@@ -69,5 +69,10 @@ define [
             console.log argssss.params
             console.log body if global.CONFIG.debug?.request == 'full'
             console.log "========================================================================"
+
+        if not error? and response.statusCode != 200
+          error =
+            statusCode: response.statusCode
+            statusText: response.statusText
 
         argssss.callback body, error if typeof argssss.callback == 'function'
