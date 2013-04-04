@@ -58,7 +58,7 @@ define [
           seconds = (stopRequest - startRequest) / 1000
 
           if global.CONFIG.debug?.request == 'simple'
-            url = argssss.url.replace('http://127.0.0.1:1337/_restAPI/', '')
+            url = argssss.url.replace('http://127.0.0.1:1337/XDR/', '')
             url = url.replace(/(&|\?)?access_token=[^&]+/, '')
             console.log "BrowserRequest ( #{ seconds } s): #{method} #{url}"
             if method isnt 'get'

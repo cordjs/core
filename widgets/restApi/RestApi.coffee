@@ -13,7 +13,7 @@ define [
 
       options =
         type: serverRequest.method
-        url: decodeURIComponent /^\/_restAPI\/(.*)$/.exec(serverRequest.url)[1]
+        url: decodeURIComponent /^\/XDR\/(.*)$/.exec(serverRequest.url)[1]
         headers:
           'Accept': 'application/json'
           'Content-Type': serverRequest.headers['content-Type'] || serverRequest.headers['content-type']

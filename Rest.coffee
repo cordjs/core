@@ -66,10 +66,10 @@ define [
 #              options.crossDomain = true
 ##              options.url = "#{ options.url }"#?#{ $.param options.data }"
 #            else
-#              options.url = "/_restAPI/#{ encodeURIComponent options.url }"
+#              options.url = "/XDR/#{ encodeURIComponent options.url }"
 #              options.url = "#{ options.url }?#{ $.param options.data }"
 
-            options.url = "/_restAPI/#{ encodeURIComponent options.url }"
+            options.url = "/XDR/#{ encodeURIComponent options.url }"
 
         @browserRequest options, callback
 

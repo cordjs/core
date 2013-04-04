@@ -9,7 +9,7 @@ define [
 
   require bundles, () ->
     routes =
-      '^\/_restAPI\/(.*)$':
+      '^\/XDR\/(.*)$':
         widget: '/cord/core//RestApi'
         regexp: true
 

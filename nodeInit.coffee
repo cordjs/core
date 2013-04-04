@@ -48,10 +48,12 @@ exports.init = (baseUrl = 'public') ->
     'cord!appManager'
     'cord!Rest'
     'cord!configPaths'
-  ], (application, Rest, configPaths) ->
+    'cord!request/xdrProxy'
+  ], (application, Rest, configPaths, xdrProxy) ->
     configPaths.PUBLIC_PREFIX = baseUrl
     services.appManager = application
     services.fileServer = new serverStatic.Server(baseUrl)
+    services.xdrProxy = xdrProxy
 
     Rest.host = host
     Rest.port = port
@@ -61,7 +63,9 @@ exports.init = (baseUrl = 'public') ->
 
 exports.startServer = startServer = (callback) ->
   services.nodeServer = http.createServer (req, res) ->
-    if !services.appManager.process req, res
+    if (pos = req.url.indexOf('/XDR/')) != -1 # cross-domain request proxy
+      services.xdrProxy(req.url.substr(pos + 5), req, res)
+    else if not services.appManager.process(req, res)
       req.addListener 'end', (err) ->
         services.fileServer.serve req, res, (err) ->
           if err
