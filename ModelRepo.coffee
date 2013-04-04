@@ -19,6 +19,9 @@ define [
 
     fieldTags: null
 
+    # list of available additional REST-API action names to inject into model instances as methods @var Array[String]
+    actions: null
+
 
     constructor: (@container) ->
       throw new Error("'model' property should be set for the repository!") if not @model?
@@ -158,9 +161,9 @@ define [
         api.get @_buildApiRequestUrl(params), (response) =>
           result = []
           if _.isArray(response)
-            result.push(new @model(item)) for item in response
+            result.push(@_injectActionMethods(new @model(item))) for item in response
           else
-            result.push(new @model(response))
+            result.push(@_injectActionMethods(new @model(response)))
           callback(result)
 
 
@@ -209,13 +212,34 @@ define [
           api.post @restResource, model.getChangedFields(), (response, error) =>
             if error
               @emit 'error', error
+              promise.reject(error)
             else
               model.id = response.id
               model.resetChangedFields()
               @emit 'sync', model
               @_suggestNewModelToCollections(model)
-            promise.resolve(response, error)
+              @_injectActionMethods(model)
+              promise.resolve(response)
       promise
+
+
+    callModelAction: (id, action, params) ->
+      ###
+      Request REST API action method for the given model
+      @param Scalar id the model id
+      @param String action the API action name on the model
+      @param Object params additional key-value params for the action request (will be sent by POST)
+      @return Future(response|error)
+      ###
+      result = new Future(1)
+      @container.eval 'api', (api) =>
+        api.post "#{ @restResource }/#{ id }/#{ action }", params, (response, error) ->
+          console.warn "callModelAction", response, error
+          if error
+            result.reject(error)
+          else
+            result.resolve(response)
+      result
 
 
     _suggestNewModelToCollections: (model) ->
@@ -225,6 +249,23 @@ define [
       Defer.nextTick =>
         for name, collection of @_collections
           collection.checkNewModel(model)
+
+
+    _injectActionMethods: (model) ->
+      ###
+      Dynamically injects syntax-sugar-methods to call REST-API actions on the model instance as method-call
+       with the name of the action. List of available action names must be set in the @action property of the
+       model repository.
+      @param Model model model which is injected with the methods
+      @return Model the incoming model with injected methods
+      ###
+      if @actions?
+        self = this
+        for actionName in @actions
+          do (actionName) ->
+            model[actionName] = (params) ->
+              self.callModelAction(@id, actionName, params)
+      model
 
 
     debug: (method) ->
