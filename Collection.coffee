@@ -207,21 +207,23 @@ define [
 
     # paging related
 
-    getPage: (page, size, callback) ->
+    getPage: (page, size) ->
       ###
       Obtains and returns in callback portion of models of the collection according to given paging params
       @param Int page number of the page
       @param Int size page size
-      @param Function(Array[Model]) callback "result"-callback with the list of the requested models
+      @return Future(Array[Model])
       ###
       #console.log "#{ @debug 'getPage' }(#{page}, #{size})"
 
       start = (page - 1) * size
       end = start + size - 1
 
+      slice = => @toArray().slice(start, end + 1)
+
       promise = (new Future).fork()
       if @_loadedStart <= start and @_loadedEnd >= end
-        promise.resolve()
+        promise.resolve(slice())
       else
         [loadStart, loadEnd] = @_calculateLoadPageOptions(start, end)
 
@@ -229,10 +231,9 @@ define [
           start: loadStart
           end: loadEnd
         , ->
-          promise.resolve()
+          promise.resolve(slice())
 
-      promise.done =>
-        callback(@toArray().slice(start, end + 1))
+      promise
 
 
     _calculateLoadPageOptions: (start, end) ->
