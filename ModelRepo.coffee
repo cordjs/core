@@ -204,10 +204,11 @@ define [
           api.put @restResource + '/' + model.id, model.getChangedFields(), (response, error) =>
             if error
               @emit 'error', error
+              promise.reject(error)
             else
               model.resetChangedFields()
               @emit 'sync', model
-            promise.resolve(response, error)
+              promise.resolve(response)
         else
           api.post @restResource, model.getChangedFields(), (response, error) =>
             if error
