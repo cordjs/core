@@ -150,11 +150,12 @@ define [
       @_models
 
 
-    _reindexModels: ->
-      @_byId = {}
-      for m in @_models
-        if m != undefined
-          @_byId[m.id] = m
+    isInitialized: ->
+      ###
+      Indicates that the collection is already synchronized at least once.
+      @return Boolean
+      ###
+      @_initialized
 
 
     checkNewModel: (model) ->
@@ -163,13 +164,7 @@ define [
       @param Model model the new model
       ###
       if not @_id
-        queryParams =
-          orderBy: @_orderBy
-          fields: @_fields
-        queryParams.filterId = @_filterId if @_filterType == ':backend'
-        if @_hasLimits
-          queryParams.start = @_loadedStart
-          queryParams.end = @_loadedEnd
+        queryParams = @_buildRefreshQueryParams()
         @repo.query queryParams, (models) =>
           newId = model.id
           found = false
@@ -178,46 +173,113 @@ define [
               found = true
               break
           if found
-            #modifyInstructions = List.calculateTransitionCommands(@_models, models)
-            if queryParams.start? and queryParams.end?
-              loadingStart = queryParams.start
-              loadingEnd = queryParams.end
+            @_fillModelList models, queryParams.start, queryParams.end
 
-              @_models = _.clone(@_models)
-              # todo: may be we should reset @_models here?
-              # appending/replacing new models to the collection according to the paging options
-              for model, i in models
-                model.setCollection(this)
-                @_models[loadingStart + i] = model
 
-              @_loadedStart = loadingStart if loadingStart < @_loadedStart
-              @_loadedEnd = loadingEnd if loadingEnd > @_loadedEnd
+    refresh: ->
+      ###
+      Reloads currently loaded part of collection from the backend.
+      By the way triggers change events for every changed model and for the collection if there are any changes.
+      todo: support of single-model collections
+      ###
+      queryParams = @_buildRefreshQueryParams()
+      @repo.query queryParams, (models) =>
+        @_fillModelList models, queryParams.start, queryParams.end
 
-            else
-              @_models = models
-              @_loadedStart = 0
-              @_loadedEnd = models.length - 1
 
-              model.setCollection(this) for model in @_models
+    _reindexModels: ->
+      ###
+      Rebuilds useful index of the models by their id.
+      ###
+      @_byId = {}
+      for m in @_models
+        if m != undefined
+          @_byId[m.id] = m
 
-            @_reindexModels()
 
-            @emit 'change'#, modifyInstructions
+    _buildRefreshQueryParams: ->
+      ###
+      Builds backend query params for the currently defined collection params to refresh collection items.
+      @return Object key-value params for the ModelRepo::query() method
+      ###
+      result =
+        orderBy: @_orderBy
+        fields: @_fields
+      result.filterId = @_filterId if @_filterType == ':backend'
+      if @_hasLimits
+        result.start = @_loadedStart
+        result.end = @_loadedEnd
+      result
+
+
+    _fillModelList: (newList, start, end) ->
+      ###
+      Substitutes part of list of models with the new ones comparing them by the way and triggering according events.
+      If start and end arguments are not given, then the whole list is replaced starting from index 0.
+      @param Array[Model] newList list of new models
+      @param (optional)Int start starting index of the destination list, from which should replacement started
+      @param (optional)Int end index of last item to replace
+      ###
+      if start? and end?
+        loadingStart = start
+        loadingEnd = end
+        @_models = _.clone(@_models)
+      else
+        loadingStart = 0
+        loadingEnd = models.length - 1
+        @_models = []
+
+      changed = false
+      # appending/replacing new models to the collection according to the paging options
+      for model, i in models
+        model.setCollection(this)
+        if @_byId[model.id]? and @_compareModels(model, @_byId[model.id])
+          changed = true
+          @repo.emit('change', model) # todo: think about 'sync' event here
+        targetIndex = loadingStart + i
+        changed = true if not @_models[targetIndex]? or model.id != @_models[targetIndex].id
+        @_models[targetIndex] = model
+
+      @_loadedStart = loadingStart if loadingStart < @_loadedStart
+      @_loadedEnd = loadingEnd if loadingEnd > @_loadedEnd
+
+      @_reindexModels()
+
+      @emit 'change' if changed
+
+
+    _compareModels: (model1, model2) ->
+      ###
+      Deeply compares two models using only fields of this collection.
+      @param Model model1
+      @param Model model2
+      @return Boolean true if models differ, false if they are the same
+      ###
+      return true if model1.id != model2.id
+      for field in @_fields
+        rootName = field.split('.')[0]
+        if not _.isEqual(model1[rootName], model2[rootName])
+          return true
+      return false
 
 
     # paging related
 
-    getPage: (page, size) ->
+    getPage: (firstPage, lastPage, size) ->
       ###
-      Obtains and returns in callback portion of models of the collection according to given paging params
-      @param Int page number of the page
+      Obtains and returns in future portion of models of the collection according to given paging params
+      If the second argument is omitted than only one page is returned.
+      @param Int firstPage number of the first page
+      @param (optional)Int lastPage number of the last page
       @param Int size page size
       @return Future(Array[Model])
       ###
-      #console.log "#{ @debug 'getPage' }(#{page}, #{size})"
+      if arguments.length == 2
+        size = lastPage
+        lastPage = firstPage
 
-      start = (page - 1) * size
-      end = start + size - 1
+      start = (firstPage - 1) * size
+      end = start + size * (lastPage - firstPage + 1) - 1
 
       slice = => @toArray().slice(start, end + 1)
 
@@ -258,6 +320,7 @@ define [
       fields: @_fields
       start: @_loadedStart
       end: @_loadedEnd
+      hasLimits: @_hasLimits
 
 
     @fromJSON: (repo, name, obj) ->
@@ -270,6 +333,7 @@ define [
       collection._fields = obj.fields
       collection._loadedStart = obj.start
       collection._loadedEnd = obj.end
+      collection._hasLimits = obj.hasLimits
 
       collection._reindexModels()
       collection._initialized = (collection._models.length > 0)
