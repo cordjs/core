@@ -226,12 +226,12 @@ define [
         @_models = _.clone(@_models)
       else
         loadingStart = 0
-        loadingEnd = models.length - 1
+        loadingEnd = newList.length - 1
         @_models = []
 
       changed = false
       # appending/replacing new models to the collection according to the paging options
-      for model, i in models
+      for model, i in newList
         model.setCollection(this)
         if @_byId[model.id]? and @_compareModels(model, @_byId[model.id])
           changed = true
