@@ -19,7 +19,10 @@ define [
 
     fieldTags: null
 
-    # list of available additional REST-API action names to inject into model instances as methods @var Array[String]
+    # key-value of available additional REST-API action names to inject into model instances as methods
+    # key - action name
+    # value - HTTP-method name in lower-case (get, post, put, delete)
+    # @var Object[String -> String]
     actions: null
 
 
@@ -161,9 +164,9 @@ define [
         api.get @_buildApiRequestUrl(params), (response) =>
           result = []
           if _.isArray(response)
-            result.push(@_injectActionMethods(new @model(item))) for item in response
+            result.push(@buildModel(item)) for item in response
           else
-            result.push(@_injectActionMethods(new @model(response)))
+            result.push(@buildModel(response))
           callback(result)
 
 
@@ -200,7 +203,9 @@ define [
       promise = new Future(1)
       @container.eval 'api', (api) =>
         if model.id
-          @emit 'change', model
+          changeInfo = model.getChangedFields()
+          changeInfo.id = model.id
+          @emit 'change', changeInfo
           api.put @restResource + '/' + model.id, model.getChangedFields(), (response, error) =>
             if error
               @emit 'error', error
@@ -224,7 +229,16 @@ define [
       promise
 
 
-    callModelAction: (id, action, params) ->
+    emitModelChange: (model) ->
+      if model instanceof Model
+        changeInfo = model.toJSON()
+        changeInfo.id = model.id
+      else
+        changeInfo = model
+      @emit 'change', changeInfo
+
+
+    callModelAction: (id, method, action, params) ->
       ###
       Request REST API action method for the given model
       @param Scalar id the model id
@@ -234,12 +248,23 @@ define [
       ###
       result = new Future(1)
       @container.eval 'api', (api) =>
-        api.post "#{ @restResource }/#{ id }/#{ action }", params, (response, error) ->
+        api[method] "#{ @restResource }/#{ id }/#{ action }", params, (response, error) ->
           console.warn "callModelAction", response, error
           if error
             result.reject(error)
           else
             result.resolve(response)
+      result
+
+
+    buildModel: (attrs) ->
+      ###
+      Model factory.
+      @param Object attrs key-value fields for the model, including the id (if exists)
+      @return Model
+      ###
+      result = new @model(attrs)
+      @_injectActionMethods(result) if attrs.id
       result
 
 
@@ -262,10 +287,10 @@ define [
       ###
       if @actions?
         self = this
-        for actionName in @actions
-          do (actionName) ->
+        for actionName, method of @actions
+          do (actionName, method) ->
             model[actionName] = (params) ->
-              self.callModelAction(@id, actionName, params)
+              self.callModelAction(@id, method, actionName, params)
       model
 
 

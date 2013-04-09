@@ -30,6 +30,9 @@ define [
 
     _hasLimits: null
 
+    # helper value for event propagation optimization
+    _selfEmittedChangeModelId: null
+
 
     @generateName: (options) ->
       ###
@@ -60,6 +63,9 @@ define [
       @_filterType = options.filterType ? ':backend'
       @_fields = options.fields ? []
       @_id = options.id ? 0
+
+      # subscribe for model changes to smart-proxy them to the collections model instances
+      @repo.on('change', @_handleModelChange).withContext(this)
 
 
     sync: (returnMode, params, callback) ->
@@ -235,7 +241,8 @@ define [
         model.setCollection(this)
         if @_byId[model.id]? and @_compareModels(model, @_byId[model.id])
           changed = true
-          @repo.emit('change', model) # todo: think about 'sync' event here
+          @emit "model.#{ @_selfEmittedChangeModelId }.change", model
+          @emitModelChangeExcept(model) # todo: think about 'sync' event here
         targetIndex = loadingStart + i
         changed = true if not @_models[targetIndex]? or model.id != @_models[targetIndex].id
         @_models[targetIndex] = model
@@ -256,11 +263,55 @@ define [
       @return Boolean true if models differ, false if they are the same
       ###
       return true if model1.id != model2.id
-      for field in @_fields
-        rootName = field.split('.')[0]
-        if not _.isEqual(model1[rootName], model2[rootName])
+      for field in model1.getDefinedFieldNames()
+        if field != 'id' and not _.isEqual(model1[field], model2[field])
           return true
       return false
+
+
+    emitModelChangeExcept: (model) ->
+      ###
+      Triggers 'change' event for the model preventing duplicate checking and modifying the model in this collection
+       when emitModelChange is called
+      @param Model model
+      ###
+      @_selfEmittedChangeModelId = model.id
+      @repo.emitModelChange(model)
+      @_selfEmittedChangeModelId = null
+
+
+    _recursiveCompareAndChange: (src, dst) ->
+      ###
+      Deeply rewrites values from the source object to the corresponding keys of the destination object.
+      Only existing keys of the destination model are changed, no new keys are added.
+      If the value is object than recursively calls itself.
+      @param Object src source object
+      @param Object dst destination object
+      @return Boolean true if the destination object was changed
+      ###
+      result = false
+      for key, val of src
+        if dst[key] != undefined
+          if _.isArray(val) or not _.isObject(val)
+            if not _.isEqual(val, dst[key])
+              dst[key] = _.clone(val)
+              result = true
+          else if @_recursiveCompareAndChange(val, dst[key])
+            result = true
+      result
+
+
+    _handleModelChange: (changeInfo) ->
+      ###
+      Model's 'change'-event smart proxy filter and propagator.
+      Converts ModelRepo's 'change' event with {id: 2, changedField: 'newValue'}
+       to Collection's 'model.2.change' event with mutated with changedField collections
+      Mutates collection's matching model.
+      @
+      ###
+      if (model = @_byId[changeInfo.id])?
+        if @_selfEmittedChangeModelId != changeInfo.id and @_recursiveCompareAndChange(changeInfo, model)
+          @emit "model.#{ changeInfo.id }.change", model
 
 
     # paging related
@@ -325,7 +376,7 @@ define [
 
     @fromJSON: (repo, name, obj) ->
       collection = new this(repo, name, {})
-      collection._models = (new repo.model(m) for m in obj.models)
+      collection._models = (repo.buildModel(m) for m in obj.models)
       model.setCollection(collection) for model in collection._models
       collection._filterType = obj.filterType
       collection._filterId = obj.filterId

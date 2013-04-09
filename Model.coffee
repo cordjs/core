@@ -1,7 +1,8 @@
 define [
   'cord!Module'
   'cord!Collection'
-], (Module, Collection) ->
+  'underscore'
+], (Module, Collection, _) ->
 
   class Model extends Module
 
@@ -25,7 +26,17 @@ define [
         @_fieldNames.push(key)
 
 
+    getDefinedFieldNames: ->
+      ###
+      Returns list of the root names of the fields ever set for the model via constructor or set() method.
+      'id' special field is not included.
+      @return Array[String]
+      ###
+      @_fieldNames
+
+
     getChangedFields: ->
+      # todo: why not _.clone(@_changed) ?
       result = {}
       for key of @_changed
         result[key] = @[key]
@@ -55,6 +66,35 @@ define [
       this
 
 
+    emitLocalCalcChange: (path, val) ->
+      ###
+      Triggers correctly formed event about changing of some locally ad-hoc calculated field values of the model.
+      The main purpose of this method is to propagate locally calculated value of the field to another model instances
+       if they care about the field. It doesn't change the model in any way. If the model cares about the field, than
+       the value will be changed by through the change-event listening in the model's collection.
+      @param String|Object path dot-separated path of the value, or structure with field values
+      @param Any val the new value for the field (applicable only if the first argument is String)
+      ###
+      if arguments.length == 1 and _.isObject(path)
+        changeVal = _.clone(path)
+      else
+        # we have path -> value argument format, need to convert it to object-structure
+        parts = path.split('.')
+        lastPart = parts.pop()
+        # special value that'll contain only structure with the changing value without any existing siblings
+        changeVal = {}
+        changePointer = changeVal
+
+        # building structure based on dot-separated path
+        for part in parts
+          changePointer[part] = {}
+          changePointer = changePointer[part]
+        changePointer[lastPart] = val
+
+      changeVal.id = @id
+      @collection.repo.emit 'change', changeVal
+
+
     # syntax sugar
 
     save: ->
@@ -62,9 +102,18 @@ define [
 
 
     on: (topic, callback) ->
-      @collection.repo.on topic, (changed) =>
-        if changed.id == @id
-          callback(changed)
+      ###
+      Subscribe for this model instance related event
+      @param String topic event topic (name)
+      @param Function(data) callback callback function
+      @return MonologueSubscription
+      ###
+      if topic == 'change'
+        # 'change'-event is conveniently proxy-triggered by the collection @see Collection::_handleModelChange
+        @collection.on "model.#{ @id }.#{ topic }", callback
+      else
+        @collection.repo.on topic, (changed) =>
+          callback(changed) if changed.id == @id
 
 
     # serialization related
