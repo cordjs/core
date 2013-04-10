@@ -509,9 +509,11 @@ define [
 
       @widgetRepo.registerNewExtendWidget this
 
+      @ctx.setInitMode(true)
       @_doAction action, params, =>
         console.log "injectAction #{ @getPath() }::_#{ action }Action: params:", params, " context:", @ctx
         @_handleOnShow =>
+          @ctx.setInitMode(false)
           @getStructTemplate (tmpl) =>
             @_injectRender tmpl, callback
 
