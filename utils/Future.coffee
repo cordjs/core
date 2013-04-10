@@ -43,6 +43,7 @@ define [
     _order: 0
     _callbackArgs: null
 
+    _locked: false
     # completed by any way
     _completed: false
     # current state: pending, resolved or rejected
@@ -73,6 +74,7 @@ define [
       @return Future(self)
       ###
       throw Error("Trying to use the completed promise!") if @_completed
+      throw Error("Trying to fork locked promise!") if @_locked
       @_counter++
       this
 
@@ -193,6 +195,11 @@ define [
       @_state
 
 
+    lock: ->
+      @_locked = true
+      this
+
+
     _runDoneCallbacks: ->
       ###
       Fires resulting callback functions defined by done with right list of arguments.
@@ -229,6 +236,39 @@ define [
       else
         callback() for callback in callbacks
 
+
+    # syntax-sugar constructors
+
+    @single: ->
+      ###
+      Returns the future, which can not be forked and must be resolved by only single call of resolve().
+      @return Future
+      ###
+      (new Future(1)).lock()
+
+
+    @resolved: (args...) ->
+      ###
+      Returns the future already resolved with the given arguments.
+      @return Future
+      ###
+      result = @single()
+      result.resolve.apply(result, args)
+      result
+
+
+    @rejected: (error) ->
+      ###
+      Returns the future already rejected with the given error
+      @param Any error
+      @return Future
+      ###
+      result = @single()
+      result.reject(error)
+      result
+
+
+    # debugging
 
     _debug: (args...) ->
       ###
