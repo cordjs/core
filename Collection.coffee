@@ -241,7 +241,7 @@ define [
         model.setCollection(this)
         if @_byId[model.id]? and @_compareModels(model, @_byId[model.id])
           changed = true
-          @emit "model.#{ @_selfEmittedChangeModelId }.change", model
+          @emit "model.#{ model.id }.change", model
           @emitModelChangeExcept(model) # todo: think about 'sync' event here
         targetIndex = loadingStart + i
         changed = true if not @_models[targetIndex]? or model.id != @_models[targetIndex].id
