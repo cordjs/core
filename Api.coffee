@@ -65,7 +65,16 @@ define [
           @storeTokens accessToken, refreshToken, callback
 
     get: (url, params, callback) ->
-      @send 'get', url, params, callback
+      if _.isFunction(params)
+        callback = params
+        params = {}
+      @send 'get', url, params, (response, error) =>
+        if error
+          setTimeout =>
+            @send 'get', url, params, callback
+          , 10
+        else
+          callback?(response, error)
 
     post: (url, params, callback) ->
       @send 'post', url, params, callback

@@ -17,6 +17,8 @@ define [
 
     restResource: ''
 
+    predefinedCollections: null
+
     fieldTags: null
 
     # key-value of available additional REST-API action names to inject into model instances as methods
@@ -29,6 +31,17 @@ define [
     constructor: (@container) ->
       throw new Error("'model' property should be set for the repository!") if not @model?
       @_collections = {}
+      @_initPredefinedCollections()
+
+
+    _initPredefinedCollections: ->
+      ###
+      Initiates hard-coded collections with their names and options based on the predefinedCollections proprerty.
+      ###
+      if @predefinedCollections?
+        for name, options of @predefinedCollections
+          collection = new Collection(this, name, options)
+          @_registerCollection(name, collection)
 
 
     createCollection: (options) ->
@@ -152,6 +165,7 @@ define [
 
 
     setCollections: (collections) ->
+      @_collections = {}
       for name, info of collections
         collection = Collection.fromJSON(this, name, info)
         @_registerCollection(name, collection)

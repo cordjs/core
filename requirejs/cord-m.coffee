@@ -15,18 +15,18 @@ define [
     if not @classNameFormat.test(className)
       throw new Error("Model(repo) class name should start with CAP letter: #{ className }!")
 
-    if className.substr(-4) == 'Repo'
-      modelName = className.slice(0, -4)
-    else
-      modelName = className
-    dirName = modelName.charAt(0).toLowerCase() + modelName.slice(1)
-    nameParts.push(dirName)
+#    if className.substr(-4) == 'Repo'
+#      modelName = className.slice(0, -4)
+#    else
+#      modelName = className
+#    dirName = modelName.charAt(0).toLowerCase() + modelName.slice(1)
+#    nameParts.push(dirName)
     relativeDir = nameParts.join('/')
     relativeDirPath = "#{ bundleSpec.substr(1) }/models/#{ relativeDir }"
 
     bundle: bundleSpec
     className: className
-    dirName: dirName
+#    dirName: dirName
     canonicalPath: "#{ bundleSpec }//#{ relativePath }"
     relativeDirPath: relativeDirPath
     relativeFilePath: "#{ relativeDirPath }/#{ className }"
