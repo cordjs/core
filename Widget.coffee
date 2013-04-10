@@ -278,16 +278,17 @@ define [
       @param String name param name
       @param Any value param value which should be checked to be model or collection and handled accordingly
       ###
-      if isBrowser and @_modelBindings[name]?
-        mb = @_modelBindings[name]
-        if value != mb.model
-          mb.subscription.unsubscribe() if mb.subscription?
-          delete @_modelBindings[name]
-      if value instanceof Model or value instanceof Collection
-        @_modelBindings[name] ?= {}
-        @_modelBindings[name].model = value
+      if value != undefined
+        if isBrowser and @_modelBindings[name]?
+          mb = @_modelBindings[name]
+          if value != mb.model
+            mb.subscription.unsubscribe() if mb.subscription?
+            delete @_modelBindings[name]
+        if value instanceof Model or value instanceof Collection
+          @_modelBindings[name] ?= {}
+          @_modelBindings[name].model = value
 
-        @_bindModelParamEvents(name) if isBrowser
+          @_bindModelParamEvents(name) if isBrowser
 
 
     _initModelsEvents: ->
