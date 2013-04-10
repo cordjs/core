@@ -19,6 +19,9 @@ define [
     # correctly ordered list of models of the collection
     _models: null
 
+    # cached total (not only loaded) count of models in this collection
+    _totalCount: null
+
     # index of models by id
     _byId: null
 
@@ -254,6 +257,11 @@ define [
 
       @emit 'change' if changed
 
+      if not (start? and end?)
+        @_totalCount = newList.length
+      else if changed
+        @_totalCount = null # should be asked from the backend again just in case
+
 
     _compareModels: (model1, model2) ->
       ###
@@ -349,6 +357,50 @@ define [
       promise
 
 
+    getPagingInfo: (size, selectedId) ->
+      ###
+      Returns paging information for this collection based on given page size and optional selected model's id.
+      Uses cached value of total models count to calculate paging locally and avoid backend hits.
+      @param Int size desired page size
+      @param (optional) Scalar selectedId id of the selected model
+      @return Future(Object)
+                total: Int (total count this collection's models)
+                pages: Int (total number of pages)
+                selected: Int (0-based index/position of the selected model)
+                selectedPage: Int (1-based number of the page that contains the selected model)
+      ###
+      result = Future.single()
+      localCalculated = false
+      if @_totalCount?
+        if selectedId
+          if (m = @_byId[selectedId])?
+            index = @_models.indexOf(m)
+            result.resolve
+              total: @_totalCount
+              pages: Math.ceil(@_totalCount / size)
+              selected: index
+              selectedPage: Math.ceil((index + 1) / size)
+            localCalculated = true
+        else
+          result.resolve
+            total: @_totalCount
+            pages: Math.ceil(@_totalCount / size)
+          localCalculated = true
+
+      if not localCalculated
+        params =
+          pageSize: size
+          orderBy: @_orderBy
+        params.selectedId = selectedId if selectedId
+        params.filterId = @_filterId if @_filterType == ':backend'
+
+        @repo.paging(params).done (response) =>
+          @_totalCount = response.total
+          result.resolve(response)
+
+      result
+
+
     _calculateLoadPageOptions: (start, end) ->
       ###
       Calculate optimal page number and size for the needed range
@@ -372,6 +424,7 @@ define [
       start: @_loadedStart
       end: @_loadedEnd
       hasLimits: @_hasLimits
+      totalCount: @_totalCount
 
 
     @fromJSON: (repo, name, obj) ->
@@ -385,6 +438,7 @@ define [
       collection._loadedStart = obj.start
       collection._loadedEnd = obj.end
       collection._hasLimits = obj.hasLimits
+      collection._totalCount = obj.totalCount
 
       collection._reindexModels()
       collection._initialized = (collection._models.length > 0)

@@ -243,6 +243,30 @@ define [
       promise
 
 
+    paging: (params) ->
+      ###
+      Requests paging information from the backend.
+      @param Object params paging and collection params
+      @return Future(Object)
+                total: Int (total count this collection's models)
+                pages: Int (total number of pages)
+                selected: Int (0-based index/position of the selected model)
+                selectedPage: Int (1-based number of the page that contains the selected model)
+      ###
+      result = Future.single()
+      @container.eval 'api', (api) =>
+        apiParams = {}
+        apiParams._pagesize = params.pageSize if params.pageSize?
+        apiParams._sortby = params.orderBy if params.orderBy?
+        apiParams._selectedId = params.selectedId if params.selectedId?
+        apiParams._filter = params.filterId if params.filterId?
+
+        api.get @restResource + '/paging/', apiParams, (response) =>
+          result.resolve(response)
+
+      result
+
+
     emitModelChange: (model) ->
       if model instanceof Model
         changeInfo = model.toJSON()
