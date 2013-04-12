@@ -342,16 +342,11 @@ define [
 
       slice = => @toArray().slice(start, end + 1)
 
-      promise = (new Future).fork()
+      promise = Future.single()
       if @_loadedStart <= start and @_loadedEnd >= end
         promise.resolve(slice())
       else
-        [loadStart, loadEnd] = @_calculateLoadPageOptions(start, end)
-
-        @sync ':sync',
-          start: loadStart
-          end: loadEnd
-        , ->
+        @sync ':sync', @_calculateLoadPageOptions(start, end), ->
           promise.resolve(slice())
 
       promise
@@ -406,11 +401,10 @@ define [
       Calculate optimal page number and size for the needed range
       @param Int start starting position needed
       @param Int end ending position needed
-      @return [Int, Int] tuple with page number and page size to request from backend
+      @return Object key-value object with start and end positions to request from a backend
       ###
-      loadStart = if start < @_loadedStart then start else @_loadedEnd + 1
-      loadEnd = if end > @_loadedEnd then end else @_loadedStart - 1
-      [loadStart, loadEnd]
+      start: if start < @_loadedStart then start else @_loadedEnd + 1
+      end: if end > @_loadedEnd then end else @_loadedStart - 1
 
 
     # serialization related
