@@ -19,6 +19,7 @@ define [
         if arg2
           for key, value of arg2
             @[key] = value
+            @_initDeferredDebug(key)
 
 
     setInitMode: (mode) ->
@@ -93,6 +94,8 @@ define [
             callbackPromise: callbackPromise
           callbackPromise.resolve() if callbackPromise
 
+      @_initDeferredDebug(name)
+
       triggerChange
 
 
@@ -155,3 +158,11 @@ define [
 
       promise.done =>
         callback(new this(obj))
+
+
+    _initDeferredDebug: (name) ->
+      if @[name] == ':deferred'
+        setTimeout =>
+          console.error '### Deferred timeout', name, @id if @[name] == ':deferred'
+        , 20000
+

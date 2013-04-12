@@ -96,6 +96,8 @@ define [
       else
         throw new Error("Future::resolve is called more times than Future::fork!")
 
+      this
+
 
     reject: (args...) ->
       ###
@@ -113,6 +115,8 @@ define [
           @_runFailCallbacks() if @_failCallbacks.length > 0
       else
         throw new Error("Future::reject is called more times than Future::fork!")
+
+      this
 
 
     when: (args...) ->
