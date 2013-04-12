@@ -103,11 +103,11 @@ define [
         done null, response
 
     serviceContainer.def 'discussRepo', (get, done) ->
-      requirejs ['cord-m!/megaplan/front/talk//DiscussRepo'], (DiscussRepo) ->
+      requirejs ['cord-m!/megaplan/front/talks//DiscussRepo'], (DiscussRepo) ->
         done null, new DiscussRepo(serviceContainer)
 
     serviceContainer.def 'discussFilterRepo', (get, done) ->
-      requirejs ['cord-m!/megaplan/front/talk//DiscussFilterRepo'], (DiscussFilterRepo) ->
+      requirejs ['cord-m!/megaplan/front/talks//DiscussFilterRepo'], (DiscussFilterRepo) ->
         done null, new DiscussFilterRepo(serviceContainer)
 
     serviceContainer.def 'userStats', ['api'], (get, done) ->
