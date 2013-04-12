@@ -44,6 +44,8 @@ define [
 
       Defer.nextTick =>
         postal.publish "widget.#{ @id }.behaviour.init", {}
+        if @['init']? and (not @events? or not @events['init'])
+          @init()
 
 
     $: (selector) ->
