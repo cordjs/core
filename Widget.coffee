@@ -1223,10 +1223,10 @@ define [
           setTimeout =>
             console.error "#{ @debug 'incompleteBrowserInit!' }" if not savedPromiseForTimeoutCheck.completed()
           , 5000
+#      else
+#        console.warn "#{ @debug 'browserInit::duplicate!!' }" if not @_delayedRender
+      @_widgetReadyPromise
 
-          @_widgetReadyPromise
-      else
-        console.warn "#{ @debug 'browserInit::duplicate!!' }" if not @_delayedRender
 
 
     ready: ->
