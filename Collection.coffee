@@ -419,7 +419,7 @@ define [
       if @_loadedStart <= start and @_loadedEnd >= end
         promise.resolve(slice())
       else
-        @sync ':async', { start:start, end:end }, =>
+        @sync ':async', start, end, =>
           promise.resolve(slice())
       promise
 
