@@ -81,6 +81,14 @@ define [
           requirejs ['cord-m!/megaplan/front/talks//DiscussFilterRepo'], (DiscussFilterRepo) ->
             done null, new DiscussFilterRepo(serviceContainer)
 
+        serviceContainer.def 'taskRepo', (get, done) ->
+          requirejs ['cord-m!/megaplan/front/tasks//TaskRepo'], (TaskRepo) ->
+            done null, new TaskRepo(serviceContainer)
+
+        serviceContainer.def 'taskFilterRepo', (get, done) ->
+          requirejs ['cord-m!/megaplan/front/tasks//TaskFilterRepo'], (TaskFilterRepo) ->
+            done null, new TaskFilterRepo(serviceContainer)
+
         serviceContainer.def 'userStats', ['api'], (get, done) ->
           get('api').get 'userStat/', (response) =>
             done null, response
