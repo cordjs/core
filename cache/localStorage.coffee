@@ -95,6 +95,7 @@ define [
       Saves TTL for the given key to be able to make right decisions during GC
       ###
       ttlInfo = @storage.getItem('models:ttl-info')
+      ttlInfo ?= {}
 
       ttlInfo[key] = (new Date).getTime() + ttl
 
