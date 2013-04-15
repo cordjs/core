@@ -2,11 +2,12 @@ define [
   'cord!Collection'
   'cord!Model'
   'cord!Module'
+  'cord!isBrowser'
   'cord!utils/Defer'
   'cord!utils/Future'
   'underscore'
   'monologue' + (if document? then '' else '.js')
-], (Collection, Model, Module, Defer, Future, _, Monologue) ->
+], (Collection, Model, Module, isBrowser, Defer, Future, _, Monologue) ->
 
   class ModelRepo extends Module
     @include Monologue.prototype
@@ -174,6 +175,7 @@ define [
     # REST related
 
     query: (params, callback) ->
+      resultPromise = Future.single()
       @container.eval 'api', (api) =>
         api.get @_buildApiRequestUrl(params), (response) =>
           result = []
@@ -181,19 +183,22 @@ define [
             result.push(@buildModel(item)) for item in response
           else
             result.push(@buildModel(response))
-          callback(result)
+          callback?(result)
+          resultPromise.resolve(result)
+      resultPromise
 
 
     _buildApiRequestUrl: (params) ->
-      #apiRequestUrl = 'discuss/?_sortby=-timeUpdated&_page=1&_pagesize=50&_fields=owner.id,subject,content&_calc=commentsStat,accessRights'
-      #apiRequestUrl = 'discuss/' + talkId + '/?_fields=subject,content,timeCreated,owner.id,userCreated.employee.name,userCreated.employee.smallPhoto,participants.employee.id,attaches&_calc=accessRights'
       urlParams = []
       if not params.id?
         urlParams.push("_filter=#{ params.filterId }") if params.filterId?
         urlParams.push("_sortby=#{ params.orderBy }") if params.orderBy?
         urlParams.push("_page=#{ params.page }") if params.page?
         urlParams.push("_pagesize=#{ params.pageSize }") if params.pageSize?
-        urlParams.push("_slice=#{ params.start },#{ params.end }") if params.start? or params.end?
+        # important! adding 1 to the params.end to compensate semantics:
+        #   in the backend 'end' is meant as in javascript's Array.slice() - "not including"
+        #   but in collection end is meant as the last index - "including"
+        urlParams.push("_slice=#{ params.start },#{ params.end + 1 }") if params.start? or params.end?
 
       commonFields = []
       calcFields = []
@@ -225,6 +230,7 @@ define [
               @emit 'error', error
               promise.reject(error)
             else
+              @cacheModel(model, model.getChangedFields())
               model.resetChangedFields()
               @emit 'sync', model
               promise.resolve(response)
@@ -234,12 +240,14 @@ define [
               @emit 'error', error
               promise.reject(error)
             else
+              @cacheModel(model, model.getChangedFields())
               model.id = response.id
               model.resetChangedFields()
               @emit 'sync', model
               @_suggestNewModelToCollections(model)
               @_injectActionMethods(model)
               promise.resolve(response)
+
       promise
 
 
@@ -330,6 +338,196 @@ define [
             model[actionName] = (params) ->
               self.callModelAction(@id, method, actionName, params)
       model
+
+
+    # local caching related
+
+    getTtl: ->
+      600
+
+
+    cacheCollection: (collection, changedModels) ->
+      name = collection.name
+      result = new Future(1)
+      if isBrowser
+        require ['cord!cache/localStorage'], (storage) =>
+          f = storage.saveCollectionInfo @constructor.name, name, collection.getTtl(),
+            totalCount: collection._totalCount
+            start: collection._loadedStart
+            end: collection._loadedEnd
+            hasLimits: collection._hasLimits
+          result.when(f)
+
+          ids = (m.id for m in collection.toArray())
+          result.when storage.saveCollection(@constructor.name, name, ids)
+
+          if not changedModels?
+            changedModels = collection.toArray()
+          for m in changedModels
+            result.when @cacheModel(m)
+
+          result.resolve()
+
+          result.fail (error) ->
+            console.error "cacheCollection failed: ", error
+      else
+        result.reject("ModelRepo::cacheCollection is not applicable on server-side!")
+
+      result
+
+
+    cacheModel: (model, changedFields) ->
+      if isBrowser
+        result = Future.single()
+        require ['cord!cache/localStorage'], (storage) =>
+          if not changedFields?
+            changedFields = model.toJSON()
+          ttl = if model.collection? then model.collection.getTtl() else @getTtl()
+
+          save = (model) =>
+            result.when storage.saveModel(@constructor.name, model.id, ttl + 10, model)
+
+          storage.getModel(@constructor.name, model.id).done (m) =>
+            save(@_deepExtend(m, changedFields))
+          .fail ->
+            save(changedFields)
+
+        result
+      else
+        Future.rejected("ModelRepo::cacheModel is not applicable on server-side!")
+
+
+    cutCachedCollection: (collection, loadedStart, loadedEnd) ->
+      if isBrowser
+        result = Future.single()
+        require ['cord!cache/localStorage'], (storage) =>
+          f = storage.saveCollectionInfo @constructor.name, collection.name, null,
+            totalCount: collection._totalCount
+            start: loadedStart
+            end: loadedEnd
+          result.when(f)
+      else
+        Future.rejected("ModelRepo::cutCachedCollection is not applicable on server-side!")
+
+
+    getCachedCollectionInfo: (name) ->
+      if isBrowser
+        result = Future.single()
+        require ['cord!cache/localStorage'], (storage) =>
+          result.when storage.getCollectionInfo(@constructor.name, name)
+        result
+      else
+        Future.rejected("ModelRepo::getCachedCollectionInfo is not applicable on server-side!")
+
+
+    getCachedCollectionModels: (name, fields) ->
+      if isBrowser
+        resultPromise = Future.single()
+        require ['cord!cache/localStorage'], (storage) =>
+          storage.getCollection(@constructor.name, name).done (ids) =>
+            fields = @_pathToObject(fields)
+            result = []
+            curPromise = new Future
+            for id in ids
+              break if curPromise.state() == 'rejected'
+              prevPromise = curPromise
+              curPromise = Future.single()
+              do (id, prevPromise, curPromise) =>
+                storage.getModel(@constructor.name, id).done (model) =>
+                  prevPromise.done =>
+                    m = @_deepPick(model, fields)
+                    if m != false
+                      m.id = id
+                      result.push(@buildModel(m))
+                      curPromise.resolve()
+                    else
+                      curPromise.reject("Not enough fields for model with id = #{ id } in the local storage!")
+                  .fail (error) ->
+                    curPromise.reject(error)
+                .fail ->
+                  curPromise.reject("Model with id = #{ id } was not found in local storage!")
+            curPromise.done ->
+              resultPromise.resolve(result)
+            .fail (error) ->
+              resultPromise.reject(error)
+          .fail ->
+            resultPromise.reject("Collection #{ name } is not found in local storage!")
+        resultPromise
+      else
+        Future.rejected("ModelRepo::getCachedCollectionModels is not applicable on server-side!")
+
+
+    getCachedModel: (id, fields) ->
+      if isBrowser
+        resultPromise = Future.single()
+        require ['cord!cache/localStorage'], (storage) =>
+          fields = @_pathToObject(fields)
+          storage.getModel(@constructor.name, id).done (model) =>
+            m = @_deepPick(model, fields)
+            if m != false
+              m.id = id
+              resultPromise.resolve(m)
+            else
+              resultPromise.reject("Not enough fields for model with id = #{ id } in the local storage!")
+          .fail ->
+            resultPromise.reject("Model with id = #{ id } was not found in local storage!")
+        resultPromise
+      else
+        Future.rejected("ModelRepo::getCachedModel is not applicable on server-side!")
+
+
+    _pathToObject: (pathList) ->
+      result = {}
+      for path in pathList
+        changePointer = result
+        parts = path.split('.')
+        lastPart = parts.pop()
+        # building structure based on dot-separated path
+        for part in parts
+          changePointer[part] = {}
+          changePointer = changePointer[part]
+        changePointer[lastPart] = true
+      result
+
+
+    _deepPick: (sourceObject, pattern) ->
+      result = {}
+      @_recursivePick(sourceObject, pattern, result)
+
+
+    _recursivePick: (src, pattern, dst) ->
+      for key, value of pattern
+        if src[key] != undefined
+          if value == true             # leaf of this branch
+            dst[key] = src[key]
+          else if _.isObject(src[key]) # value is object, diving deeper
+            dst[key] = {}
+            if @_recursivePick(src[key], value, dst[key]) == false
+              return false
+          else
+            return false
+        else
+          return false
+      dst
+
+
+    _deepExtend: (args...) ->
+      dst = args.shift()
+      for src in args
+        @_recursiveExtend(dst, src)
+      dst
+
+
+    _recursiveExtend: (dst, src) ->
+      for key, value of src
+        if value != undefined
+          if dst[key] == undefined or _.isArray(value) or not _.isObject(dst[key])
+            dst[key] = value
+          else if _.isArray(value) or not _.isObject(value)
+            dst[key] = value
+          else
+            @_recursiveExtend(dst[key], src[key])
+      dst
 
 
     debug: (method) ->
