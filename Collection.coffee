@@ -128,7 +128,8 @@ define [
             @_fillModelList(models, syncStart, syncEnd) if not @_initialized # the check is need in case of parallel cache trial
             firstResultPromise.resolve(this)
           activateSyncPromise.reject() if cacheMode # remote sync is not necessary in :cache mode
-        .fail ->
+        .fail (error) =>
+          console.warn "#{ @debug '_getModelsFromLocalCache' } failed: ", error
           activateSyncPromise.resolve() if cacheMode # cache failed, need to remote sync even in :cache mode
       else # if @_initialized
         rangeAdjustPromise.resolve(start, end)
