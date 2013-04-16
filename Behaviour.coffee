@@ -42,10 +42,11 @@ define [
       @initWidgetEvents(@widgetEvents)  if @widgetEvents
       @refreshElements()                if @elements
 
-      Defer.nextTick =>
-        postal.publish "widget.#{ @id }.behaviour.init", {}
-        if @['init']? and (not @events? or not @events['init'])
-          @init()
+      Defer.nextTick => @init()
+
+
+    init: ->
+      postal.publish "widget.#{ @id }.behaviour.init", {}
 
 
     $: (selector) ->
