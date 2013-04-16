@@ -127,10 +127,10 @@ define [
       @return Future self
       ###
       for promise in args
-        @fork()
+        @fork() if not @_locked
         promise
-          .done(=> @resolve())
-          .fail(=> @reject())
+          .done((args...) => @resolve.apply(this, args))
+          .fail((args...) => @reject.apply(this, args))
       this
 
 
@@ -151,6 +151,7 @@ define [
       If all waiting values are already resolved then callback is fired immedialtely.
       If done method is called several times than all passed functions will be called.
       ###
+      throw new Error("Invalid argument for Future.fail(): #{ callback }") if not _.isFunction(callback)
       @_failCallbacks.push(callback)
       @_runFailCallbacks() if @_state == 'rejected'
       this
