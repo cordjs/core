@@ -322,7 +322,7 @@ define [
         @_models.splice(targetIndex + 1, loadingEnd - targetIndex)
 
       @_loadedStart = loadingStart if loadingStart < @_loadedStart
-      @_loadedEnd = @_models.length - 1
+      @_loadedEnd = loadingEnd if loadingEnd > @_loadedEnd
 
       @_reindexModels()
 
@@ -485,6 +485,8 @@ define [
       end = start + size * (lastPage - firstPage + 1) - 1
 
       slice = => @toArray().slice(start, end + 1)
+
+      console.warn "#{ @debug 'getPage' }", firstPage, lastPage, start, end, @_loadedStart, @_loadedEnd
 
       promise = Future.single()
       if @_loadedStart <= start and @_loadedEnd >= end
