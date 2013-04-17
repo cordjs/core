@@ -498,8 +498,6 @@ define [
 
       slice = => @toArray().slice(start, end + 1)
 
-      console.warn "#{ @debug 'getPage' }", firstPage, lastPage, start, end, @_loadedStart, @_loadedEnd
-
       promise = Future.single()
       if @_loadedStart <= start and @_loadedEnd >= end
         promise.resolve(slice())
