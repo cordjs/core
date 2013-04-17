@@ -13,7 +13,7 @@ define [
     _filterId: null
     _filterFunction: null
 
-    _orderBy: ':id'
+    _orderBy: 'id'
 
     _fields: null
 
@@ -47,7 +47,7 @@ define [
       @param Object options same options, that will be passed to the collection constructor
       @return String
       ###
-      orderBy = options.orderBy ? ':id'
+      orderBy = options.orderBy ? 'id'
       filterId = options.filterId ? ''
       fields = options.fields ? []
       calc = options.calc ? []
@@ -265,19 +265,15 @@ define [
       @param (optional)Int end ending index of the loading range
       ###
       if start? and end?
-        loadingStart = start
-        loadingEnd = end
-
         # appending new models to the collection according to the paging options
         for model, i in models
           model.setCollection(this)
-          @_models[loadingStart + i] = model
+          @_models[start + i] = model
 
-        @_loadedStart = loadingStart if loadingStart < @_loadedStart
-        @_loadedEnd = loadingEnd if loadingEnd > @_loadedEnd
+        @_loadedStart = start if start < @_loadedStart
+        @_loadedEnd = end if end > @_loadedEnd
 
         @_hasLimits = (@_hasLimits != false)
-
       else
         @_models = models
         @_loadedStart = 0
@@ -322,8 +318,11 @@ define [
         changed = true if not @_models[targetIndex]? or model.id != @_models[targetIndex].id
         @_models[targetIndex] = model
 
+      if targetIndex < loadingEnd
+        @_models.splice(targetIndex + 1, loadingEnd - targetIndex)
+
       @_loadedStart = loadingStart if loadingStart < @_loadedStart
-      @_loadedEnd = loadingEnd if loadingEnd > @_loadedEnd
+      @_loadedEnd = @_models.length - 1
 
       @_reindexModels()
 

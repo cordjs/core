@@ -295,7 +295,6 @@ define [
       result = new Future(1)
       @container.eval 'api', (api) =>
         api[method] "#{ @restResource }/#{ id }/#{ action }", params, (response, error) ->
-          console.warn "callModelAction", response, error
           if error
             result.reject(error)
           else
