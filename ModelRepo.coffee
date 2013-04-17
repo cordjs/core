@@ -199,6 +199,9 @@ define [
         #   in the backend 'end' is meant as in javascript's Array.slice() - "not including"
         #   but in collection end is meant as the last index - "including"
         urlParams.push("_slice=#{ params.start },#{ params.end + 1 }") if params.start? or params.end?
+        if params.filter
+          for filterField of params.filter
+            urlParams.push("#{ filterField }=#{ params.filter[filterField] }")
 
       commonFields = []
       calcFields = []
@@ -207,7 +210,10 @@ define [
           calcFields.push(field)
         else
           commonFields.push(field)
-      urlParams.push("_fields=#{ commonFields.join(',') }")
+      if commonFields.length > 0
+        urlParams.push("_fields=#{ commonFields.join(',') }")
+      else
+        urlParams.push("_fields=id")
       urlParams.push("_calc=#{ calcFields.join(',') }") if calcFields.length > 0
 
       @restResource + (if params.id? then ('/' + params.id) else '') + '/?' + urlParams.join('&')
@@ -268,6 +274,9 @@ define [
         apiParams._sortby = params.orderBy if params.orderBy?
         apiParams._selectedId = params.selectedId if params.selectedId?
         apiParams._filter = params.filterId if params.filterId?
+        if params.filter
+          for filterField of params.filter
+            apiParams[filterField]=params.filter[filterField]
 
         api.get @restResource + '/paging/', apiParams, (response) =>
           result.resolve(response)
