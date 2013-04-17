@@ -64,7 +64,7 @@ define [
       ###
       @_models = []
       @_byId = {}
-      @_orderBy = options.orderBy ? ':id'
+      @_orderBy = options.orderBy ? 'id'
       @_filterId = options.filterId ? null
       @_filterType = options.filterType ? ':backend'
       @_fields = options.fields ? []
@@ -345,9 +345,80 @@ define [
       ###
       return true if model1.id != model2.id
       for field in model1.getDefinedFieldNames()
-        if field != 'id' and not _.isEqual(model1[field], model2[field])
+        if field != 'id' and not @_modelsEq(model1[field], model2[field])
           return true
       return false
+
+
+    _modelsEq: (a, b) ->
+      ###
+      Port of underscore's isEqual (to be more precise, eq) function with cutted down support of recursive structures
+       and cutted down checking of fields in b that doesn't exists in a.
+      ###
+
+      # Identical objects are equal. `0 === -0`, but they aren't identical.
+      # See the Harmony `egal` proposal: http://wiki.ecmascript.org/doku.php?id=harmony:egal.
+      return a != 0 || 1 / a == 1 / b if a == b
+      # A strict comparison is necessary because `null == undefined`.
+      return a == b if a == null || b == null
+      # Unwrap any wrapped objects.
+      a = a._wrapped if a._chain
+      b = b._wrapped if b._chain
+      # Invoke a custom `isEqual` method if one is provided.
+      return a.isEqual(b) if a.isEqual && _.isFunction(a.isEqual)
+      return b.isEqual(a) if b.isEqual && _.isFunction(b.isEqual)
+      # Compare `[[Class]]` names.
+      className = toString.call(a)
+      return false if className != toString.call(b)
+      switch className
+        # Strings, numbers, dates, and booleans are compared by value.
+        when '[object String]'
+          # Primitives and their corresponding object wrappers are equivalent; thus, `"5"` is
+          # equivalent to `new String("5")`.
+          return a == String(b)
+        when '[object Number]'
+          # `NaN`s are equivalent, but non-reflexive. An `egal` comparison is performed for
+          # other numeric values.
+          return a != +a ? b != +b : (a == 0 ? 1 / a == 1 / b : a == +b)
+        when '[object Date]', '[object Boolean]'
+          # Coerce dates and booleans to numeric primitive values. Dates are compared by their
+          # millisecond representations. Note that invalid dates with millisecond representations
+          # of `NaN` are not equivalent.
+          return +a == +b;
+        # RegExps are compared by their source patterns and flags.
+        when '[object RegExp]'
+          return a.source == b.source && \
+                 a.global == b.global && \
+                 a.multiline == b.multiline && \
+                 a.ignoreCase == b.ignoreCase
+
+      return false if (typeof a != 'object' || typeof b != 'object')
+
+      size = 0
+      result = true
+      # Recursively compare objects and arrays.
+      if className == '[object Array]'
+        # Compare array lengths to determine if a deep comparison is necessary.
+        size = a.length
+        result = (size == b.length)
+        if result
+          # Deep compare the contents, ignoring non-numeric properties.
+          while size--
+            # Ensure commutative equality for sparse arrays.
+            if !(result = size in a == size in b && @_modelsEq(a[size], b[size]))
+              break
+      else
+        # Objects with different constructors are not equivalent.
+        return false if 'constructor' in a != 'constructor' in b || a.constructor != b.constructor
+        # Deep compare objects.
+        for key of a
+          if _.has(a, key)
+            # Count the expected number of properties.
+            size++
+            # Deep compare each member.
+            if !(result = _.has(b, key) && @_modelsEq(a[key], b[key]))
+              break
+      result
 
 
     emitModelChangeExcept: (model) ->
