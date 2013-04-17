@@ -122,6 +122,7 @@ define [
       result = {}
       for key in @_fieldNames
         result[key] = @[key]
+      result.id = @id
       result
 
 

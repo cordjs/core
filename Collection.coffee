@@ -1,10 +1,11 @@
 define [
+  'cord!isBrowser'
   'cord!Module'
   'cord!utils/Defer'
   'cord!utils/Future'
   'monologue' + (if document? then '' else '.js')
   'underscore'
-], (Module, Defer, Future, Monologue, _) ->
+], (isBrowser, Module, Defer, Future, Monologue, _) ->
 
   class Collection extends Module
     @include Monologue.prototype
@@ -22,6 +23,8 @@ define [
 
     # cached total (not only loaded) count of models in this collection
     _totalCount: null
+    _cacheLoaded: false
+    _totalCountFromCache: false
 
     # index of models by id
     _byId: null
@@ -153,6 +156,9 @@ define [
       activateSyncPromise.done => # pass :cache mode
         rangeAdjustPromise.done (syncStart, syncEnd) => # wait for range adjustment from the local cache
           @_enqueueQuery(syncStart, syncEnd).done => # avoid repeated refresh-query
+            if @_totalCountFromCache
+              @_totalCount = null
+              @_totalCountFromCache = false
             syncPromise.resolve(this)
             if not firstResultPromise.completed()
               firstResultPromise.resolve(this)
@@ -305,7 +311,6 @@ define [
         @_models = []
 
       changed = false
-      changedModels = []
       # appending/replacing new models to the collection according to the paging options
       for model, i in newList
         model.setCollection(this)
@@ -313,7 +318,6 @@ define [
           changed = true
           @emit "model.#{ model.id }.change", model
           @emitModelChangeExcept(model) # todo: think about 'sync' event here
-          changedModels.push(model)
         targetIndex = loadingStart + i
         changed = true if not @_models[targetIndex]? or model.id != @_models[targetIndex].id
         @_models[targetIndex] = model
@@ -333,7 +337,7 @@ define [
       else if changed
         @_totalCount = null # should be asked from the backend again just in case
 
-      @repo.cacheCollection(this, changedModels)
+      @repo.cacheCollection(this)
 
 
     _compareModels: (model1, model2) ->
@@ -518,33 +522,47 @@ define [
                 selectedPage: Int (1-based number of the page that contains the selected model)
       ###
       result = Future.single()
-      localCalculated = false
-      if @_totalCount?
-        if selectedId
-          if (m = @_byId[selectedId])?
-            index = @_models.indexOf(m)
+
+      cachePromise = Future.single()
+      if @_cacheLoaded or not isBrowser
+        cachePromise.resolve()
+      else
+        @_cacheLoaded = true
+        @repo.getCachedCollectionInfo(@name).done (info) =>
+          @_totalCount = info.totalCount
+          @_totalCountFromCache = true
+          cachePromise.resolve()
+        .fail ->
+          cachePromise.resolve()
+
+      cachePromise.done =>
+        localCalculated = false
+        if @_totalCount?
+          if selectedId
+            if (m = @_byId[selectedId])?
+              index = @_models.indexOf(m)
+              result.resolve
+                total: @_totalCount
+                pages: Math.ceil(@_totalCount / size)
+                selected: index
+                selectedPage: Math.ceil((index + 1) / size)
+              localCalculated = true
+          else
             result.resolve
               total: @_totalCount
               pages: Math.ceil(@_totalCount / size)
-              selected: index
-              selectedPage: Math.ceil((index + 1) / size)
             localCalculated = true
-        else
-          result.resolve
-            total: @_totalCount
-            pages: Math.ceil(@_totalCount / size)
-          localCalculated = true
 
-      if not localCalculated
-        params =
-          pageSize: size
-          orderBy: @_orderBy
-        params.selectedId = selectedId if selectedId
-        params.filterId = @_filterId if @_filterType == ':backend'
+        if not localCalculated
+          params =
+            pageSize: size
+            orderBy: @_orderBy
+          params.selectedId = selectedId if selectedId
+          params.filterId = @_filterId if @_filterType == ':backend'
 
-        @repo.paging(params).done (response) =>
-          @_totalCount = response.total
-          result.resolve(response)
+          @repo.paging(params).done (response) =>
+            @_totalCount = response.total
+            result.resolve(response)
 
       result
 
@@ -736,16 +754,8 @@ define [
             @_firstGetModelsFromCachePromise.reject("Local cache is not applicable for this sync call!")
 
         .fail (error) => # getCachedCollectionInfo
-          if @_id
-            # trying to recreate single model collection without cached collection using only cached model
-            rangeAdjustPromise.resolve()
-            @repo.getCachedModel(@_id, @_fields).done (model) =>
-              @_firstGetModelsFromCachePromise.resolve([model])
-            .fail (error) =>
-              @_firstGetModelsFromCachePromise.reject(error)
-          else
-            rangeAdjustPromise.resolve(start, end)
-            @_firstGetModelsFromCachePromise.reject(error)
+          rangeAdjustPromise.resolve(start, end)
+          @_firstGetModelsFromCachePromise.reject(error)
 
         @_firstGetModelsFromCachePromise
 
@@ -766,7 +776,7 @@ define [
     # serialization related
 
     toJSON: ->
-      models: @_models
+      models: _.compact(@_models)
       filterType: @_filterType
       filterId: @_filterId
       orderBy: @_orderBy
@@ -779,13 +789,18 @@ define [
 
     @fromJSON: (repo, name, obj) ->
       collection = new this(repo, name, {})
-      collection._models = (repo.buildModel(m) for m in obj.models)
-      model.setCollection(collection) for model in collection._models
+      models = []
+      start = obj.start
+      for m, i in obj.models
+        m = repo.buildModel(m)
+        m.setCollection(collection)
+        models[start + i] = m
+      collection._models = models
       collection._filterType = obj.filterType
       collection._filterId = obj.filterId
       collection._orderBy = obj.orderBy
       collection._fields = obj.fields
-      collection._loadedStart = obj.start
+      collection._loadedStart = start
       collection._loadedEnd = obj.end
       collection._hasLimits = obj.hasLimits
       collection._totalCount = obj.totalCount
