@@ -119,13 +119,13 @@ define [
       requirejs ['cord-m!/megaplan/front/tasks//TaskFilterRepo'], (TaskFilterRepo) ->
         done null, new TaskFilterRepo(serviceContainer)
 
-    serviceContainer.def 'userStats', ['api'], (get, done) ->
-      get('api').get 'userStat/', (response) =>
-        done null, response
+    serviceContainer.def 'userStats', (get, done) ->
+      requirejs ['cord!/megaplan/front/common/utils/UserStat'], (UserStat) ->
+        done null, new UserStat(serviceContainer)
 
-    serviceContainer.def 'ecomet', (get, done) ->
+    serviceContainer.def 'ecomet', ['cookie', 'config'], (get, done) ->
       requirejs ['ecomet'], (Ecomet) ->
-        done null, new Ecomet(serviceContainer)
+        done null, new Ecomet(get('cookie').get('accessToken'), get('config').ecomet)
 
     ###
     ###
