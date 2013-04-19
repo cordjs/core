@@ -13,39 +13,30 @@ define [
       ###
       key = "cl:#{ repoName }:#{ collectionName }"
       if ttl?
+        @_registerTtl(key + ':info', ttl)
         @_registerTtl(key, ttl)
-        @_registerTtl(key + ':ids', ttl)
-      @_set(key, info)
+      @_set(key + ':info', info)
 
 
     saveCollection: (repoName, collectionName, modelIds) ->
       ###
       Saves list of model ids for the collection.
       ###
-      @_set("cl:#{ repoName }:#{ collectionName }:ids", modelIds)
-
-
-    saveModel: (repoName, modelId, ttl, model) ->
-      ###
-      Saves fields of the model instance with the given id.
-      ###
-      key = "m:#{ repoName }:#{ modelId }"
-      @_registerTtl(key, ttl)
-      @_set(key, model)
+      @_set("cl:#{ repoName }:#{ collectionName }", modelIds)
 
 
     getCollectionInfo: (repoName, collectionName) ->
       ###
       Returns meta-information of the collection, previously saved in the local storage.
       ###
-      @_get("cl:#{ repoName }:#{ collectionName }")
+      @_get("cl:#{ repoName }:#{ collectionName }:info")
 
 
     getCollection: (repoName, collectionName) ->
       ###
       Returns list of model ids of the collection, previously saved in the local storage.
       ###
-      @_get("cl:#{ repoName }:#{ collectionName }:ids")
+      @_get("cl:#{ repoName }:#{ collectionName }")
 
 
     getModel: (repoName, id) ->

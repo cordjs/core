@@ -230,7 +230,7 @@ define [
               @emit 'error', error
               promise.reject(error)
             else
-              @cacheModel(model, model.getChangedFields())
+              @cacheCollection(model.collection) if model.collection?
               model.resetChangedFields()
               @emit 'sync', model
               promise.resolve(response)
@@ -240,7 +240,6 @@ define [
               @emit 'error', error
               promise.reject(error)
             else
-              @cacheModel(model, model.getChangedFields())
               model.id = response.id
               model.resetChangedFields()
               @emit 'sync', model
@@ -295,7 +294,6 @@ define [
       result = new Future(1)
       @container.eval 'api', (api) =>
         api[method] "#{ @restResource }/#{ id }/#{ action }", params, (response, error) ->
-          console.warn "callModelAction", response, error
           if error
             result.reject(error)
           else
@@ -346,10 +344,10 @@ define [
       600
 
 
-    cacheCollection: (collection, changedModels) ->
+    cacheCollection: (collection) ->
       name = collection.name
       result = new Future(1)
-      if isBrowser
+      if false and isBrowser
         require ['cord!cache/localStorage'], (storage) =>
           f = storage.saveCollectionInfo @constructor.name, name, collection.getTtl(),
             totalCount: collection._totalCount
@@ -358,13 +356,7 @@ define [
             hasLimits: collection._hasLimits
           result.when(f)
 
-          ids = (m.id for m in collection.toArray())
-          result.when storage.saveCollection(@constructor.name, name, ids)
-
-          if not changedModels?
-            changedModels = collection.toArray()
-          for m in changedModels
-            result.when @cacheModel(m)
+          result.when storage.saveCollection(@constructor.name, name, collection.toArray())
 
           result.resolve()
 
@@ -376,29 +368,8 @@ define [
       result
 
 
-    cacheModel: (model, changedFields) ->
-      if isBrowser
-        result = Future.single()
-        require ['cord!cache/localStorage'], (storage) =>
-          if not changedFields?
-            changedFields = model.toJSON()
-          ttl = if model.collection? then model.collection.getTtl() else @getTtl()
-
-          save = (model) =>
-            result.when storage.saveModel(@constructor.name, model.id, ttl + 10, model)
-
-          storage.getModel(@constructor.name, model.id).done (m) =>
-            save(@_deepExtend(m, changedFields))
-          .fail ->
-            save(changedFields)
-
-        result
-      else
-        Future.rejected("ModelRepo::cacheModel is not applicable on server-side!")
-
-
     cutCachedCollection: (collection, loadedStart, loadedEnd) ->
-      if isBrowser
+      if false and isBrowser
         result = Future.single()
         require ['cord!cache/localStorage'], (storage) =>
           f = storage.saveCollectionInfo @constructor.name, collection.name, null,
@@ -411,7 +382,7 @@ define [
 
 
     getCachedCollectionInfo: (name) ->
-      if isBrowser
+      if false and isBrowser
         result = Future.single()
         require ['cord!cache/localStorage'], (storage) =>
           result.when storage.getCollectionInfo(@constructor.name, name)
@@ -421,59 +392,17 @@ define [
 
 
     getCachedCollectionModels: (name, fields) ->
-      if isBrowser
+      if false and isBrowser
         resultPromise = Future.single()
         require ['cord!cache/localStorage'], (storage) =>
-          storage.getCollection(@constructor.name, name).done (ids) =>
-            fields = @_pathToObject(fields)
+          storage.getCollection(@constructor.name, name).done (models) =>
             result = []
-            curPromise = new Future
-            for id in ids
-              break if curPromise.state() == 'rejected'
-              prevPromise = curPromise
-              curPromise = Future.single()
-              do (id, prevPromise, curPromise) =>
-                storage.getModel(@constructor.name, id).done (model) =>
-                  prevPromise.done =>
-                    m = @_deepPick(model, fields)
-                    if m != false
-                      m.id = id
-                      result.push(@buildModel(m))
-                      curPromise.resolve()
-                    else
-                      curPromise.reject("Not enough fields for model with id = #{ id } in the local storage!")
-                  .fail (error) ->
-                    curPromise.reject(error)
-                .fail ->
-                  curPromise.reject("Model with id = #{ id } was not found in local storage!")
-            curPromise.done ->
-              resultPromise.resolve(result)
-            .fail (error) ->
-              resultPromise.reject(error)
-          .fail ->
-            resultPromise.reject("Collection #{ name } is not found in local storage!")
+            for m in models
+              result.push(@buildModel(m))
+            resultPromise.resolve(result)
         resultPromise
       else
         Future.rejected("ModelRepo::getCachedCollectionModels is not applicable on server-side!")
-
-
-    getCachedModel: (id, fields) ->
-      if isBrowser
-        resultPromise = Future.single()
-        require ['cord!cache/localStorage'], (storage) =>
-          fields = @_pathToObject(fields)
-          storage.getModel(@constructor.name, id).done (model) =>
-            m = @_deepPick(model, fields)
-            if m != false
-              m.id = id
-              resultPromise.resolve(m)
-            else
-              resultPromise.reject("Not enough fields for model with id = #{ id } in the local storage!")
-          .fail ->
-            resultPromise.reject("Model with id = #{ id } was not found in local storage!")
-        resultPromise
-      else
-        Future.rejected("ModelRepo::getCachedModel is not applicable on server-side!")
 
 
     _pathToObject: (pathList) ->

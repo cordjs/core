@@ -1,10 +1,11 @@
 define [
+  'cord!isBrowser'
   'cord!Module'
   'cord!utils/Defer'
   'cord!utils/Future'
   'monologue' + (if document? then '' else '.js')
   'underscore'
-], (Module, Defer, Future, Monologue, _) ->
+], (isBrowser, Module, Defer, Future, Monologue, _) ->
 
   class Collection extends Module
     @include Monologue.prototype
@@ -13,7 +14,7 @@ define [
     _filterId: null
     _filterFunction: null
 
-    _orderBy: ':id'
+    _orderBy: 'id'
 
     _fields: null
 
@@ -22,6 +23,8 @@ define [
 
     # cached total (not only loaded) count of models in this collection
     _totalCount: null
+    _cacheLoaded: false
+    _totalCountFromCache: false
 
     # index of models by id
     _byId: null
@@ -47,7 +50,7 @@ define [
       @param Object options same options, that will be passed to the collection constructor
       @return String
       ###
-      orderBy = options.orderBy ? ':id'
+      orderBy = options.orderBy ? 'id'
       filterId = options.filterId ? ''
       fields = options.fields ? []
       calc = options.calc ? []
@@ -64,7 +67,7 @@ define [
       ###
       @_models = []
       @_byId = {}
-      @_orderBy = options.orderBy ? ':id'
+      @_orderBy = options.orderBy ? 'id'
       @_filterId = options.filterId ? null
       @_filterType = options.filterType ? ':backend'
       @_fields = options.fields ? []
@@ -153,6 +156,9 @@ define [
       activateSyncPromise.done => # pass :cache mode
         rangeAdjustPromise.done (syncStart, syncEnd) => # wait for range adjustment from the local cache
           @_enqueueQuery(syncStart, syncEnd).done => # avoid repeated refresh-query
+            if @_totalCountFromCache
+              @_totalCount = null
+              @_totalCountFromCache = false
             syncPromise.resolve(this)
             if not firstResultPromise.completed()
               firstResultPromise.resolve(this)
@@ -265,19 +271,15 @@ define [
       @param (optional)Int end ending index of the loading range
       ###
       if start? and end?
-        loadingStart = start
-        loadingEnd = end
-
         # appending new models to the collection according to the paging options
         for model, i in models
           model.setCollection(this)
-          @_models[loadingStart + i] = model
+          @_models[start + i] = model
 
-        @_loadedStart = loadingStart if loadingStart < @_loadedStart
-        @_loadedEnd = loadingEnd if loadingEnd > @_loadedEnd
+        @_loadedStart = start if start < @_loadedStart
+        @_loadedEnd = end if end > @_loadedEnd
 
         @_hasLimits = (@_hasLimits != false)
-
       else
         @_models = models
         @_loadedStart = 0
@@ -309,7 +311,6 @@ define [
         @_models = []
 
       changed = false
-      changedModels = []
       # appending/replacing new models to the collection according to the paging options
       for model, i in newList
         model.setCollection(this)
@@ -317,10 +318,12 @@ define [
           changed = true
           @emit "model.#{ model.id }.change", model
           @emitModelChangeExcept(model) # todo: think about 'sync' event here
-          changedModels.push(model)
         targetIndex = loadingStart + i
         changed = true if not @_models[targetIndex]? or model.id != @_models[targetIndex].id
         @_models[targetIndex] = model
+
+      if targetIndex < loadingEnd
+        @_models.splice(targetIndex + 1, loadingEnd - targetIndex)
 
       @_loadedStart = loadingStart if loadingStart < @_loadedStart
       @_loadedEnd = loadingEnd if loadingEnd > @_loadedEnd
@@ -334,7 +337,7 @@ define [
       else if changed
         @_totalCount = null # should be asked from the backend again just in case
 
-      @repo.cacheCollection(this, changedModels)
+      @repo.cacheCollection(this)
 
 
     _compareModels: (model1, model2) ->
@@ -346,9 +349,80 @@ define [
       ###
       return true if model1.id != model2.id
       for field in model1.getDefinedFieldNames()
-        if field != 'id' and not _.isEqual(model1[field], model2[field])
+        if field != 'id' and not @_modelsEq(model1[field], model2[field])
           return true
       return false
+
+
+    _modelsEq: (a, b) ->
+      ###
+      Port of underscore's isEqual (to be more precise, eq) function with cutted down support of recursive structures
+       and cutted down checking of fields in b that doesn't exists in a.
+      ###
+
+      # Identical objects are equal. `0 === -0`, but they aren't identical.
+      # See the Harmony `egal` proposal: http://wiki.ecmascript.org/doku.php?id=harmony:egal.
+      return a != 0 || 1 / a == 1 / b if a == b
+      # A strict comparison is necessary because `null == undefined`.
+      return a == b if a == null || b == null
+      # Unwrap any wrapped objects.
+      a = a._wrapped if a._chain
+      b = b._wrapped if b._chain
+      # Invoke a custom `isEqual` method if one is provided.
+      return a.isEqual(b) if a.isEqual && _.isFunction(a.isEqual)
+      return b.isEqual(a) if b.isEqual && _.isFunction(b.isEqual)
+      # Compare `[[Class]]` names.
+      className = toString.call(a)
+      return false if className != toString.call(b)
+      switch className
+        # Strings, numbers, dates, and booleans are compared by value.
+        when '[object String]'
+          # Primitives and their corresponding object wrappers are equivalent; thus, `"5"` is
+          # equivalent to `new String("5")`.
+          return a == String(b)
+        when '[object Number]'
+          # `NaN`s are equivalent, but non-reflexive. An `egal` comparison is performed for
+          # other numeric values.
+          return a != +a ? b != +b : (a == 0 ? 1 / a == 1 / b : a == +b)
+        when '[object Date]', '[object Boolean]'
+          # Coerce dates and booleans to numeric primitive values. Dates are compared by their
+          # millisecond representations. Note that invalid dates with millisecond representations
+          # of `NaN` are not equivalent.
+          return +a == +b;
+        # RegExps are compared by their source patterns and flags.
+        when '[object RegExp]'
+          return a.source == b.source && \
+                 a.global == b.global && \
+                 a.multiline == b.multiline && \
+                 a.ignoreCase == b.ignoreCase
+
+      return false if (typeof a != 'object' || typeof b != 'object')
+
+      size = 0
+      result = true
+      # Recursively compare objects and arrays.
+      if className == '[object Array]'
+        # Compare array lengths to determine if a deep comparison is necessary.
+        size = a.length
+        result = (size == b.length)
+        if result
+          # Deep compare the contents, ignoring non-numeric properties.
+          while size--
+            # Ensure commutative equality for sparse arrays.
+            if !(result = size in a == size in b && @_modelsEq(a[size], b[size]))
+              break
+      else
+        # Objects with different constructors are not equivalent.
+        return false if 'constructor' in a != 'constructor' in b || a.constructor != b.constructor
+        # Deep compare objects.
+        for key of a
+          if _.has(a, key)
+            # Count the expected number of properties.
+            size++
+            # Deep compare each member.
+            if !(result = _.has(b, key) && @_modelsEq(a[key], b[key]))
+              break
+      result
 
 
     emitModelChangeExcept: (model) ->
@@ -374,7 +448,15 @@ define [
       result = false
       for key, val of src
         if dst[key] != undefined
-          if _.isArray(val) or not _.isObject(val)
+          if _.isArray(val)
+            if val.length == 0
+              dst[key] = []
+              result = true
+            else if _.isArray(val[0]) or not _.isObject(val[0]) or not val[0].id?
+              dst[key] = _.clone(val)
+              result = true
+            # todo: can be more smart here, but very difficult
+          else if not _.isObject(val)
             if not _.isEqual(val, dst[key])
               dst[key] = _.clone(val)
               result = true
@@ -438,33 +520,47 @@ define [
                 selectedPage: Int (1-based number of the page that contains the selected model)
       ###
       result = Future.single()
-      localCalculated = false
-      if @_totalCount?
-        if selectedId
-          if (m = @_byId[selectedId])?
-            index = @_models.indexOf(m)
+
+      cachePromise = Future.single()
+      if @_cacheLoaded or not isBrowser
+        cachePromise.resolve()
+      else
+        @_cacheLoaded = true
+        @repo.getCachedCollectionInfo(@name).done (info) =>
+          @_totalCount = info.totalCount
+          @_totalCountFromCache = true
+          cachePromise.resolve()
+        .fail ->
+          cachePromise.resolve()
+
+      cachePromise.done =>
+        localCalculated = false
+        if @_totalCount?
+          if selectedId
+            if (m = @_byId[selectedId])?
+              index = @_models.indexOf(m)
+              result.resolve
+                total: @_totalCount
+                pages: Math.ceil(@_totalCount / size)
+                selected: index
+                selectedPage: Math.ceil((index + 1) / size)
+              localCalculated = true
+          else
             result.resolve
               total: @_totalCount
               pages: Math.ceil(@_totalCount / size)
-              selected: index
-              selectedPage: Math.ceil((index + 1) / size)
             localCalculated = true
-        else
-          result.resolve
-            total: @_totalCount
-            pages: Math.ceil(@_totalCount / size)
-          localCalculated = true
 
-      if not localCalculated
-        params =
-          pageSize: size
-          orderBy: @_orderBy
-        params.selectedId = selectedId if selectedId
-        params.filterId = @_filterId if @_filterType == ':backend'
+        if not localCalculated
+          params =
+            pageSize: size
+            orderBy: @_orderBy
+          params.selectedId = selectedId if selectedId
+          params.filterId = @_filterId if @_filterType == ':backend'
 
-        @repo.paging(params).done (response) =>
-          @_totalCount = response.total
-          result.resolve(response)
+          @repo.paging(params).done (response) =>
+            @_totalCount = response.total
+            result.resolve(response)
 
       result
 
@@ -656,16 +752,8 @@ define [
             @_firstGetModelsFromCachePromise.reject("Local cache is not applicable for this sync call!")
 
         .fail (error) => # getCachedCollectionInfo
-          if @_id
-            # trying to recreate single model collection without cached collection using only cached model
-            rangeAdjustPromise.resolve()
-            @repo.getCachedModel(@_id, @_fields).done (model) =>
-              @_firstGetModelsFromCachePromise.resolve([model])
-            .fail (error) =>
-              @_firstGetModelsFromCachePromise.reject(error)
-          else
-            rangeAdjustPromise.resolve(start, end)
-            @_firstGetModelsFromCachePromise.reject(error)
+          rangeAdjustPromise.resolve(start, end)
+          @_firstGetModelsFromCachePromise.reject(error)
 
         @_firstGetModelsFromCachePromise
 
@@ -686,7 +774,7 @@ define [
     # serialization related
 
     toJSON: ->
-      models: @_models
+      models: _.compact(@_models)
       filterType: @_filterType
       filterId: @_filterId
       orderBy: @_orderBy
@@ -699,13 +787,18 @@ define [
 
     @fromJSON: (repo, name, obj) ->
       collection = new this(repo, name, {})
-      collection._models = (repo.buildModel(m) for m in obj.models)
-      model.setCollection(collection) for model in collection._models
+      models = []
+      start = obj.start
+      for m, i in obj.models
+        m = repo.buildModel(m)
+        m.setCollection(collection)
+        models[start + i] = m
+      collection._models = models
       collection._filterType = obj.filterType
       collection._filterId = obj.filterId
       collection._orderBy = obj.orderBy
       collection._fields = obj.fields
-      collection._loadedStart = obj.start
+      collection._loadedStart = start
       collection._loadedEnd = obj.end
       collection._hasLimits = obj.hasLimits
       collection._totalCount = obj.totalCount
