@@ -74,8 +74,8 @@ define [
       @_id = options.id ? 0
 
       @_queryQueue =
-        loadingStart: 4294967295
-        loadingEnd: -1
+        loadingStart: @_loadedStart
+        loadingEnd: @_loadedEnd
         list: []
 
       # subscribe for model changes to smart-proxy them to the collections model instances
@@ -592,7 +592,7 @@ define [
           start = (if start < curLoadingStart then start else curLoadingStart)
           end = (if end > curLoadingEnd then end else curLoadingEnd)
 
-        @_queryQueue.loadingStart = if start < @curLoadingStart then start else curLoadingStart
+        @_queryQueue.loadingStart = if start < curLoadingStart then start else curLoadingStart
         @_queryQueue.loadingEnd = if end > curLoadingEnd then end else curLoadingEnd
       else
         queryType = 'all'
@@ -798,8 +798,7 @@ define [
       collection._filterId = obj.filterId
       collection._orderBy = obj.orderBy
       collection._fields = obj.fields
-      collection._loadedStart = start
-      collection._loadedEnd = obj.end
+      collection._setLoadedRange(start, obj.end)
       collection._hasLimits = obj.hasLimits
       collection._totalCount = obj.totalCount
 
@@ -837,6 +836,11 @@ define [
       repoServiceName = repoClass.charAt(0).toLowerCase() + repoClass.slice(1)
       ioc.eval repoServiceName, (repo) ->
         callback(repo.getCollection(collectionName))
+
+
+    _setLoadedRange: (start, end) ->
+      @_queryQueue.loadingStart = @_loadedStart = start
+      @_queryQueue.loadingEnd = @_loadedEnd = end
 
 
     debug: (method) ->
