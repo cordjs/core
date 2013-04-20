@@ -1,6 +1,7 @@
 define [
   'cord!utils/Future'
-], (Future) ->
+  'cord!utils/sha1'
+], (Future, sha1) ->
 
   class LocalStorage
 
@@ -11,7 +12,7 @@ define [
       ###
       Saves only collections meta-information
       ###
-      key = "cl:#{ repoName }:#{ collectionName }"
+      key = "cl:#{ repoName }:#{ sha1(collectionName) }"
       if ttl?
         @_registerTtl(key + ':info', ttl)
         @_registerTtl(key, ttl)
@@ -22,28 +23,21 @@ define [
       ###
       Saves list of model ids for the collection.
       ###
-      @_set("cl:#{ repoName }:#{ collectionName }", modelIds)
+      @_set("cl:#{ repoName }:#{ sha1(collectionName) }", modelIds)
 
 
     getCollectionInfo: (repoName, collectionName) ->
       ###
       Returns meta-information of the collection, previously saved in the local storage.
       ###
-      @_get("cl:#{ repoName }:#{ collectionName }:info")
+      @_get("cl:#{ repoName }:#{ sha1(collectionName) }:info")
 
 
     getCollection: (repoName, collectionName) ->
       ###
       Returns list of model ids of the collection, previously saved in the local storage.
       ###
-      @_get("cl:#{ repoName }:#{ collectionName }")
-
-
-    getModel: (repoName, id) ->
-      ###
-      Returns fields of the model instance with the given id, previously saved in the local storage.
-      ###
-      @_get("m:#{ repoName }:#{ id }")
+      @_get("cl:#{ repoName }:#{ sha1(collectionName) }")
 
 
     _set: (key, value) ->
@@ -57,7 +51,7 @@ define [
         @storage.setItem(key, strValue)
         result.resolve()
       catch e
-        if e.name == 'QUOTA_EXCEEDED_ERR'
+        if e.code == DOMException.QUOTA_EXCEEDED_ERR
           @_gc(strValue.length)
           try
             @storage.setItem(key, strValue)
@@ -85,7 +79,7 @@ define [
       ###
       Saves TTL for the given key to be able to make right decisions during GC
       ###
-      ttlInfo = @storage.getItem('models:ttl-info')
+      ttlInfo = JSON.parse(@storage.getItem('models:ttl-info'))
       ttlInfo ?= {}
 
       ttlInfo[key] = (new Date).getTime() + ttl
@@ -100,7 +94,7 @@ define [
       @param (optional) needLength amount of memory needed
       ###
       console.warn "localStorage::GC !"
-      ttlInfo = @storage.getItem('models:ttl-info')
+      ttlInfo = JSON.parse(@storage.getItem('models:ttl-info'))
       if needLength
         needLength = parseInt(needLength) * 2
       else
@@ -111,10 +105,12 @@ define [
       orderedTtlInfo = _.sortBy orderedTtlInfo, (x) -> x[1]
 
       if needLength
-        while needLength > 0
+        while needLength > 0 and orderedTtlInfo.length
           item = orderedTtlInfo.shift()
-          needLength -= @storage.getItem(item[0]).legnth
-          @storage.removeItem(item[0])
+          val = @storage.getItem(item[0])
+          if val?
+            needLength -= val.length
+            @storage.removeItem(item[0])
           delete ttlInfo[item[0]]
       else
         currentTime = (new Date).getTime()

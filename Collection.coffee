@@ -127,9 +127,10 @@ define [
       if not @_initialized
         # try to load local storage cache only when syncing first time
         @_getModelsFromLocalCache(start, end, rangeAdjustPromise).done (models, syncStart, syncEnd) =>
-          if not firstResultPromise.completed()
-            @_fillModelList(models, syncStart, syncEnd) if not @_initialized # the check is need in case of parallel cache trial
-            firstResultPromise.resolve(this)
+          Defer.nextTick => # give remote sync a chance
+            if not firstResultPromise.completed()
+              @_fillModelList(models, syncStart, syncEnd) if not @_initialized # the check is need in case of parallel cache trial
+              firstResultPromise.resolve(this)
           activateSyncPromise.reject() if cacheMode # remote sync is not necessary in :cache mode
         .fail (error) =>
           console.warn "#{ @debug '_getModelsFromLocalCache' } failed: ", error
