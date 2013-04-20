@@ -51,7 +51,7 @@ define [
         @storage.setItem(key, strValue)
         result.resolve()
       catch e
-        if e.code == DOMException.QUOTA_EXCEEDED_ERR
+        if e.code == DOMException.QUOTA_EXCEEDED_ERR or e.name.toLowerCase().indexOf('quota') != -1
           @_gc(strValue.length)
           try
             @storage.setItem(key, strValue)
