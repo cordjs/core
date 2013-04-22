@@ -558,17 +558,17 @@ define [
               pages: Math.ceil(@_totalCount / size)
             localCalculated = true
 
-      if not localCalculated
-        params =
-          pageSize: size
-          orderBy: @_orderBy
-        params.selectedId = selectedId if selectedId
-        params.filterId = @_filterId if @_filterType == ':backend'
-        params.filter = @_filter if @_filter
+        if not localCalculated
+          params =
+            pageSize: size
+            orderBy: @_orderBy
+          params.selectedId = selectedId if selectedId
+          params.filterId = @_filterId if @_filterType == ':backend'
+          params.filter = @_filter if @_filter
 
-        @repo.paging(params).done (response) =>
-          @_totalCount = response.total
-          result.resolve(response)
+          @repo.paging(params).done (response) =>
+            @_totalCount = response.total
+            result.resolve(response)
 
       result
 
