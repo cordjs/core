@@ -253,6 +253,7 @@ define [
       result =
         orderBy: @_orderBy
         fields: @_fields
+        filter: @_filter
       result.filterId = @_filterId if @_filterType == ':backend'
       if @_hasLimits
         result.start = @_loadedStart
