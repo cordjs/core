@@ -18,6 +18,7 @@ require.config
     'jquery.scrollTo':  'vendor/jquery/plugins/jquery.scrollTo'
     'jquery.dotdotdot': 'vendor/jquery/plugins/jquery.dotdotdot'
     'jquery.jeditable': 'vendor/jquery/plugins/jquery.jeditable'
+    'jquery.removeClass': 'vendor/jquery/plugins/jquery.removeClass'
     'curly':            'vendor/curly/browser'
     'underscore':       'vendor/underscore/underscore'
     'requirejs':        'vendor/requirejs/require'
@@ -118,6 +119,7 @@ define [
       requirejs ['cord-m!/megaplan/front/tasks//TaskFilterRepo'], (TaskFilterRepo) ->
         done null, new TaskFilterRepo(serviceContainer)
 
+<<<<<<< HEAD
     serviceContainer.def 'taskListRepo', (get, done) ->
       requirejs ['cord-m!/megaplan/front/tasks//TaskListRepo'], (TaskListRepo) ->
         done null, new TaskListRepo(serviceContainer)
@@ -125,10 +127,15 @@ define [
     serviceContainer.def 'userStats', ['api'], (get, done) ->
       get('api').get 'userStat/', (response) =>
         done null, response
+=======
+    serviceContainer.def 'userStats', (get, done) ->
+      requirejs ['cord!/megaplan/front/common/utils/UserStat'], (UserStat) ->
+        done null, new UserStat(serviceContainer)
+>>>>>>> 496a2a10d5152d262ea8e067fe12142fa3156bc9
 
-    serviceContainer.def 'ecomet', (get, done) ->
+    serviceContainer.def 'ecomet', ['cookie', 'config'], (get, done) ->
       requirejs ['ecomet'], (Ecomet) ->
-        done null, new Ecomet(serviceContainer)
+        done null, new Ecomet(get('cookie').get('accessToken'), get('config').ecomet)
 
     ###
     ###

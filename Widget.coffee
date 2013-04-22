@@ -1228,7 +1228,6 @@ define [
       @_widgetReadyPromise
 
 
-
     ready: ->
       ###
       Returns the widget's 'ready' promise.

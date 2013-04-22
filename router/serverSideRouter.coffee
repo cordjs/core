@@ -89,6 +89,7 @@ define [
           requirejs ['cord-m!/megaplan/front/tasks//TaskFilterRepo'], (TaskFilterRepo) ->
             done null, new TaskFilterRepo(serviceContainer)
 
+<<<<<<< HEAD
         serviceContainer.def 'taskListRepo', (get, done) ->
           requirejs ['cord-m!/megaplan/front/tasks//TaskListRepo'], (TaskListRepo) ->
             done null, new TaskListRepo(serviceContainer)
@@ -96,6 +97,11 @@ define [
         serviceContainer.def 'userStats', ['api'], (get, done) ->
           get('api').get 'userStat/', (response) =>
             done null, response
+=======
+        serviceContainer.def 'userStats', (get, done) ->
+          requirejs ['cord!/megaplan/front/common/utils/UserStat'], (UserStat) ->
+            done null, new UserStat(serviceContainer)
+>>>>>>> 496a2a10d5152d262ea8e067fe12142fa3156bc9
 
         ###
         ###

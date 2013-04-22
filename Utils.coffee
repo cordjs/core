@@ -184,3 +184,23 @@ define [
         result += "<p>#{nl2br}</p>"
 
       result
+
+
+    @getCaretInElement = (el) ->
+      return el.selectionStart if el.selectionStart
+
+      if document.selection
+        el.focus()
+
+        r = document.selection.createRange()
+        return 0 if r == null
+
+        re = el.createTextRange()
+        rc = re.duplicate()
+
+        re.moveToBookmark(r.getBookmark())
+        rc.setEndPoint('EndToStart', re)
+
+        return rc.text.length
+
+      return 0
