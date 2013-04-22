@@ -248,6 +248,7 @@ define [
 
     cleanSubscriptions: ->
       subscription.unsubscribe() for subscription in @_postalSubscriptions
+      @_postalSubscriptions = []
 
 
     cleanModelSubscriptions: ->
@@ -1067,7 +1068,6 @@ define [
 
 
     registerChild: (child, name) ->
-#      console.log "#{ @debug 'registerChild' } -> #{ child.debug() }"
       @children.push child
       @childById[child.ctx.id] = child
       @childByName[name] = child if name?
@@ -1200,6 +1200,7 @@ define [
           @bindChildEvents()
 
           for widgetId, bindingMap of @childBindings
+            # todo: refactor subscriptions to clean only widget binding subscriptions here, not all
             @widgetRepo.getById(widgetId).cleanSubscriptions()
             for ctxName, paramName of bindingMap
               @widgetRepo.subscribePushBinding @ctx.id, ctxName, @childById[widgetId], paramName
