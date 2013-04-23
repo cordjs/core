@@ -1,7 +1,8 @@
 define [
   'cord!Utils'
   'underscore'
-], (Utils, _) ->
+  'postal'
+], (Utils, _, postal) ->
 
 
   class Api
