@@ -347,7 +347,7 @@ define [
     cacheCollection: (collection) ->
       name = collection.name
       result = new Future(1)
-      if false and isBrowser
+      if isBrowser
         require ['cord!cache/localStorage'], (storage) =>
           f = storage.saveCollectionInfo @constructor.name, name, collection.getTtl(),
             totalCount: collection._totalCount
@@ -369,7 +369,7 @@ define [
 
 
     cutCachedCollection: (collection, loadedStart, loadedEnd) ->
-      if false and isBrowser
+      if isBrowser
         result = Future.single()
         require ['cord!cache/localStorage'], (storage) =>
           f = storage.saveCollectionInfo @constructor.name, collection.name, null,
@@ -382,7 +382,7 @@ define [
 
 
     getCachedCollectionInfo: (name) ->
-      if false and isBrowser
+      if isBrowser
         result = Future.single()
         require ['cord!cache/localStorage'], (storage) =>
           result.when storage.getCollectionInfo(@constructor.name, name)
@@ -392,7 +392,7 @@ define [
 
 
     getCachedCollectionModels: (name, fields) ->
-      if false and isBrowser
+      if isBrowser
         resultPromise = Future.single()
         require ['cord!cache/localStorage'], (storage) =>
           storage.getCollection(@constructor.name, name).done (models) =>
