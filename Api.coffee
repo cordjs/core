@@ -115,9 +115,9 @@ define [
                   @getTokensByUsernamePassword username, password, (accessToken, refreshToken) =>
                     processRequest accessToken, refreshToken
             else
-              if response && response.code == 500
-                message = 'Ой! Что-то случилось с сервером (('
-                postal.publish 'notify.addMessage', {link:'', message: message, details: response.message, error:true, timeOut: 30000 }
+              if (response && response.code == 500) || (error && (error.statusCode == 500 || error.message))
+                message = 'Ой! Что-то случилось с сервером (( 500'
+                postal.publish 'notify.addMessage', {link:'', message: message, details: response?.message, error:true, timeOut: 30000 }
 
               args.callback response, error if args.callback
 

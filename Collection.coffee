@@ -52,11 +52,15 @@ define [
       ###
       orderBy = options.orderBy ? 'id'
       filterId = options.filterId ? ''
+      filter = _.reduce options.filter , (memo, value, index)->
+        memo + index + '_' + value
+      , ''
+
       fields = options.fields ? []
       calc = options.calc ? []
       id = options.id ? 0
 
-      (fields.sort().join(',') + '|' + calc.sort().join(',') + '|' + filterId + '|' + orderBy + '|' + id).replace(/\:/g, '')
+      (fields.sort().join(',') + '|' + calc.sort().join(',') + '|' + filterId + '|' + filter + '|' + orderBy + '|' + id).replace(/\:/g, '')
 
 
     constructor: (@repo, @name, options) ->
@@ -72,6 +76,7 @@ define [
       @_filterType = options.filterType ? ':backend'
       @_fields = options.fields ? []
       @_id = options.id ? 0
+      @_filter = options.filter ? {}
 
       @_queryQueue =
         loadingStart: @_loadedStart
@@ -255,6 +260,7 @@ define [
       result =
         orderBy: @_orderBy
         fields: @_fields
+        filter: @_filter
       result.filterId = @_filterId if @_filterType == ':backend'
       if @_hasLimits
         result.start = @_loadedStart
@@ -558,6 +564,7 @@ define [
             orderBy: @_orderBy
           params.selectedId = selectedId if selectedId
           params.filterId = @_filterId if @_filterType == ':backend'
+          params.filter = @_filter if @_filter
 
           @repo.paging(params).done (response) =>
             @_totalCount = response.total
@@ -647,6 +654,7 @@ define [
           else
             queryParams.orderBy = @_orderBy
             queryParams.filterId = @_filterId if @_filterType == ':backend'
+            queryParams.filter = @_filter if @_filter
             queryParams.start = start if start?
             queryParams.end = end  if end?
 
@@ -784,6 +792,7 @@ define [
       end: @_loadedEnd
       hasLimits: @_hasLimits
       totalCount: @_totalCount
+      filter: @_filter
 
 
     @fromJSON: (repo, name, obj) ->
@@ -802,6 +811,7 @@ define [
       collection._setLoadedRange(start, obj.end)
       collection._hasLimits = obj.hasLimits
       collection._totalCount = obj.totalCount
+      collection._filter = obj.filter
 
       collection._reindexModels()
       collection._initialized = (collection._models.length > 0)

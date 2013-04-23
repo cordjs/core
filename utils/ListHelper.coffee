@@ -28,6 +28,26 @@ define [
       options.aggregate ?= false
 
       result = []
+      prevCommand = []
+      collectResult = (command) ->
+        if options.aggregate
+          # if command doesn't match the previous command, then adding new
+          if prevCommand[0] != command[0] \
+              # moveBefore command can't be aggregated
+              or command[0] == 'moveBefore' \
+              # for insertBefore command beforeItem (third element) should match either
+              or (command[0] == 'insertBefore' and prevCommand[2] != command[2])
+            # converting to array (to arrgegate)
+            command[1] = [command[1]] if command[0] != 'moveBefore'
+            result.push(command)
+            prevCommand = command
+          else
+            # if the previous command was the same, than just adding new item there (aggregating)
+            prevCommand[1].push(command[1])
+        else
+          result.push(command)
+        # checking options.max compliance and returning
+        (options.max != false and result.length > options.max)
 
       oldLength = oldList.length
       if oldLength
@@ -41,28 +61,6 @@ define [
         oldReverse[id(item)] = true for item in oldList
         newReverse = {}
         newReverse[id(item)] = true for item in newList
-
-        prevCommand = []
-        collectResult = (command) ->
-          if options.aggregate
-            # if command doesn't match the previous command, then adding new
-            if prevCommand[0] != command[0] \
-                # moveBefore command can't be aggregated
-                or command[0] == 'moveBefore' \
-                # for insertBefore command beforeItem (third element) should match either
-                or (command[0] == 'insertBefore' and prevCommand[2] != command[2])
-              # converting to array (to arrgegate)
-              command[1] = [command[1]] if command[0] != 'moveBefore'
-              result.push(command)
-              prevCommand = command
-            else
-              # if the previous command was the same, than just adding new item there (aggregating)
-              prevCommand[1].push(command[1])
-          else
-            result.push(command)
-          # checking options.max compliance and returning
-          (options.max != false and result.length > options.max)
-
 
         # find out the first non-empty index of the old list
         for oldIndex of oldList
