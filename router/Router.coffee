@@ -44,7 +44,6 @@ define ['underscore'], (_) ->
 
     constructor: (@path, @definition) ->
       @widget         = @definition.widget ? null
-      @action         = @definition.action ? 'default'
       @params         = @definition.params ? {}
       @regexp         = @definition.regexp ? false
 

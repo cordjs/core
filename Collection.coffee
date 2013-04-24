@@ -190,7 +190,6 @@ define [
         when ':cache' then resultPromise.when(firstResultPromise)
 
       resultPromise.done =>
-        console.warn "#{ @debug 'sync.return' }"
         callback?(this)
 
 

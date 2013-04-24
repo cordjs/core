@@ -16,7 +16,6 @@ define [
       if (route = @matchRoute path.pathname)
 
         rootWidgetPath = if route.widget? then route.widget else @defWidget
-        action = route.action
         params = _.extend path.query, route.params
 
         serviceContainer = new ServiceContainer()

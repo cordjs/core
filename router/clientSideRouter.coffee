@@ -49,11 +49,10 @@ define [
         topic: 'router.process'
         callback: (route) =>
           widgetPath = if route.widget? then route.widget else @defWidget
-          action = route.action
           params = route.params
 
           if @widgetRepo.rootWidget?
-            @widgetRepo.injectWidget widgetPath, action, params
+            @widgetRepo.injectWidget widgetPath, params
           else
             throw "root widget is undefined!"
 

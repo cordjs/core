@@ -309,17 +309,15 @@ define [
         throw "Try to get uninitialized widget with id = #{ id }"
 
 
-    #
-    # Subscribes child widget to the parent widget's context variable change event
-    #
-    # @param String parentWidgetId id of the parent widget
-    # @param String ctxName name of parent's context variable whose changes we are listening to
-    # @param Widget childWidget subscribing child widget object
-    # @param String paramName child widget's default action input param name which should be set to the context variable
-    #                         value
-    # @return postal subscription object
-    #
     subscribePushBinding: (parentWidgetId, ctxName, childWidget, paramName) ->
+      ###
+      Subscribes child widget to the parent widget's context variable change event
+      @param String parentWidgetId id of the parent widget
+      @param String ctxName name of parent's context variable whose changes we are listening to
+      @param Widget childWidget subscribing child widget object
+      @param String paramName name of child widget's param which should be set to the context variable value
+      @return postal subscription object
+      ###
       subscription = postal.subscribe
         topic: "widget.#{ parentWidgetId }.change.#{ ctxName }"
         callback: (data, envelope) ->
@@ -338,12 +336,12 @@ define [
               params[paramName] = data.value
 
 #            console.log "#{ envelope.topic } -> #{ childWidget.debug(paramName) } -> #{ data.value }"
-            deferAggregator.fireAction childWidget, 'default', params
+            deferAggregator.setWidgetParams childWidget, params
       childWidget.addSubscription subscription
       subscription
 
 
-    injectWidget: (widgetPath, action, params) ->
+    injectWidget: (widgetPath, params) ->
       extendWidget = @findAndCutMatchingExtendWidget widgetPath
       console.log "WidgetRepo::injectWidget -> current root = #{ @rootWidget.debug() }" if global.CONFIG.debug?.widget
       _oldRootWidget = @rootWidget
@@ -353,16 +351,16 @@ define [
           extendWidget.getStructTemplate (tmpl) =>
             tmpl.assignWidget tmpl.struct.ownerWidget, extendWidget
             tmpl.replacePlaceholders tmpl.struct.ownerWidget, extendWidget.ctx[':placeholders'], =>
-              extendWidget.fireAction action, params
+              extendWidget.setParams(params)
               @dropWidget _oldRootWidget.ctx.id
               @rootWidget.browserInit extendWidget
         else
-          extendWidget.fireAction action, params
+          extendWidget.setParams(params)
           #throw 'not supported yet!'
       else
         @createWidget widgetPath, (widget) =>
           @setRootWidget widget
-          widget.injectAction action, params, (commonBaseWidget) =>
+          widget.injectAction params, (commonBaseWidget) =>
             @dropWidget _oldRootWidget.ctx.id unless commonBaseWidget == _oldRootWidget
             @rootWidget.browserInit commonBaseWidget
 

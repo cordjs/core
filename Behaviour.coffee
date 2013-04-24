@@ -216,7 +216,7 @@ define [
       Renders (via show method) the given widget with the given params, inserts it into DOM and initialtes.
       Returns jquery-object referring to the widget's root element via callback argument.
       @param Widget widget widget object
-      @param Object params key-value params for the widget default action
+      @param Object params key-value params for the widget
       @param Function(jquery) callback callback which is called with the resulting jquery element and created object of widget
       ###
       if (parentWidget = @widget)?
@@ -234,7 +234,7 @@ define [
       widget to the right place in the DOM.
       @param String type widget type in canonical format (absolute or in context of the current widget)
       @param (optional)String name optional name for the new widget
-      @param Object params key-value params for the widget default action
+      @param Object params key-value params for the widget
       @param Function(jquery) callback callback which is called with the resulting jquery element and created object of widget
       ###
       if _.isObject(name)

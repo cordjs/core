@@ -72,7 +72,7 @@ define [
     @_initParamRules: ->
       ###
       Prepares rules for handling incoming params of the widget.
-      Converts params static attribute of the class into _paramRules array which defines behaviour of processParams
+      Converts params static attribute of the class into _paramRules array which defines behaviour of setParams()
        method of the widget.
       ###
 
@@ -331,7 +331,7 @@ define [
           true# stub
 
 
-    processParams: (params, callback) ->
+    setParams: (params, callback) ->
       ###
       Main "reactor" to the widget's API params change from outside.
       Changes widget's context variables according to the rules, defined in "params" static configuration of the widget.
@@ -339,38 +339,41 @@ define [
       @param Object params changed params
       @param (optional)Function callback function to be called after processing.
       ###
-
-      console.log "#{ @debug 'processParams' } -> ", params if global.CONFIG.debug?.widget
-      rules = @constructor._paramRules
-      processedRules = {}
-      specialParams = ['match', 'history', 'shim', 'trigger', 'params']
-      for name, value of params
-        if rules[name]?
-          for rule in rules[name]
-            if rule.hasValidation and not rule.validate(value)
-              throw "Validation of param '#{ name }' of widget #{ @debug() } is not passed!"
-            else
-              switch rule.type
-                when ':setSame' then @ctx.set(name, value)
-                when ':set' then @ctx.set(rule.ctxName, value)
-                when ':callback'
-                  if rule.multiArgs
-                    if not processedRules[rule.id]
-                      args = []
-                      for multiName in rule.params
-                        value = params[multiName]
-                        @_registerModelBinding(multiName, value)
-                        args.push(value)
-                      rule.callback.apply(this, args)
-                      processedRules[rule.id] = true
+      console.log "#{ @debug 'setParams' } -> ", params if global.CONFIG.debug?.widget
+      if @constructor.params? or @constructor.initialCtx?
+        rules = @constructor._paramRules
+        processedRules = {}
+        specialParams = ['match', 'history', 'shim', 'trigger', 'params']
+        for name, value of params
+          if rules[name]?
+            for rule in rules[name]
+              if rule.hasValidation and not rule.validate(value)
+                throw "Validation of param '#{ name }' of widget #{ @debug() } is not passed!"
+              else
+                switch rule.type
+                  when ':setSame' then @ctx.set(name, value)
+                  when ':set' then @ctx.set(rule.ctxName, value)
+                  when ':callback'
+                    if rule.multiArgs
+                      if not processedRules[rule.id]
+                        args = []
+                        for multiName in rule.params
+                          value = params[multiName]
+                          @_registerModelBinding(multiName, value)
+                          args.push(value)
+                        rule.callback.apply(this, args)
+                        processedRules[rule.id] = true
+                    else
+                      @_registerModelBinding(name, value)
+                      rule.callback.call(this, value)
+                  when ':ignore'
                   else
-                    @_registerModelBinding(name, value)
-                    rule.callback.call(this, value)
-                when ':ignore'
-                else
-                  throw new Error("Invalid param rule type: '#{ rule.type }'")
-        else if specialParams.indexOf(name) == -1
-          throw "Widget #{ @getPath() } is not accepting param with name #{ name }!"
+                    throw new Error("Invalid param rule type: '#{ rule.type }'")
+          else if specialParams.indexOf(name) == -1
+            throw "Widget #{ @getPath() } is not accepting param with name #{ name }!"
+      else
+        for key in params
+          console.warn "#{ @debug() } doesn't accept any params, '#{ key }' given!"
       callback?()
 
 
@@ -392,7 +395,7 @@ define [
       ###
       # to avoid handle context change events in the behaviour during initial processing
       @ctx.setInitMode(true) if isBrowser
-      @_doAction 'default', params, =>
+      @setParams params, =>
         console.log "#{ @debug 'show' } -> params:", params, " context:", @ctx if global.CONFIG.debug?.widget
         @_handleOnShow =>
           @renderTemplate (err, out) =>
@@ -401,33 +404,10 @@ define [
 
 
     showJson: (params, callback) ->
-      @_doAction 'default', params, =>
+      @setParams params, =>
         console.log "#{ @debug 'showJson' } -> params:", params, " context:", @ctx if global.CONFIG.debug?.widget
         @_handleOnShow =>
           @renderJson callback
-
-
-    _doAction: (action, params, callback) ->
-      if @constructor.params? or @constructor.initialCtx?
-        @processParams params, callback
-      else if @["_#{ action }Action"]?
-        console.warn "WARNING: Old style actions (#{ @debug '_defaultAction()' }) are deprecated! You should refactor your code!"
-        called = false
-        wrappedCallback = =>
-          called = true
-          callback()
-        if @["_#{ action }Action"](params, wrappedCallback) != 'block' and not called
-          callback()
-      else
-        callback()
-
-
-    fireAction: (action, params) ->
-      ###
-      Just call action (change context) and do not output anything
-      ###
-      @_doAction action, params, =>
-        console.log "#{ @debug 'fireAction' } -> ", params #, " context:", @ctx
 
 
     renderJson: (callback) ->
@@ -503,7 +483,7 @@ define [
             returnCallback()
 
 
-    injectAction: (action, params, callback) ->
+    injectAction: (params, callback) ->
       ###
       @browser-only
       ###
@@ -512,8 +492,8 @@ define [
       @widgetRepo.registerNewExtendWidget this
 
       @ctx.setInitMode(true)
-      @_doAction action, params, =>
-        console.log "injectAction #{ @getPath() }::_#{ action }Action: params:", params, " context:", @ctx
+      @setParams params, =>
+        console.log "#{ @debug 'injectAction' } processes context:", @ctx
         @_handleOnShow =>
           @ctx.setInitMode(false)
           @getStructTemplate (tmpl) =>
@@ -542,7 +522,7 @@ define [
           cb.done ($) =>
             @registerChild extendWidget
             @resolveParamRefs extendWidget, extendWidgetInfo.params, (params) ->
-              extendWidget.fireAction 'default', params
+              extendWidget.setParams(params)
               readyPromise.resolve()
 
             # if there are inlines owned by this widget
@@ -561,7 +541,7 @@ define [
           tmpl.getWidget extendWidgetInfo.widget, (extendWidget) =>
             @registerChild extendWidget
             @resolveParamRefs extendWidget, extendWidgetInfo.params, (params) ->
-              extendWidget.injectAction 'default', params, callback
+              extendWidget.injectAction params, callback
       else
         if true
           location.reload()
@@ -978,7 +958,7 @@ define [
                   readyPromise.fork()
                   widget.replaceModifierClass(item.class)
                   structTmpl.replacePlaceholders replaceHints[name].items[i], widget.ctx[':placeholders'], ->
-                    widget.fireAction 'default', item.params
+                    widget.setParams(item.params)
                     readyPromise.resolve()
                 i++
 
@@ -1298,9 +1278,9 @@ define [
           chunk.map (chunk) =>
             callbackRender = (widget) =>
               @registerChild widget, params.name
-              @resolveParamRefs widget, params, (actionParams) =>
+              @resolveParamRefs widget, params, (resolvedParams) =>
                 widget.setModifierClass(params.class)
-                widget.show actionParams, (err, out) =>
+                widget.show resolvedParams, (err, out) =>
                   @childWidgetComplete()
                   if err then throw err
                   chunk.end widget.renderRootTag(out)

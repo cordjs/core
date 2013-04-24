@@ -8,7 +8,7 @@ define [
 
     defers: {}
 
-    fireAction: (widget, action, params) ->
+    setWidgetParams: (widget, params) ->
       id = widget.ctx.id
       if @defers[id]?
         df = @defers[id]
@@ -23,7 +23,6 @@ define [
             df.deferredParams[key] = null
       else
         df =
-          action: action
           params: params
           promise: (new Future).fork()
           deferredParams: {}
@@ -39,8 +38,9 @@ define [
 
         df.promise.done =>
           if not widget.isSentenced()
-            widget.fireAction df.action, df.params
+            widget.setParams(df.params)
           delete @defers[id]
+
 
 
   new DeferAggregator
