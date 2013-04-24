@@ -227,6 +227,7 @@ define [
       subscriptions left from the dissapered widgets.
       ###
 
+      @_sentenced = true
       @cleanChildren()
       if @behaviour?
         @behaviour.clean()

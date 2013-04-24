@@ -219,11 +219,12 @@ define [
       @param Object params key-value params for the widget default action
       @param Function(jquery) callback callback which is called with the resulting jquery element and created object of widget
       ###
-      widget.show params, (err, out) ->
-        if err then throw err
-        $el = $(widget.renderRootTag(out))
-        widget.browserInit($el).done ->
-          callback($el, widget)
+      if (parentWidget = @widget)?
+        widget.show params, (err, out) ->
+          if err then throw err
+          $el = $(widget.renderRootTag(out))
+          widget.browserInit($el).done ->
+            callback($el, widget) if not parentWidget.isSentenced()
 
 
     initChildWidget: (type, name, params, callback) ->

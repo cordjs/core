@@ -68,7 +68,7 @@ define [
       @response
 
 
-    createWidget: () ->
+    createWidget: ->
       ###
       Main widget factory.
       All widgets should be created through this call.
@@ -102,19 +102,7 @@ define [
         @widgets[widget.ctx.id] =
           widget: widget
 
-        callback widget
-
-#      , (err) ->
-#        failedId = if err.requireModules? then err.requireModules[0] else null
-#        console.log failedId
-#        console.log err
-#        if failedId == "cord-w!#{ path }#{ bundleSpec }"
-#          console.log "found"
-#          requirejs.undef failedId
-#          require [failedId], ->
-#            null
-#          , (err) ->
-#            console.log "error again", err
+        callback(widget)
 
 
     dropWidget: (id) ->
