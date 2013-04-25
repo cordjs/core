@@ -767,7 +767,7 @@ define [
 
       else
         resultPromise = Future.single()
-        @_firstRangeAdjustPromise.done (syncStart, syncEnd) ->
+        @_firstRangeAdjustPromise.done (syncStart, syncEnd) =>
           # in case of repeated async cache request we can use result of the first cache request only if it's range
           #  complies with the second requested range
           if syncStart <= start and syncEnd >= end
