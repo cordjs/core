@@ -127,9 +127,9 @@ define [
       requirejs ['cord!/megaplan/front/common/utils/UserStat'], (UserStat) ->
         done null, new UserStat(serviceContainer)
 
-    serviceContainer.def 'ecomet', ['cookie', 'config'], (get, done) ->
+    serviceContainer.def 'ecomet', (get, done) ->
       requirejs ['ecomet'], (Ecomet) ->
-        done null, new Ecomet(get('cookie').get('accessToken'), get('config').ecomet)
+        done null, new Ecomet(serviceContainer)
 
     ###
     ###
