@@ -43,11 +43,12 @@ define [
     _selfEmittedChangeModelId: null
 
 
-    @generateName: (options) ->
+    @generateName: (options, forIdProbe) ->
       ###
       Generates and returns unique "checksum" name of a collection depending only of the given options.
        This allows to reuse collections with the totally same options instead of duplicating them.
       @param Object options same options, that will be passed to the collection constructor
+      @param bool forIdProbe - generate name for searching model in already created collections
       @return String
       ###
       orderBy = options.orderBy ? 'id'
@@ -59,8 +60,11 @@ define [
       fields = options.fields ? []
       calc = options.calc ? []
       id = options.id ? 0
-
-      (fields.sort().join(',') + '|' + calc.sort().join(',') + '|' + filterId + '|' + filter + '|' + orderBy + '|' + id).replace(/\:/g, '')
+      
+      if forIdProbe
+        (fields.sort().join(',') + '|' + calc.sort().join(',')).replace(/\:/g, '')
+      else
+        (fields.sort().join(',') + '|' + calc.sort().join(',') + '|' + filterId + '|' + filter + '|' + orderBy + '|' + id).replace(/\:/g, '')
 
 
     constructor: (@repo, @name, options) ->
@@ -192,6 +196,8 @@ define [
       resultPromise.done =>
         callback?(this)
 
+    have: (id) ->
+      !!@_byId[id]
 
     get: (id) ->
       if @_byId[id]?

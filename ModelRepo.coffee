@@ -95,7 +95,7 @@ define [
       @param Array[String] fields list of fields names for the collection
       @param (optional)String syncMode desired sync and return mode, default to :cache
       @param Function(Model) callback
-      @return Collection
+      @return Collection|null
       ###
       if _.isFunction(syncMode)
         callback = syncMode
@@ -105,11 +105,39 @@ define [
         id: id
         fields: fields
 
+      if syncMode == ':cache'
+        model = @probeCollectionsForModel(id, fields)
+        if model
+          console.log 'debug: buildSingleModel found in cache'
+          callback model
+          return null
+        console.log 'debug: buildSingleModel cache missed :('
+
       collection = @createCollection(options)
       collection.sync syncMode, ->
         callback(collection.get(id))
       collection
 
+    probeCollectionsForModel: (id, fields) ->
+      ###
+      Searches existing collections for needed model
+      @param Integer id - id of needed model
+      @param Array[String] fields list of fields names for a model
+      @return Object|null - model or null if not found
+      ###
+      options=
+        id: id
+        fields: fields
+      probeName = Collection.generateName(options, true)
+
+      matchedCollections = _.filter @_collections, (collection, key) ->
+        key.substr(0, probeName.length) == probeName
+
+      for collection in matchedCollections
+        if collection.have(id)
+          return collection.get(id)
+
+      null
 
     getCollection: (name, returnMode, callback) ->
       ###
