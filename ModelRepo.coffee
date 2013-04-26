@@ -384,7 +384,7 @@ define [
     cacheCollection: (collection) ->
       name = collection.name
       result = new Future(1)
-      if false && isBrowser
+      if isBrowser
         require ['cord!cache/localStorage'], (storage) =>
           f = storage.saveCollectionInfo @constructor.name, name, collection.getTtl(),
             totalCount: collection._totalCount
