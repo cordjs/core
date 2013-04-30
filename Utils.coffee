@@ -171,21 +171,6 @@ define [
         return { first: inputArray.slice(0, minFirst), second: inputArray.slice(minFirst) }
 
 
-    # convert /n and /n/n to <br> and <p>
-    @paragraphy = (text) ->
-      text = @stripTags text
-      text = text.replace(/\n\n+/g, '\n\n')
-      paragraphs = text.split '\n\n'
-
-      result = ''
-
-      for paragraph in paragraphs
-        nl2br = paragraph.replace(/\n/g, '<br>')
-        result += "<p>#{nl2br}</p>"
-
-      result
-
-
     @getCaretInElement = (el) ->
       return el.selectionStart if el.selectionStart
 
