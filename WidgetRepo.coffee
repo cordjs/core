@@ -341,28 +341,55 @@ define [
       subscription
 
 
-    injectWidget: (widgetPath, params) ->
-      extendWidget = @findAndCutMatchingExtendWidget widgetPath
-      console.log "WidgetRepo::injectWidget -> current root = #{ @rootWidget.debug() }" if global.CONFIG.debug?.widget
+    transitPage: (newRootWidgetPath, params, transition) ->
+      ###
+      Initiates client-side transition of the page.
+      This means smart changing of the layout of the page and re-rendering the widget according to the given new
+       root widget and it's params.
+      @browser-only
+      @param String newRootWidgetPath canonical path of the new root page-widget
+      @param Map params params for the new root widget
+      @param PageTransition transition page transition support object which contains information about transition and
+                                       triggers events related to transition process
+      ###
+      console.log "WidgetRepo::transitPage -> current root = #{ @rootWidget.debug() }" if global.CONFIG.debug?.widget
+
+      # interrupting previous transition if it's not completed
+      @_curTransition.interrupt() if @_curTransition? and @_curTransition.isActive()
+      @_curTransition = transition
+
       _oldRootWidget = @rootWidget
+      # finding out if the new root widget is already exists in the current page structure
+      extendWidget = @findAndCutMatchingExtendWidget(newRootWidgetPath)
       if extendWidget?
         if _oldRootWidget != extendWidget
+          # if the new root widget exists in the current structure but it's not a root widget, than we need
+          # to unbind it from the old (parent) root widget, eliminate impact of the old root widget to the placeholders
+          # of the new root (because the old root extends from the new one directly or indirectly)
+          # and push new params into the new root widget
           @setRootWidget extendWidget
           extendWidget.getStructTemplate (tmpl) =>
-            tmpl.assignWidget tmpl.struct.ownerWidget, extendWidget
-            tmpl.replacePlaceholders tmpl.struct.ownerWidget, extendWidget.ctx[':placeholders'], =>
+            tmpl.assignWidget(tmpl.struct.ownerWidget, extendWidget)
+            tmpl.replacePlaceholders tmpl.struct.ownerWidget, extendWidget.ctx[':placeholders'], transition, =>
               extendWidget.setParams(params)
               @dropWidget _oldRootWidget.ctx.id
-              @rootWidget.browserInit extendWidget
+              # todo: this browserInit may be always redundant
+              @rootWidget.browserInit(extendWidget).done ->
+                transition.complete()
         else
+          # if the new widget is the same as the current root, than this is just params change and we should only push
+          # new params to the root widget
           extendWidget.setParams(params)
-          #throw 'not supported yet!'
       else
-        @createWidget widgetPath, (widget) =>
+        # if the new root widget doesn't exists in the current page structure, than we need to create it,
+        # inject to the top of the page structure and recursively find the common widget from the extend list
+        # down to the base widget (containing <html> tag)
+        @createWidget newRootWidgetPath, (widget) =>
           @setRootWidget widget
-          widget.injectAction params, (commonBaseWidget) =>
+          widget.injectAction params, transition, (commonBaseWidget) =>
             @dropWidget _oldRootWidget.ctx.id unless commonBaseWidget == _oldRootWidget
-            @rootWidget.browserInit commonBaseWidget
+            @rootWidget.browserInit(commonBaseWidget).done ->
+              transition.complete()
 
 
     findAndCutMatchingExtendWidget: (widgetPath) ->

@@ -483,7 +483,7 @@ define [
             returnCallback()
 
 
-    injectAction: (params, callback) ->
+    injectAction: (params, transition, callback) ->
       ###
       @browser-only
       ###
@@ -497,10 +497,10 @@ define [
         @_handleOnShow =>
           @ctx.setInitMode(false)
           @getStructTemplate (tmpl) =>
-            @_injectRender tmpl, callback
+            @_injectRender tmpl, transition, callback
 
 
-    _injectRender: (tmpl, callback) ->
+    _injectRender: (tmpl, transition, callback) ->
       ###
       @browser-only
       ###
@@ -518,7 +518,7 @@ define [
           tmpl.assignWidget extendWidgetInfo.widget, extendWidget
           cb = new Future
           require ['jquery'], cb.callback()
-          tmpl.replacePlaceholders extendWidgetInfo.widget, extendWidget.ctx[':placeholders'], cb.callback()
+          tmpl.replacePlaceholders extendWidgetInfo.widget, extendWidget.ctx[':placeholders'], transition, cb.callback()
           cb.done ($) =>
             @registerChild extendWidget
             @resolveParamRefs extendWidget, extendWidgetInfo.params, (params) ->
@@ -541,7 +541,7 @@ define [
           tmpl.getWidget extendWidgetInfo.widget, (extendWidget) =>
             @registerChild extendWidget
             @resolveParamRefs extendWidget, extendWidgetInfo.params, (params) ->
-              extendWidget.injectAction params, callback
+              extendWidget.injectAction params, transition, callback
       else
         if true
           location.reload()
@@ -902,7 +902,7 @@ define [
       @_inlinesRuntimeInfo.push(domRoot)
 
 
-    replacePlaceholders: (placeholders, structTmpl, replaceHints, callback) ->
+    replacePlaceholders: (placeholders, structTmpl, replaceHints, transition, callback) ->
       ###
       Replaces contents of the placeholders of this widget according to the given params
       @browser-only
@@ -957,9 +957,11 @@ define [
                   widget = @widgetRepo.getById item.widget
                   readyPromise.fork()
                   widget.replaceModifierClass(item.class)
-                  structTmpl.replacePlaceholders replaceHints[name].items[i], widget.ctx[':placeholders'], ->
-                    widget.setParams(item.params)
-                    readyPromise.resolve()
+                  structTmpl.replacePlaceholders replaceHints[name].items[i],
+                    widget.ctx[':placeholders'],
+                    transition, ->
+                      widget.setParams(item.params)
+                      readyPromise.resolve()
                 i++
 
         readyPromise.done(callback)

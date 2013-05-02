@@ -2,52 +2,57 @@ define ['underscore'], (_) ->
 
   class Router
 
-    path: ''
+    currentPath: ''
+
 
     constructor: ->
       @routes = []
 
+
     addRoutes: (routes) ->
+      ###
+      Registers array of routes.
+      @param Map[path -> definition] routes map of route definitions
+      ###
       for path, definition of routes
         @routes.push(new Route(path, definition))
 
-    setDefWidget: (defWidget) ->
-      @defWidget = defWidget
 
-    matchRoute: (path, options) ->
+    matchRoute: (path) ->
+      ###
+      Finds the first matching route for the given path between registered routes.
+      @param String path
+      @return Object|boolean found route and extracted params
+                             false if route is not found
+      ###
       for route in @routes
-        if route.match(path, options)
-          return route
+        if (params = route.match(path))
+          return {
+            route: route
+            params: params
+          }
+      false
 
-    setPath: (path) ->
-      @path = path
-
-    getPath: ->
-      path = @path
-      #      path = window.location.pathname
-      if path.substr(0,1) isnt '/'
-        path = '/' + path
-      path.match(/[^#?\s]+/)[0] || '/'
-
-#    @add: (path, callback) ->
-#      if (typeof path is 'object' and path not instanceof RegExp)
-#        @add(key, value) for key, value of path
-#      else
-#        @routes.push(new @(path, callback))
 
 
   namedParam = /:([\w\d]+)/g
   splatParam = /\*([\w\d]+)/g
   escapeRegExp = /[-[\]{}()+?.,\\^$|#\s]/g
 
+
+
   class Route
+    ###
+    Individual route definition.
+    ###
 
-    constructor: (@path, @definition) ->
-      @widget         = @definition.widget ? null
-      @params         = @definition.params ? {}
-      @regexp         = @definition.regexp ? false
+    constructor: (@path, definition) ->
+      throw new Error("Required 'widget' option is not set in route '#{ path }' definition!") unless definition.widget?
+      @widget = definition.widget
 
-      path = new RegExp path if @regexp
+      @params = definition.params ? {}
+
+      path = new RegExp(path) if definition.regexp
 
       @names = []
 
@@ -68,21 +73,23 @@ define ['underscore'], (_) ->
       else
         @route = path
 
-    match: (path, options = {}) ->
+
+    match: (path) ->
+      ###
+      Matches the route with the given path
+      @param String path
+      @return Object|false key-value with the resulting params if the path matches or false otherwise
+      ###
       match = @route.exec(path)
       return false unless match
-      options.match = match
-      params = match.slice(1)
+      params = {}
 
       if @names.length
-        for param, i in params
-          options[@names[i]] = param
+        for param, i in match.slice(1)
+          params[@names[i]] = param
 
-      @params = _.extend(@params, options)
-#      @params = options
+      _.extend params, @params
 
-      true
-#      @callback.call(null, options) isnt false
 
 
   Router

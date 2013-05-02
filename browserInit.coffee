@@ -140,7 +140,6 @@ define [
     widgetRepo.setServiceContainer serviceContainer
 
     clientSideRouter.setWidgetRepo widgetRepo
-    clientSideRouter.process()
     $ ->
       cssManager.registerLoadedCssFiles()
       cordcorewidgetinitializerbrowser? widgetRepo

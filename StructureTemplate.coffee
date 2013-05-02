@@ -128,7 +128,7 @@ define [
         console.log "WARNING: trying to unassign unknown widget #{ widget.debug() }"
 
 
-    replacePlaceholders: (widgetRefUid, currentPlaceholders, callback) ->
+    replacePlaceholders: (widgetRefUid, currentPlaceholders, transition, callback) ->
       extendWidget = @widgets[widgetRefUid]
       currentPlaceholders ?= {}
 
@@ -170,7 +170,9 @@ define [
         else
           replaceHints[name].replace = true
 
-      @resolvePlaceholders extendWidget, @struct.widgets[widgetRefUid].placeholders, (resolvedPlaceholders) =>
-        extendWidget.replacePlaceholders resolvedPlaceholders, this, replaceHints, ->
-          callback()
+      @resolvePlaceholders extendWidget,
+        @struct.widgets[widgetRefUid].placeholders,
+        transition.if (resolvedPlaceholders) =>
+          extendWidget.replacePlaceholders resolvedPlaceholders, this, replaceHints, transition, ->
+            callback()
 

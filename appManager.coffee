@@ -4,20 +4,20 @@ define [
   "underscore"
 ], (application, router, _) ->
 
-  bundles = for i, bundle of application
-    "cord!/#{ bundle }/config"
+  configs = ("cord!/#{ bundle }/config" for i, bundle of application)
 
-  require bundles, () ->
-    routes =
-      '^\/XDR\/(.*)$':
-        widget: '/cord/core//RestApi'
-        regexp: true
+  require configs, (args...) ->
+    routes = {}
 
-    for bundle, i in arguments
-      for route, params of bundle.routes
+    for config, i in args
+      for route, params of config.routes
+        # expanding widget path to fully-qualified canonical name if short path is given
         if params.widget and params.widget.substr(0, 2) is '//'
           params.widget = "/#{ application[i] }#{ params.widget }"
-      _.extend routes, bundle.routes
-    router.addRoutes routes
+      # eliminating duplicate routes here
+      # todo: may be it should be reported when there are duplicate routes?
+      _.extend(routes, config.routes)
+
+    router.addRoutes(routes)
 
   router

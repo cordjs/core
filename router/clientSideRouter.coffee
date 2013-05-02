@@ -1,10 +1,9 @@
 define [
+  './Router'
+  'cord!PageTransition'
   'jquery'
   'postal'
-  'cord!/cord/core/router/Router'
-], ($, postal, Router) ->
-
-  hashStrip = /^#*/
+], (Router, PageTransition, $, postal) ->
 
   class ClientSideRouter extends Router
 
@@ -17,7 +16,8 @@ define [
 
     widgetRepo: null
 
-    constructor:(options = {}) ->
+
+    constructor: (options = {}) ->
       super
 
       @options = $.extend({}, @options, options)
@@ -25,18 +25,11 @@ define [
       if (@options.history)
         @history = @historySupport && @options.history
 
-      #save current path
-      path = window.location.pathname
-      if path.substr(0,1) isnt '/'
-        path = '/' + path
+      # save current path
+      @currentPath = @getActualPath()
 
-      @setPath path
+      @_initHistoryNavigate() if @history and not @options.shim
 
-      return if @options.shim
-
-#      @change()
-
-      @initNavigate()
 
     setWidgetRepo: (widgetRepo) ->
       ###
@@ -44,97 +37,91 @@ define [
       ###
       @widgetRepo = widgetRepo
 
-    process: ->
-      postal.subscribe
-        topic: 'router.process'
-        callback: (route) =>
-          widgetPath = if route.widget? then route.widget else @defWidget
-          params = route.params
 
-          if @widgetRepo.rootWidget?
-            @widgetRepo.injectWidget widgetPath, params
-          else
-            throw "root widget is undefined!"
+    process: (newPath) ->
+      ###
+      Initiates client-side page transition to the given new path.
+      @param String newPath path and query-string part of the new url
+      @return Boolean true if there was a matching route and the path was actually processed
+      ###
+      if (routeInfo = @matchRoute(newPath))
+        postal.publish('router.process', routeInfo)
 
-      postal.subscribe
-        topic: 'router.navigate'
-        callback: (args...) =>
-          @navigate args...
+        @widgetRepo.transitPage(routeInfo.route.widget, routeInfo.params, new PageTransition(@currentPath, newPath))
+        @currentPath = newPath
+        true
+      else
+        false
 
-
-    matchRoute: (path, options) ->
-      for route in @routes
-        if route.match(path, options)
-          postal.publish 'router.process', route
-          return route
 
     navigate: (args...) ->
+      ###
+      Initiates url changing and related client-side page transition.
+      @param (multiple)String path path parts which will be concatenated to form target path
+      @param (optional)Boolean|Object options if last argument is boolean, than it's treated as options.trigger
+                                              if last argument is Object, than it's treated as options
+      ###
       options = {}
-
       lastArg = args[args.length - 1]
       if typeof lastArg is 'object'
         options = args.pop()
       else if typeof lastArg is 'boolean'
         options.trigger = args.pop()
 
-      options = $.extend({}, @options, options)
-
-      path = args.join('/')
-      return if @path is path
-      @path = path
-
-      #@trigger('navigate', @path)
-
-      @matchRoute(@path, options) if options.trigger
-
-      return if options.shim
+      newPath = args.join('/')
+      if newPath.substr(0, 1) isnt '/'
+        newPath = '/' + newPath
+      return if @currentPath == newPath
 
       if @history
-        history.pushState(
-          {},
-          document.title,
-          @path
-        )
-      else
-        window.location.hash = @path
+        options = $.extend({}, @options, options)
 
-    initNavigate: ->
-      if @history
-        $(window).bind('popstate', => @change())
-      else
-        $(window).bind('hashchange', => @change())
+        @process(newPath) if options.trigger
 
-      route = @
-      $(document).on "click", "a:not([data-bypass])", (evt) ->
-        href = $(this).prop 'href'
+        history.pushState({}, document.title, @currentPath) if not options.shim
+      else
+        window.location.href = newPath
+
+
+    _initHistoryNavigate: ->
+      ###
+      Setups client-side navigating event handlers.
+      ###
+      $(window).bind 'popstate', =>
+        newPath = @getActualPath()
+        @process(newPath) unless newPath == @currentPath
+
+      self = this
+      $(document).on 'click', 'a:not([data-bypass])', (evt) ->
+        href = $(this).prop('href')
         root = location.protocol + '//' + location.host
 
         if href and href.slice(0, root.length) == root and href.indexOf("javascript:") != 0
           evt.preventDefault()
-          route.navigate href.slice(root.length), true
+          self.navigate href.slice(root.length), true
 
-    change: ->
-      path = if @getFragment() isnt '' then @getFragment() else @getPath()
 
-      return if path is @path
-      @path = path
-      @matchRoute(@path)
-
-    getPath: ->
+    getActualPath: ->
+      ###
+      Extracts current actual path from the window.location
+      @return String
+      ###
       path = window.location.pathname
-      if path.substr(0,1) isnt '/'
+      if path.substr(0, 1) isnt '/'
         path = '/' + path
       path
 
+
     getHash: -> window.location.hash
 
-    getFragment: -> @getHash().replace(hashStrip, '')
 
     getHost: ->
-      (document.location + '').replace(@getPath() + @getHash(), '')
+      (document.location + '').replace(@getActualPath() + @getHash(), '')
+
 
     getURLParameter: (name) ->
       (RegExp(name + '=' + '(.+?)(&|$)').exec(location.search)||[null,null])[1]
+
 
 
   new ClientSideRouter

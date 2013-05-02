@@ -9,16 +9,16 @@ define [
   class ServerSideRouter extends Router
 
     process: (req, res) ->
-      path = url.parse req.url, true
+      path = url.parse(req.url, true)
 
-      @setPath req.url
+      @currentPath = req.url
 
-      if (route = @matchRoute path.pathname)
+      if (routeInfo = @matchRoute(path.pathname))
 
-        rootWidgetPath = if route.widget? then route.widget else @defWidget
-        params = _.extend path.query, route.params
+        rootWidgetPath = routeInfo.route.widget
+        params = _.extend(path.query, routeInfo.params)
 
-        serviceContainer = new ServiceContainer()
+        serviceContainer = new ServiceContainer
 
         ###
           Другого места получить из первых рук запрос-ответ нет
@@ -120,6 +120,7 @@ define [
         true
       else
         false
+
 
 
   new ServerSideRouter
