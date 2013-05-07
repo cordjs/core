@@ -81,6 +81,15 @@ define [
       ###
       if not @_nativeLoadPromise?
         @_nativeLoadPromise = new Future(1)
+
+        ###
+          Achtung! Achtung! Need David consultation
+        ###
+        @_nativeLoad = true
+        @_nativeLoadPromise.resolve(true)
+
+        return @_nativeLoadPromise
+
         if @_nativeLoad != false
           # Create a link element with a data url, it would fire a load event immediately
           link = @_createLink('data:text/css,')
