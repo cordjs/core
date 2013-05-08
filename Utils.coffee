@@ -194,3 +194,11 @@ define [
     @validateEmail = (email) ->
       re = /^(([^<>()[\]\\.,;:\s@\"]+(\.[^<>()[\]\\.,;:\s@\"]+)*)|(\".+\"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/
       re.test email
+
+
+    @truncateFileName = (name, left, right, symbol = '...') ->
+      if left + right + symbol.length < name.length
+        name = name.substr(0, left) + symbol + name.substr(-right)
+
+      name
+
