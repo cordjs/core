@@ -1,6 +1,7 @@
 define [
   'jquery.cookie'
-], (cookie) ->
+  'underscore'
+], (cookie, _) ->
 
   class BrowserCookie
 
@@ -9,5 +10,9 @@ define [
       value ?= defaultValue
 
     set: (name, value, params) =>
-      $.cookie name, value,
+      _params =
         path: '/'
+        
+      _params = _.extend _params, params if params
+
+      $.cookie name, value, _params

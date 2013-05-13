@@ -32,7 +32,8 @@ define [
 
       @serviceContainer.eval 'cookie', (cookie) =>
         cookie.set 'accessToken', accessToken
-        cookie.set 'refreshToken', refreshToken
+        cookie.set 'refreshToken', refreshToken, 
+          expires: 14
 
         console.log "Store tokens: #{accessToken}, #{refreshToken}" if global.CONFIG.debug?.oauth2
 
@@ -41,7 +42,7 @@ define [
 
     restoreTokens: (callback) ->
       #Возвращаем из локального кеша
-      if @accessToken and @refreshToken
+      if false and @accessToken and @refreshToken
         console.log "Restore tokens from local cache: #{@accessToken}, #{@refreshToken}" if global.CONFIG.debug?.oauth2
         callback @accessToken, @refreshToken
       else
@@ -53,7 +54,6 @@ define [
 
           callback accessToken, refreshToken
 
-
     getTokensByUsernamePassword: (username, password, callback) ->
       @serviceContainer.eval 'oauth2', (oauth2) =>
         oauth2.grantAccessTokenByPassword username, password, (accessToken, refreshToken) =>
@@ -64,6 +64,19 @@ define [
       @serviceContainer.eval 'oauth2', (oauth2) =>
         oauth2.grantAccessTokenByRefreshToken refreshToken, (accessToken, refreshToken) =>
           @storeTokens accessToken, refreshToken, callback
+
+
+    getTokensByAllMeans: (accessToken, refreshToken, callback) ->
+      if not accessToken
+        if refreshToken
+          @getTokensByRefreshToken refreshToken, callback
+        else
+          @options.getUserPasswordCallback (username, password) =>
+            @getTokensByUsernamePassword username, password, (accessToken, refreshToken) =>
+              callback accessToken, refreshToken
+      else
+        callback accessToken, refreshToken
+
 
     get: (url, params, callback) ->
       if _.isFunction(params)
@@ -94,38 +107,24 @@ define [
         callback: 'function'
 
       processRequest = (accessToken, refreshToken) =>
-        if not accessToken
-          @options.getUserPasswordCallback (username, password) =>
-            @getTokensByUsernamePassword username, password, (accessToken, refreshToken) =>
-              processRequest accessToken, refreshToken
-          false
+        @getTokensByAllMeans accessToken, refreshToken, (accessToken, refreshToken) =>
 
-        requestUrl = "#{@options.protocol}://#{@options.host}/#{@options.urlPrefix}#{args.url}"
-        requestUrl += ( if requestUrl.lastIndexOf("?") == -1 then "?" else "&" ) + "access_token=#{accessToken}"
-        defaultParams = _.clone @options.params
-        requestParams = _.extend defaultParams, args.params
-        requestParams.access_token = accessToken
+          requestUrl = "#{@options.protocol}://#{@options.host}/#{@options.urlPrefix}#{args.url}"
+          requestUrl += ( if requestUrl.lastIndexOf("?") == -1 then "?" else "&" ) + "access_token=#{accessToken}"
+          defaultParams = _.clone @options.params
+          requestParams = _.extend defaultParams, args.params
+          requestParams.access_token = accessToken
 
-        @serviceContainer.eval 'request', (request) =>
-          request[method] requestUrl, requestParams, (response, error) =>
-            if response?.error?
-              if response.error == 'invalid_grant' and refreshToken
-                @getTokensByRefreshToken refreshToken, processRequest
+          @serviceContainer.eval 'request', (request) =>
+            request[method] requestUrl, requestParams, (response, error) =>
+              if response?.error?
+                if response.error == 'invalid_grant'
+                  @getTokensByAllMeans null, refreshToken, processRequest
               else
-                @options.getUserPasswordCallback (username, password) =>
-                  @getTokensByUsernamePassword username, password, (accessToken, refreshToken) =>
-                    processRequest accessToken, refreshToken
-            else
-              if (response && response.code == 500) || (error && (error.statusCode == 500 || error.message))
-                message = 'Ой! Что-то случилось с сервером (( 500'
-                postal.publish 'notify.addMessage', {link:'', message: message, details: response?.message, error:true, timeOut: 30000 }
+                if (response && response.code == 500) || (error && (error.statusCode == 500 || error.message))
+                  message = 'Ой! Что-то случилось с сервером (( 500'
+                  postal.publish 'notify.addMessage', {link:'', message: message, details: response?.message, error:true, timeOut: 30000 }
 
-              args.callback response, error if args.callback
+                args.callback response, error if args.callback
 
-      @restoreTokens (accessToken, refreshToken) =>
-        if not accessToken
-          @options.getUserPasswordCallback (username, password) =>
-            @getTokensByUsernamePassword username, password, (accessToken, refreshToken) =>
-              processRequest accessToken, refreshToken
-        else
-          processRequest accessToken, refreshToken
+      @restoreTokens processRequest

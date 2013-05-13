@@ -63,6 +63,8 @@ define [
         host: window.location.host
         urlPrefix: 'XDR/http://megaplan.megaplan.ru/api/v2/'
         getUserPasswordCallback: (callback) ->
+          backPath = window.location.pathname
+          backPath = '/' if backPath.indexOf('user/login') >= 0
           window.location.href = '/user/login/?back=' + window.location.pathname
       ecomet:
         host: 'megaplan.megaplan.ru'
