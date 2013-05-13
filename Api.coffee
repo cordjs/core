@@ -42,7 +42,7 @@ define [
 
     restoreTokens: (callback) ->
       #Возвращаем из локального кеша
-      if false and @accessToken and @refreshToken
+      if @accessToken and @refreshToken
         console.log "Restore tokens from local cache: #{@accessToken}, #{@refreshToken}" if global.CONFIG.debug?.oauth2
         callback @accessToken, @refreshToken
       else
