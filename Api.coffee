@@ -69,7 +69,13 @@ define [
     getTokensByAllMeans: (accessToken, refreshToken, callback) ->
       if not accessToken
         if refreshToken
-          @getTokensByRefreshToken refreshToken, callback
+          @getTokensByRefreshToken refreshToken, (accessToken, refreshToken)=>
+            if accessToken
+              callback accessToken, refreshToken
+            else
+              @options.getUserPasswordCallback (username, password) =>
+                @getTokensByUsernamePassword username, password, (accessToken, refreshToken) =>
+                  callback accessToken, refreshToken            
         else
           @options.getUserPasswordCallback (username, password) =>
             @getTokensByUsernamePassword username, password, (accessToken, refreshToken) =>

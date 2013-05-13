@@ -34,7 +34,7 @@ define [
 
     ## Получение токена по grant_type = refresh_token (токен обновления)
     grantAccessTokenByRefreshToken: (refreshToken, callback) =>
-      @deferredRefreshTokenCallbacks.push callback
+      @deferredRefreshTokenCallbacks.push callback if callback
 
       params =
         grant_type: 'refresh_token'
@@ -46,14 +46,25 @@ define [
         console.log "Refresh token already requested"
         console.log "========================================================================"
 
-      return if @refreshTokenRequested
+      return if @refreshTokenRequested or @deferredRefreshTokenCallbacks.length == 0
+
       @refreshTokenRequested = true
 
       @serviceContainer.eval 'request', (request) =>
         request.get @options.endpoints.accessToken, params, (result) =>
-
-          for callback in @deferredRefreshTokenCallbacks
-            callback result.access_token, result.refresh_token
-
-          @deferredRefreshTokenCallbacks = []
+          #Если порвалась связь, то не считаем протухшим рефреш токен
           @refreshTokenRequested = false
+          if result && (result.access_token || result.error)
+            #Рефреш токен протух
+            for callback in @deferredRefreshTokenCallbacks
+              callback result.access_token, result.refresh_token
+
+            @deferredRefreshTokenCallbacks = []
+
+          else
+            console.log 'Cannot refresh token (('
+            setTimeout ()=>
+              console.log 'Recall refresh token'
+              @grantAccessTokenByRefreshToken(refreshToken)
+            , 500
+
