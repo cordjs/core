@@ -60,7 +60,7 @@ define [
       fields = options.fields ? []
       calc = options.calc ? []
       id = options.id ? 0
-      
+
       if forIdProbe
         (fields.sort().join(',') + '|' + calc.sort().join(',')).replace(/\:/g, '')
       else
@@ -166,9 +166,6 @@ define [
       activateSyncPromise.done => # pass :cache mode
         rangeAdjustPromise.done (syncStart, syncEnd) => # wait for range adjustment from the local cache
           @_enqueueQuery(syncStart, syncEnd).done => # avoid repeated refresh-query
-            if @_totalCountFromCache
-              @_totalCount = null
-              @_totalCountFromCache = false
             syncPromise.resolve(this)
             if not firstResultPromise.completed()
               firstResultPromise.resolve(this)
@@ -664,6 +661,10 @@ define [
             queryParams.end = end  if end?
 
           @repo.query(queryParams).done (models) =>
+            # invalidating cached totalCount
+            if @_totalCountFromCache
+              @_totalCount = null
+              @_totalCountFromCache = false
             if (start >= @_loadedStart and start <= @_loadedEnd) or (end >= @_loadedStart and end <= @_loadedEnd)
               # if there are interceptions of the just loaded set and already existing set,
               #  than we need to trigger events

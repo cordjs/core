@@ -48,14 +48,9 @@ define [
       ###
       normPath = normalizePath(cssPath)
       if not @_loadedFiles[normPath]?
-        @_loadedFiles[normPath] = new Future(1)
-        @_checkNativeLoad().done (nativeLoad) =>
-          if nativeLoad
-            @_loadLink(cssPath, @_loadedFiles[normPath])
-          else
-            @_loadImg(cssPath, @_loadedFiles[normPath])
+        @_loadedFiles[normPath] = @_loadLink(cssPath)
       else if @_loadedFiles[normPath] == true
-        @_loadedFiles[normPath] = new Future
+        @_loadedFiles[normPath] = Future.resolved()
       @_loadedFiles[normPath]
 
 
@@ -69,57 +64,14 @@ define [
         # 'true' is optimization, the completed future will be lazy-created in load() method if needed
         tmpLoaded[normalizePath($(this).attr('href'))] = true
 
-      # starting native load feature detection async process immediately so we'll not have to wait later
-      @_nativeLoad = doc.createElement('link').onload == null ? null : false
-      @_checkNativeLoad()
 
-
-    _checkNativeLoad: ->
-      ###
-      Async process of browser feature detection about link.onload capability.
-      @return Future(Boolean)
-      ###
-      if not @_nativeLoadPromise?
-        @_nativeLoadPromise = new Future(1)
-
-        ###
-          Achtung! Achtung! Need David consultation
-        ###
-        @_nativeLoad = true
-        @_nativeLoadPromise.resolve(true)
-
-        return @_nativeLoadPromise
-
-        if @_nativeLoad != false
-          # Create a link element with a data url, it would fire a load event immediately
-          link = @_createLink('data:text/css,')
-
-          link.onload = =>
-            # Native link load event works
-            @_nativeLoad = true
-            @_nativeLoadPromise.resolve(true)
-
-          head.appendChild(link)
-
-          # Schedule function in event loop, this will execute after a potential execution of the link onload
-          Defer.nextTick =>
-            head.removeChild(link)
-            if @_nativeLoad != true
-              # Native link load event is broken
-              @_nativeLoad = false
-              @_nativeLoadPromise.resolve(false)
-        else
-          @_nativeLoadPromise.resolve(false)
-
-      @_nativeLoadPromise
-
-
-    _loadLink: (url, promise) ->
+    _loadLink: (url) ->
       ###
       Load using the browsers built-in load event on link tags
       @param String url css-file url to load
       @param Future promise future to resolve when the CSS is loaded
       ###
+      promise = Future.single()
       link = @_createLink(url);
 
       link.onload = ->
@@ -127,6 +79,8 @@ define [
         link.onload = null
 
       head.appendChild(link)
+
+      promise
 
 
     _loadScript: (url, promise) ->
