@@ -32,7 +32,7 @@ define [
 
       @serviceContainer.eval 'cookie', (cookie) =>
         cookie.set 'accessToken', accessToken
-        cookie.set 'refreshToken', refreshToken, 
+        cookie.set 'refreshToken', refreshToken,
           expires: 14
 
         console.log "Store tokens: #{accessToken}, #{refreshToken}" if global.CONFIG.debug?.oauth2
@@ -63,19 +63,19 @@ define [
     getTokensByRefreshToken: (refreshToken, callback) ->
       @serviceContainer.eval 'oauth2', (oauth2) =>
         oauth2.grantAccessTokenByRefreshToken refreshToken, (accessToken, refreshToken) =>
-          @storeTokens accessToken, refreshToken, callback
+          callback?()
 
 
     getTokensByAllMeans: (accessToken, refreshToken, callback) ->
       if not accessToken
         if refreshToken
-          @getTokensByRefreshToken refreshToken, (accessToken, refreshToken)=>
+          @getTokensByRefreshToken refreshToken, (accessToken, refreshToken) =>
             if accessToken
               callback accessToken, refreshToken
             else
               @options.getUserPasswordCallback (username, password) =>
                 @getTokensByUsernamePassword username, password, (accessToken, refreshToken) =>
-                  callback accessToken, refreshToken            
+                  callback accessToken, refreshToken
         else
           @options.getUserPasswordCallback (username, password) =>
             @getTokensByUsernamePassword username, password, (accessToken, refreshToken) =>
@@ -129,15 +129,19 @@ define [
               else
                 if (response && response.code)
                   message = 'Ошибка ' + response.code + ': ' + response._message
-                  postal.publish 'notify.addMessage', {link:'', message: message, details: response?.message, error: true, timeOut: 30000 }
+#                  postal.publish 'notify.addMessage', {link:'', message: message, details: response?.message, error: true, timeOut: 30000 }
+                  console.warn message
 
                 if (error && (error.statusCode || error.message))
                   message = error.message if error.message
                   message = error.statusText if error.statusText
 
                   message = 'Ошибка' + (if error.statusCode != undefined then (' ' + error.statusCode)) + ': ' + message
-                  postal.publish 'notify.addMessage', {link:'', message: message, error:true, timeOut: 30000 }
+#                  postal.publish 'notify.addMessage', {link:'', message: message, error:true, timeOut: 30000 }
+                  console.warn message
 
-                args.callback response, error if args.callback
+                # положим в куки accessToken
+                @storeTokens accessToken, refreshToken, () =>
+                  args.callback response, error if args.callback
 
       @restoreTokens processRequest
