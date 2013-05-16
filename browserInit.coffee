@@ -133,6 +133,10 @@ define [
       requirejs ['ecomet'], (Ecomet) ->
         done null, new Ecomet(serviceContainer)
 
+    serviceContainer.def 'localStorage', (get, done) ->
+      require ['cord!cache/localStorage'], (LocalStorage) ->
+        done null, LocalStorage
+
     ###
     ###
 
