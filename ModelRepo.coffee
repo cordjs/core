@@ -104,6 +104,8 @@ define [
       options =
         id: id
         fields: fields
+        filter:
+          id: id
 
       if syncMode == ':cache'
         model = @probeCollectionsForModel(id, fields)
