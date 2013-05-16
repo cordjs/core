@@ -26,6 +26,13 @@ define [
       @_set("cl:#{ repoName }:#{ sha1(collectionName) }", modelIds)
 
 
+    setItem: (key, value) ->
+      ###
+      Set wrapper
+      ###
+      @storage.setItem(key, value)
+
+
     getCollectionInfo: (repoName, collectionName) ->
       ###
       Returns meta-information of the collection, previously saved in the local storage.
@@ -38,6 +45,20 @@ define [
       Returns list of model ids of the collection, previously saved in the local storage.
       ###
       @_get("cl:#{ repoName }:#{ sha1(collectionName) }")
+
+
+    getItem: (key) ->
+      ###
+      Get wrapper
+      ###
+      @storage.getItem(key)
+
+
+    clear: ->
+      ###
+      Clear local storage
+      ###
+      @storage.clear()
 
 
     _set: (key, value) ->
