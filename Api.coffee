@@ -14,7 +14,7 @@ define [
       ### Дефолтные настройки ###
       defaultOptions =
         protocol: 'http'
-        host: 'megaplan.megaplan.ru'
+        host: 'megaplan.megaplan'
         urlPrefix: ''
         params: {}
         getUserPasswordCallback: (callback) -> callback 'jedi', 'jedi'
@@ -127,9 +127,16 @@ define [
                 if response.error == 'invalid_grant'
                   @getTokensByAllMeans null, refreshToken, processRequest
               else
-                if (response && response.code == 500) || (error && (error.statusCode == 500 || error.message))
-                  message = 'Ой! Что-то случилось с сервером (( 500'
-                  postal.publish 'notify.addMessage', {link:'', message: message, details: response?.message, error:true, timeOut: 30000 }
+                if (response && response.code)
+                  message = 'Ошибка ' + response.code + ': ' + response._message
+                  postal.publish 'notify.addMessage', {link:'', message: message, details: response?.message, error: true, timeOut: 30000 }
+
+                if (error && (error.statusCode || error.message))
+                  message = error.message if error.message
+                  message = error.statusText if error.statusText
+
+                  message = 'Ошибка' + (if error.statusCode then ' ' + error.statusCode) + ': ' + message
+                  postal.publish 'notify.addMessage', {link:'', message: message, error:true, timeOut: 30000 }
 
                 args.callback response, error if args.callback
 
