@@ -135,7 +135,7 @@ define [
                   message = error.message if error.message
                   message = error.statusText if error.statusText
 
-                  message = 'Ошибка' + (if error.statusCode then ' ' + error.statusCode) + ': ' + message
+                  message = 'Ошибка' + (if error.statusCode != undefined then (' ' + error.statusCode)) + ': ' + message
                   postal.publish 'notify.addMessage', {link:'', message: message, error:true, timeOut: 30000 }
 
                 args.callback response, error if args.callback
