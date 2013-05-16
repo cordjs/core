@@ -73,6 +73,6 @@ define [
         if not error? and response.statusCode != 200
           error =
             statusCode: response.statusCode
-            statusText: response.statusText
+            statusText: response.body._message
 
         argssss.callback body, error if typeof argssss.callback == 'function'
