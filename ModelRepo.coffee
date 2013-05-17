@@ -120,15 +120,18 @@ define [
         model = @probeCollectionsForModel(id, fields)
         if model
           console.log 'debug: buildSingleModel found in an existing collection'
+          options =
+             fields: fields
+             
           options.model = _.clone model
           collection = @createCollection(options)
         else
           console.log 'debug: buildSingleModel missed in existing collections :('
 
       if !collection
-        collection = @createCollection(options)
+        collection = @createSingleModel(id, fields)
 
-      collection = @createSingleModel(id, fields)
+        
       collection.sync syncMode, ->
         callback(collection.get(id))
       collection
