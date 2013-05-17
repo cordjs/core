@@ -140,10 +140,14 @@ define [
           mb.subscription.unsubscribe() if mb.subscription?
           delete @_modelBindings[fieldName]
 
-      if value instanceof Model
+      if value instanceof Model and not (@_modelBindings[fieldName]? and value == mb.model)
         @_modelBindings[fieldName] ?= {}
         @_modelBindings[fieldName].model = value
-        @_modelBindings[fieldName].subscription = value.on('change', onChangeMethod)
+        @_modelBindings[fieldName].subscription = value.on 'change', (model) =>
+          onChangeMethod
+            name: fieldName
+            value: model
+            oldValue: value
 
 
     _getHandlerFunction: (method) ->
