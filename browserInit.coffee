@@ -67,13 +67,13 @@ define [
           backPath = '/' if backPath.indexOf('user/login') >= 0 or backPath.indexOf('user/logout') >= 0
           clientSideRouter.navigate '/user/login/?back=' + window.location.pathname
       ecomet:
-        host: '192.168.9.98'
-        authUri: 'http://megaplan.megaplan@192.168.62.188/SdfCommon/EcometOauth/auth'
+        host: 'megaplan.megaplan.ru'
+        authUri: '/SdfCommon/EcometOauth/auth'
       oauth2:
         clientId: 'ce8fcad010ef4d10a337574645d69ac8'
         secretKey: '2168c151f895448e911243f5c6d6cdc6'
         endpoints:
-          accessToken: 'http://' + window.location.host + '/XDR/http://megaplan.megaplan/oauth/access_token'
+          accessToken: 'http://' + window.location.host + '/XDR/http://megaplan.megaplan.ru/oauth/access_token'
 
     ###
       Это надо перенести в более кошерное место
