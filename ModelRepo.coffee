@@ -107,15 +107,20 @@ define [
         filter:
           id: id
 
+      collection = null
+
       if syncMode == ':cache'
         model = @probeCollectionsForModel(id, fields)
         if model
-          console.log 'debug: buildSingleModel found in cache'
-          callback model
-          return null
-        console.log 'debug: buildSingleModel cache missed :('
+          console.log 'debug: buildSingleModel found in an existing collection'
+          options.model = _.clone model
+          collection = @createCollection(options)
+        else
+          console.log 'debug: buildSingleModel missed in existing collections :('
 
-      collection = @createCollection(options)
+      if !collection
+        collection = @createCollection(options)
+
       collection.sync syncMode, ->
         callback(collection.get(id))
       collection

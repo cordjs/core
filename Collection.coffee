@@ -75,12 +75,21 @@ define [
       ###
       @_models = []
       @_byId = {}
-      @_orderBy = options.orderBy ? 'id'
-      @_filterId = options.filterId ? null
       @_filterType = options.filterType ? ':backend'
       @_fields = options.fields ? []
-      @_id = options.id ? 0
-      @_filter = options.filter ? {}
+
+      if options.model
+        @_fillModelList [options.model]
+        @_orderBy = 'id'
+        @_filterId = null
+        @_fields = options.fields ? []
+        @_id = options.model.id
+        @_filter = {}
+      else
+        @_orderBy = options.orderBy ? 'id'
+        @_filterId = options.filterId ? null
+        @_id = options.id ? 0
+        @_filter = options.filter ? {}
 
       @_queryQueue =
         loadingStart: @_loadedStart
@@ -311,6 +320,10 @@ define [
       @param (optional)Int end index of last item to replace
       ###
       if start? and end?
+        #in case of refreshing, we'll just replace the list
+        if start == @_loadedStart && end == @_loadedEnd
+          return @_fillModelList newList
+
         loadingStart = start
         loadingEnd = end
         @_models = _.clone(@_models)
@@ -531,7 +544,7 @@ define [
       result = Future.single()
 
       cachePromise = Future.single()
-      if @_cacheLoaded or not isBrowser
+      if !@isInitialized() || @_cacheLoaded or not isBrowser
         cachePromise.resolve()
       else
         @_cacheLoaded = true
