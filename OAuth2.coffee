@@ -52,10 +52,11 @@ define [
 
       @serviceContainer.eval 'request', (request) =>
         request.get @options.endpoints.accessToken, params, (result) =>
-          #Если порвалась связь, то не считаем протухшим рефреш токен
+          # Если порвалась связь, то не считаем протухшим рефреш токен
           @refreshTokenRequested = false
+
           if result && (result.access_token || result.error)
-            #Рефреш токен протух
+            # Рефреш токен протух
             for callback in @deferredRefreshTokenCallbacks
               callback result.access_token, result.refresh_token
 
@@ -63,7 +64,7 @@ define [
 
           else
             console.log 'Cannot refresh token (('
-            setTimeout ()=>
+            setTimeout () =>
               console.log 'Recall refresh token'
               @grantAccessTokenByRefreshToken(refreshToken)
             , 500

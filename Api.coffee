@@ -41,7 +41,7 @@ define [
 
 
     restoreTokens: (callback) ->
-      #Возвращаем из локального кеша
+      # Возвращаем из локального кеша
       if @accessToken and @refreshToken
         console.log "Restore tokens from local cache: #{@accessToken}, #{@refreshToken}" if global.CONFIG.debug?.oauth2
         callback @accessToken, @refreshToken
@@ -54,6 +54,7 @@ define [
 
           callback accessToken, refreshToken
 
+
     getTokensByUsernamePassword: (username, password, callback) ->
       @serviceContainer.eval 'oauth2', (oauth2) =>
         oauth2.grantAccessTokenByPassword username, password, (accessToken, refreshToken) =>
@@ -63,7 +64,7 @@ define [
     getTokensByRefreshToken: (refreshToken, callback) ->
       @serviceContainer.eval 'oauth2', (oauth2) =>
         oauth2.grantAccessTokenByRefreshToken refreshToken, (accessToken, refreshToken) =>
-          callback?()
+          callback accessToken, refreshToken
 
 
     getTokensByAllMeans: (accessToken, refreshToken, callback) ->
