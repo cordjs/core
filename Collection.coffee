@@ -511,14 +511,22 @@ define [
       @param Int size page size
       @return Future(Array[Model])
       ###
+
       if arguments.length == 2
         size = lastPage
         lastPage = firstPage
 
-      start = (firstPage - 1) * size
-      end = start + size * (lastPage - firstPage + 1) - 1
+      if firstPage
+        start = (firstPage - 1) * size
+        end = start + size * (lastPage - firstPage + 1) - 1 if lastPage
+      else
+        start = end = null
 
-      slice = => @toArray().slice(start, end + 1)
+      slice = =>
+        if start? and end?
+          @toArray().slice(start, end + 1)
+        else
+          @toArray()
 
       promise = Future.single()
       if @_loadedStart <= start and @_loadedEnd >= end
