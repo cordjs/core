@@ -17,7 +17,7 @@ define [
         host: 'megaplan.megaplan'
         urlPrefix: ''
         params: {}
-        getUserPasswordCallback: (callback) -> callback 'jedi', 'jedi'
+        getUserPasswordCallback: (callback) -> callback '', ''
       @options = _.extend defaultOptions, options
 
       @serviceContainer = serviceContainer
@@ -31,13 +31,13 @@ define [
       @refreshToken = refreshToken
 
       @serviceContainer.eval 'cookie', (cookie) =>
-        cookie.set 'accessToken', accessToken
-        cookie.set 'refreshToken', refreshToken,
+        cookie.set 'accessToken', @accessToken
+        cookie.set 'refreshToken', @refreshToken,
           expires: 14
 
         console.log "Store tokens: #{accessToken}, #{refreshToken}" if global.CONFIG.debug?.oauth2
 
-        callback accessToken, refreshToken
+        callback @accessToken, @refreshToken
 
 
     restoreTokens: (callback) ->
@@ -50,9 +50,12 @@ define [
           accessToken = cookie.get 'accessToken'
           refreshToken = cookie.get 'refreshToken'
 
+          @accessToken = accessToken
+          @refreshToken = refreshToken
+
           console.log "Restore tokens: #{accessToken}, #{refreshToken}" if global.CONFIG.debug.oauth2
 
-          callback accessToken, refreshToken
+          callback @accessToken, @refreshToken
 
 
     getTokensByUsernamePassword: (username, password, callback) ->
@@ -64,7 +67,12 @@ define [
     getTokensByRefreshToken: (refreshToken, callback) ->
       @serviceContainer.eval 'oauth2', (oauth2) =>
         oauth2.grantAccessTokenByRefreshToken refreshToken, (accessToken, refreshToken) =>
-          callback accessToken, refreshToken
+          if accessToken and refreshToken
+            @storeTokens accessToken, refreshToken, callback
+          else
+            @options.getUserPasswordCallback (username, password) =>
+              @getTokensByUsernamePassword username, password, (accessToken, refreshToken) =>
+                callback accessToken, refreshToken
 
 
     getTokensByAllMeans: (accessToken, refreshToken, callback) ->
@@ -115,7 +123,6 @@ define [
 
       processRequest = (accessToken, refreshToken) =>
         @getTokensByAllMeans accessToken, refreshToken, (accessToken, refreshToken) =>
-
           requestUrl = "#{@options.protocol}://#{@options.host}/#{@options.urlPrefix}#{args.url}"
           requestUrl += ( if requestUrl.lastIndexOf("?") == -1 then "?" else "&" ) + "access_token=#{accessToken}"
           defaultParams = _.clone @options.params
@@ -124,25 +131,19 @@ define [
 
           @serviceContainer.eval 'request', (request) =>
             request[method] requestUrl, requestParams, (response, error) =>
-              if response?.error?
-                if response.error == 'invalid_grant'
-                  @getTokensByAllMeans null, refreshToken, processRequest
-              else
-                if (response && response.code)
-                  message = 'Ошибка ' + response.code + ': ' + response._message
+              if (response && response.code)
+                message = 'Ошибка ' + response.code + ': ' + response._message
 #                  postal.publish 'notify.addMessage', {link:'', message: message, details: response?.message, error: true, timeOut: 30000 }
-                  console.warn message
+                console.warn message
 
-                if (error && (error.statusCode || error.message))
-                  message = error.message if error.message
-                  message = error.statusText if error.statusText
+              if (error && (error.statusCode || error.message))
+                message = error.message if error.message
+                message = error.statusText if error.statusText
 
-                  message = 'Ошибка' + (if error.statusCode != undefined then (' ' + error.statusCode)) + ': ' + message
+                message = 'Ошибка' + (if error.statusCode != undefined then (' ' + error.statusCode)) + ': ' + message
 #                  postal.publish 'notify.addMessage', {link:'', message: message, error:true, timeOut: 30000 }
-                  console.warn message
+                console.warn message
 
-                # положим в куки accessToken
-                @storeTokens accessToken, refreshToken, () =>
-                  args.callback response, error if args.callback
+              args.callback response, error if args.callback
 
       @restoreTokens processRequest

@@ -72,6 +72,10 @@ define [
           get('api').get 'employee/current/?_extra=user.id', (response) =>
             done null, response
 
+        serviceContainer.def 'inboxRepo', (get, done) ->
+          requirejs ['cord-m!/megaplan/front/inbox//InboxRepo'], (InboxRepo) ->
+            done null, new InboxRepo(serviceContainer)
+
         serviceContainer.def 'discussRepo', (get, done) ->
           requirejs ['cord-m!/megaplan/front/talks//DiscussRepo'], (DiscussRepo) ->
             done null, new DiscussRepo(serviceContainer)

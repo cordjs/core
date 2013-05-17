@@ -66,6 +66,6 @@ define [
             console.log 'Cannot refresh token (('
             setTimeout () =>
               console.log 'Recall refresh token'
-              @grantAccessTokenByRefreshToken(refreshToken)
+              @grantAccessTokenByRefreshToken refreshToken
             , 500
 

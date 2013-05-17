@@ -62,18 +62,18 @@ define [
         protocol: 'http'
         host: window.location.host
         urlPrefix: 'XDR/http://megaplan.megaplan.ru/api/v2/'
-        getUserPasswordCallback: (callback) ->
+        getUserPasswordCallback: (callback) =>
           backPath = window.location.pathname
           backPath = '/' if backPath.indexOf('user/login') >= 0 or backPath.indexOf('user/logout') >= 0
-          window.location.href = '/user/login/?back=' + window.location.pathname
+          clientSideRouter.navigate '/user/login/?back=' + window.location.pathname
       ecomet:
-        host: 'megaplan.megaplan.ru'
-        authUri: '/SdfCommon/EcometOauth/auth'
+        host: '192.168.9.98'
+        authUri: 'http://megaplan.megaplan@192.168.62.188/SdfCommon/EcometOauth/auth'
       oauth2:
         clientId: 'ce8fcad010ef4d10a337574645d69ac8'
         secretKey: '2168c151f895448e911243f5c6d6cdc6'
         endpoints:
-          accessToken: 'http://' + window.location.host + '/XDR/http://megaplan.megaplan.ru/oauth/access_token'
+          accessToken: 'http://' + window.location.host + '/XDR/http://megaplan.megaplan/oauth/access_token'
 
     ###
       Это надо перенести в более кошерное место
@@ -105,6 +105,10 @@ define [
     serviceContainer.def 'user', ['api'], (get, done) ->
       get('api').get 'employee/current/?_extra=user.id', (response) =>
         done null, response
+
+    serviceContainer.def 'inboxRepo', (get, done) ->
+      requirejs ['cord-m!/megaplan/front/inbox//InboxRepo'], (InboxRepo) ->
+        done null, new InboxRepo(serviceContainer)
 
     serviceContainer.def 'discussRepo', (get, done) ->
       requirejs ['cord-m!/megaplan/front/talks//DiscussRepo'], (DiscussRepo) ->
