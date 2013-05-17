@@ -84,6 +84,25 @@ define [
       collection
 
 
+    createSingleModel: (id, fields) ->
+      ###
+      Creates and syncs single-model collection by id and field list. In callback returns resulting model.
+       Method returns single-model collection.
+
+      @param Integer id
+      @param Array[String] fields list of fields names for the collection
+      @return Collection|null
+      ###
+
+      options =
+        id: id
+        fields: fields
+        filter:
+          id: id
+
+      @createCollection(options)
+
+
     buildSingleModel: (id, fields, syncMode, callback) ->
       ###
       Creates and syncs single-model collection by id and field list. In callback returns resulting model.
@@ -97,16 +116,6 @@ define [
       @param Function(Model) callback
       @return Collection|null
       ###
-      if _.isFunction(syncMode)
-        callback = syncMode
-        syncMode = ':cache'
-
-      options =
-        id: id
-        fields: fields
-        filter:
-          id: id
-
       if syncMode == ':cache'
         model = @probeCollectionsForModel(id, fields)
         if model
@@ -115,10 +124,11 @@ define [
           return null
         console.log 'debug: buildSingleModel cache missed :('
 
-      collection = @createCollection(options)
+      collection = @createSingleModel(id, fields)
       collection.sync syncMode, ->
         callback(collection.get(id))
       collection
+
 
     probeCollectionsForModel: (id, fields) ->
       ###
@@ -140,6 +150,7 @@ define [
           return collection.get(id)
 
       null
+
 
     getCollection: (name, returnMode, callback) ->
       ###
