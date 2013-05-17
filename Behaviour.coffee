@@ -1,8 +1,9 @@
 define [
+  'cord!Model'
   'cord!utils/Defer'
   'jquery'
   'postal'
-], (Defer, $, postal) ->
+], (Model, Defer, $, postal) ->
 
   class Behaviour
 
@@ -10,12 +11,17 @@ define [
     # (widget can have multiple DOM-roots when it has several inline-blocks)
     $rootEls: null
 
+    _modelBindings: null
+
+
     constructor: (widget, $domRoot) ->
       ###
       @param Widget widget
       @param (optional)jQuery $domRoot prepared root element of the widget or of some widget's parent
       ###
       @_widgetSubscriptions = []
+      @_modelBindings = {}
+
       @widget = widget
       @id = widget.ctx.id
 
@@ -102,10 +108,14 @@ define [
 
     initWidgetEvents: (events) ->
       for fieldName, method of events
+        onChangeMethod = @_getWidgetEventMethod(fieldName, method)
+
         subscription = postal.subscribe
           topic: "widget.#{ @id }.change.#{ fieldName }"
-          callback: @_getWidgetEventMethod(method)
+          callback: onChangeMethod
         @_widgetSubscriptions.push(subscription)
+
+        @_registerModelBinding(@widget.ctx[fieldName], fieldName, onChangeMethod)
 
 
     _getEventMethod: (method) ->
@@ -115,11 +125,25 @@ define [
         true
 
 
-    _getWidgetEventMethod: (method) ->
+    _getWidgetEventMethod: (fieldName, method) ->
       m = @_getHandlerFunction(method)
-      =>
+      onChangeMethod = =>
         if not @widget.isSentenced() and arguments[0].value != ':deferred' and not arguments[0].initMode
+          @_registerModelBinding(arguments[0].value, fieldName, onChangeMethod)
           m.apply(this, arguments)
+
+
+    _registerModelBinding: (value, fieldName, onChangeMethod) ->
+      if @_modelBindings[fieldName]?
+        mb = @_modelBindings[fieldName]
+        if value != mb.model
+          mb.subscription.unsubscribe() if mb.subscription?
+          delete @_modelBindings[fieldName]
+
+      if value instanceof Model
+        @_modelBindings[fieldName] ?= {}
+        @_modelBindings[fieldName].model = value
+        @_modelBindings[fieldName].subscription = value.on('change', onChangeMethod)
 
 
     _getHandlerFunction: (method) ->
@@ -138,8 +162,14 @@ define [
 
     clean: ->
       postal.publish "widget.#{ @id }.behaviour.destroy", {}
+
       subscription.unsubscribe() for subscription in @_widgetSubscriptions
       @_widgetSubscriptions = []
+
+      for name, mb of @_modelBindings
+        mb.subscription?.unsubscribe()
+      @_modelBindings = {}
+
       @widget = null
       @el.off()#.remove()
       @el = @$el = null
