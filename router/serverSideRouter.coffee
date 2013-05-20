@@ -96,10 +96,6 @@ define [
           requirejs ['cord-m!/megaplan/front/tasks//TaskListRepo'], (TaskListRepo) ->
             done null, new TaskListRepo(serviceContainer)
 
-        serviceContainer.def 'userStats', (get, done) ->
-          requirejs ['cord!/megaplan/front/common/utils/UserStat'], (UserStat) ->
-            done null, new UserStat(serviceContainer)
-
         ###
         ###
 
