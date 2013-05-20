@@ -686,7 +686,7 @@ define [
             if @_totalCountFromCache
               @_totalCount = null
               @_totalCountFromCache = false
-            if (start >= @_loadedStart and start <= @_loadedEnd) or (end >= @_loadedStart and end <= @_loadedEnd)
+            if (start >= @_loadedStart and start <= @_loadedEnd) or (end >= @_loadedStart and end <= @_loadedEnd) or (start == undefined and end == undefined and @_loadedEnd > -1)
               # if there are interceptions of the just loaded set and already existing set,
               #  than we need to trigger events
               @_replaceModelList models, start, end
