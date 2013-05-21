@@ -15,4 +15,10 @@ define [
 
 
     set: (name, value, params) =>
-      @cookies.set name, value
+      #prevent browser to use the same connection
+      if @cookies.response._header
+        return false
+      else
+        @cookies.response.shouldKeepAlive = false
+        @cookies.set name, value
+      true

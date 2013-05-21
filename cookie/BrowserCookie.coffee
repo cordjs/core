@@ -16,3 +16,5 @@ define [
       _params = _.extend _params, params if params
 
       $.cookie name, value, _params
+
+      true

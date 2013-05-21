@@ -17,7 +17,8 @@ define [
         host: 'megaplan.megaplan.ru'
         urlPrefix: ''
         params: {}
-        getUserPasswordCallback: (callback) -> callback '', ''
+        getUserPasswordCallback: (callback) ->
+          callback '', ''
       @options = _.extend defaultOptions, options
 
       @serviceContainer = serviceContainer
@@ -27,17 +28,23 @@ define [
 
     storeTokens: (accessToken, refreshToken, callback) ->
       # Кеширование токенов
+
+      if @accessToken == accessToken && @refreshToken == refreshToken
+        callback @accessToken, @refreshToken
+      
       @accessToken = accessToken
       @refreshToken = refreshToken
 
       @serviceContainer.eval 'cookie', (cookie) =>
-        cookie.set 'accessToken', @accessToken
-        cookie.set 'refreshToken', @refreshToken,
+        #Protection from late callback from closed connections.
+        #TODO, refactor OAuth module, so dead callback will be deleted
+        success = cookie.set 'accessToken', @accessToken
+        success &= cookie.set 'refreshToken', @refreshToken,
           expires: 14
 
         console.log "Store tokens: #{accessToken}, #{refreshToken}" if global.CONFIG.debug?.oauth2
 
-        callback @accessToken, @refreshToken
+        callback @accessToken, @refreshToken if success
 
 
     restoreTokens: (callback) ->
@@ -66,30 +73,27 @@ define [
 
     getTokensByRefreshToken: (refreshToken, callback) ->
       @serviceContainer.eval 'oauth2', (oauth2) =>
-        oauth2.grantAccessTokenByRefreshToken refreshToken, (accessToken, refreshToken) =>
-          if accessToken and refreshToken
-            @storeTokens accessToken, refreshToken, callback
+        oauth2.grantAccessTokenByRefreshToken refreshToken, (grantedAccessToken, grantedRefreshToken) =>
+          if grantedAccessToken and grantedRefreshToken
+            @storeTokens grantedAccessToken, grantedRefreshToken, callback
+            return true #continue processing other deferred callbacks in oauth
           else
             @options.getUserPasswordCallback (username, password) =>
-              @getTokensByUsernamePassword username, password, (accessToken, refreshToken) =>
-                callback accessToken, refreshToken
+              @getTokensByUsernamePassword username, password, (usernameAccessToken, usernameRefreshToken) =>
+                callback usernameAccessToken, usernameRefreshToken
+            return false #stop processing other deferred callbacks in oauth
 
 
-    getTokensByAllMeans: (accessToken, refreshToken, callback) ->
-      if not accessToken
-        if refreshToken
-          @getTokensByRefreshToken refreshToken, (accessToken, refreshToken) =>
-            if accessToken
-              callback accessToken, refreshToken
-            else
-              @options.getUserPasswordCallback (username, password) =>
-                @getTokensByUsernamePassword username, password, (accessToken, refreshToken) =>
-                  callback accessToken, refreshToken
-        else
-          @options.getUserPasswordCallback (username, password) =>
-            @getTokensByUsernamePassword username, password, (accessToken, refreshToken) =>
-              callback accessToken, refreshToken
-      else
+    getTokensByAllMeans: (callback) ->
+      @restoreTokens (accessToken, refreshToken) =>
+        if not accessToken
+          if refreshToken
+            return @getTokensByRefreshToken refreshToken, callback
+          else
+            return @options.getUserPasswordCallback (username, password) =>
+              @getTokensByUsernamePassword username, password, (usernameAccessToken, usernameRefreshToken) =>
+                return callback usernameAccessToken, usernameRefreshToken
+
         callback accessToken, refreshToken
 
 
@@ -121,29 +125,26 @@ define [
         params: 'object'
         callback: 'function'
 
-      processRequest = (accessToken, refreshToken) =>
-        @getTokensByAllMeans accessToken, refreshToken, (accessToken, refreshToken) =>
-          requestUrl = "#{@options.protocol}://#{@options.host}/#{@options.urlPrefix}#{args.url}"
-          requestUrl += ( if requestUrl.lastIndexOf("?") == -1 then "?" else "&" ) + "access_token=#{accessToken}"
-          defaultParams = _.clone @options.params
-          requestParams = _.extend defaultParams, args.params
-          requestParams.access_token = accessToken
+      @getTokensByAllMeans (accessToken, refreshToken) =>
+        requestUrl = "#{@options.protocol}://#{@options.host}/#{@options.urlPrefix}#{args.url}"
+        requestUrl += ( if requestUrl.lastIndexOf("?") == -1 then "?" else "&" ) + "access_token=#{accessToken}"
+        defaultParams = _.clone @options.params
+        requestParams = _.extend defaultParams, args.params
+        requestParams.access_token = accessToken
 
-          @serviceContainer.eval 'request', (request) =>
-            request[method] requestUrl, requestParams, (response, error) =>
-              if (response && response.code)
-                message = 'Ошибка ' + response.code + ': ' + response._message
+        @serviceContainer.eval 'request', (request) =>
+          request[method] requestUrl, requestParams, (response, error) =>
+            if (response && response.code)
+              message = 'Ошибка ' + response.code + ': ' + response._message
 #                  postal.publish 'notify.addMessage', {link:'', message: message, details: response?.message, error: true, timeOut: 30000 }
-                console.warn message
+              console.warn message
 
-              if (error && (error.statusCode || error.message))
-                message = error.message if error.message
-                message = error.statusText if error.statusText
+            if (error && (error.statusCode || error.message))
+              message = error.message if error.message
+              message = error.statusText if error.statusText
 
-                message = 'Ошибка' + (if error.statusCode != undefined then (' ' + error.statusCode)) + ': ' + message
+              message = 'Ошибка' + (if error.statusCode != undefined then (' ' + error.statusCode)) + ': ' + message
 #                  postal.publish 'notify.addMessage', {link:'', message: message, error:true, timeOut: 30000 }
-                console.warn message
+              console.warn message
 
-              args.callback response, error if args.callback
-
-      @restoreTokens processRequest
+            args.callback response, error if args.callback

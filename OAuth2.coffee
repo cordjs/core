@@ -4,10 +4,11 @@ define [
 
   class OAuth2
 
-    deferredRefreshTokenCallbacks: []
-    refreshTokenRequested: false
 
     constructor: (serviceContainer, options)->
+      @deferredRefreshTokenCallbacks = []
+      @refreshTokenRequested = false
+
       defaultOptions =
         clientId: ''
         secretKey: ''
@@ -31,6 +32,8 @@ define [
         request.get @options.endpoints.accessToken, params, (result) =>
           callback result.access_token, result.refresh_token
 
+    clear: ->
+      @deferredRefreshTokenCallbacks = []
 
     ## Получение токена по grant_type = refresh_token (токен обновления)
     grantAccessTokenByRefreshToken: (refreshToken, callback) =>
@@ -57,8 +60,10 @@ define [
 
           if result && (result.access_token || result.error)
             # Рефреш токен протух
+            callbackResult = true
             for callback in @deferredRefreshTokenCallbacks
-              callback result.access_token, result.refresh_token
+              #Protection from multiple redirections
+              callbackResult &= callback result.access_token, result.refresh_token if callbackResult
 
             @deferredRefreshTokenCallbacks = []
 

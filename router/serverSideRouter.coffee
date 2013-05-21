@@ -30,6 +30,18 @@ define [
         ###
           Конфиги
         ###
+        widgetRepo = new WidgetRepo
+
+        clear = ()=>
+          serviceContainer.eval 'oauth2', (oauth2) =>
+            oauth2.clear()
+
+          serviceContainer.eval 'userStats', (userStats) =>
+            userStats.clear()
+            
+          serviceContainer = null
+          widgetRepo = null
+
 
         serviceContainer.set 'config',
           api:
@@ -37,11 +49,20 @@ define [
             host: 'megaplan.megaplan.ru'
             urlPrefix: 'api/v2/'
             getUserPasswordCallback: (callback) ->
-              response = serviceContainer.get 'serverResponse'
-              request = serviceContainer.get 'serverRequest'
-              response.writeHead 302,
-                Location: '/user/login/?back=' + request.url
-              response.end()
+              if serviceContainer
+                response = serviceContainer.get 'serverResponse'
+                request = serviceContainer.get 'serverRequest'
+                if !response.alreadyRelocated
+                  response.shouldKeepAlive = false
+                  response.alreadyRelocated = true
+                  response.writeHead 302,
+                    "Location": '/user/login/?back=' + request.url
+                    "Cache-Control" : "no-cache, no-store, must-revalidate"
+                    "Pragma": "no-cache"
+                    "Expires": 0
+                  response.end()
+                  clear()
+
           oauth2:
             clientId: 'ce8fcad010ef4d10a337574645d69ac8'
             secretKey: '2168c151f895448e911243f5c6d6cdc6'
@@ -103,8 +124,6 @@ define [
         ###
         ###
 
-        widgetRepo = new WidgetRepo
-
         serviceContainer.set 'widgetRepo', widgetRepo
         widgetRepo.setServiceContainer serviceContainer
 
@@ -116,10 +135,12 @@ define [
 
           rootWidget.show params, (err, output) ->
             if err then throw err
+            #prevent browser to use the same connection
+            res.shouldKeepAlive = false
             res.writeHead 200, 'Content-Type': 'text/html'
             res.end output
             # todo: may be need some cleanup before?
-            widgetRepo = null
+            clear()
 
         true
       else
