@@ -134,7 +134,7 @@ define [
 
           @serviceContainer.eval 'request', (request) =>
             request[method] requestUrl, requestParams, (response, error) =>
-              if response.error == 'invalid_grant'
+              if response?.error == 'invalid_grant'
                 return processRequest null, refreshToken
 
               if (response && response.code)
