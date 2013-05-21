@@ -122,6 +122,7 @@ define [
           console.log 'debug: buildSingleModel found in an existing collection'
           options =
              fields: fields
+             id: model.id
              
           options.model = _.clone model
           collection = @createCollection(options)
