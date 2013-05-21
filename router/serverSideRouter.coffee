@@ -36,9 +36,6 @@ define [
           serviceContainer.eval 'oauth2', (oauth2) =>
             oauth2.clear()
 
-          serviceContainer.eval 'userStats', (userStats) =>
-            userStats.clear()
-            
           serviceContainer = null
           widgetRepo = null
 
