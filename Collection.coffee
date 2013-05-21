@@ -321,6 +321,7 @@ define [
       ###
 
       oldListCount = @_models.length
+      oldList = _.clone(@_models)
 
       if start? and end?
         #in case of refreshing, we'll just replace the list
@@ -344,7 +345,7 @@ define [
           @emit "model.#{ model.id }.change", model
           @emitModelChangeExcept(model) # todo: think about 'sync' event here
         targetIndex = loadingStart + i
-        changed = true if not @_models[targetIndex]? or model.id != @_models[targetIndex].id
+        changed = true if not oldList[targetIndex]? or model.id != oldList[targetIndex].id
         @_models[targetIndex] = model
 
       if targetIndex < loadingEnd
