@@ -224,15 +224,19 @@ define [
 
     query: (params, callback) ->
       resultPromise = Future.single()
-      @container.eval 'api', (api) =>
-        api.get @_buildApiRequestUrl(params), (response) =>
-          result = []
-          if _.isArray(response)
-            result.push(@buildModel(item)) for item in response
-          else
-            result.push(@buildModel(response))
-          callback?(result)
-          resultPromise.resolve(result)
+      if @container
+        @container.eval 'api', (api) =>
+          api.get @_buildApiRequestUrl(params), (response) =>
+            result = []
+            if _.isArray(response)
+              result.push(@buildModel(item)) for item in response
+            else
+              result.push(@buildModel(response))
+            callback?(result)
+            resultPromise.resolve(result)
+      else
+        resultPromise.reject('Cleaned up')
+
       resultPromise
 
 
@@ -274,33 +278,35 @@ define [
       @return Future(response, error)
       ###
       promise = new Future(1)
-      @container.eval 'api', (api) =>
-        if model.id
-          changeInfo = model.getChangedFields()
-          changeInfo.id = model.id
-          @emit 'change', changeInfo
-          api.put @restResource + '/' + model.id, model.getChangedFields(), (response, error) =>
-            if error
-              @emit 'error', error
-              promise.reject(error)
-            else
-              @cacheCollection(model.collection) if model.collection?
-              model.resetChangedFields()
-              @emit 'sync', model
-              promise.resolve(response)
-        else
-          api.post @restResource, model.getChangedFields(), (response, error) =>
-            if error
-              @emit 'error', error
-              promise.reject(error)
-            else
-              model.id = response.id
-              model.resetChangedFields()
-              @emit 'sync', model
-              @_suggestNewModelToCollections(model)
-              @_injectActionMethods(model)
-              promise.resolve(response)
-
+      if @container
+        @container.eval 'api', (api) =>
+          if model.id
+            changeInfo = model.getChangedFields()
+            changeInfo.id = model.id
+            @emit 'change', changeInfo
+            api.put @restResource + '/' + model.id, model.getChangedFields(), (response, error) =>
+              if error
+                @emit 'error', error
+                promise.reject(error)
+              else
+                @cacheCollection(model.collection) if model.collection?
+                model.resetChangedFields()
+                @emit 'sync', model
+                promise.resolve(response)
+          else
+            api.post @restResource, model.getChangedFields(), (response, error) =>
+              if error
+                @emit 'error', error
+                promise.reject(error)
+              else
+                model.id = response.id
+                model.resetChangedFields()
+                @emit 'sync', model
+                @_suggestNewModelToCollections(model)
+                @_injectActionMethods(model)
+                promise.resolve(response)
+      else
+        promise.reject('Cleaned up')
       promise
 
 
@@ -315,19 +321,21 @@ define [
                 selectedPage: Int (1-based number of the page that contains the selected model)
       ###
       result = Future.single()
-      @container.eval 'api', (api) =>
-        apiParams = {}
-        apiParams._pagesize = params.pageSize if params.pageSize?
-        apiParams._sortby = params.orderBy if params.orderBy?
-        apiParams._selectedId = params.selectedId if params.selectedId?
-        apiParams._filter = params.filterId if params.filterId?
-        if params.filter
-          for filterField of params.filter
-            apiParams[filterField]=params.filter[filterField]
+      if @container
+        @container.eval 'api', (api) =>
+          apiParams = {}
+          apiParams._pagesize = params.pageSize if params.pageSize?
+          apiParams._sortby = params.orderBy if params.orderBy?
+          apiParams._selectedId = params.selectedId if params.selectedId?
+          apiParams._filter = params.filterId if params.filterId?
+          if params.filter
+            for filterField of params.filter
+              apiParams[filterField]=params.filter[filterField]
 
-        api.get @restResource + '/paging/', apiParams, (response) =>
-          result.resolve(response)
-
+          api.get @restResource + '/paging/', apiParams, (response) =>
+            result.resolve(response)
+      else
+        result.reject('Cleaned up')
       result
 
 
@@ -349,12 +357,15 @@ define [
       @return Future(response|error)
       ###
       result = new Future(1)
-      @container.eval 'api', (api) =>
-        api[method] "#{ @restResource }/#{ id }/#{ action }", params, (response, error) ->
-          if error
-            result.reject(error)
-          else
-            result.resolve(response)
+      if @container
+        @container.eval 'api', (api) =>
+          api[method] "#{ @restResource }/#{ id }/#{ action }", params, (response, error) ->
+            if error
+              result.reject(error)
+            else
+              result.resolve(response)
+      else
+        result.reject('Cleaned up')
       result
 
 
