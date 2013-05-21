@@ -83,8 +83,7 @@ define [
     requirejs.onError = (error)->
       requirejs ['postal'], (postal)->
         message = 'Ой! Кажется, нет связи, подождите, может восстановится.'
-#        postal.publish 'notify.addMessage', {link:'', message: message, details: error.toString(), error:true, timeOut: 50000 }
-        console.warn message
+        postal.publish 'notify.addMessage', {link:'', message: message, details: error.toString(), error:true, timeOut: 50000 }
 
     serviceContainer.def 'request', (get, done) ->
       requirejs ['cord!/cord/core/request/BrowserRequest'], (Request) ->
@@ -129,10 +128,6 @@ define [
     serviceContainer.def 'taskListRepo', (get, done) ->
       requirejs ['cord-m!/megaplan/front/tasks//TaskListRepo'], (TaskListRepo) ->
         done null, new TaskListRepo(serviceContainer)
-
-    serviceContainer.def 'userStats', (get, done) ->
-      requirejs ['cord!/megaplan/front/common/utils/UserStat'], (UserStat) ->
-        done null, new UserStat(serviceContainer)
 
     serviceContainer.def 'ecomet', (get, done) ->
       requirejs ['ecomet'], (Ecomet) ->

@@ -319,6 +319,9 @@ define [
       @param (optional)Int start starting index of the destination list, from which should replacement started
       @param (optional)Int end index of last item to replace
       ###
+
+      oldListCount = @_models.length
+
       if start? and end?
         #in case of refreshing, we'll just replace the list
         if start == @_loadedStart && end == @_loadedEnd
@@ -351,6 +354,9 @@ define [
       @_loadedEnd = loadingEnd if loadingEnd > @_loadedEnd
 
       @_reindexModels()
+
+      # in situation when newList is empty, we must emit change event
+      changed = true if newList.length == 0 and oldListCount != 0
 
       @emit 'change' if changed
 
@@ -686,7 +692,7 @@ define [
             if @_totalCountFromCache
               @_totalCount = null
               @_totalCountFromCache = false
-            if (start >= @_loadedStart and start <= @_loadedEnd) or (end >= @_loadedStart and end <= @_loadedEnd)
+            if (start >= @_loadedStart and start <= @_loadedEnd) or (end >= @_loadedStart and end <= @_loadedEnd) or (start == undefined and end == undefined and @_loadedEnd > -1)
               # if there are interceptions of the just loaded set and already existing set,
               #  than we need to trigger events
               @_replaceModelList models, start, end
