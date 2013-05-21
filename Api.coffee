@@ -84,17 +84,16 @@ define [
             return false #stop processing other deferred callbacks in oauth
 
 
-    getTokensByAllMeans: (callback) ->
-      @restoreTokens (accessToken, refreshToken) =>
-        if not accessToken
-          if refreshToken
-            return @getTokensByRefreshToken refreshToken, callback
-          else
-            return @options.getUserPasswordCallback (username, password) =>
-              @getTokensByUsernamePassword username, password, (usernameAccessToken, usernameRefreshToken) =>
-                return callback usernameAccessToken, usernameRefreshToken
+    getTokensByAllMeans: (accessToken, refreshToken, callback) ->
+      if not accessToken
+        if refreshToken
+          return @getTokensByRefreshToken refreshToken, callback
+        else
+          return @options.getUserPasswordCallback (username, password) =>
+            @getTokensByUsernamePassword username, password, (usernameAccessToken, usernameRefreshToken) =>
+              return callback usernameAccessToken, usernameRefreshToken
 
-        callback accessToken, refreshToken
+      callback accessToken, refreshToken
 
 
     get: (url, params, callback) ->
@@ -119,32 +118,38 @@ define [
       @send 'del', url, params, callback
 
     send: ->
-      method = arguments[0];
+      method = arguments[0]
       args = Utils.parseArguments arguments,
         url: 'string'
         params: 'object'
         callback: 'function'
 
-      @getTokensByAllMeans (accessToken, refreshToken) =>
-        requestUrl = "#{@options.protocol}://#{@options.host}/#{@options.urlPrefix}#{args.url}"
-        requestUrl += ( if requestUrl.lastIndexOf("?") == -1 then "?" else "&" ) + "access_token=#{accessToken}"
-        defaultParams = _.clone @options.params
-        requestParams = _.extend defaultParams, args.params
-        requestParams.access_token = accessToken
+      processRequest = (accessToken, refreshToken) =>
+        @getTokensByAllMeans accessToken, refreshToken, (accessToken, refreshToken) =>
+          requestUrl = "#{@options.protocol}://#{@options.host}/#{@options.urlPrefix}#{args.url}"
+          requestUrl += ( if requestUrl.lastIndexOf("?") == -1 then "?" else "&" ) + "access_token=#{accessToken}"
+          defaultParams = _.clone @options.params
+          requestParams = _.extend defaultParams, args.params
+          requestParams.access_token = accessToken
 
-        @serviceContainer.eval 'request', (request) =>
-          request[method] requestUrl, requestParams, (response, error) =>
-            if (response && response.code)
-              message = 'Ошибка ' + response.code + ': ' + response._message
-#                  postal.publish 'notify.addMessage', {link:'', message: message, details: response?.message, error: true, timeOut: 30000 }
-              console.warn message
+          @serviceContainer.eval 'request', (request) =>
+            request[method] requestUrl, requestParams, (response, error) =>
+              if response.error == 'invalid_grant'
+                return processRequest null, refreshToken
 
-            if (error && (error.statusCode || error.message))
-              message = error.message if error.message
-              message = error.statusText if error.statusText
+              if (response && response.code)
+                message = 'Ошибка ' + response.code + ': ' + response._message
+  #                  postal.publish 'notify.addMessage', {link:'', message: message, details: response?.message, error: true, timeOut: 30000 }
+                console.warn message
 
-              message = 'Ошибка' + (if error.statusCode != undefined then (' ' + error.statusCode)) + ': ' + message
-#                  postal.publish 'notify.addMessage', {link:'', message: message, error:true, timeOut: 30000 }
-              console.warn message
+              if (error && (error.statusCode || error.message))
+                message = error.message if error.message
+                message = error.statusText if error.statusText
 
-            args.callback response, error if args.callback
+                message = 'Ошибка' + (if error.statusCode != undefined then (' ' + error.statusCode)) + ': ' + message
+  #                  postal.publish 'notify.addMessage', {link:'', message: message, error:true, timeOut: 30000 }
+                console.warn message
+
+              args.callback response, error if args.callback
+
+      @restoreTokens processRequest

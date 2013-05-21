@@ -69,7 +69,6 @@ define [
         ###
           Это надо перенести в более кошерное место
         ###
-
         serviceContainer.def 'request', (get, done) ->
           requirejs ['cord!/cord/core/request/ServerRequest'], (Request) ->
             done null, new Request serviceContainer
