@@ -139,16 +139,14 @@ define [
 
               if (response && response.code)
                 message = 'Ошибка ' + response.code + ': ' + response._message
-  #                  postal.publish 'notify.addMessage', {link:'', message: message, details: response?.message, error: true, timeOut: 30000 }
-                console.warn message
+                postal.publish 'notify.addMessage', {link:'', message: message, details: response?.message, error: true, timeOut: 30000 }
 
               if (error && (error.statusCode || error.message))
                 message = error.message if error.message
                 message = error.statusText if error.statusText
 
                 message = 'Ошибка' + (if error.statusCode != undefined then (' ' + error.statusCode)) + ': ' + message
-  #                  postal.publish 'notify.addMessage', {link:'', message: message, error:true, timeOut: 30000 }
-                console.warn message
+                postal.publish 'notify.addMessage', {link:'', message: message, error:true, timeOut: 30000 }
 
               args.callback response, error if args.callback
 
