@@ -132,8 +132,6 @@ define [
       returnMode ?= ':sync'
       cacheMode = (returnMode == ':cache')
 
-      console.log "#{ @debug 'sync' } -> ", returnMode, @_loadedStart, @_loadedEnd
-
       # this future is resolved by cache results or server results - which come first
       firstResultPromise = Future.single()
       # we should wait for range information from the local cache before staring remote sync query
@@ -151,7 +149,6 @@ define [
               firstResultPromise.resolve(this)
           activateSyncPromise.reject() if cacheMode # remote sync is not necessary in :cache mode
         .fail (error) =>
-          console.warn "#{ @debug '_getModelsFromLocalCache' } failed: ", error
           activateSyncPromise.resolve() if cacheMode # cache failed, need to remote sync even in :cache mode
       else # if @_initialized
         rangeAdjustPromise.resolve(start, end)
