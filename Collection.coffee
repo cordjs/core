@@ -518,7 +518,6 @@ define [
       @param Int size page size
       @return Future(Array[Model])
       ###
-
       if arguments.length == 2
         size = lastPage
         lastPage = firstPage
@@ -536,7 +535,7 @@ define [
           @toArray()
 
       promise = Future.single()
-      if @_loadedStart <= start and @_loadedEnd >= end
+      if @_loadedStart <= start and (@_loadedEnd >= end || @_totalCount == @_loadedEnd + 1)
         promise.resolve(slice())
       else
         @sync ':async', start, end, =>
