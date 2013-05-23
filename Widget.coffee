@@ -1262,6 +1262,9 @@ define [
             callback()
             subscription.unsubscribe()
 
+      #Assure subscription cleaning in case of early object destruction before everything happens
+      @addSubscription subscription
+
 
     _buildBaseContext: ->
       if @compileMode
@@ -1310,6 +1313,7 @@ define [
                     if data.value != ':deferred'
                       promise.resolve()
                       subscription.unsubscribe()
+                @addSubscription subscription
             chunk.map (chunk) ->
               promise.done ->
                 chunk.render bodies.block, context
@@ -1343,7 +1347,7 @@ define [
                 callback: =>
                   chunk.end @widgetRepo.getTemplateCode()
                   subscription.unsubscribe()
-
+              @addSubscription subscription
 
         # css inclide
         css: (chunk, context, bodies, params) =>
@@ -1353,7 +1357,8 @@ define [
               callback: =>
                 chunk.end @widgetRepo.getTemplateCss()
                 subscription.unsubscribe()
-
+            @addSubscription subscription
+            
 
     #
     # Dust plugins for compilation mode
