@@ -255,6 +255,7 @@ define [
           restoreMode: true
 
         if @_pushBindings[ctx.id]?
+          widget.setSubscribedPushBinding(@_pushBindings[ctx.id])
           for ctxName, paramName of @_pushBindings[ctx.id]
             @subscribePushBinding(parentId, ctxName, widget, paramName)
 
