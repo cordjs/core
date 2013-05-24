@@ -231,7 +231,7 @@ define [
             result = []
             if _.isArray(response)
               result.push(@buildModel(item)) for item in response
-            else
+            else if response
               result.push(@buildModel(response))
             callback?(result)
             resultPromise.resolve(result)

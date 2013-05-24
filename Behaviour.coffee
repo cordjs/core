@@ -48,8 +48,15 @@ define [
       @initWidgetEvents(@widgetEvents)  if @widgetEvents
       @refreshElements()                if @elements
 
-      Defer.nextTick => @init()
+      Defer.nextTick => @initiateInit()
 
+    initiateInit: ->
+      #Protection from Defer.nextTick => @init()
+      #TODO: cleanup timeouts on destruction
+      if !@widget
+        return
+      @init()
+      
 
     init: ->
       postal.publish "widget.#{ @id }.behaviour.init", {}
