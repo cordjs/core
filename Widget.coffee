@@ -68,6 +68,8 @@ define [
     # temporary helper data container for inline-block processing
     _inlinesRuntimeInfo: null
 
+    # Object of subscibed push binding (by parent widget context's param name)
+    _subscibedPushBindings: null
 
     @_initParamRules: ->
       ###
@@ -189,6 +191,7 @@ define [
       @constructor._init(params.restoreMode) if not @constructor._initialized
 
       @_modelBindings = {}
+      @_subscibedPushBindings = {}
       if params?
         if params.context?
           if params.context instanceof Context
@@ -236,6 +239,7 @@ define [
       @_postalSubscriptions = []
       @cleanModelSubscriptions()
       @_modelBindings = {}
+      @_subscibedPushBindings = {}
 
 
     addSubscription: (subscription) ->
@@ -745,6 +749,14 @@ define [
       @ctx._modifierClass = cls
 
 
+    setSubscribedPushBinding: (pushBindings) ->
+      ###
+      Set widget's push bindings of parent widget context
+      @param Object push binding by parent context param's name
+      ###
+      @_subscibedPushBindings = pushBindings
+
+
     _renderPlaceholder: (name, callback) ->
       ###
       Render contents of the placeholder with the given name
@@ -1083,6 +1095,19 @@ define [
       @widgetRepo.dropWidget(childId)
 
 
+    appendChild: (widget, name) ->
+      ###
+      Append widget as a child
+      @param String widget - appended widget
+      @param String name - append widget with such name
+      ###
+      @registerChild(widget, name)
+      widget.cleanSubscriptions()
+      # subscribe widget needed push bindings
+      for ctxName, paramName of widget._subscibedPushBindings
+        @widgetRepo.subscribePushBinding @ctx.id, ctxName, widget, paramName
+
+
     getBehaviourClass: ->
       if not @behaviourClass?
         @behaviourClass = "#{ @constructor.name }Behaviour"
@@ -1184,9 +1209,11 @@ define [
 
           for widgetId, bindingMap of @childBindings
             # todo: refactor subscriptions to clean only widget binding subscriptions here, not all
-            @widgetRepo.getById(widgetId).cleanSubscriptions()
+            child = @childById[widgetId]
+            child.cleanSubscriptions()
+            child.setSubscribedPushBinding(bindingMap)
             for ctxName, paramName of bindingMap
-              @widgetRepo.subscribePushBinding @ctx.id, ctxName, @childById[widgetId], paramName
+              @widgetRepo.subscribePushBinding @ctx.id, ctxName, child, paramName
 
           @_widgetReadyPromise.when(@constructor._cssPromise)
           for childWidget in @children
