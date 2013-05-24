@@ -26,6 +26,12 @@ define [
       @restoreToken = ''
 
 
+    getScope: ->
+      if @scope
+        return @scope
+      @scope = Math.round(Math.random()*10000000)
+      return @scope
+
     storeTokens: (accessToken, refreshToken, callback) ->
       # Кеширование токенов
 
@@ -34,12 +40,15 @@ define [
       
       @accessToken = accessToken
       @refreshToken = refreshToken
+      @scope = @getScope()
 
       @serviceContainer.eval 'cookie', (cookie) =>
         #Protection from late callback from closed connections.
         #TODO, refactor OAuth module, so dead callback will be deleted
         success = cookie.set 'accessToken', @accessToken
         success &= cookie.set 'refreshToken', @refreshToken,
+          expires: 14
+        success &= cookie.set 'oauthScope', @getScope(),
           expires: 14
 
         console.log "Store tokens: #{accessToken}, #{refreshToken}" if global.CONFIG.debug?.oauth2
@@ -56,9 +65,11 @@ define [
         @serviceContainer.eval 'cookie', (cookie) =>
           accessToken = cookie.get 'accessToken'
           refreshToken = cookie.get 'refreshToken'
+          scope = cookie.get 'oauthScope'
 
           @accessToken = accessToken
           @refreshToken = refreshToken
+          @scope = scope
 
           console.log "Restore tokens: #{accessToken}, #{refreshToken}" if global.CONFIG.debug.oauth2
 
@@ -67,13 +78,13 @@ define [
 
     getTokensByUsernamePassword: (username, password, callback) ->
       @serviceContainer.eval 'oauth2', (oauth2) =>
-        oauth2.grantAccessTokenByPassword username, password, (accessToken, refreshToken) =>
+        oauth2.grantAccessTokenByPassword username, password, @getScope(), (accessToken, refreshToken) =>
           @storeTokens accessToken, refreshToken, callback
 
 
     getTokensByRefreshToken: (refreshToken, callback) ->
       @serviceContainer.eval 'oauth2', (oauth2) =>
-        oauth2.grantAccessTokenByRefreshToken refreshToken, (grantedAccessToken, grantedRefreshToken) =>
+        oauth2.grantAccessTokenByRefreshToken refreshToken, @getScope(), (grantedAccessToken, grantedRefreshToken) =>
           if grantedAccessToken and grantedRefreshToken
             @storeTokens grantedAccessToken, grantedRefreshToken, callback
             return true #continue processing other deferred callbacks in oauth

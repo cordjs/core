@@ -20,12 +20,13 @@ define [
 
 
     ## Получение токена по grant_type = password (логин и пароль)
-    grantAccessTokenByPassword: (user, password, callback) =>
+    grantAccessTokenByPassword: (user, password, scope, callback) =>
       params =
         grant_type: 'password'
         username: user
         password: password
         client_id: @options.clientId
+        scope: scope
         json: true
 
       @serviceContainer.eval 'request', (request) =>
@@ -36,13 +37,14 @@ define [
       @deferredRefreshTokenCallbacks = []
 
     ## Получение токена по grant_type = refresh_token (токен обновления)
-    grantAccessTokenByRefreshToken: (refreshToken, callback) =>
+    grantAccessTokenByRefreshToken: (refreshToken, scope, callback) =>
       @deferredRefreshTokenCallbacks.push callback if callback
 
       params =
         grant_type: 'refresh_token'
         refresh_token: refreshToken
         client_id: @options.clientId
+        scope: scope
 
       if @refreshTokenRequested
         console.log "========================================================================"
