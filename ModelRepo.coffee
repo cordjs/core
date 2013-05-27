@@ -113,10 +113,12 @@ define [
       @param Integer id
       @param Array[String] fields list of fields names for the collection
       @param (optional)String syncMode desired sync and return mode, default to :cache
+             special sync mode :cache-async, tries to find model in existing collections,
+             if not found, calls sync in async mode to refresh model
       @param Function(Model) callback
       @return Collection|null
       ###
-      if syncMode == ':cache'
+      if syncMode == ':cache' || syncMode == ':cache-async'
         model = @probeCollectionsForModel(id, fields)
         if model
           console.log 'debug: buildSingleModel found in an existing collection'
@@ -126,13 +128,15 @@ define [
              
           options.model = _.clone model
           collection = @createCollection(options)
+          callback(collection.get(id))
+          return collection
         else
           console.log 'debug: buildSingleModel missed in existing collections :('
 
-      if !collection
-        collection = @createSingleModel(id, fields)
+      syncMode = ':async' if syncMode == ':cache-async'
+      collection = @createSingleModel(id, fields)
+      console.log 'debug: createSingleModel ', collection
 
-        
       collection.sync syncMode, ->
         callback(collection.get(id))
       collection
