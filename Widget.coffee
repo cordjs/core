@@ -1253,6 +1253,16 @@ define [
       @_widgetReadyPromise
 
 
+    subscribeChildPushBindings: (widget, bindingMap) ->
+      ###
+      Subscribe widget to current widget context changes
+      @param widget
+      @param bindingMap - Object { widget_param_name: current_widget_context_param }
+      ###
+      for paramName, ctxName  of bindingMap
+        @widgetRepo.subscribePushBinding @ctx.id, ctxName, widget, paramName
+
+
     ready: ->
       ###
       Returns the widget's 'ready' promise.
