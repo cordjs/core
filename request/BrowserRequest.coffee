@@ -21,7 +21,6 @@ define [
 
 
     send: (method, url, params, callback) ->
-
       method = method.toLowerCase()
       console.log('Unknown method:'+method) if method not in @METHODS
       method = 'del' if method is 'delete'
@@ -44,6 +43,7 @@ define [
         _.extend options,
           query: argssss.params
           json: true
+          bust: false
       else
         _.extend options,
           query: ''
