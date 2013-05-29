@@ -43,7 +43,6 @@ define [
         _.extend options,
           query: argssss.params
           json: true
-          bust: false
       else
         _.extend options,
           query: ''
