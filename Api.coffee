@@ -13,7 +13,7 @@ define [
     constructor: (serviceContainer, options) ->
       ### Дефолтные настройки ###
       defaultOptions =
-        protocol: 'http'
+        protocol: 'https'
         host: 'megaplan.megaplan.ru'
         urlPrefix: ''
         params: {}

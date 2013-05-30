@@ -1,8 +1,9 @@
 define [
   'http'
+  'https'
   'underscore'
   'url'
-], (http, _, url) ->
+], (http, https, _, url) ->
 
   (targetUrl, req, res) ->
     ###
@@ -30,7 +31,12 @@ define [
       path: proxyUrl.path
       headers: headers
 
-    proxyReq = http.request options, (proxyRes) ->
+    if proxyUrl.protocol == 'http:'
+      protocol = http
+    else
+      protocol = https
+
+    proxyReq = protocol.request options, (proxyRes) ->
       # send http-headers back to the browser copying them from the target server response
       res.writeHead proxyRes.statusCode, proxyRes.headers
       # read all data from the target server response and pass it to the browser response

@@ -61,7 +61,7 @@ define [
       api:
         protocol: 'http'
         host: window.location.host
-        urlPrefix: 'XDR/http://megaplan.megaplan.ru/api/v2/'
+        urlPrefix: 'XDR/https://megaplan.megaplan.ru/api/v2/'
         getUserPasswordCallback: (callback) =>
           backPath = window.location.pathname
           backPath = '/' if backPath.indexOf('user/login') >= 0 or backPath.indexOf('user/logout') >= 0
@@ -73,7 +73,7 @@ define [
         clientId: 'ce8fcad010ef4d10a337574645d69ac8'
         secretKey: '2168c151f895448e911243f5c6d6cdc6'
         endpoints:
-          accessToken: 'http://' + window.location.host + '/XDR/http://megaplan.megaplan.ru/oauth/access_token'
+          accessToken: 'https://' + window.location.host + '/XDR/http://megaplan.megaplan.ru/oauth/access_token'
 
     ###
       Это надо перенести в более кошерное место
