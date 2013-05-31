@@ -135,7 +135,6 @@ define [
 
       syncMode = ':async' if syncMode == ':cache-async'
       collection = @createSingleModel(id, fields)
-      console.log 'debug: createSingleModel ', collection
 
       collection.sync syncMode, ->
         callback(collection.get(id))
