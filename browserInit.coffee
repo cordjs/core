@@ -26,6 +26,7 @@ require.config
     'moment':           'vendor/moment/moment'
     'moment-ru':        'vendor/moment/lang/ru'
     'sockjs':           'vendor/sockjs/sockjs'
+    'lz-string':        'vendor/lz-string/lz-string-1.0.1'
     'ecomet':           'bundles/megaplan/front/common/utils/Ecomet'
 
   shim:
@@ -36,6 +37,8 @@ require.config
       exports: 'dust'
     'underscore':
       exports: '_'
+    'lz-string':
+      exports: 'LZString'
 
 
 define [
