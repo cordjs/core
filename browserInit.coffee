@@ -83,7 +83,7 @@ define [
     requirejs.onError = (error)->
       requirejs ['postal'], (postal)->
         message = 'Ой! Кажется, нет связи, подождите, может восстановится.'
-#        postal.publish 'notify.addMessage', {link:'', message: message, details: error.toString(), error:true, timeOut: 50000 }
+        postal.publish 'notify.addMessage', {link:'', message: message, details: error.toString(), error:true, timeOut: 50000 }
 
     serviceContainer.def 'request', (get, done) ->
       requirejs ['cord!/cord/core/request/BrowserRequest'], (Request) ->
