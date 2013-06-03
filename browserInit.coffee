@@ -68,7 +68,7 @@ define [
           clientSideRouter.navigate '/user/login/?back=' + window.location.pathname
       ecomet:
         host: 'e-comet.megaplan.ru'
-        authUri: '/SdfCommon/EcometOauth/auth'
+        authUri: 'http://megaplan.megaplan.ru/SdfCommon/EcometOauth/auth'
       oauth2:
         clientId: 'ce8fcad010ef4d10a337574645d69ac8'
         secretKey: '2168c151f895448e911243f5c6d6cdc6'
