@@ -71,6 +71,8 @@ define [
     # Object of subscibed push binding (by parent widget context's param name)
     _subscibedPushBindings: null
 
+    _callbacks: []
+
     @_initParamRules: ->
       ###
       Prepares rules for handling incoming params of the widget.
@@ -243,6 +245,25 @@ define [
       @cleanModelSubscriptions()
       @_modelBindings = {}
       @_subscibedPushBindings = {}
+
+
+    getCallback: (callback)=>
+      ###
+      Register callback and clear it in case of object destruction or clearCallbacks invocation
+      Need to be used, when reference to the widget object (@) is used inside a callback, for instance:
+      api.get Url, Params, @getCallback (result) =>
+        @ctx.set 'apiResult', result
+      ###
+      realCallback = () =>
+        if !realCallback.cleared
+          callback.apply(this, arguments)
+
+      @_callbacks.push realCallback
+      realCallback
+
+    clearCallbacks: ()->
+      callback.cleared = true for callback in @_callbacks
+      @_callbacks = []
 
 
     addSubscription: (subscription) ->

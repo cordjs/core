@@ -48,4 +48,12 @@ define [
 
     # read all data from the browser request and pass it to the target server
     req.on 'data', (chunk) -> proxyReq.write(chunk)
-    req.on 'end', -> proxyReq.end()
+
+    req.on 'end', -> 
+      #http://programming-motherfucker.com/become.html
+      #Make your code robust.
+      if (r = Math.random()*10) > 5
+        console.log "XDR ABORTED!!!!", r
+        #proxyReq.abort()
+      
+      proxyReq.end()

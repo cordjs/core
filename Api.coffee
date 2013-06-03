@@ -144,21 +144,29 @@ define [
           requestParams.access_token = accessToken
 
           @serviceContainer.eval 'request', (request) =>
-            request[method] requestUrl, requestParams, (response, error) =>
-              if response?.error == 'invalid_grant'
-                return processRequest null, refreshToken
+            doRequest = ()=>
+              request[method] requestUrl, requestParams, (response, error) =>
+                if response?.error == 'invalid_grant'
+                  return processRequest null, refreshToken
 
-              if (response && response.code)
-                message = 'Ошибка ' + response.code + ': ' + response._message
-                postal.publish 'notify.addMessage', {link:'', message: message, details: response?.message, error: true, timeOut: 30000 }
+                if (response && response.code)
+                  message = 'Ошибка ' + response.code + ': ' + response._message
+                  postal.publish 'notify.addMessage', {link:'', message: message, details: response?.message, error: true, timeOut: 30000 }
 
-              if (error && (error.statusCode || error.message))
-                message = error.message if error.message
-                message = error.statusText if error.statusText
+                if (error && (error.statusCode || error.message))
+                  message = error.message if error.message
+                  message = error.statusText if error.statusText
 
-                message = 'Ошибка' + (if error.statusCode != undefined then (' ' + error.statusCode)) + ': ' + message
-                postal.publish 'notify.addMessage', {link:'', message: message, error:true, timeOut: 30000 }
+                  message = 'Ошибка' + (if error.statusCode != undefined then (' ' + error.statusCode)) + ': ' + message
+                  postal.publish 'notify.addMessage', {link:'', message: message, error:true, timeOut: 30000 }
+                  if requestParams.reconnect != false
+                    console.log "Repeat request in 0.5s", requestUrl
+                    setTimeout doRequest, 500
+                  else
+                    args.callback response, error if args.callback
+                else
+                  args.callback response, error if args.callback
 
-              args.callback response, error if args.callback
+            doRequest()
 
       @restoreTokens processRequest
