@@ -167,7 +167,7 @@ define [
       tmplString = "(function(){dust.register(\"#{ tmplPath }\", #{ bodyFnName }); " \
                  + "#{ _.values(bodyList).join '' }; return #{ bodyFnName };})();"
 
-      fs.writeFile tmplFullPath, tmplString, (err)->
+      fs.writeFile tmplFullPath, tmplString, (err) ->
         if err then throw err
         console.log "template saved #{ tmplFullPath }"
 

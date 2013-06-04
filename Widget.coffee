@@ -252,7 +252,7 @@ define [
       @clearCallbacks()
 
 
-    getCallback: (callback)=>
+    getCallback: (callback) =>
       ###
       Register callback and clear it in case of object destruction or clearCallbacks invocation
       Need to be used, when reference to the widget object (@) is used inside a callback, for instance:
@@ -266,7 +266,7 @@ define [
       @_callbacks.push realCallback
       realCallback
 
-    clearCallbacks: ()->
+    clearCallbacks: ->
       callback.cleared = true for callback in @_callbacks
       @_callbacks = []
 
@@ -496,7 +496,7 @@ define [
           fs.readFile tmplFullPath, (err, data) =>
             throw err if err
             @compiledSource = dust.compile(data.toString(), tmplPath)
-            fs.writeFile "#{ tmplFullPath }.js", @compiledSource, (err)->
+            fs.writeFile "#{ tmplFullPath }.js", @compiledSource, (err) ->
               throw err if err
               console.log "Template saved: #{ tmplFullPath }.js"
             if @getPath() != '/cord/core//Switcher'

@@ -53,7 +53,7 @@ define [
       ###
       orderBy = options.orderBy ? 'id'
       filterId = options.filterId ? ''
-      filter = _.reduce options.filter , (memo, value, index)->
+      filter = _.reduce options.filter , (memo, value, index) ->
         memo + index + '_' + value
       , ''
 

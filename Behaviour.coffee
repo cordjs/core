@@ -78,7 +78,7 @@ define [
         $(selector)
 
 
-    addSubscription: (subscriptionDef)->
+    addSubscription: (subscriptionDef) ->
       @_widgetSubscriptions.push subscriptionDef
 
 

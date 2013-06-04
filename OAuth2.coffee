@@ -5,7 +5,7 @@ define [
   class OAuth2
 
 
-    constructor: (serviceContainer, options)->
+    constructor: (serviceContainer, options) ->
       @deferredRefreshTokenCallbacks = []
       @refreshTokenRequested = false
 
