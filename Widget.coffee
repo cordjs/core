@@ -245,6 +245,7 @@ define [
       @cleanModelSubscriptions()
       @_modelBindings = {}
       @_subscibedPushBindings = {}
+      @clearCallbacks()
 
 
     getCallback: (callback)=>
