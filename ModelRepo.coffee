@@ -97,6 +97,7 @@ define [
       options =
         id: id
         fields: fields
+        reconnect: true
         filter:
           id: id
 
@@ -230,7 +231,10 @@ define [
       resultPromise = Future.single()
       if @container
         @container.eval 'api', (api) =>
-          api.get @_buildApiRequestUrl(params), (response) =>
+          apiParams = {}
+          if params.reconnect == true
+            apiParams.reconnect = true
+          api.get @_buildApiRequestUrl(params), apiParams, (response, error) =>
             result = []
             if _.isArray(response)
               result.push(@buildModel(item)) for item in response

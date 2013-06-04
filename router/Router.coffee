@@ -25,6 +25,10 @@ define ['underscore'], (_) ->
       @return Object|boolean found route and extracted params
                              false if route is not found
       ###
+
+      if path[path.length-1] != "/"
+        path = path + "/"
+        
       for route in @routes
         if (params = route.match(path))
           return {

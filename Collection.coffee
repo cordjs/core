@@ -77,6 +77,7 @@ define [
       @_byId = {}
       @_filterType = options.filterType ? ':backend'
       @_fields = options.fields ? []
+      @_reconnect = options.reconnect ? false
 
       if options.model
         @_fillModelList [options.model]
@@ -675,6 +676,7 @@ define [
         prevQueryPromise.done =>
           queryParams =
             fields: @_fields
+            reconnect: @_reconnect
           if @_id
             queryParams.id = @_id
           else
