@@ -65,7 +65,7 @@ define [
           backPath = '/' if backPath.indexOf('user/login') >= 0 or backPath.indexOf('user/logout') >= 0
           clientSideRouter.navigate '/user/login/?back=' + window.location.pathname
       ecomet:
-        host: 'e-comet.megaplan.ru'
+        host: 'https://e-comet2.megaplan.ru'
         authUri: 'http://megaplan.megaplan.ru/SdfCommon/EcometOauth/auth'
       oauth2:
         clientId: 'ce8fcad010ef4d10a337574645d69ac8'
