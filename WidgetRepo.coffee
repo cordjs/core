@@ -322,7 +322,14 @@ define [
       subscription = postal.subscribe
         topic: "widget.#{ parentWidgetId }.change.#{ ctxName }"
         callback: (data, envelope) ->
-          if not childWidget.isSentenced() and not data.initMode
+          duplicate = false
+          if data.cursor
+            if childWidget._eventCursors[data.cursor]
+              delete childWidget._eventCursors[data.cursor]
+              duplicate = true
+            else
+              childWidget._eventCursors[data.cursor] = true
+          if not childWidget.isSentenced() and not data.initMode and not duplicate
             params = {}
 
             # param with name "params" is a special case and we should expand the value as key-value pairs

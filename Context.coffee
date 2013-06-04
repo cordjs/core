@@ -32,6 +32,7 @@ define [
         @[':initMode'] = true
       else
         delete @[':initMode']
+        @[':stash'] = []
 
 
     set: (args...) ->
@@ -84,6 +85,14 @@ define [
       if triggerChange
         callbackPromise.fork() if callbackPromise
         curInitMode = @[':initMode']
+        if @[':stash']
+          cursor = _.uniqueId()
+          @[':stash'].push
+            id: @id
+            name: name
+            newValue: newValue
+            oldValue: oldValue
+            cursor: cursor
         Defer.nextTick =>
           console.log "publish widget.#{ @id }.change.#{ name }" if global.CONFIG.debug?.widget
           postal.publish "widget.#{ @id }.change.#{ name }",
@@ -92,6 +101,7 @@ define [
             oldValue: oldValue
             initMode: curInitMode
             callbackPromise: callbackPromise
+            cursor: cursor
           callbackPromise.resolve() if callbackPromise
 
       @_initDeferredDebug(name)
@@ -125,6 +135,23 @@ define [
       callbackPromise = new Future
       @setSingle(name, value, callbackPromise)
       callbackPromise
+
+
+    replayStashedEvents: ->
+      ###
+      Re-triggers stashed context-change events.
+      Stashing is needed after Widget::setParams() is already processed but browserInit() still didn't executed,
+       so child widget's and behaviour will miss context changing which ocasionally happens during that time.
+      ###
+      if @[':stash']
+        Defer.nextTick =>
+          for ev in @[':stash']
+            postal.publish "widget.#{ ev.id }.change.#{ ev.name }",
+              name: ev.name
+              value: ev.newValue
+              oldValue: ev.oldValue
+              cursor: ev.cursor
+          delete @[':stash']
 
 
     toJSON: ->

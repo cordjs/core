@@ -11,8 +11,9 @@ define [
     # (widget can have multiple DOM-roots when it has several inline-blocks)
     $rootEls: null
 
+    _widgetSubscriptions: null
     _modelBindings: null
-
+    _eventCursors: null
 
     constructor: (widget, $domRoot) ->
       ###
@@ -21,6 +22,7 @@ define [
       ###
       @_widgetSubscriptions = []
       @_modelBindings = {}
+      @_eventCursors = {}
 
       @widget = widget
       @id = widget.ctx.id
@@ -50,13 +52,14 @@ define [
 
       Defer.nextTick => @initiateInit()
 
+
     initiateInit: ->
       #Protection from Defer.nextTick => @init()
       #TODO: cleanup timeouts on destruction
       if !@widget
         return
       @init()
-      
+
 
     init: ->
       postal.publish "widget.#{ @id }.behaviour.init", {}
@@ -135,8 +138,16 @@ define [
     _getWidgetEventMethod: (fieldName, method) ->
       m = @_getHandlerFunction(method)
       onChangeMethod = =>
-        if not @widget.isSentenced() and arguments[0].value != ':deferred' and not arguments[0].initMode
-          @_registerModelBinding(arguments[0].value, fieldName, onChangeMethod)
+        data = arguments[0]
+        duplicate = false
+        if data.cursor
+          if @_eventCursors[data.cursor]
+            delete @_eventCursors[data.cursor]
+            duplicate = true
+          else
+            @_eventCursors[data.cursor] = true
+        if not @widget.isSentenced() and data.value != ':deferred' and not data.initMode and not duplicate
+          @_registerModelBinding(data.value, fieldName, onChangeMethod)
           m.apply(this, arguments)
 
 
