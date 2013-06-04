@@ -50,7 +50,6 @@ define [
     req.on 'data', (chunk) -> proxyReq.write(chunk)
 
     req.on 'end', -> 
-      #http://programming-motherfucker.com/become.html
       #Make your code robust.
       if (r = Math.random()*10) > 5
         console.log "XDR ABORTED!!!!", r
