@@ -16,8 +16,6 @@ require.config
     'jquery.cookie':    'vendor/jquery/plugins/jquery.cookie'
     'jquery.color':     'vendor/jquery/plugins/jquery.color'
     'jquery.scrollTo':  'vendor/jquery/plugins/jquery.scrollTo'
-    'jquery.dotdotdot': 'vendor/jquery/plugins/jquery.dotdotdot'
-    'jquery.jeditable': 'vendor/jquery/plugins/jquery.jeditable'
     'jquery.removeClass': 'vendor/jquery/plugins/jquery.removeClass'
     'curly':            'vendor/curly/browser'
     'underscore':       'vendor/underscore/underscore'
