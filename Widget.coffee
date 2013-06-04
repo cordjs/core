@@ -71,6 +71,9 @@ define [
     # Object of subscibed push binding (by parent widget context's param name)
     _subscibedPushBindings: null
 
+    _eventCursors: null
+
+
     @_initParamRules: ->
       ###
       Prepares rules for handling incoming params of the widget.
@@ -192,6 +195,7 @@ define [
 
       @_modelBindings = {}
       @_subscibedPushBindings = {}
+      @_eventCursors = {}
       if params?
         if params.context?
           if params.context instanceof Context
@@ -1238,6 +1242,8 @@ define [
 
           @initBehaviour($domRoot)
 
+          @ctx.replayStashedEvents()
+
           @_widgetReadyPromise.resolve()
           @_widgetReadyPromise.done =>
             @emit 'render.complete'
@@ -1259,7 +1265,7 @@ define [
       @param widget
       @param bindingMap - Object { widget_param_name: current_widget_context_param }
       ###
-      for paramName, ctxName  of bindingMap
+      for paramName, ctxName of bindingMap
         @widgetRepo.subscribePushBinding @ctx.id, ctxName, widget, paramName
 
 
