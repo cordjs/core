@@ -87,7 +87,6 @@ define [
         curInitMode = @[':initMode']
         if @[':stash']
           cursor = _.uniqueId()
-          console.warn "------- STASH: ", @id, name, newValue, cursor
           @[':stash'].push
             id: @id
             name: name
