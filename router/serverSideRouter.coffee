@@ -43,7 +43,7 @@ define [
         serviceContainer.set 'config',
           api:
             protocol: 'https'
-            host: 'megaplan.megaplan.ru'
+            host: 'megaplan2.megaplan.ru'
             urlPrefix: 'api/v2/'
             getUserPasswordCallback: (callback) ->
               if serviceContainer
@@ -64,7 +64,7 @@ define [
             clientId: 'ce8fcad010ef4d10a337574645d69ac8'
             secretKey: '2168c151f895448e911243f5c6d6cdc6'
             endpoints:
-              accessToken: 'https://megaplan.megaplan.ru/oauth/access_token'
+              accessToken: 'https://megaplan2.megaplan.ru/oauth/access_token'
 
         ###
           Это надо перенести в более кошерное место

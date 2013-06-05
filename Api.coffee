@@ -14,7 +14,7 @@ define [
       ### Дефолтные настройки ###
       defaultOptions =
         protocol: 'https'
-        host: 'megaplan.megaplan.ru'
+        host: 'megaplan2.megaplan.ru'
         urlPrefix: ''
         params: {}
         getUserPasswordCallback: (callback) ->
