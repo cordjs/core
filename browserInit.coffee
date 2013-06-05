@@ -4,8 +4,6 @@ require.config
 
   baseUrl: baseUrl
 
-  urlArgs: "uid=" + (new Date()).getTime()
-
   paths:
     'postal':           'vendor/postal/postal_lite'
     'monologue':        'vendor/postal/monologue'
