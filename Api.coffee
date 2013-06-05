@@ -159,7 +159,7 @@ define [
 
                   message = 'Ошибка' + (if error.statusCode != undefined then (' ' + error.statusCode)) + ': ' + message
                   postal.publish 'notify.addMessage', {link:'', message: message, error:true, timeOut: 30000 }
-                  if requestParams.reconnect != false
+                  if requestParams.reconnect != false && error.statusCode != 403
                     console.log "Repeat request in 0.5s", requestUrl
                     setTimeout doRequest, 500
                   else
