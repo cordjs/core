@@ -84,7 +84,7 @@ define [
       collection
 
 
-    createSingleModel: (id, fields) ->
+    createSingleModel: (id, fields, filter = {}) ->
       ###
       Creates and syncs single-model collection by id and field list. In callback returns resulting model.
        Method returns single-model collection.
@@ -94,12 +94,13 @@ define [
       @return Collection|null
       ###
 
+      filter.id = id if id
+
       options =
         id: id
         fields: fields
         reconnect: true
-        filter:
-          id: id
+        filter: filter
 
       @createCollection(options)
 
