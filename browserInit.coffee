@@ -4,6 +4,8 @@ require.config
 
   baseUrl: baseUrl
 
+  urlArgs: "p=1"
+
   paths:
     'postal':           'vendor/postal/postal_lite'
     'monologue':        'vendor/postal/monologue'
