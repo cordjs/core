@@ -84,7 +84,7 @@ define [
       collection
 
 
-    createSingleModel: (id, fields, filter = {}) ->
+    createSingleModel: (id, fields, extraOptions = {}) ->
       ###
       Creates and syncs single-model collection by id and field list. In callback returns resulting model.
        Method returns single-model collection.
@@ -93,14 +93,13 @@ define [
       @param Array[String] fields list of fields names for the collection
       @return Collection|null
       ###
-
-      filter.id = id if id
-
+      
       options =
         id: id
         fields: fields
         reconnect: true
-        filter: filter
+
+      options = _.extend extraOptions, options
 
       @createCollection(options)
 
@@ -263,6 +262,10 @@ define [
         if params.filter
           for filterField of params.filter
             urlParams.push("#{ filterField }=#{ params.filter[filterField] }")
+
+      if params.requestParams
+        for requestParam of params.requestParams
+          urlParams.push("#{ requestParam }=#{ params.requestParams[requestParam] }")
 
       commonFields = []
       calcFields = []

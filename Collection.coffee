@@ -57,6 +57,13 @@ define [
         memo + index + '_' + value
       , ''
 
+      if options.requestParams
+        requestOptions = _.reduce options.requestParams, (memo, value, index) ->
+          memo + index + '_' + value
+        , ''
+      else
+        requestOptions = '';
+
       fields = options.fields ? []
       calc = options.calc ? []
       id = options.id ? 0
@@ -64,7 +71,7 @@ define [
       if forIdProbe
         (fields.sort().join(',') + '|' + calc.sort().join(',')).replace(/\:/g, '')
       else
-        (fields.sort().join(',') + '|' + calc.sort().join(',') + '|' + filterId + '|' + filter + '|' + orderBy + '|' + id).replace(/\:/g, '')
+        (fields.sort().join(',') + '|' + calc.sort().join(',') + '|' + filterId + '|' + filter + '|' + orderBy + '|' + id + '|' + requestOptions).replace(/\:/g, '')
 
 
     constructor: (@repo, @name, options) ->
@@ -91,6 +98,8 @@ define [
         @_filterId = options.filterId ? null
         @_id = options.id ? 0
         @_filter = options.filter ? {}
+
+      @_requestParams = options.requestParams ? {}
 
       @_queryQueue =
         loadingStart: @_loadedStart
@@ -270,6 +279,8 @@ define [
         orderBy: @_orderBy
         fields: @_fields
         filter: @_filter
+        requestParams: @_reqiestParams
+
       result.filterId = @_filterId if @_filterType == ':backend'
       if @_hasLimits
         result.start = @_loadedStart
@@ -686,6 +697,8 @@ define [
             queryParams.start = start if start?
             queryParams.end = end  if end?
 
+          queryParams.requestParams = @_requestParams if @_requestParams
+
           @repo.query(queryParams).done (models) =>
             # invalidating cached totalCount
             if @_totalCountFromCache
@@ -825,6 +838,7 @@ define [
       hasLimits: @_hasLimits
       totalCount: @_totalCount
       filter: @_filter
+      requestParams: @_requestParams
 
 
     @fromJSON: (repo, name, obj) ->
@@ -844,6 +858,7 @@ define [
       collection._hasLimits = obj.hasLimits
       collection._totalCount = obj.totalCount
       collection._filter = obj.filter
+      collection._requestParams = obj._requestParams
 
       collection._reindexModels()
       collection._initialized = (collection._models.length > 0)
