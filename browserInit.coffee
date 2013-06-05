@@ -57,7 +57,7 @@ define [
 
     serviceContainer.def 'config', ->
       api:
-        protocol: 'http'
+        protocol: 'https'
         host: window.location.host
         urlPrefix: 'XDR/https://megaplan.megaplan.ru/api/v2/'
         getUserPasswordCallback: (callback) =>
@@ -71,7 +71,7 @@ define [
         clientId: 'ce8fcad010ef4d10a337574645d69ac8'
         secretKey: '2168c151f895448e911243f5c6d6cdc6'
         endpoints:
-          accessToken: 'http://' + window.location.host + '/XDR/https://megaplan.megaplan.ru/oauth/access_token'
+          accessToken: 'https://' + window.location.host + '/XDR/https://megaplan.megaplan.ru/oauth/access_token'
 
     ###
       Это надо перенести в более кошерное место
