@@ -51,8 +51,7 @@ define [
 
     req.on 'end', -> 
       #Make your code robust.
-      if (r = Math.random()*10) > 5
-        console.log "XDR ABORTED!!!!", r
-        #proxyReq.abort()
+#      if (r = Math.random()*10) > 5
+#        proxyReq.abort()
       
       proxyReq.end()
