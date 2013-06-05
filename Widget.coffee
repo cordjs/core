@@ -71,8 +71,6 @@ define [
     # Object of subscibed push binding (by parent widget context's param name)
     _subscibedPushBindings: null
 
-    _callbacks: []
-
     _eventCursors: null
 
 
@@ -226,6 +224,8 @@ define [
         else
           id = (if isBrowser then 'b' else 'n') + 'wdt-' + _.uniqueId()
         @ctx = new Context(id, @constructor.initialCtx)
+
+      @_callbacks = []
 
 
     clean: ->
