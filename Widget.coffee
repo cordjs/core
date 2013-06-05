@@ -388,7 +388,6 @@ define [
         rules = @constructor._paramRules
         processedRules = {}
         specialParams = ['match', 'history', 'shim', 'trigger', 'params']
-        console.log 'PARAMS IN WIDGET', params
         for name, value of params
           if rules[name]?
             for rule in rules[name]
