@@ -98,6 +98,7 @@ define [
         @_filterId = options.filterId ? null
         @_id = options.id ? 0
         @_filter = options.filter ? {}
+        @_pageSize = options.pageSize ? 0
 
       @_requestParams = options.requestParams ? {}
 
@@ -248,18 +249,6 @@ define [
           if found
             @_replaceModelList models, queryParams.start, queryParams.end
 
-
-    refresh: ->
-      ###
-      Reloads currently loaded part of collection from the backend.
-      By the way triggers change events for every changed model and for the collection if there are any changes.
-      todo: support of single-model collections
-      ###
-      queryParams = @_buildRefreshQueryParams()
-      @repo.query queryParams, (models) =>
-        @_replaceModelList models, queryParams.start, queryParams.end
-
-
     _reindexModels: ->
       ###
       Rebuilds useful index of the models by their id.
@@ -269,6 +258,64 @@ define [
         if m != undefined
           @_byId[m.id] = m
 
+
+    refresh: (currentId) ->
+      ###
+      Reloads currently loaded part of collection from the backend.
+      By the way triggers change events for every changed model and for the collection if there are any changes.
+      todo: support of single-model collections
+      @param int currentId - id of currently used model (selected or showed),
+      if currentId and pageSize are defined, refresh will start from page, containing the currentId model, going up and down
+      ###
+      if @_refreshInProgress == true
+        return
+
+      @_refreshInProgress = true
+
+      #Refresh all models at once if no paging used
+      if !@_pageSize
+        queryParams = @_buildRefreshQueryParams()
+        @repo.query queryParams, (models) =>
+          @_replaceModelList models, queryParams.start, queryParams.end
+      else
+        #refresh paging info first
+        @getPagingInfo(currentId, true).done (paging) =>
+          startPage = if paging.selectedPage > 0 then paging.selectedPage else 1
+          #refresh pages, starting from current, and then go 1 up, 1 down, etc
+          @_topPage = @_bottomPage = startPage
+          @_refreshReachedTop = false
+          @_refreshReachedBottom = false
+          @_refreshPage startPage, paging, 'down'
+      
+
+    _refreshPage: (page, paging, direction) ->
+      console.log '_refreshPage requested : ' + page
+      if page > 0 && page <= paging.pages
+        start = (page - 1) * @_pageSize
+        end = page * @_pageSize - 1
+        console.log '_refreshPage: ' + page + ' ' + start + ' ' + end
+        @_enqueueQuery(start, end, true).done =>
+          if !@_refreshReachedTop
+            @_refreshReachedTop = page == 1
+
+          if !@_refreshReachedBottom
+            @_refreshReachedBottom = page == paging.pages
+
+          if @_refreshReachedTop
+            direction = 'down'
+          else if @_refreshReachedBottom
+            direction = 'up'
+          else
+            direction = if direction == 'up' then 'down' else 'up'
+
+          if direction == 'up'
+            page = @_topPage = @_topPage - 1
+          else
+            page = @_bottomPage = @_bottomPage + 1
+
+          @_refreshPage page, paging, direction
+      else
+        @_refreshInProgress = false
 
     _buildRefreshQueryParams: ->
       ###
@@ -518,22 +565,21 @@ define [
 
     # paging related
 
-    getPage: (firstPage, lastPage, size) ->
+    getPage: (firstPage, lastPage) ->
       ###
       Obtains and returns in future portion of models of the collection according to given paging params
       If the second argument is omitted than only one page is returned.
+      Page size could be set on collection construction via pageSize parameter (default = 50)
       @param Int firstPage number of the first page
       @param (optional)Int lastPage number of the last page
-      @param Int size page size
       @return Future(Array[Model])
       ###
-      if arguments.length == 2
-        size = lastPage
+      if arguments.length == 1
         lastPage = firstPage
 
       if firstPage
-        start = (firstPage - 1) * size
-        end = start + size * (lastPage - firstPage + 1) - 1 if lastPage
+        start = (firstPage - 1) * @_pageSize
+        end = start + @_pageSize * (lastPage - firstPage + 1) - 1 if lastPage
       else
         start = end = null
 
@@ -552,12 +598,13 @@ define [
       promise
 
 
-    getPagingInfo: (size, selectedId) ->
+    getPagingInfo: (selectedId, refresh) ->
       ###
       Returns paging information for this collection based on given page size and optional selected model's id.
       Uses cached value of total models count to calculate paging locally and avoid backend hits.
-      @param Int size desired page size
+      pagesize could be defined on collection construction, via pageSize parameter (default is 50)
       @param (optional) Scalar selectedId id of the selected model
+      @param (optional) bool refresh - ignore cache settings, refresh info from backend
       @return Future(Object)
                 total: Int (total count this collection's models)
                 pages: Int (total number of pages)
@@ -567,7 +614,7 @@ define [
       result = Future.single()
 
       cachePromise = Future.single()
-      if !@isInitialized() || @_cacheLoaded or not isBrowser
+      if !@isInitialized() || @_cacheLoaded || not isBrowser || refresh
         cachePromise.resolve()
       else
         @_cacheLoaded = true
@@ -586,19 +633,19 @@ define [
               index = @_models.indexOf(m)
               result.resolve
                 total: @_totalCount
-                pages: Math.ceil(@_totalCount / size)
+                pages: Math.ceil(@_totalCount / @_pageSize)
                 selected: index
-                selectedPage: Math.ceil((index + 1) / size)
+                selectedPage: Math.ceil((index + 1) / @_pageSize)
               localCalculated = true
           else
             result.resolve
               total: @_totalCount
-              pages: Math.ceil(@_totalCount / size)
+              pages: Math.ceil(@_totalCount / @_pageSize)
             localCalculated = true
 
         if not localCalculated
           params =
-            pageSize: size
+            pageSize: @_pageSize
             orderBy: @_orderBy
           params.selectedId = selectedId if selectedId
           params.filterId = @_filterId if @_filterType == ':backend'
@@ -611,7 +658,7 @@ define [
       result
 
 
-    _enqueueQuery: (start, end) ->
+    _enqueueQuery: (start, end, refresh) ->
       ###
       Adds new query to the model repository to the queue and returns the future which is completed when the query is
        is completed and results are filled into collection.
@@ -626,24 +673,31 @@ define [
       # detecting query type and adjusting range to request according to the already requested range
       curLoadingStart = @_queryQueue.loadingStart
       curLoadingEnd = @_queryQueue.loadingEnd
-      if @_hasLimits != false and start? and end? and curLoadingStart? and curLoadingEnd?
-        if start < curLoadingStart and end < curLoadingStart and start < curLoadingEnd
-          queryType = 'prepend'
-          end = curLoadingStart - 1
-        else if end > curLoadingEnd and start > curLoadingEnd and end > curLoadingStart
-          queryType = 'append'
-          start = curLoadingEnd + 1
-        else
-          queryType = 'replace'
-          start = (if start < curLoadingStart then start else curLoadingStart)
-          end = (if end > curLoadingEnd then end else curLoadingEnd)
-
-        @_queryQueue.loadingStart = if start < curLoadingStart then start else curLoadingStart
-        @_queryQueue.loadingEnd = if end > curLoadingEnd then end else curLoadingEnd
+      if refresh
+        queryType = 'replace'
       else
-        queryType = 'all'
-        @_queryQueue.loadingStart = start = undefined
-        @_queryQueue.loadingEnd = end = undefined
+        if @_hasLimits != false and start? and end? and curLoadingStart? and curLoadingEnd?
+          if start < curLoadingStart and end < curLoadingStart and start < curLoadingEnd
+            queryType = 'prepend'
+            end = curLoadingStart - 1
+          else if end > curLoadingEnd and start > curLoadingEnd and end > curLoadingStart
+            queryType = 'append'
+            start = curLoadingEnd + 1
+          else
+            queryType = 'replace'
+            start = (if start < curLoadingStart then start else curLoadingStart)
+            end = (if end > curLoadingEnd then end else curLoadingEnd)
+
+          @_queryQueue.loadingStart = if start < curLoadingStart then start else curLoadingStart
+          @_queryQueue.loadingEnd = if end > curLoadingEnd then end else curLoadingEnd
+        else
+          queryType = 'all'
+          @_queryQueue.loadingStart = start = undefined
+          @_queryQueue.loadingEnd = end = undefined
+
+      if ( !end || (end - start > 50) ) && !@_id && @repo._debugCanDoUnlimit != true
+        console.log 'AHTUNG!!! Me bumped into unlimited query: ' + end + ' ' + start + ' ' + @repo.restResource
+        debugger #Keep this debugger
 
       # detecting if there are queries in the queue which already cover required range
       curStart = start
@@ -704,6 +758,7 @@ define [
             if @_totalCountFromCache
               @_totalCount = null
               @_totalCountFromCache = false
+
             if (start >= @_loadedStart and start <= @_loadedEnd) or (end >= @_loadedStart and end <= @_loadedEnd) or (start == undefined and end == undefined and @_loadedEnd > -1)
               # if there are interceptions of the just loaded set and already existing set,
               #  than we need to trigger events
@@ -839,6 +894,7 @@ define [
       totalCount: @_totalCount
       filter: @_filter
       requestParams: @_requestParams
+      pageSize: @_pageSize
 
 
     @fromJSON: (repo, name, obj) ->
@@ -859,6 +915,7 @@ define [
       collection._totalCount = obj.totalCount
       collection._filter = obj.filter
       collection._requestParams = obj._requestParams
+      collection.pageSize = obj.pageSize
 
       collection._reindexModels()
       collection._initialized = (collection._models.length > 0)
@@ -897,8 +954,11 @@ define [
 
 
     _setLoadedRange: (start, end) ->
-      @_queryQueue.loadingStart = @_loadedStart = start
-      @_queryQueue.loadingEnd = @_loadedEnd = end
+      #@_queryQueue.loadingStart = @_loadedStart = start
+      #@_queryQueue.loadingEnd = @_loadedEnd = end
+      @_loadedStart = start
+      @_loadedEnd = end
+
 
 
     debug: (method) ->
