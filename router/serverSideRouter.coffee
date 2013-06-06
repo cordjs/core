@@ -41,10 +41,12 @@ define [
 
 
         serviceContainer.set 'config',
+          config = global.config.node
+
           api:
-            protocol: 'https'
-            host: 'megaplan.megaplan.ru'
-            urlPrefix: 'api/v2/'
+            protocol: config.api.protocol
+            host: config.api.host
+            urlPrefix: config.api.urlPrefix
             getUserPasswordCallback: (callback) ->
               if serviceContainer
                 response = serviceContainer.get 'serverResponse'
@@ -61,10 +63,10 @@ define [
                   clear()
 
           oauth2:
-            clientId: 'ce8fcad010ef4d10a337574645d69ac8'
-            secretKey: '2168c151f895448e911243f5c6d6cdc6'
+            clientId: config.oauth2.clientId
+            secretKey: config.oauth2.secretKey
             endpoints:
-              accessToken: 'https://megaplan.megaplan.ru/oauth/access_token'
+              accessToken: config.oauth2.endpoints.accessToken
 
         ###
           Это надо перенести в более кошерное место

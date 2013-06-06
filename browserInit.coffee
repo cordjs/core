@@ -56,22 +56,23 @@ define [
     ###
 
     serviceContainer.def 'config', ->
+      config = global.config
       api:
-        protocol: 'https'
-        host: window.location.host
-        urlPrefix: 'XDR/https://megaplan.megaplan.ru/api/v2/'
+        protocol: config.api.protocol
+        host: config.api.host
+        urlPrefix: config.api.urlPrefix
         getUserPasswordCallback: (callback) =>
           backPath = window.location.pathname
           backPath = '/' if backPath.indexOf('user/login') >= 0 or backPath.indexOf('user/logout') >= 0
           clientSideRouter.navigate '/user/login/?back=' + window.location.pathname
       ecomet:
-        host: 'https://e-comet2.megaplan.ru'
-        authUri: 'https://megaplan.megaplan.ru/SdfCommon/EcometOauth/auth'
+        host: config.ecomet.host
+        authUri: config.ecomet.authUri
       oauth2:
-        clientId: 'ce8fcad010ef4d10a337574645d69ac8'
-        secretKey: '2168c151f895448e911243f5c6d6cdc6'
+        clientId: config.oauth2.clientId
+        secretKey: config.oauth2.secretKey
         endpoints:
-          accessToken: 'https://' + window.location.host + '/XDR/https://megaplan.megaplan.ru/oauth/access_token'
+          accessToken: config.oauth2.endpoints.accessToken
 
     ###
       Это надо перенести в более кошерное место
