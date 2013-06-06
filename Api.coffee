@@ -157,7 +157,8 @@ define [
                   message = error.message if error.message
                   message = error.statusText if error.statusText
 
-                  if requestParams.reconnect != false && (!error.statusCode || error.statusCode == 500) && requestParams.deepCounter < 10
+                  #Post could make duplicates
+                  if method != 'post' && requestParams.reconnect != false && (!error.statusCode || error.statusCode == 500) && requestParams.deepCounter < 10
                     requestParams.deepCounter = if ! requestParams.deepCounter then 1 else requestParams.deepCounter + 1
                     console.log requestParams.deepCounter + " Repeat request in 0.5s", requestUrl
                     setTimeout doRequest, 500
