@@ -132,6 +132,10 @@ define [
       requirejs ['cord-m!/megaplan/front/staff//StaffRepo'], (StaffRepo) ->
         done null, new StaffRepo(serviceContainer)
 
+    serviceContainer.def 'eventRepo', (get, done) ->
+      requirejs ['cord-m!/megaplan/front/todo//EventRepo'], (EventRepo) ->
+        done null, new EventRepo(serviceContainer)
+
     serviceContainer.def 'ecomet', (get, done) ->
       requirejs ['ecomet'], (Ecomet) ->
         done null, new Ecomet(serviceContainer)
