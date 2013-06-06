@@ -4,7 +4,7 @@ require.config
 
   baseUrl: baseUrl
 
-  urlArgs: "uid=" + (new Date()).getTime()
+  urlArgs: "release=r15p0"
 
   paths:
     'postal':           'vendor/postal/postal_lite'
