@@ -89,7 +89,6 @@ define [
       @_fields = options.fields ? []
       @_reconnect = options.reconnect ? false
 
-      console.log options.pageSize
       if options.model
         @_fillModelList [options.model]
         @_orderBy = 'id'
