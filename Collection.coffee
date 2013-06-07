@@ -42,6 +42,8 @@ define [
     # helper value for event propagation optimization
     _selfEmittedChangeModelId: null
 
+    @_collectionVersion: '0.03'
+
 
     @generateName: (options, forIdProbe) ->
       ###
@@ -67,11 +69,12 @@ define [
       fields = options.fields ? []
       calc = options.calc ? []
       id = options.id ? 0
+      pageSize = if options.pageSize then options.pageSize else ''
 
       if forIdProbe
-        (fields.sort().join(',') + '|' + calc.sort().join(',')).replace(/\:/g, '')
+        (Collection._collectionVersion + '|' + fields.sort().join(',') + '|' + calc.sort().join(',')).replace(/\:/g, '')
       else
-        (fields.sort().join(',') + '|' + calc.sort().join(',') + '|' + filterId + '|' + filter + '|' + orderBy + '|' + id + '|' + requestOptions).replace(/\:/g, '')
+        (Collection._collectionVersion + '|' + fields.sort().join(',') + '|' + calc.sort().join(',') + '|' + filterId + '|' + filter + '|' + orderBy + '|' + id + '|' + requestOptions + '|' + pageSize).replace(/\:/g, '')
 
 
     constructor: (@repo, @name, options) ->
@@ -86,6 +89,7 @@ define [
       @_fields = options.fields ? []
       @_reconnect = options.reconnect ? false
 
+      console.log options.pageSize
       if options.model
         @_fillModelList [options.model]
         @_orderBy = 'id'
@@ -182,7 +186,8 @@ define [
       syncPromise = Future.single() # special promise for :sync mode completion
       activateSyncPromise.done => # pass :cache mode
         rangeAdjustPromise.done (syncStart, syncEnd) => # wait for range adjustment from the local cache
-          @_enqueueQuery(syncStart, syncEnd).done => # avoid repeated refresh-query
+          #@_enqueueQuery(syncStart, syncEnd).done => # avoid repeated refresh-query
+          @_enqueueQuery(start, end).done => # avoid repeated refresh-query
             syncPromise.resolve(this)
             if not firstResultPromise.completed()
               firstResultPromise.resolve(this)
@@ -676,7 +681,7 @@ define [
       if refresh
         queryType = 'replace'
       else
-        if @_hasLimits != false and start? and end? and curLoadingStart? and curLoadingEnd?
+        if @_hasLimits != false and start? and end? 
           if start < curLoadingStart and end < curLoadingStart and start < curLoadingEnd
             queryType = 'prepend'
             end = curLoadingStart - 1
@@ -915,7 +920,7 @@ define [
       collection._totalCount = obj.totalCount
       collection._filter = obj.filter
       collection._requestParams = obj._requestParams
-      collection.pageSize = obj.pageSize
+      collection._pageSize = obj.pageSize
 
       collection._reindexModels()
       collection._initialized = (collection._models.length > 0)
@@ -954,10 +959,10 @@ define [
 
 
     _setLoadedRange: (start, end) ->
-      #@_queryQueue.loadingStart = @_loadedStart = start
-      #@_queryQueue.loadingEnd = @_loadedEnd = end
-      @_loadedStart = start
-      @_loadedEnd = end
+      @_queryQueue.loadingStart = @_loadedStart = start
+      @_queryQueue.loadingEnd = @_loadedEnd = end
+      #@_loadedStart = start
+      #@_loadedEnd = end
 
 
 
