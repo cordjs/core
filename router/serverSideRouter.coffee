@@ -39,34 +39,33 @@ define [
           serviceContainer = null
           widgetRepo = null
 
+        config = global.config.node
+        config.api =
+          protocol: config.api.protocol
+          host: config.api.host
+          urlPrefix: config.api.urlPrefix
+          getUserPasswordCallback: (callback) ->
+            if serviceContainer
+              response = serviceContainer.get 'serverResponse'
+              request = serviceContainer.get 'serverRequest'
+              if !response.alreadyRelocated
+                response.shouldKeepAlive = false
+                response.alreadyRelocated = true
+                response.writeHead 302,
+                  "Location": '/user/login/?back=' + request.url
+                  "Cache-Control" : "no-cache, no-store, must-revalidate"
+                  "Pragma": "no-cache"
+                  "Expires": 0
+                response.end()
+                clear()
 
-        serviceContainer.set 'config',
-          config = global.config.node
+        config.oauth2 =
+          clientId: config.oauth2.clientId
+          secretKey: config.oauth2.secretKey
+          endpoints:
+            accessToken: config.oauth2.endpoints.accessToken
 
-          api:
-            protocol: config.api.protocol
-            host: config.api.host
-            urlPrefix: config.api.urlPrefix
-            getUserPasswordCallback: (callback) ->
-              if serviceContainer
-                response = serviceContainer.get 'serverResponse'
-                request = serviceContainer.get 'serverRequest'
-                if !response.alreadyRelocated
-                  response.shouldKeepAlive = false
-                  response.alreadyRelocated = true
-                  response.writeHead 302,
-                    "Location": '/user/login/?back=' + request.url
-                    "Cache-Control" : "no-cache, no-store, must-revalidate"
-                    "Pragma": "no-cache"
-                    "Expires": 0
-                  response.end()
-                  clear()
-
-          oauth2:
-            clientId: config.oauth2.clientId
-            secretKey: config.oauth2.secretKey
-            endpoints:
-              accessToken: config.oauth2.endpoints.accessToken
+        serviceContainer.set 'config', config
 
         ###
           Это надо перенести в более кошерное место
