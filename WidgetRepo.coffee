@@ -202,6 +202,7 @@ define [
       </script>
       <script>
         var global = {
+          config: #{ JSON.stringify(global.config.browser) },
           CONFIG: #{ JSON.stringify(global.CONFIG_CLIENT) }
         };
       </script>

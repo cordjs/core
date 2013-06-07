@@ -50,6 +50,10 @@ define [
           #global.CONFIG.debug.request = 'full'
           #if global.CONFIG.debug?.request == 'simple'
           console.log "ServerRequest (#{ seconds } s): #{method} #{argssss.url}"
+          if error
+            console.log error
+          if body && body.error
+            console.log body
           #else
           #  console.log "========================================================================( #{ seconds } s)"
           #  console.log "ServerRequest: #{method} #{argssss.url}"

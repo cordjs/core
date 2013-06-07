@@ -39,32 +39,33 @@ define [
           serviceContainer = null
           widgetRepo = null
 
+        config = global.config.node
+        config.api =
+          protocol: config.api.protocol
+          host: config.api.host
+          urlPrefix: config.api.urlPrefix
+          getUserPasswordCallback: (callback) ->
+            if serviceContainer
+              response = serviceContainer.get 'serverResponse'
+              request = serviceContainer.get 'serverRequest'
+              if !response.alreadyRelocated
+                response.shouldKeepAlive = false
+                response.alreadyRelocated = true
+                response.writeHead 302,
+                  "Location": '/user/login/?back=' + request.url
+                  "Cache-Control" : "no-cache, no-store, must-revalidate"
+                  "Pragma": "no-cache"
+                  "Expires": 0
+                response.end()
+                clear()
 
-        serviceContainer.set 'config',
-          api:
-            protocol: 'https'
-            host: 'megaplan.megaplan.ru'
-            urlPrefix: 'api/v2/'
-            getUserPasswordCallback: (callback) ->
-              if serviceContainer
-                response = serviceContainer.get 'serverResponse'
-                request = serviceContainer.get 'serverRequest'
-                if !response.alreadyRelocated
-                  response.shouldKeepAlive = false
-                  response.alreadyRelocated = true
-                  response.writeHead 302,
-                    "Location": '/user/login/?back=' + request.url
-                    "Cache-Control" : "no-cache, no-store, must-revalidate"
-                    "Pragma": "no-cache"
-                    "Expires": 0
-                  response.end()
-                  clear()
+        config.oauth2 =
+          clientId: config.oauth2.clientId
+          secretKey: config.oauth2.secretKey
+          endpoints:
+            accessToken: config.oauth2.endpoints.accessToken
 
-          oauth2:
-            clientId: 'ce8fcad010ef4d10a337574645d69ac8'
-            secretKey: '2168c151f895448e911243f5c6d6cdc6'
-            endpoints:
-              accessToken: 'https://megaplan.megaplan.ru/oauth/access_token'
+        serviceContainer.set 'config', config
 
         ###
           Это надо перенести в более кошерное место

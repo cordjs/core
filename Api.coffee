@@ -157,12 +157,14 @@ define [
                   message = error.message if error.message
                   message = error.statusText if error.statusText
 
-                  message = 'Ошибка' + (if error.statusCode != undefined then (' ' + error.statusCode)) + ': ' + message
-                  postal.publish 'notify.addMessage', {link:'', message: message, error:true, timeOut: 30000 }
-                  if requestParams.reconnect != false
-                    console.log "Repeat request in 0.5s", requestUrl
+                  #Post could make duplicates
+                  if method != 'post' && requestParams.reconnect != false && (!error.statusCode || error.statusCode == 500) && requestParams.deepCounter < 10
+                    requestParams.deepCounter = if ! requestParams.deepCounter then 1 else requestParams.deepCounter + 1
+                    console.log requestParams.deepCounter + " Repeat request in 0.5s", requestUrl
                     setTimeout doRequest, 500
                   else
+                    message = 'Ошибка' + (if error.statusCode != undefined then (' ' + error.statusCode)) + ': ' + message
+                    postal.publish 'notify.addMessage', {link:'', message: message, error:true, timeOut: 30000 }
                     args.callback response, error if args.callback
                 else
                   args.callback response, error if args.callback

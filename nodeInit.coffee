@@ -9,19 +9,6 @@ serverStatic  = require 'node-static'
 
 configPaths   = require './configPaths'
 
-getNetworkInterfaceIps = ->
-  interfaces = require('os').networkInterfaces()
-  addresses = []
-  for k of interfaces
-      for k2 of interfaces[k]
-          address = interfaces[k][k2]
-          if address.family == 'IPv4' and not address.internal
-              addresses.push(address.address)
-  return addresses
-
-host = getNetworkInterfaceIps().pop()
-port          = '1337'
-
 pathDir   = fs.realpathSync '.'
 
 try global.CONFIG = require pathDir + '/conf/serverConf.json'
@@ -38,7 +25,8 @@ exports.services = services =
   fileServer: null
   router: null
 
-exports.init = (baseUrl = 'public') ->
+
+exports.init = (baseUrl = 'public', configName = 'default') ->
   requirejs.config
     baseUrl: baseUrl
     nodeRequire: require
@@ -49,17 +37,37 @@ exports.init = (baseUrl = 'public') ->
     'cord!Rest'
     'cord!configPaths'
     'cord!request/xdrProxy'
-  ], (router, Rest, configPaths, xdrProxy) ->
+    'underscore'
+  ], (router, Rest, configPaths, xdrProxy, _) ->
     configPaths.PUBLIC_PREFIX = baseUrl
     services.router = router
     services.fileServer = new serverStatic.Server(baseUrl)
     services.xdrProxy = xdrProxy
 
-    Rest.host = host
-    Rest.port = port
+    try
+      services.config = require pathDir + '/conf/' + configName
+      timeLog "Loaded config from " + pathDir + '/conf/' + configName
+    catch e
+      services.config = {}
+      timeLog "Fail loading config from " + pathDir + '/conf/' + configName + " with error " + e
+
+    common = _.clone services.config.common
+    services.config.node = _.extend common, services.config.node
+
+    common = _.clone services.config.common
+    services.config.browser = _.extend common, services.config.browser
+
+    delete services.config.common
+
+    global.config = services.config
+
+    Rest.host = global.config.node.server.host
+    Rest.port = global.config.node.server.port
+
     startServer ->
-      timeLog "Server running at http://#{ host }:#{ port }/"
+      timeLog "Server running at http://#{ Rest.host }:#{ Rest.port }/"
       timeLog "Current directory: #{ process.cwd() }"
+
 
 exports.startServer = startServer = (callback) ->
   services.nodeServer = http.createServer (req, res) ->
@@ -74,7 +82,7 @@ exports.startServer = startServer = (callback) ->
             else
               res.writeHead err.status, err.headers;
               res.end()
-  .listen(port)
+  .listen(services.config.node.server.port)
   callback?()
 
 exports.restartServer = restartServer = ->

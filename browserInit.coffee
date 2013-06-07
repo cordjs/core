@@ -4,7 +4,7 @@ require.config
 
   baseUrl: baseUrl
 
-  urlArgs: "uid=" + (new Date()).getTime()
+  urlArgs: "release=r15p0"
 
   paths:
     'postal':           'vendor/postal/postal_lite'
@@ -56,22 +56,23 @@ define [
     ###
 
     serviceContainer.def 'config', ->
+      config = global.config
       api:
-        protocol: 'http'
-        host: window.location.host
-        urlPrefix: 'XDR/https://megaplan.megaplan.ru/api/v2/'
+        protocol: config.api.protocol
+        host: config.api.host
+        urlPrefix: config.api.urlPrefix
         getUserPasswordCallback: (callback) =>
           backPath = window.location.pathname
           backPath = '/' if backPath.indexOf('user/login') >= 0 or backPath.indexOf('user/logout') >= 0
           clientSideRouter.navigate '/user/login/?back=' + window.location.pathname
       ecomet:
-        host: 'https://e-comet2.megaplan.ru'
-        authUri: 'http://megaplan.megaplan.ru/SdfCommon/EcometOauth/auth'
+        host: config.ecomet.host
+        authUri: config.ecomet.authUri
       oauth2:
-        clientId: 'ce8fcad010ef4d10a337574645d69ac8'
-        secretKey: '2168c151f895448e911243f5c6d6cdc6'
+        clientId: config.oauth2.clientId
+        secretKey: config.oauth2.secretKey
         endpoints:
-          accessToken: 'http://' + window.location.host + '/XDR/https://megaplan.megaplan.ru/oauth/access_token'
+          accessToken: config.oauth2.endpoints.accessToken
 
     ###
       Это надо перенести в более кошерное место
@@ -130,6 +131,10 @@ define [
     serviceContainer.def 'staffRepo', (get, done) ->
       requirejs ['cord-m!/megaplan/front/staff//StaffRepo'], (StaffRepo) ->
         done null, new StaffRepo(serviceContainer)
+
+    serviceContainer.def 'eventRepo', (get, done) ->
+      requirejs ['cord-m!/megaplan/front/todo//EventRepo'], (EventRepo) ->
+        done null, new EventRepo(serviceContainer)
 
     serviceContainer.def 'ecomet', (get, done) ->
       requirejs ['ecomet'], (Ecomet) ->
