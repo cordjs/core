@@ -868,7 +868,7 @@ define [
                       if $curEl.length == 1
                         $curEl.replaceWith($newRoot)
                       else
-                        throw new Error("Timeouted widget can't find his place: #{ widget.debug() }, #{ $curEl }!")
+                        throw new Error("Timeouted widget can't find it's place: #{ widget.debug() }, #{ $curEl }!")
 
             if isBrowser and info.timeout? and info.timeout >= 0
               setTimeout ->
@@ -913,7 +913,7 @@ define [
                       if $curEl.length == 1
                         $curEl.replaceWith($newRoot)
                       else
-                        throw new Error("Timeouted widget can't find his place: #{ widget.debug() }, #{ $curEl }!")
+                        throw new Error("Timeouted widget can't find it's place: #{ widget.debug() }, #{ $curEl }!")
 
           else
             placeholderOrder[info.template] = i

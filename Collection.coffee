@@ -291,14 +291,12 @@ define [
           @_refreshReachedTop = false
           @_refreshReachedBottom = false
           @_refreshPage startPage, paging, 'down'
-      
+
 
     _refreshPage: (page, paging, direction) ->
-      console.log '_refreshPage requested : ' + page
       if page > 0 && page <= paging.pages
         start = (page - 1) * @_pageSize
         end = page * @_pageSize - 1
-        console.log '_refreshPage: ' + page + ' ' + start + ' ' + end
         @_enqueueQuery(start, end, true).done =>
           if !@_refreshReachedTop
             @_refreshReachedTop = page == 1
@@ -321,6 +319,7 @@ define [
           @_refreshPage page, paging, direction
       else
         @_refreshInProgress = false
+
 
     _buildRefreshQueryParams: ->
       ###
@@ -681,7 +680,7 @@ define [
       if refresh
         queryType = 'replace'
       else
-        if @_hasLimits != false and start? and end? 
+        if @_hasLimits != false and start? and end?
           if start < curLoadingStart and end < curLoadingStart and start < curLoadingEnd
             queryType = 'prepend'
             end = curLoadingStart - 1
