@@ -282,6 +282,7 @@ define [
         queryParams = @_buildRefreshQueryParams()
         @repo.query queryParams, (models) =>
           @_replaceModelList models, queryParams.start, queryParams.end
+          @_refreshInProgress = false
       else
         #refresh paging info first
         @getPagingInfo(currentId, true).done (paging) =>
