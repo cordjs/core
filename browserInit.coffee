@@ -4,7 +4,7 @@ require.config
 
   baseUrl: baseUrl
 
-  urlArgs: global.config.browser.static.release
+  urlArgs: "release=" + global.config.browser.static.release
 
   paths:
     'postal':           'vendor/postal/postal_lite'

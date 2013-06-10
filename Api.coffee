@@ -37,7 +37,7 @@ define [
 
       if @accessToken == accessToken && @refreshToken == refreshToken
         return callback @accessToken, @refreshToken
-      
+
       @accessToken = accessToken
       @refreshToken = refreshToken
       @scope = @getScope()
