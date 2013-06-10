@@ -46,7 +46,7 @@ define [
             relativePath += '.css' if relativePath.substr(-4) != '.css'
 
           result = "/bundles#{ info.bundle }/widgets/#{ relativePath }"
-      "#{ result }?uid=#{ (new Date).getTime() }"
+      "#{ result }?uid=#{ global.config.browser.static.release }"
 
 
   new Helper

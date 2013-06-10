@@ -4,7 +4,7 @@ require.config
 
   baseUrl: baseUrl
 
-  urlArgs: "release=r15p0"
+  urlArgs: global.config.browser.static.release
 
   paths:
     'postal':           'vendor/postal/postal_lite'
@@ -56,7 +56,7 @@ define [
     ###
 
     serviceContainer.def 'config', ->
-      config = global.config
+      config = global.config.browser
       api:
         protocol: config.api.protocol
         host: config.api.host
