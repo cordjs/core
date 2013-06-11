@@ -670,8 +670,9 @@ define [
             # if context value is deferred, than waiting asyncronously...
             if @ctx.isDeferred value
               waitCounter++
-              @subscribeValueChange params, name, value, ->
+              @subscribeValueChange params, name, value, =>
                 waitCounter--
+                @widgetRepo.subscribePushBinding @ctx.id, value, widget, name if isBrowser
                 if waitCounter == 0 and waitCounterFinish
                   callback params
 
@@ -687,6 +688,7 @@ define [
                   # todo: warning?
               else
                 params[name] = @ctx[value]
+                @widgetRepo.subscribePushBinding @ctx.id, value, widget, name if isBrowser
 
       # todo: potentially not cross-browser code!
       if Object.keys(bindings).length != 0
