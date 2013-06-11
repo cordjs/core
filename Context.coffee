@@ -143,7 +143,7 @@ define [
       Stashing is needed after Widget::setParams() is already processed but browserInit() still didn't executed,
        so child widget's and behaviour will miss context changing which ocasionally happens during that time.
       ###
-      if @[':stash']
+      if @[':stash'] and @[':stash'].length
         Defer.nextTick =>
           for ev in @[':stash']
             postal.publish "widget.#{ ev.id }.change.#{ ev.name }",
