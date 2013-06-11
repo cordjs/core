@@ -1475,7 +1475,8 @@ define [
               "cord!widgetCompiler"
             ], (WidgetClass, widgetCompiler) =>
 
-              widget = new WidgetClass @compileMode
+              widget = new WidgetClass
+                compileMode: true
 
               widgetCompiler.addExtendCall widget, params
 
