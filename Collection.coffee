@@ -277,7 +277,7 @@ define [
       @_refreshInProgress = true
 
       #Refresh all models at once if no paging used
-      if !@_pageSize
+      if not @_pageSize
         queryParams = @_buildRefreshQueryParams()
         @repo.query queryParams, (models) =>
           @_replaceModelList models, queryParams.start, queryParams.end
@@ -326,16 +326,18 @@ define [
       Builds backend query params for the currently defined collection params to refresh collection items.
       @return Object key-value params for the ModelRepo::query() method
       ###
-      result =
-        orderBy: @_orderBy
-        fields: @_fields
-        filter: @_filter
-        requestParams: @_reqiestParams
-
-      result.filterId = @_filterId if @_filterType == ':backend'
-      if @_hasLimits
-        result.start = @_loadedStart
-        result.end = @_loadedEnd
+      if @_id
+        result = id: @_id
+      else
+        result =
+          orderBy: @_orderBy
+          fields: @_fields
+          filter: @_filter
+          requestParams: @_reqiestParams
+        result.filterId = @_filterId if @_filterType == ':backend'
+        if @_hasLimits
+          result.start = @_loadedStart
+          result.end = @_loadedEnd
       result
 
 
@@ -699,8 +701,8 @@ define [
           @_queryQueue.loadingStart = start = undefined
           @_queryQueue.loadingEnd = end = undefined
 
-      if ( !end || (end - start > 50) ) && !@_id && @repo._debugCanDoUnlimit != true
-        console.error 'AHTUNG!!! Me bumped into unlimited query: ' + end + ' ' + start + ' ' + @repo.restResource
+      if ( not end || (end - start > 50) ) && not @_id && not @repo._debugCanDoUnlimit
+        console.error 'ACHTUNG!!! Me bumped into unlimited query: end =', end, 'start =', start, @repo.restResource
 
       # detecting if there are queries in the queue which already cover required range
       curStart = start
@@ -887,6 +889,7 @@ define [
 
     toJSON: ->
       models: _.compact(@_models)
+      id: @_id
       filterType: @_filterType
       filterId: @_filterId
       orderBy: @_orderBy
@@ -909,6 +912,7 @@ define [
         m.setCollection(collection)
         models[start + i] = m
       collection._models = models
+      collection._id = obj.id
       collection._filterType = obj.filterType
       collection._filterId = obj.filterId
       collection._orderBy = obj.orderBy
