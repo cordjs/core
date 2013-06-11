@@ -94,6 +94,9 @@ define [
 
       self = this
       $(document).on 'click', 'a:not([data-bypass])', (evt) ->
+        # Default behaviour for anchors if any modification key pressed
+        return if event.metaKey or event.ctrlKey or event.altKey or event.shiftKey
+
         href = $(this).prop('href')
         root = location.protocol + '//' + location.host
 
