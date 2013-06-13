@@ -67,9 +67,7 @@ define [
           backPath = window.location.pathname
           backPath = '/' if backPath.indexOf('user/login') >= 0 or backPath.indexOf('user/logout') >= 0
           clientSideRouter.navigate '/user/login/?back=' + window.location.pathname
-      ecomet:
-        host: config.ecomet.host
-        authUri: config.ecomet.authUri
+      ecomet: config.ecomet
       oauth2:
         clientId: config.oauth2.clientId
         secretKey: config.oauth2.secretKey
