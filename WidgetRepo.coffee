@@ -189,6 +189,14 @@ define [
       """
       <script data-main="/bundles/cord/core/browserInit" src="/vendor/requirejs/require.js"></script>
       <script>
+        var global = {
+          config: {
+            browser: #{ JSON.stringify(global.config.browser) }
+          },
+          CONFIG: #{ JSON.stringify(global.CONFIG_CLIENT) }
+        };
+      </script>
+      <script>
           function cordcorewidgetinitializerbrowser(wi) {
             requirejs(['cord!utils/Future'], function(Future) {
               p = new Future();
@@ -199,14 +207,6 @@ define [
               });
             });
           };
-      </script>
-      <script>
-        var global = {
-          config: {
-            browser: #{ JSON.stringify(global.config.browser) }
-          },
-          CONFIG: #{ JSON.stringify(global.CONFIG_CLIENT) }
-        };
       </script>
       """
 
