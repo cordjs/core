@@ -388,7 +388,7 @@ define [
       @return Model
       ###
       result = new @model(attrs)
-      @_injectActionMethods(result) if attrs.id
+      @_injectActionMethods(result) if attrs?.id
       result
 
 

@@ -108,6 +108,9 @@ define [
       @param Function(data) callback callback function
       @return MonologueSubscription
       ###
+
+      return if not @collection
+
       if topic == 'change'
         # 'change'-event is conveniently proxy-triggered by the collection @see Collection::_handleModelChange
         @collection.on "model.#{ @id }.#{ topic }", callback
