@@ -49,6 +49,7 @@ define [
       @delegateEvents(@events)          if @events
       @initWidgetEvents(@widgetEvents)  if @widgetEvents
       @refreshElements()                if @elements
+      @_callbacks = []
 
       Defer.nextTick => @initiateInit()
 
@@ -81,6 +82,24 @@ define [
     addSubscription: (subscriptionDef) ->
       @_widgetSubscriptions.push subscriptionDef
 
+    getCallback: (callback) =>
+      ###
+      Register callback and clear it in case of object destruction or clearCallbacks invocation
+      Need to be used, when reference to the widget object (@) is used inside a callback, for instance:
+      api.get Url, Params, @getCallback (result) =>
+        @ctx.set 'apiResult', result
+      ###
+      realCallback = () =>
+        if !realCallback.cleared
+          callback.apply(this, arguments)
+
+      @_callbacks.push realCallback
+      realCallback
+
+
+    clearCallbacks: ->
+      callback.cleared = true for callback in @_callbacks
+      @_callbacks = []
 
     delegateEvents: (events) ->
       for key, method of events
@@ -195,6 +214,8 @@ define [
       @widget = null
       @el.off()#.remove()
       @el = @$el = null
+
+      @clearCallbacks()
 
 
     html: (element) ->
