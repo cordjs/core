@@ -148,7 +148,7 @@ define [
        so child widget's and behaviour will miss context changing which ocasionally happens during that time.
       @browser-only
       ###
-      if @[':internal'].stash
+      if @[':internal'].stash and @[':internal'].stash.length
         Defer.nextTick =>
           for ev in @[':internal'].stash
             postal.publish "widget.#{ ev.id }.change.#{ ev.name }",

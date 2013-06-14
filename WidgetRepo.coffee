@@ -187,6 +187,14 @@ define [
 
     getTemplateCode: ->
       """
+      <script>
+        var global = {
+          config: {
+            browser: #{ JSON.stringify(global.config.browser) }
+          },
+          CONFIG: #{ JSON.stringify(global.CONFIG_CLIENT) }
+        };
+      </script>
       <script data-main="/bundles/cord/core/browserInit" src="/vendor/requirejs/require.js"></script>
       <script>
           function cordcorewidgetinitializerbrowser(wi) {
@@ -199,14 +207,6 @@ define [
               });
             });
           };
-      </script>
-      <script>
-        var global = {
-          config: {
-            browser: #{ JSON.stringify(global.config.browser) }
-          },
-          CONFIG: #{ JSON.stringify(global.CONFIG_CLIENT) }
-        };
       </script>
       """
 
