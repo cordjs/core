@@ -259,12 +259,15 @@ define [
       api.get Url, Params, @getCallback (result) =>
         @ctx.set 'apiResult', result
       ###
-      realCallback = () =>
-        if !realCallback.cleared
-          callback.apply(this, arguments)
+      makeSafeCallback = (callback) ->
+        cleared = false
+        ()->
+          if !cleared
+            callback.apply(this, arguments)
 
-      @_callbacks.push realCallback
-      realCallback
+      result = makeSafeCallback callback
+      @_callbacks.push result
+      result
 
     clearCallbacks: ->
       callback.cleared = true for callback in @_callbacks
