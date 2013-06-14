@@ -10,6 +10,7 @@ define [
   class Context
 
     constructor: (arg1, arg2) ->
+      @[':internal'] = {}
       @[':internal'].version = 0
       if typeof arg1 is 'object'
         for key, value of arg1
