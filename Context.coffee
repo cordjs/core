@@ -10,10 +10,11 @@ define [
   class Context
 
     constructor: (arg1, arg2) ->
+      @[':internal'].version = 0
       if typeof arg1 is 'object'
         for key, value of arg1
           @[key] = value
-        delete @[':initMode'] if @[':initMode']? # init mode can only be set later, not here
+        @[':internal'].initMode = null if @[':internal'].initMode? # init mode can only be set later, not here
       else
         @id = arg1
         if arg2
@@ -29,10 +30,10 @@ define [
       @param Boolen mode enable of disable the init mode
       ###
       if mode
-        @[':initMode'] = true
+        @[':internal'].initMode = true
       else
-        delete @[':initMode']
-        @[':stash'] = []
+        @[':internal'].initMode = null
+        @[':internal'].stash = []
 
 
     set: (args...) ->
@@ -84,15 +85,17 @@ define [
 
       if triggerChange
         callbackPromise.fork() if callbackPromise
-        curInitMode = @[':initMode']
-        if @[':stash']
+        curInitMode = @[':internal'].initMode
+        curVersion = ++@[':internal'].version
+        if @[':internal'].stash
           cursor = _.uniqueId()
-          @[':stash'].push
+          @[':internal'].stash.push
             id: @id
             name: name
             newValue: newValue
             oldValue: oldValue
             cursor: cursor
+            version: curVersion
         Defer.nextTick =>
           console.log "publish widget.#{ @id }.change.#{ name }" if global.CONFIG.debug?.widget
           postal.publish "widget.#{ @id }.change.#{ name }",
@@ -102,6 +105,7 @@ define [
             initMode: curInitMode
             callbackPromise: callbackPromise
             cursor: cursor
+            version: curVersion
           callbackPromise.resolve() if callbackPromise
 
       @_initDeferredDebug(name)
@@ -142,16 +146,18 @@ define [
       Re-triggers stashed context-change events.
       Stashing is needed after Widget::setParams() is already processed but browserInit() still didn't executed,
        so child widget's and behaviour will miss context changing which ocasionally happens during that time.
+      @browser-only
       ###
-      if @[':stash'] and @[':stash'].length
+      if @[':internal'].stash and @[':internal'].stash.length
         Defer.nextTick =>
-          for ev in @[':stash']
+          for ev in @[':internal'].stash
             postal.publish "widget.#{ ev.id }.change.#{ ev.name }",
               name: ev.name
               value: ev.newValue
               oldValue: ev.oldValue
               cursor: ev.cursor
-          delete @[':stash']
+              version: ev.version
+          @[':internal'].stash = null
 
 
     toJSON: ->
@@ -161,7 +167,7 @@ define [
           result[key] = value.serializeLink()
         else if value instanceof Model
           result[key] = value.serializeLink()
-        else if key != ':initMode'
+        else if key != ':internal'
           result[key] = value
       result
 
