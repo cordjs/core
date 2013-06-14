@@ -10,7 +10,7 @@ define [
   class Context
 
     constructor: (arg1, arg2) ->
-      @[':internal'].version = 0
+      @[':internal'] = version: 0
       if typeof arg1 is 'object'
         for key, value of arg1
           @[key] = value
@@ -141,6 +141,10 @@ define [
       callbackPromise
 
 
+    stashEvents: ->
+      @[':internal'].stash = []
+
+
     replayStashedEvents: ->
       ###
       Re-triggers stashed context-change events.
@@ -158,6 +162,10 @@ define [
               cursor: ev.cursor
               version: ev.version
           @[':internal'].stash = null
+
+
+    getVersion: ->
+      @[':internal'].version
 
 
     toJSON: ->

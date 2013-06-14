@@ -313,9 +313,10 @@ define [
         throw "Try to get uninitialized widget with id = #{ id }"
 
 
-    subscribePushBinding: (parentWidgetId, ctxName, childWidget, paramName) ->
+    subscribePushBinding: (parentWidgetId, ctxName, childWidget, paramName, ctxVersionBorder) ->
       ###
       Subscribes child widget to the parent widget's context variable change event
+      @browser-only
       @param String parentWidgetId id of the parent widget
       @param String ctxName name of parent's context variable whose changes we are listening to
       @param Widget childWidget subscribing child widget object
@@ -324,15 +325,8 @@ define [
       ###
       subscription = postal.subscribe
         topic: "widget.#{ parentWidgetId }.change.#{ ctxName }"
-        callback: (data, envelope) ->
-          duplicate = false
-          if data.cursor
-            if childWidget._eventCursors[data.cursor]
-              delete childWidget._eventCursors[data.cursor]
-              duplicate = true
-            else
-              childWidget._eventCursors[data.cursor] = true
-          if not childWidget.isSentenced() and not data.initMode and not duplicate
+        callback: (data) ->
+          if not childWidget.isSentenced() and (not ctxVersionBorder? or data.version > ctxVersionBorder) # and not data.initMode
             params = {}
 
             # param with name "params" is a special case and we should expand the value as key-value pairs

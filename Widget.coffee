@@ -551,6 +551,7 @@ define [
       console.log "#{ @debug '_injectRender' }" if global.CONFIG.debug?.widget
 
       @_resetWidgetReady()
+      @_behaviourContextBorderVersion = null
 
       extendWidgetInfo = if tmpl != ':empty' then tmpl.struct.extend else null
       if extendWidgetInfo?
@@ -560,11 +561,14 @@ define [
           @_inlinesRuntimeInfo = []
 
           tmpl.assignWidget extendWidgetInfo.widget, extendWidget
+
           cb = new Future
           require ['jquery'], cb.callback()
           tmpl.replacePlaceholders extendWidgetInfo.widget, extendWidget.ctx[':placeholders'], transition, cb.callback()
+
           cb.done ($) =>
             @registerChild extendWidget
+            extendWidget.cleanSubscriptions() # clean up supscriptions to the old parent's context change
             @resolveParamRefs extendWidget, extendWidgetInfo.params, (params) ->
               extendWidget.setParams(params)
               readyPromise.resolve()
@@ -615,6 +619,7 @@ define [
       console.log @debug('renderTemplate') if global.CONFIG.debug?.widget
 
       @_resetWidgetReady() # allowing to call browserInit() after template re-render is reasonable
+      @_behaviourContextBorderVersion = null
 
       @getStructTemplate (tmpl) =>
         if tmpl != ':empty' and tmpl.struct.extend?
@@ -634,6 +639,7 @@ define [
       actualRender = =>
         @markRenderStarted()
         @cleanChildren()
+        @_saveContextVersionForBehaviourSubscriptions()
         dust.render tmplPath, @getBaseContext().push(@ctx), callback
         @markRenderFinished()
 
@@ -672,7 +678,7 @@ define [
               waitCounter++
               @subscribeValueChange params, name, value, =>
                 waitCounter--
-                @widgetRepo.subscribePushBinding @ctx.id, value, widget, name if isBrowser
+                @widgetRepo.subscribePushBinding(@ctx.id, value, widget, name, @ctx.getVersion()) if isBrowser
                 if waitCounter == 0 and waitCounterFinish
                   callback params
 
@@ -688,7 +694,7 @@ define [
                   # todo: warning?
               else
                 params[name] = @ctx[value]
-                @widgetRepo.subscribePushBinding @ctx.id, value, widget, name if isBrowser
+                @widgetRepo.subscribePushBinding(@ctx.id, value, widget, name, @ctx.getVersion()) if isBrowser
 
       # todo: potentially not cross-browser code!
       if Object.keys(bindings).length != 0
@@ -728,6 +734,7 @@ define [
         tmplPath = "#{ @getDir() }/#{ template }"
 
         actualRender = =>
+          @_saveContextVersionForBehaviourSubscriptions()
           dust.render tmplPath, @getBaseContext().push(@ctx), callback
 
         if dust.cache[tmplPath]?
@@ -789,6 +796,12 @@ define [
       @param String class space-separeted list of css class-names
       ###
       @ctx._modifierClass = cls
+
+
+    _saveContextVersionForBehaviourSubscriptions: ->
+      if not @_behaviourContextBorderVersion?
+        @_behaviourContextBorderVersion = @ctx.getVersion()
+        @ctx.stashEvents()
 
 
     setSubscribedPushBinding: (pushBindings) ->
@@ -1252,10 +1265,10 @@ define [
           for widgetId, bindingMap of @childBindings
             # todo: refactor subscriptions to clean only widget binding subscriptions here, not all
             child = @childById[widgetId]
-            child.cleanSubscriptions()
+#            child.cleanSubscriptions()
             child.setSubscribedPushBinding(bindingMap)
-            for ctxName, paramName of bindingMap
-              @widgetRepo.subscribePushBinding @ctx.id, ctxName, child, paramName
+#            for ctxName, paramName of bindingMap
+#              @widgetRepo.subscribePushBinding @ctx.id, ctxName, child, paramName
 
           @_widgetReadyPromise.when(@constructor._cssPromise)
           for childWidget in @children
@@ -1285,9 +1298,9 @@ define [
 
     subscribeChildPushBindings: (widget, bindingMap) ->
       ###
-      Subscribe widget to current widget context changes
-      @param widget
-      @param bindingMap - Object { widget_param_name: current_widget_context_param }
+      Subscribe the given child widget to the current widget's context changes
+      @param Widget widget the child widget
+      @param Object bindingMap { widget_param_name: current_widget_context_param }
       ###
       for paramName, ctxName of bindingMap
         @widgetRepo.subscribePushBinding @ctx.id, ctxName, widget, paramName

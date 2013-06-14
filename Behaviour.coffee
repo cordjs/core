@@ -139,16 +139,19 @@ define [
       m = @_getHandlerFunction(method)
       onChangeMethod = =>
         data = arguments[0]
-        duplicate = false
-        if data.cursor
-          if @_eventCursors[data.cursor]
-            delete @_eventCursors[data.cursor]
-            duplicate = true
-          else
-            @_eventCursors[data.cursor] = true
-        if not @widget.isSentenced() and data.value != ':deferred' and not data.initMode and not duplicate
-          @_registerModelBinding(data.value, fieldName, onChangeMethod)
-          m.apply(this, arguments)
+        ctxVersionBorder = @widget._behaviourContextBorderVersion
+        versionOk = (not ctxVersionBorder? or data.version > ctxVersionBorder)
+        if not @widget.isSentenced() and data.value != ':deferred' and versionOk # and not data.initMode
+          duplicate = false
+          if data.cursor
+            if @_eventCursors[data.cursor]
+              delete @_eventCursors[data.cursor]
+              duplicate = true
+            else
+              @_eventCursors[data.cursor] = true
+          if not duplicate
+            @_registerModelBinding(data.value, fieldName, onChangeMethod)
+            m.apply(this, arguments)
 
 
     _registerModelBinding: (value, fieldName, onChangeMethod) ->
@@ -254,6 +257,7 @@ define [
       Re-renders inline with the given name
       @param String name inline's name to render
       ###
+      @widget._behaviourContextBorderVersion = null
       @widget.renderInline name, (err, out) =>
         if err then throw err
         id = @widget.ctx[':inlines'][name].id
