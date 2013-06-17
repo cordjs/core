@@ -2,7 +2,8 @@ define [
   "app/application"
   "cord!/cord/core/router/#{ ( if window? then 'clientSideRouter' else 'serverSideRouter' ) }"
   "underscore"
-], (application, router, _) ->
+  "cord!Console"
+], (application, router, _, _console) ->
 
   configs = ("cord!/#{ bundle }/config" for i, bundle of application)
 
@@ -19,5 +20,10 @@ define [
       _.extend(routes, config.routes)
 
     router.addRoutes(routes)
+
+    if window?
+      window._console = _console
+    else
+      GLOBAL._console = _console
 
   router

@@ -16,7 +16,7 @@ define [
 
 
     getWidget: (widgetRefId, callback) ->
-#      console.log "#{ @ownerWidget.debug 'StructureTemplate' }::getWidget(#{ widgetRefId }) -> #{ if @widgets[widgetRefId]? then @widgets[widgetRefId].debug() else 'unexistent' }"
+#      _console.log "#{ @ownerWidget.debug 'StructureTemplate' }::getWidget(#{ widgetRefId }) -> #{ if @widgets[widgetRefId]? then @widgets[widgetRefId].debug() else 'unexistent' }"
       if @widgets[widgetRefId]?
         callback @widgets[widgetRefId]
       else
@@ -120,12 +120,12 @@ define [
       @_reverseIndex[newWidget.ctx.id] = refUid
 
     unassignWidget: (widget) ->
-#      console.log "StructureTemplate::unassignWidget(#{ widget.debug() })"
+#      _console.log "StructureTemplate::unassignWidget(#{ widget.debug() })"
       if @_reverseIndex[widget.ctx.id]?
         delete @widgets[@_reverseIndex[widget.ctx.id]]
         delete @_reverseIndex[widget.ctx.id]
       else
-        console.log "WARNING: trying to unassign unknown widget #{ widget.debug() }"
+        _console.log "WARNING: trying to unassign unknown widget #{ widget.debug() }"
 
 
     replacePlaceholders: (widgetRefUid, currentPlaceholders, transition, callback) ->
@@ -144,7 +144,7 @@ define [
               if item.widget?
                 curItem = currentPlaceholders[name][i]
                 curWidget = @ownerWidget.widgetRepo.getById(curItem.widget)
-                #console.log "compare: #{ curItem.type } != 'widget' or #{ curWidget.getPath() } != #{ @struct.widgets[item.widget].path }"
+                #_console.log "compare: #{ curItem.type } != 'widget' or #{ curWidget.getPath() } != #{ @struct.widgets[item.widget].path }"
                 if curItem.type != 'widget' or curWidget.getPath() != @struct.widgets[item.widget].path
                   theSame = false
                   break

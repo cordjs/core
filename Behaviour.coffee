@@ -263,7 +263,7 @@ define [
       @widget.sentenceChildrenToDeath()
       @defer 'render', =>
         if @widget?
-          console.log "#{ @widget.debug 're-render' }"
+          _console.log "#{ @widget.debug 're-render' }"
           # renderTemplate will clean this behaviour, so we must save links...
           widget = @widget
           widget.renderTemplate (err, out) ->

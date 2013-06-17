@@ -23,7 +23,7 @@ define [
     send: (method, url, params, callback) ->
 
       method = method.toLowerCase()
-      console.log('Unknown method:'+method) if method not in @METHODS
+      _console.log('Unknown method:'+method) if method not in @METHODS
       method = 'del' if method is 'delete'
 
       argssss = Utils.parseArguments arguments,
@@ -42,23 +42,15 @@ define [
         options =
           json: argssss.params
 
-      startRequest = new Date() if global.CONFIG.debug?.request
+      startRequest = new Date() if global.config.node?.debug.request
       curly[method] argssss.url, options, (error, response, body) =>
-        if global.CONFIG.debug?.request
+        if global.config.node?.debug.request
           stopRequest = new Date()
           seconds = (stopRequest - startRequest) / 1000
-          #global.CONFIG.debug.request = 'full'
-          #if global.CONFIG.debug?.request == 'simple'
-          console.log "ServerRequest (#{ seconds } s): #{method} #{argssss.url}"
+          _console.log "ServerRequest (#{ seconds } s): #{method} #{argssss.url}"
           if error
-            console.log error
+            _console.error error
           if body && body.error
-            console.log body
-          #else
-          #  console.log "========================================================================( #{ seconds } s)"
-          #  console.log "ServerRequest: #{method} #{argssss.url}"
-          #  console.log argssss.params
-          #  console.log body if global.CONFIG.debug?.request == 'full'
-          #  console.log "========================================================================"
+            _console.log body
 
         argssss.callback body, error if typeof argssss.callback == 'function'

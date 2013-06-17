@@ -122,7 +122,7 @@ define [
       if syncMode == ':cache' || syncMode == ':cache-async'
         model = @probeCollectionsForModel(id, fields)
         if model
-          console.log 'debug: buildSingleModel found in an existing collection'
+          _console.log 'debug: buildSingleModel found in an existing collection'
           options =
              fields: fields
              id: model.id
@@ -132,7 +132,7 @@ define [
           callback(collection.get(id))
           return collection
         else
-          console.log 'debug: buildSingleModel missed in existing collections :('
+          _console.log 'debug: buildSingleModel missed in existing collections :('
 
       syncMode = ':async' if syncMode == ':cache-async'
       collection = @createSingleModel(id, fields)
@@ -441,7 +441,7 @@ define [
           result.resolve()
 
           result.fail (error) ->
-            console.error "cacheCollection failed: ", error
+            _console.error "cacheCollection failed: ", error
       else
         result.reject("ModelRepo::cacheCollection is not applicable on server-side!")
 

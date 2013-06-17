@@ -5,7 +5,8 @@ define [
   'cord!utils/Future'
   'postal'
   'underscore'
-], (Collection, Model, Defer, Future, postal, _) ->
+  'cord!Console'
+], (Collection, Model, Defer, Future, postal, _, _console) ->
 
   class Context
 
@@ -79,7 +80,7 @@ define [
       else
         triggerChange = false
 
-#      console.log "setSingle -> #{ name } = #{ newValue } (oldValue = #{ @[name] }) trigger = #{ triggerChange } -> #{ (new Date).getTime() }"
+#      _console.log "setSingle -> #{ name } = #{ newValue } (oldValue = #{ @[name] }) trigger = #{ triggerChange } -> #{ (new Date).getTime() }"
 
       # never change value to 'undefined' (don't mix up with 'null' value)
       @[name] = newValue if newValue != undefined
@@ -98,7 +99,7 @@ define [
             cursor: cursor
             version: curVersion
         Defer.nextTick =>
-          console.log "publish widget.#{ @id }.change.#{ name }" if global.CONFIG.debug?.widget
+          _console.log "publish widget.#{ @id }.change.#{ name }" if global.config.browser?.debug.widget
           postal.publish "widget.#{ @id }.change.#{ name }",
             name: name
             value: newValue
@@ -197,6 +198,6 @@ define [
     _initDeferredDebug: (name) ->
       if @[name] == ':deferred'
         setTimeout =>
-          console.error '### Deferred timeout', name, @id if @[name] == ':deferred'
+          _console.error '### Deferred timeout', name, @id if @[name] == ':deferred'
         , 20000
 

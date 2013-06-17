@@ -20,7 +20,7 @@ define [
           promise.resolve()
         , 1000
       promise.done ->
-        console.log result.join(', ')
+        _console.log result.join(', ')
 
     Example of 2:
       asyncGetter = (key, callback) ->
@@ -281,10 +281,10 @@ define [
       Can emphasise futures with desired names by using console.warn.
       ###
       if @_name.indexOf('desired search in name') != -1
-        fn = console.warn
+        fn = _console.warn
       else
-        fn = console.log
+        fn = _console.log
       args.unshift(@_name)
       args.unshift(@_doneCallbacks.length)
       args.unshift(@_counter)
-      fn.apply(console, args)
+      fn.apply(_console, args)
