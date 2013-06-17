@@ -50,14 +50,14 @@ define [
           json: argssss.params
           form: argssss.params.form
 
-      _console.log "BrowserRequest: #{method} #{argssss.url}" if global.config.browser?.debug.request != "simple"
-      startRequest = new Date() if global.config.browser?.debug.request
+      _console.log "BrowserRequest: #{method} #{argssss.url}" if global.config.debug.request != "simple"
+      startRequest = new Date() if global.config.debug.request
       window.curly[method] argssss.url, options, (error, response, body) =>
-        if global.config.browser?.debug.request
+        if global.config.debug.request
           stopRequest = new Date()
           seconds = (stopRequest - startRequest) / 1000
 
-          if global.config.browser?.debug.request == "simple"
+          if global.config.debug.request == "simple"
             url = argssss.url.replace('http://127.0.0.1:1337/XDR/', '')
             url = url.replace(/(&|\?)?access_token=[^&]+/, '')
             _console.log "BrowserRequest ( #{ seconds } s): #{method} #{url}"
@@ -67,7 +67,7 @@ define [
             _console.log "========================================================================( #{ seconds } s)"
             _console.log "BrowserRequest: #{method} #{argssss.url}"
             _console.log argssss.params
-            _console.log body if global.config.browser?.debug.request == "full"
+            _console.log body if global.config.debug.request == "full"
             _console.log "========================================================================"
 
         if not error? and response.statusCode != 200

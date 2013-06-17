@@ -42,9 +42,9 @@ define [
         options =
           json: argssss.params
 
-      startRequest = new Date() if global.config.node?.debug.request
+      startRequest = new Date() if global.config.debug.request
       curly[method] argssss.url, options, (error, response, body) =>
-        if global.config.node?.debug.request
+        if global.config.debug.request
           stopRequest = new Date()
           seconds = (stopRequest - startRequest) / 1000
           _console.log "ServerRequest (#{ seconds } s): #{method} #{argssss.url}"

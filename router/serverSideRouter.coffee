@@ -39,7 +39,7 @@ define [
           serviceContainer = null
           widgetRepo = null
 
-        config = global.config.node
+        config = global.config
         config.api =
           protocol: config.api.protocol
           host: config.api.host

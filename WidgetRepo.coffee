@@ -189,9 +189,7 @@ define [
       """
       <script>
         var global = {
-          config: {
-            browser: #{ JSON.stringify(global.config.browser) }
-          }
+          config: #{ JSON.stringify(global.appConfig.browser) }
         };
       </script>
       <script data-main="/bundles/cord/core/browserInit" src="/vendor/requirejs/require.js"></script>
@@ -362,7 +360,7 @@ define [
       @param PageTransition transition page transition support object which contains information about transition and
                                        triggers events related to transition process
       ###
-      _console.log "WidgetRepo::transitPage -> current root = #{ @rootWidget.debug() }" if global.config.browser?.debug.widget or global.config.node?.debug.widget
+      _console.log "WidgetRepo::transitPage -> current root = #{ @rootWidget.debug() }" if global.config.debug.widget
 
       # interrupting previous transition if it's not completed
       @_curTransition.interrupt() if @_curTransition? and @_curTransition.isActive()

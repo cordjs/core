@@ -12,9 +12,7 @@ define [
     @getConfig: ->
       @config = global.config if @config == undefined
 
-      if @config
-        return @config.node if not isBrowser
-        return @config.browser if isBrowser
+      return @config
 
     @log: ->
       config = @getConfig()

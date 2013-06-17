@@ -386,7 +386,7 @@ define [
       @param Object params changed params
       @param (optional)Function callback function to be called after processing.
       ###
-      _console.log "#{ @debug 'setParams' } -> ", params if global.config.browser?.debug.widget or global.config.node?.debug.widget
+      _console.log "#{ @debug 'setParams' } -> ", params if global.config.debug.widget
       if @constructor.params? or @constructor.initialCtx?
         rules = @constructor._paramRules
         processedRules = {}
@@ -443,7 +443,7 @@ define [
       # to avoid handle context change events in the behaviour during initial processing
       @ctx.setInitMode(true) if isBrowser
       @setParams params, =>
-        _console.log "#{ @debug 'show' } -> params:", params, " context:", @ctx if global.config.browser?.debug.widget or global.config.node?.debug.widget
+        _console.log "#{ @debug 'show' } -> params:", params, " context:", @ctx if global.config.debug.widget
         @_handleOnShow =>
           @renderTemplate (err, out) =>
             @ctx.setInitMode(false) if isBrowser
@@ -452,7 +452,7 @@ define [
 
     showJson: (params, callback) ->
       @setParams params, =>
-        _console.log "#{ @debug 'showJson' } -> params:", params, " context:", @ctx if global.config.browser?.debug.widget or global.config.node?.debug.widget
+        _console.log "#{ @debug 'showJson' } -> params:", params, " context:", @ctx if global.config.debug.widget
         @_handleOnShow =>
           @renderJson callback
 
@@ -534,7 +534,7 @@ define [
       ###
       @browser-only
       ###
-      _console.log "#{ @debug 'injectAction' }", params if global.config.browser?.debug.widget or global.config.node?.debug.widget
+      _console.log "#{ @debug 'injectAction' }", params if global.config.debug.widget
 
       @widgetRepo.registerNewExtendWidget this
 
@@ -551,7 +551,7 @@ define [
       ###
       @browser-only
       ###
-      _console.log "#{ @debug '_injectRender' }" if global.config.browser?.debug.widget or global.config.node?.debug.widget
+      _console.log "#{ @debug '_injectRender' }" if global.config.debug.widget
 
       @_resetWidgetReady()
 
@@ -615,7 +615,7 @@ define [
       ###
       Decides wether to call extended template parsing of self-template parsing and calls it.
       ###
-      _console.log @debug('renderTemplate') if global.config.browser?.debug.widget or global.config.node?.debug.widget
+      _console.log @debug('renderTemplate') if global.config.debug.widget
 
       @_resetWidgetReady() # allowing to call browserInit() after template re-render is reasonable
 
@@ -630,7 +630,7 @@ define [
       ###
       Usual way of rendering template via dust.
       ###
-      _console.log @debug('_renderSelfTemplate') if global.config.browser?.debug.widget or global.config.node?.debug.widget
+      _console.log @debug('_renderSelfTemplate') if global.config.debug.widget
 
       tmplPath = @getPath()
 
@@ -722,7 +722,7 @@ define [
       ###
       Renders widget's inline-block by name
       ###
-      _console.log "#{ @constructor.name }::renderInline(#{ inlineName })" if global.config.browser?.debug.widget or global.config.node?.debug.widget
+      _console.log "#{ @constructor.name }::renderInline(#{ inlineName })" if global.config.debug.widget
 
       @_resetWidgetReady() # if inline is rendered, it will be necessary to call browserInit()
 
@@ -1244,7 +1244,7 @@ define [
       @param (optional)Widget stopPropageteWidget widget for which method should stop pass browserInit to child widgets
       @param (optional)jQuery domRoot injected DOM root for the widget or it's children
       ###
-      _console.log "#{ @debug 'browserInit' }" if global.config.browser?.debug.widget or global.config.node?.debug.widget
+      _console.log "#{ @debug 'browserInit' }" if global.config.debug.widget
 
       if not @_browserInitialized and not @_delayedRender
         @_browserInitialized = true

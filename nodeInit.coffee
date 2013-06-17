@@ -50,10 +50,11 @@ exports.init = (baseUrl = 'public', configName = 'default') ->
 
     delete services.config.common
 
-    global.config = services.config
+    global.appConfig = services.config
+    global.config = services.config.node
 
-    Rest.host = global.config.node.server.host
-    Rest.port = global.config.node.server.port
+    Rest.host = global.config.server.host
+    Rest.port = global.config.server.port
 
     startServer ->
       timeLog "Server running at http://#{ Rest.host }:#{ Rest.port }/"
@@ -73,7 +74,7 @@ exports.startServer = startServer = (callback) ->
             else
               res.writeHead err.status, err.headers;
               res.end()
-  .listen(services.config.node.server.port)
+  .listen(global.config.server.port)
   callback?()
 
 exports.restartServer = restartServer = ->

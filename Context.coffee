@@ -99,7 +99,7 @@ define [
             cursor: cursor
             version: curVersion
         Defer.nextTick =>
-          _console.log "publish widget.#{ @id }.change.#{ name }" if global.config.browser?.debug.widget
+          _console.log "publish widget.#{ @id }.change.#{ name }" if global.config.debug.widget
           postal.publish "widget.#{ @id }.change.#{ name }",
             name: name
             value: newValue
