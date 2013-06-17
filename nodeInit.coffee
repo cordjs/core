@@ -16,6 +16,8 @@ exports.services = services =
   fileServer: null
   router: null
 
+`_console = console`
+
 
 exports.init = (baseUrl = 'public', configName = 'default') ->
   requirejs.config
@@ -54,7 +56,7 @@ exports.init = (baseUrl = 'public', configName = 'default') ->
     global.appConfig = services.config
     global.config = services.config.node
 
-    global._console = _console
+    `_console = _console`
 
     Rest.host = global.config.server.host
     Rest.port = global.config.server.port
