@@ -29,7 +29,8 @@ exports.init = (baseUrl = 'public', configName = 'default') ->
     'cord!configPaths'
     'cord!request/xdrProxy'
     'underscore'
-  ], (router, Rest, configPaths, xdrProxy, _) ->
+    'cord!Console'
+  ], (router, Rest, configPaths, xdrProxy, _, _console) ->
     configPaths.PUBLIC_PREFIX = baseUrl
     services.router = router
     services.fileServer = new serverStatic.Server(baseUrl)
@@ -52,6 +53,8 @@ exports.init = (baseUrl = 'public', configName = 'default') ->
 
     global.appConfig = services.config
     global.config = services.config.node
+
+    global._console = _console
 
     Rest.host = global.config.server.host
     Rest.port = global.config.server.port

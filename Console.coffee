@@ -1,6 +1,5 @@
 define [
-  'cord!isBrowser'
-], (isBrowser) ->
+], () ->
 
   class Console
     ###

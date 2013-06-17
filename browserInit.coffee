@@ -49,9 +49,12 @@ define [
     'cord!WidgetRepo'
     'cord!ServiceContainer'
     'cord!css/browserManager'
-  ], (clientSideRouter, WidgetRepo, ServiceContainer, cssManager) ->
+    'cord!Console'
+  ], (clientSideRouter, WidgetRepo, ServiceContainer, cssManager, _console) ->
 
     serviceContainer = new ServiceContainer()
+
+    window._console = _console
 
     ###
       Конфиги
