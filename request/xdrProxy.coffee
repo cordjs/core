@@ -44,7 +44,7 @@ define [
       proxyRes.on 'end', -> res.end()
 
     proxyReq.on 'error', (e) ->
-      console.log 'Problem with proxy request: ', e
+      _console.error 'Problem with proxy request: ', e
 
     # read all data from the browser request and pass it to the target server
     req.on 'data', (chunk) -> proxyReq.write(chunk)

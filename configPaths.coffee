@@ -32,7 +32,7 @@ define [],  ->
         bundleSpec = nameParts[1]
         throw "Bundle specification should start with /: #{ path }" if bundleSpec.indexOf('/') != 0
         if bundleSpec.substr(-1) == '/'
-          console.warn "WARNING: trailing slash in bundle specification is deprecated: #{ path }! Cutting..."
+          _console.warn "WARNING: trailing slash in bundle specification is deprecated: #{ path }! Cutting..."
           bundleSpec = bundleSpec.substr(0, bundleSpec.length - 1)
       path = nameParts[0]
 

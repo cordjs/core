@@ -78,7 +78,7 @@ define [
             @storage.setItem(key, strValue)
             result.resolve()
           catch e
-            console.error "localStorage::_set(#{ key }) failed!", value, e
+            _console.error "localStorage::_set(#{ key }) failed!", value, e
             result.reject(e)
         else
           result.reject(e)
@@ -114,7 +114,7 @@ define [
       If needLength argument is given, than it tries to free just enought space, if not - all expired items are removed.
       @param (optional) needLength amount of memory needed
       ###
-      console.warn "localStorage::GC !"
+      _console.warn "localStorage::GC !"
       ttlInfo = JSON.parse(@storage.getItem('models:ttl-info'))
       if needLength
         needLength = parseInt(needLength) * 2

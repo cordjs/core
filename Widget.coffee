@@ -386,7 +386,7 @@ define [
       @param Object params changed params
       @param (optional)Function callback function to be called after processing.
       ###
-      console.log "#{ @debug 'setParams' } -> ", params if global.CONFIG.debug?.widget
+      _console.log "#{ @debug 'setParams' } -> ", params if global.config.browser?.debug.widget or global.config.node?.debug.widget
       if @constructor.params? or @constructor.initialCtx?
         rules = @constructor._paramRules
         processedRules = {}
@@ -420,7 +420,7 @@ define [
             throw "Widget #{ @getPath() } is not accepting param with name #{ name }!"
       else
         for key in params
-          console.warn "#{ @debug() } doesn't accept any params, '#{ key }' given!"
+          _console.warn "#{ @debug() } doesn't accept any params, '#{ key }' given!"
       callback?()
 
 
@@ -443,7 +443,7 @@ define [
       # to avoid handle context change events in the behaviour during initial processing
       @ctx.setInitMode(true) if isBrowser
       @setParams params, =>
-        console.log "#{ @debug 'show' } -> params:", params, " context:", @ctx if global.CONFIG.debug?.widget
+        _console.log "#{ @debug 'show' } -> params:", params, " context:", @ctx if global.config.browser?.debug.widget or global.config.node?.debug.widget
         @_handleOnShow =>
           @renderTemplate (err, out) =>
             @ctx.setInitMode(false) if isBrowser
@@ -452,7 +452,7 @@ define [
 
     showJson: (params, callback) ->
       @setParams params, =>
-        console.log "#{ @debug 'showJson' } -> params:", params, " context:", @ctx if global.CONFIG.debug?.widget
+        _console.log "#{ @debug 'showJson' } -> params:", params, " context:", @ctx if global.config.browser?.debug.widget or global.config.node?.debug.widget
         @_handleOnShow =>
           @renderJson callback
 
@@ -534,13 +534,13 @@ define [
       ###
       @browser-only
       ###
-      console.log "#{ @debug 'injectAction' }", params if global.CONFIG.debug?.widget
+      _console.log "#{ @debug 'injectAction' }", params if global.config.browser?.debug.widget or global.config.node?.debug.widget
 
       @widgetRepo.registerNewExtendWidget this
 
       @ctx.setInitMode(true)
       @setParams params, =>
-        console.log "#{ @debug 'injectAction' } processes context:", @ctx
+        _console.log "#{ @debug 'injectAction' } processes context:", @ctx
         @_handleOnShow =>
           @ctx.setInitMode(false)
           @getStructTemplate (tmpl) =>
@@ -551,7 +551,7 @@ define [
       ###
       @browser-only
       ###
-      console.log "#{ @debug '_injectRender' }" if global.CONFIG.debug?.widget
+      _console.log "#{ @debug '_injectRender' }" if global.config.browser?.debug.widget or global.config.node?.debug.widget
 
       @_resetWidgetReady()
 
@@ -596,7 +596,7 @@ define [
           # This is very hackkky attempt to replace full page body without reloading.
           # It works ok some times, but soon requirejs begin to fail to load new scripts for the page.
           # So I decided to leave this code for the promising future and fallback to force page reload as for now.
-          console.log "FULL PAGE REWRITE!!! struct tmpl: ", tmpl
+          _console.log "FULL PAGE REWRITE!!! struct tmpl: ", tmpl
           @widgetRepo.replaceExtendTree()
           @renderTemplate (err, out) =>
             if err then throw err
@@ -615,7 +615,7 @@ define [
       ###
       Decides wether to call extended template parsing of self-template parsing and calls it.
       ###
-      console.log @debug('renderTemplate') if global.CONFIG.debug?.widget
+      _console.log @debug('renderTemplate') if global.config.browser?.debug.widget or global.config.node?.debug.widget
 
       @_resetWidgetReady() # allowing to call browserInit() after template re-render is reasonable
 
@@ -630,7 +630,7 @@ define [
       ###
       Usual way of rendering template via dust.
       ###
-      console.log @debug('_renderSelfTemplate') if global.CONFIG.debug?.widget
+      _console.log @debug('_renderSelfTemplate') if global.config.browser?.debug.widget or global.config.node?.debug.widget
 
       tmplPath = @getPath()
 
@@ -722,7 +722,7 @@ define [
       ###
       Renders widget's inline-block by name
       ###
-      console.log "#{ @constructor.name }::renderInline(#{ inlineName })" if global.CONFIG.debug?.widget
+      _console.log "#{ @constructor.name }::renderInline(#{ inlineName })" if global.config.browser?.debug.widget or global.config.node?.debug.widget
 
       @_resetWidgetReady() # if inline is rendered, it will be necessary to call browserInit()
 
@@ -1213,7 +1213,7 @@ define [
           if BehaviourClass instanceof Function
             @behaviour = new BehaviourClass(this, $domRoot)
           else
-            console.error 'WRONG BEHAVIOUR CLASS:', behaviourClass
+            _console.error 'WRONG BEHAVIOUR CLASS:', behaviourClass
           promise.resolve()
       promise
 
@@ -1244,7 +1244,7 @@ define [
       @param (optional)Widget stopPropageteWidget widget for which method should stop pass browserInit to child widgets
       @param (optional)jQuery domRoot injected DOM root for the widget or it's children
       ###
-      console.log "#{ @debug 'browserInit' }" if global.CONFIG.debug?.widget
+      _console.log "#{ @debug 'browserInit' }" if global.config.browser?.debug.widget or global.config.node?.debug.widget
 
       if not @_browserInitialized and not @_delayedRender
         @_browserInitialized = true
@@ -1282,10 +1282,10 @@ define [
           # when widget doesn't become ready at all even after 5 seconds. Likely that points to some errors in logic.
           savedPromiseForTimeoutCheck = @_widgetReadyPromise
           setTimeout =>
-            console.error "#{ @debug 'incompleteBrowserInit!' }" if not savedPromiseForTimeoutCheck.completed()
+            _console.error "#{ @debug 'incompleteBrowserInit!' }" if not savedPromiseForTimeoutCheck.completed()
           , 5000
 #      else
-#        console.warn "#{ @debug 'browserInit::duplicate!!' }" if not @_delayedRender
+#        _console.warn "#{ @debug 'browserInit::duplicate!!' }" if not @_delayedRender
       @_widgetReadyPromise
 
 
@@ -1476,7 +1476,7 @@ define [
               throw "Extend must have 'type' param defined!"
 
             if params.placeholder?
-              console.log "WARNING: 'placeholder' param is useless for 'extend' section"
+              _console.warn "WARNING: 'placeholder' param is useless for 'extend' section"
 
             require [
               "cord-w!#{ params.type }@#{ @getBundle() }"
@@ -1498,7 +1498,7 @@ define [
                   if err then throw err
                   chunk.end ""
               else
-                console.log "WARNING: Extending widget #{ params.type } with nothing!"
+                _console.warn "WARNING: Extending widget #{ params.type } with nothing!"
                 chunk.end ""
 
         #
@@ -1584,4 +1584,4 @@ define [
                 else
                   throw "inlines are not allowed outside surrounding widget [#{ @constructor.name }(#{ @ctx.id })]"
               else
-                console.log "Warning: empty inline in widget #{ @constructor.name }(#{ @ctx.id })"
+                _console.warn "Warning: empty inline in widget #{ @constructor.name }(#{ @ctx.id })"
