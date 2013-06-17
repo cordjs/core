@@ -421,7 +421,7 @@ define [
       # in situation when newList is empty, we must emit change event
       changed = true if newList.length == 0 and oldListCount != 0
 
-      @emit 'change' if changed
+      @emit 'change', {start: start, end: end} if changed
 
       if not (start? and end?)
         @_totalCount = newList.length
