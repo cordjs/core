@@ -30,6 +30,9 @@ define [
         ###
           Конфиги
         ###
+        global.appConfig.browser.calculateByRequest?(req)
+        config = global.config
+
         widgetRepo = new WidgetRepo
 
         clear = =>
@@ -39,7 +42,6 @@ define [
           serviceContainer = null
           widgetRepo = null
 
-        config = global.config
         config.api =
           protocol: config.api.protocol
           host: config.api.getHostByRequest(req)
