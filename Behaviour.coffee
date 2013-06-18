@@ -91,20 +91,14 @@ define [
       ###
       makeSafeCallback = (callback) ->
         result = () ->
-          result.functor.apply(this, arguments)
-          
-        result.cleared = false
-        
-        result.functor = () ->
           if !result.cleared
             callback.apply(this, arguments)
-
+        result.cleared = false
+        
         result
 
       safeCallback = makeSafeCallback(callback)
-
       @_callbacks.push safeCallback
-
       safeCallback
 
 
