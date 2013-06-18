@@ -32,7 +32,7 @@ define [
         ###
         widgetRepo = new WidgetRepo
 
-        clear = ()=>
+        clear = =>
           serviceContainer.eval 'oauth2', (oauth2) =>
             oauth2.clear()
 
@@ -42,8 +42,8 @@ define [
         config = global.config
         config.api =
           protocol: config.api.protocol
-          host: config.api.host
-          urlPrefix: config.api.urlPrefix
+          host: config.api.getHostByRequest(req)
+          urlPrefix: config.api.getUrlPrefixByRequest(req)
           getUserPasswordCallback: (callback) ->
             if serviceContainer
               response = serviceContainer.get 'serverResponse'
@@ -63,7 +63,7 @@ define [
           clientId: config.oauth2.clientId
           secretKey: config.oauth2.secretKey
           endpoints:
-            accessToken: config.oauth2.endpoints.accessToken
+            accessToken: config.oauth2.endpoints.getAccessTokenByRequest(req)
 
         serviceContainer.set 'config', config
 

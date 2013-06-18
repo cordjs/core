@@ -64,7 +64,7 @@ define [
       config = global.config
       api:
         protocol: config.api.protocol
-        host: config.api.host
+        host: window.location.host
         urlPrefix: config.api.urlPrefix
         getUserPasswordCallback: (callback) =>
           backPath = window.location.pathname
