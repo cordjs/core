@@ -62,20 +62,11 @@ define [
 
     serviceContainer.def 'config', ->
       config = global.config
-      api:
-        protocol: config.api.protocol
-        host: window.location.host
-        urlPrefix: config.api.urlPrefix
-        getUserPasswordCallback: (callback) =>
-          backPath = window.location.pathname
-          backPath = '/' if backPath.indexOf('user/login') >= 0 or backPath.indexOf('user/logout') >= 0
-          clientSideRouter.navigate '/user/login/?back=' + window.location.pathname
-      ecomet: config.ecomet
-      oauth2:
-        clientId: config.oauth2.clientId
-        secretKey: config.oauth2.secretKey
-        endpoints:
-          accessToken: config.oauth2.endpoints.accessToken
+      config.api.getUserPasswordCallback = (callback) =>
+        backPath = window.location.pathname
+        backPath = '/' if backPath.indexOf('user/login') >= 0 or backPath.indexOf('user/logout') >= 0
+        clientSideRouter.navigate '/user/login/?back=' + window.location.pathname
+      config
 
     ###
       Это надо перенести в более кошерное место

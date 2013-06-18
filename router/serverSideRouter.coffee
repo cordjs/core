@@ -31,7 +31,7 @@ define [
           Конфиги
         ###
         global.appConfig.browser.calculateByRequest?(req)
-        config = global.config
+        global.appConfig.node.calculateByRequest?(req)
 
         widgetRepo = new WidgetRepo
 
@@ -42,30 +42,21 @@ define [
           serviceContainer = null
           widgetRepo = null
 
-        config.api =
-          protocol: config.api.protocol
-          host: config.api.getHostByRequest(req)
-          urlPrefix: config.api.getUrlPrefixByRequest(req)
-          getUserPasswordCallback: (callback) ->
-            if serviceContainer
-              response = serviceContainer.get 'serverResponse'
-              request = serviceContainer.get 'serverRequest'
-              if !response.alreadyRelocated
-                response.shouldKeepAlive = false
-                response.alreadyRelocated = true
-                response.writeHead 302,
-                  "Location": '/user/login/?back=' + request.url
-                  "Cache-Control" : "no-cache, no-store, must-revalidate"
-                  "Pragma": "no-cache"
-                  "Expires": 0
-                response.end()
-                clear()
-
-        config.oauth2 =
-          clientId: config.oauth2.clientId
-          secretKey: config.oauth2.secretKey
-          endpoints:
-            accessToken: config.oauth2.endpoints.getAccessTokenByRequest(req)
+        config = global.config
+        config.api.getUserPasswordCallback = (callback) ->
+          if serviceContainer
+            response = serviceContainer.get 'serverResponse'
+            request = serviceContainer.get 'serverRequest'
+            if !response.alreadyRelocated
+              response.shouldKeepAlive = false
+              response.alreadyRelocated = true
+              response.writeHead 302,
+                "Location": '/user/login/?back=' + request.url
+                "Cache-Control" : "no-cache, no-store, must-revalidate"
+                "Pragma": "no-cache"
+                "Expires": 0
+              response.end()
+              clear()
 
         serviceContainer.set 'config', config
 
