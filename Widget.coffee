@@ -260,14 +260,22 @@ define [
         @ctx.set 'apiResult', result
       ###
       makeSafeCallback = (callback) ->
-        cleared = false
-        ()->
-          if !cleared
+        result = () ->
+          result.functor.apply(this, arguments)
+
+        result.cleared = false
+
+        result.functor = () ->
+          if !result.cleared
             callback.apply(this, arguments)
 
-      result = makeSafeCallback callback
-      @_callbacks.push result
-      result
+        result
+
+      safeCallback = makeSafeCallback(callback)
+
+      @_callbacks.push safeCallback
+
+      safeCallback
 
     clearCallbacks: ->
       callback.cleared = true for callback in @_callbacks
