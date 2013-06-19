@@ -59,7 +59,7 @@ define [
     restoreTokens: (callback) ->
       # Возвращаем из локального кеша
       if @accessToken and @refreshToken
-        _console.log "Restore tokens from local cache: #{@accessToken}, #{@refreshToken}"
+        _console.log "Restore tokens from local cache: #{@accessToken}, #{@refreshToken}" if global.config.debug.oauth2
         callback @accessToken, @refreshToken
       else
         @serviceContainer.eval 'cookie', (cookie) =>
@@ -71,7 +71,7 @@ define [
           @refreshToken = refreshToken
           @scope = scope
 
-          _console.log "Restore tokens: #{accessToken}, #{refreshToken}"
+          _console.log "Restore tokens: #{accessToken}, #{refreshToken}" if global.config.debug.oauth2
 
           callback @accessToken, @refreshToken
 
