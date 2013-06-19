@@ -19,7 +19,7 @@ exports.services = services =
 `_console = console`
 
 
-exports.init = (baseUrl = 'public', configName = 'default') ->
+exports.init = (baseUrl = 'public', configName = 'default', serverPort = 1337) ->
   requirejs.config
     baseUrl: baseUrl
     nodeRequire: require
@@ -59,7 +59,7 @@ exports.init = (baseUrl = 'public', configName = 'default') ->
     `_console = _console`
 
     Rest.host = global.config.server.host
-    Rest.port = global.config.server.port
+    Rest.port = serverPort
 
     startServer ->
       timeLog "Server running at http://#{ Rest.host }:#{ Rest.port }/"
