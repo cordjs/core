@@ -59,7 +59,7 @@ exports.init = (baseUrl = 'public', configName = 'default', serverPort = 1337) -
     `_console = _console`
 
     Rest.host = global.config.server.host
-    Rest.port = serverPort
+    Rest.port = if global.config.server.port then global.config.server.host else serverPort
 
     startServer ->
       timeLog "Server running at http://#{ Rest.host }:#{ Rest.port }/"
