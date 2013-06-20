@@ -38,28 +38,34 @@ exports.init = (baseUrl = 'public', configName = 'default', serverPort = 1337) -
     services.fileServer = new serverStatic.Server(baseUrl)
     services.xdrProxy = xdrProxy
 
+    # Loading configuration
     try
       services.config = require pathDir + '/conf/' + configName
-      timeLog "Loaded config from " + pathDir + '/conf/' + configName
+      timeLog "Loaded config from " + pathDir + '/conf/' + configName + '.js'
     catch e
       services.config = {}
-      timeLog "Fail loading config from " + pathDir + '/conf/' + configName + " with error " + e
+      timeLog "Fail loading config from " + pathDir + '/conf/' + configName + ".js with error " + e
 
+    # Merge node and browser configuration with common (defaults)
     common = _.clone services.config.common
     services.config.node = _.extend common, services.config.node
 
     common = _.clone services.config.common
     services.config.browser = _.extend common, services.config.browser
 
-    delete services.config.common
+    # Redefine server port if port defined in command line parameter
+    services.config.node.server.port = serverPort if serverPort
 
+    # Remove defaul configuration
+    delete services.config.common
     global.appConfig = services.config
+
     global.config = services.config.node
 
     `_console = _console`
 
     Rest.host = global.config.server.host
-    Rest.port = if global.config.server.port then global.config.server.port else serverPort
+    Rest.port = global.config.server.port
 
     startServer ->
       timeLog "Server running at http://#{ Rest.host }:#{ Rest.port }/"
