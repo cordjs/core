@@ -45,12 +45,11 @@ define [
     @_collectionVersion: '0.03'
 
 
-    @generateName: (options, forIdProbe) ->
+    @generateName: (options) ->
       ###
       Generates and returns unique "checksum" name of a collection depending only of the given options.
        This allows to reuse collections with the totally same options instead of duplicating them.
       @param Object options same options, that will be passed to the collection constructor
-      @param bool forIdProbe - generate name for searching model in already created collections
       @return String
       ###
       orderBy = options.orderBy ? 'id'
@@ -71,10 +70,7 @@ define [
       id = options.id ? 0
       pageSize = if options.pageSize then options.pageSize else ''
 
-      if forIdProbe
-        (Collection._collectionVersion + '|' + fields.sort().join(',') + '|' + calc.sort().join(',')).replace(/\:/g, '')
-      else
-        (Collection._collectionVersion + '|' + fields.sort().join(',') + '|' + calc.sort().join(',') + '|' + filterId + '|' + filter + '|' + orderBy + '|' + id + '|' + requestOptions + '|' + pageSize).replace(/\:/g, '')
+      (Collection._collectionVersion + '|' + fields.sort().join(',') + '|' + calc.sort().join(',') + '|' + filterId + '|' + filter + '|' + orderBy + '|' + id + '|' + requestOptions + '|' + pageSize).replace(/\:/g, '')
 
 
     constructor: (@repo, @name, options) ->
@@ -93,7 +89,6 @@ define [
         @_fillModelList [options.model]
         @_orderBy = 'id'
         @_filterId = null
-        @_fields = options.fields ? []
         @_id = options.model.id
         @_filter = {}
       else
@@ -102,6 +97,12 @@ define [
         @_id = options.id ? 0
         @_filter = options.filter ? {}
         @_pageSize = options.pageSize ? 0
+
+      #special case - fixed collections, when model are already provided and we have no need to do anything with them
+      if options.fixed && options.models
+        @_fixed = true
+        @_byId = options.models
+        @_models = _.values options.models
 
       @_requestParams = options.requestParams ? {}
 
@@ -145,6 +146,13 @@ define [
         start = end = undefined
       returnMode ?= ':sync'
       cacheMode = (returnMode == ':cache')
+
+      #Special case - fixed collection
+      if @_fixed
+        resultPromise = Future.single()
+        resultPromise.resolve(this)
+        callback?(this)
+        return resultPromise
 
       # this future is resolved by cache results or server results - which come first
       firstResultPromise = Future.single()
@@ -214,6 +222,28 @@ define [
       resultPromise.done =>
         callback?(this)
 
+
+    scanModels: (scannedFields, searchedText, limit) ->
+      ###
+      Scans models in current collection for searched Text in scannedFields and return object of their clones
+      @param Array scannedFields - fields to be scanned
+      @param String searchedText - searched text
+      @return object { <id>: <model>, ... }
+      ###
+      result = {}
+      return result if !searchedText
+      amount = 0
+      
+      for model in @_models
+        for fieldName in scannedFields
+          if model[fieldName] && !result[model.id] && String(model[fieldName]).indexOf(searchedText) > -1
+            result[model.id] = _.clone model
+            break
+        if limit && amount >= limit
+          break
+      result
+
+
     have: (id) ->
       !!@_byId[id]
 
@@ -271,6 +301,11 @@ define [
       @param int currentId - id of currently used model (selected or showed),
       if currentId and pageSize are defined, refresh will start from page, containing the currentId model, going up and down
       ###
+
+      #Special case - fixed collections, no need to sync or refresh
+      if @_fixed
+        return
+
       if @_refreshInProgress == true
         return
 
