@@ -5,12 +5,14 @@ define [
   'cord!utils/Future'
   'postal'
   'underscore'
-], (Collection, Model, Defer, Future, postal, _) ->
+  'cord!Console'
+], (Collection, Model, Defer, Future, postal, _, _console) ->
 
   class Context
 
     constructor: (arg1, arg2) ->
-      @[':internal'] = version: 0
+      @[':internal'] = {}
+      @[':internal'].version = 0
       if typeof arg1 is 'object'
         for key, value of arg1
           @[key] = value
@@ -78,7 +80,7 @@ define [
       else
         triggerChange = false
 
-#      console.log "setSingle -> #{ name } = #{ newValue } (oldValue = #{ @[name] }) trigger = #{ triggerChange } -> #{ (new Date).getTime() }"
+#      _console.log "setSingle -> #{ name } = #{ newValue } (oldValue = #{ @[name] }) trigger = #{ triggerChange } -> #{ (new Date).getTime() }"
 
       # never change value to 'undefined' (don't mix up with 'null' value)
       @[name] = newValue if newValue != undefined
@@ -97,7 +99,7 @@ define [
             cursor: cursor
             version: curVersion
         Defer.nextTick =>
-          console.log "publish widget.#{ @id }.change.#{ name }" if global.CONFIG.debug?.widget
+          _console.log "publish widget.#{ @id }.change.#{ name }" if global.config.debug.widget
           postal.publish "widget.#{ @id }.change.#{ name }",
             name: name
             value: newValue
@@ -152,7 +154,7 @@ define [
        so child widget's and behaviour will miss context changing which ocasionally happens during that time.
       @browser-only
       ###
-      if @[':internal'].stash
+      if @[':internal'].stash and @[':internal'].stash.length
         Defer.nextTick =>
           for ev in @[':internal'].stash
             postal.publish "widget.#{ ev.id }.change.#{ ev.name }",
@@ -204,6 +206,6 @@ define [
     _initDeferredDebug: (name) ->
       if @[name] == ':deferred'
         setTimeout =>
-          console.error '### Deferred timeout', name, @id if @[name] == ':deferred'
+          _console.error '### Deferred timeout', name, @id if @[name] == ':deferred'
         , 20000
 

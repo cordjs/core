@@ -47,9 +47,9 @@ define [
         scope: scope
 
       if @refreshTokenRequested
-        console.log "========================================================================"
-        console.log "Refresh token already requested"
-        console.log "========================================================================"
+        _console.log "========================================================================"
+        _console.log "Refresh token already requested"
+        _console.log "========================================================================"
 
       return if @refreshTokenRequested or @deferredRefreshTokenCallbacks.length == 0
 
@@ -70,9 +70,9 @@ define [
             @deferredRefreshTokenCallbacks = []
 
           else
-            console.log 'Cannot refresh token (('
+            _console.log 'Cannot refresh token (('
             setTimeout () =>
-              console.log 'Recall refresh token'
+              _console.log 'Recall refresh token'
               @grantAccessTokenByRefreshToken refreshToken
             , 500
 

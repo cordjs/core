@@ -11,62 +11,72 @@ configPaths   = require './configPaths'
 
 pathDir   = fs.realpathSync '.'
 
-try global.CONFIG = require pathDir + '/conf/serverConf.json'
-catch e
- global.CONFIG = {}
-
-try global.CONFIG_CLIENT = require pathDir + '/conf/clientConf.json'
-catch e
-  global.CONFIG_CLIENT = {}
-
-
 exports.services = services =
   nodeServer: null
   fileServer: null
   router: null
 
+# Defaulting to standard console.
+# Using javascript here to change global variable.
+`_console = console`
 
-exports.init = (baseUrl = 'public', configName = 'default') ->
+
+exports.init = (baseUrl = 'public', configName = 'default', serverPort = 1337) ->
   requirejs.config
     baseUrl: baseUrl
     nodeRequire: require
 
   requirejs.config configPaths
   requirejs [
-    'cord!appManager'
-    'cord!Rest'
+    'cord!AppConfigLoader'
     'cord!configPaths'
+    'cord!Console'
+    'cord!Rest'
     'cord!request/xdrProxy'
+    'cord!router/serverSideRouter'
     'underscore'
-  ], (router, Rest, configPaths, xdrProxy, _) ->
+  ], (AppConfigLoader, configPaths, _console, Rest, xdrProxy, router, _) ->
     configPaths.PUBLIC_PREFIX = baseUrl
     services.router = router
     services.fileServer = new serverStatic.Server(baseUrl)
     services.xdrProxy = xdrProxy
 
+    # Loading configuration
     try
       services.config = require pathDir + '/conf/' + configName
-      timeLog "Loaded config from " + pathDir + '/conf/' + configName
+      timeLog "Loaded config from " + pathDir + '/conf/' + configName + '.js'
     catch e
       services.config = {}
-      timeLog "Fail loading config from " + pathDir + '/conf/' + configName + " with error " + e
+      timeLog "Fail loading config from " + pathDir + '/conf/' + configName + ".js with error " + e
 
+    # Merge node and browser configuration with common (defaults)
     common = _.clone services.config.common
     services.config.node = _.extend common, services.config.node
 
     common = _.clone services.config.common
     services.config.browser = _.extend common, services.config.browser
 
+    # Redefine server port if port defined in command line parameter
+    services.config.node.server.port = serverPort if serverPort
+
+    # Remove defaul configuration
     delete services.config.common
+    global.appConfig = services.config
 
-    global.config = services.config
+    global.config = services.config.node
 
-    Rest.host = global.config.node.server.host
-    Rest.port = global.config.node.server.port
+    # Using javascript here to change global variable.
+    `_console = _console`
 
-    startServer ->
-      timeLog "Server running at http://#{ Rest.host }:#{ Rest.port }/"
-      timeLog "Current directory: #{ process.cwd() }"
+    Rest.host = global.config.server.host
+    Rest.port = global.config.server.port
+
+    AppConfigLoader.ready().done (appConfig) ->
+      router.addRoutes(appConfig.routes)
+
+      startServer ->
+        timeLog "Server running at http://#{ Rest.host }:#{ Rest.port }/"
+        timeLog "Current directory: #{ process.cwd() }"
 
 
 exports.startServer = startServer = (callback) ->
@@ -82,7 +92,7 @@ exports.startServer = startServer = (callback) ->
             else
               res.writeHead err.status, err.headers;
               res.end()
-  .listen(services.config.node.server.port)
+  .listen(global.config.server.port)
   callback?()
 
 exports.restartServer = restartServer = ->

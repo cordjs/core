@@ -187,6 +187,11 @@ define [
 
     getTemplateCode: ->
       """
+      <script>
+        var global = {
+          config: #{ JSON.stringify(global.appConfig.browser) }
+        };
+      </script>
       <script data-main="/bundles/cord/core/browserInit" src="/vendor/requirejs/require.js"></script>
       <script>
           function cordcorewidgetinitializerbrowser(wi) {
@@ -199,14 +204,6 @@ define [
               });
             });
           };
-      </script>
-      <script>
-        var global = {
-          config: {
-            browser: #{ JSON.stringify(global.config.browser) }
-          },
-          CONFIG: #{ JSON.stringify(global.CONFIG_CLIENT) }
-        };
       </script>
       """
 
@@ -340,7 +337,7 @@ define [
             else
               params[paramName] = data.value
 
-#            console.log "#{ envelope.topic } -> #{ childWidget.debug(paramName) } -> #{ data.value }"
+#            _console.log "#{ envelope.topic } -> #{ childWidget.debug(paramName) } -> #{ data.value }"
             deferAggregator.setWidgetParams childWidget, params
       childWidget.addSubscription subscription
       subscription
@@ -357,7 +354,7 @@ define [
       @param PageTransition transition page transition support object which contains information about transition and
                                        triggers events related to transition process
       ###
-      console.log "WidgetRepo::transitPage -> current root = #{ @rootWidget.debug() }" if global.CONFIG.debug?.widget
+      _console.log "WidgetRepo::transitPage -> current root = #{ @rootWidget.debug() }" if global.config.debug.widget
 
       # interrupting previous transition if it's not completed
       @_curTransition.interrupt() if @_curTransition? and @_curTransition.isActive()

@@ -51,7 +51,7 @@ define [
         success &= cookie.set 'oauthScope', @getScope(),
           expires: 14
 
-        console.log "Store tokens: #{accessToken}, #{refreshToken}" if global.CONFIG.debug?.oauth2
+        _console.log "Store tokens: #{accessToken}, #{refreshToken}"
 
         callback @accessToken, @refreshToken if success
 
@@ -59,7 +59,7 @@ define [
     restoreTokens: (callback) ->
       # Возвращаем из локального кеша
       if @accessToken and @refreshToken
-        console.log "Restore tokens from local cache: #{@accessToken}, #{@refreshToken}" if global.CONFIG.debug?.oauth2
+        _console.log "Restore tokens from local cache: #{@accessToken}, #{@refreshToken}" if global.config.debug.oauth2
         callback @accessToken, @refreshToken
       else
         @serviceContainer.eval 'cookie', (cookie) =>
@@ -71,7 +71,7 @@ define [
           @refreshToken = refreshToken
           @scope = scope
 
-          console.log "Restore tokens: #{accessToken}, #{refreshToken}" if global.CONFIG.debug.oauth2
+          _console.log "Restore tokens: #{accessToken}, #{refreshToken}" if global.config.debug.oauth2
 
           callback @accessToken, @refreshToken
 
@@ -160,7 +160,7 @@ define [
                   #Post could make duplicates
                   if method != 'post' && requestParams.reconnect != false && (!error.statusCode || error.statusCode == 500) && requestParams.deepCounter < 10
                     requestParams.deepCounter = if ! requestParams.deepCounter then 1 else requestParams.deepCounter + 1
-                    console.log requestParams.deepCounter + " Repeat request in 0.5s", requestUrl
+                    _console.log requestParams.deepCounter + " Repeat request in 0.5s", requestUrl
                     setTimeout doRequest, 500
                   else
                     message = 'Ошибка' + (if error.statusCode != undefined then (' ' + error.statusCode)) + ': ' + message

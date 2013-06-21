@@ -61,7 +61,7 @@ define [
       @param (optional)Boolean|Object options if last argument is boolean, than it's treated as options.trigger
                                               if last argument is Object, than it's treated as options
       ###
-      console.clear()
+      _console.clear()
       options = {}
       lastArg = args[args.length - 1]
       if typeof lastArg is 'object'
@@ -93,12 +93,15 @@ define [
         @process(newPath) unless newPath == @currentPath
 
       self = this
-      $(document).on 'click', 'a:not([data-bypass])', (evt) ->
+      $(document).on 'click', 'a:not([data-bypass])', (event) ->
+        # Default behaviour for anchors if any modification key pressed
+        return if event.metaKey or event.ctrlKey or event.altKey or event.shiftKey
+
         href = $(this).prop('href')
         root = location.protocol + '//' + location.host
 
         if href and href.slice(0, root.length) == root and href.indexOf("javascript:") != 0
-          evt.preventDefault()
+          event.preventDefault()
           self.navigate href.slice(root.length), true
 
 

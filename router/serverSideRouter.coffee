@@ -1,10 +1,11 @@
 define [
-  'url'
-  'cord!/cord/core/router/Router'
-  'cord!WidgetRepo'
+  'cord!AppConfigLoader'
+  'cord!router/Router'
   'cord!ServiceContainer'
+  'cord!WidgetRepo'
   'underscore'
-], (url, Router, WidgetRepo, ServiceContainer, _) ->
+  'url'
+], (AppConfigLoader, Router, ServiceContainer, WidgetRepo, _, url) ->
 
   class ServerSideRouter extends Router
 
@@ -30,114 +31,57 @@ define [
         ###
           Конфиги
         ###
+        global.appConfig.browser.calculateByRequest?(req)
+        global.appConfig.node.calculateByRequest?(req)
+
         widgetRepo = new WidgetRepo
 
-        clear = ()=>
+        clear = =>
           serviceContainer.eval 'oauth2', (oauth2) =>
             oauth2.clear()
 
           serviceContainer = null
           widgetRepo = null
 
-        config = global.config.node
-        config.api =
-          protocol: config.api.protocol
-          host: config.api.host
-          urlPrefix: config.api.urlPrefix
-          getUserPasswordCallback: (callback) ->
-            if serviceContainer
-              response = serviceContainer.get 'serverResponse'
-              request = serviceContainer.get 'serverRequest'
-              if !response.alreadyRelocated
-                response.shouldKeepAlive = false
-                response.alreadyRelocated = true
-                response.writeHead 302,
-                  "Location": '/user/login/?back=' + request.url
-                  "Cache-Control" : "no-cache, no-store, must-revalidate"
-                  "Pragma": "no-cache"
-                  "Expires": 0
-                response.end()
-                clear()
-
-        config.oauth2 =
-          clientId: config.oauth2.clientId
-          secretKey: config.oauth2.secretKey
-          endpoints:
-            accessToken: config.oauth2.endpoints.accessToken
+        config = global.config
+        config.api.getUserPasswordCallback = (callback) ->
+          if serviceContainer
+            response = serviceContainer.get 'serverResponse'
+            request = serviceContainer.get 'serverRequest'
+            if !response.alreadyRelocated
+              response.shouldKeepAlive = false
+              response.alreadyRelocated = true
+              response.writeHead 302,
+                "Location": '/user/login/?back=' + request.url
+                "Cache-Control" : "no-cache, no-store, must-revalidate"
+                "Pragma": "no-cache"
+                "Expires": 0
+              response.end()
+              clear()
 
         serviceContainer.set 'config', config
 
-        ###
-          Это надо перенести в более кошерное место
-        ###
-        serviceContainer.def 'request', (get, done) ->
-          requirejs ['cord!/cord/core/request/ServerRequest'], (Request) ->
-            done null, new Request serviceContainer
-
-        serviceContainer.def 'cookie', (get, done) ->
-          requirejs ['cord!/cord/core/cookie/ServerCookie'], (Cookie) ->
-            done null, new Cookie serviceContainer
-
-        serviceContainer.def 'oauth2', ['config'], (get, done) ->
-          requirejs ['cord!/cord/core/OAuth2'], (OAuth2) ->
-            done null, new OAuth2 serviceContainer, get('config').oauth2
-
-        serviceContainer.def 'api', ['config'], (get, done) ->
-          requirejs ['cord!/cord/core/Api'], (Api) ->
-            done null, new Api serviceContainer, get('config').api
-
-        serviceContainer.def 'user', ['api'], (get, done) ->
-          get('api').get 'employee/current/?_extra=user.id', (response) =>
-            done null, response
-
-        serviceContainer.def 'inboxRepo', (get, done) ->
-          requirejs ['cord-m!/megaplan/front/inbox//InboxRepo'], (InboxRepo) ->
-            done null, new InboxRepo(serviceContainer)
-
-        serviceContainer.def 'discussRepo', (get, done) ->
-          requirejs ['cord-m!/megaplan/front/talks//DiscussRepo'], (DiscussRepo) ->
-            done null, new DiscussRepo(serviceContainer)
-
-        serviceContainer.def 'discussFilterRepo', (get, done) ->
-          requirejs ['cord-m!/megaplan/front/talks//DiscussFilterRepo'], (DiscussFilterRepo) ->
-            done null, new DiscussFilterRepo(serviceContainer)
-
-        serviceContainer.def 'taskRepo', (get, done) ->
-          requirejs ['cord-m!/megaplan/front/tasks//TaskRepo'], (TaskRepo) ->
-            done null, new TaskRepo(serviceContainer)
-
-        serviceContainer.def 'taskFilterRepo', (get, done) ->
-          requirejs ['cord-m!/megaplan/front/tasks//TaskFilterRepo'], (TaskFilterRepo) ->
-            done null, new TaskFilterRepo(serviceContainer)
-
-        serviceContainer.def 'taskListRepo', (get, done) ->
-          requirejs ['cord-m!/megaplan/front/tasks//TaskListRepo'], (TaskListRepo) ->
-            done null, new TaskListRepo(serviceContainer)
-
-        serviceContainer.def 'staffRepo', (get, done) ->
-          requirejs ['cord-m!/megaplan/front/staff//StaffRepo'], (StaffRepo) ->
-            done null, new StaffRepo(serviceContainer)
-
-        ###
-        ###
-
         serviceContainer.set 'widgetRepo', widgetRepo
-        widgetRepo.setServiceContainer serviceContainer
+        widgetRepo.setServiceContainer(serviceContainer)
 
-        widgetRepo.setRequest req
-        widgetRepo.setResponse res
-        widgetRepo.createWidget rootWidgetPath, (rootWidget) ->
-          rootWidget._isExtended = true
-          widgetRepo.setRootWidget rootWidget
+        widgetRepo.setRequest(req)
+        widgetRepo.setResponse(res)
 
-          rootWidget.show params, (err, output) ->
-            if err then throw err
-            #prevent browser to use the same connection
-            res.shouldKeepAlive = false
-            res.writeHead 200, 'Content-Type': 'text/html'
-            res.end output
-            # todo: may be need some cleanup before?
-            clear()
+        AppConfigLoader.ready().done (appConfig) ->
+          serviceContainer.def(serviceName, info.deps, info.factory) for serviceName, info of appConfig.services
+
+          widgetRepo.createWidget rootWidgetPath, (rootWidget) ->
+            rootWidget._isExtended = true
+            widgetRepo.setRootWidget(rootWidget)
+
+            rootWidget.show params, (err, output) ->
+              if err then throw err
+              #prevent browser to use the same connection
+              res.shouldKeepAlive = false
+              res.writeHead 200, 'Content-Type': 'text/html'
+              res.end(output)
+              # todo: may be need some cleanup before?
+              clear()
 
         true
       else

@@ -49,6 +49,7 @@ define [
       @delegateEvents(@events)          if @events
       @initWidgetEvents(@widgetEvents)  if @widgetEvents
       @refreshElements()                if @elements
+      @_callbacks = []
 
       Defer.nextTick => @initiateInit()
 
@@ -81,6 +82,29 @@ define [
     addSubscription: (subscriptionDef) ->
       @_widgetSubscriptions.push subscriptionDef
 
+    getCallback: (callback) =>
+      ###
+      Register callback and clear it in case of object destruction or clearCallbacks invocation
+      Need to be used, when reference to the widget object (@) is used inside a callback, for instance:
+      api.get Url, Params, @getCallback (result) =>
+        @ctx.set 'apiResult', result
+      ###
+      makeSafeCallback = (callback) ->
+        result = () ->
+          if !result.cleared
+            callback.apply(this, arguments)
+        result.cleared = false
+        
+        result
+
+      safeCallback = makeSafeCallback(callback)
+      @_callbacks.push safeCallback
+      safeCallback
+
+
+    clearCallbacks: ->
+      callback.cleared = true for callback in @_callbacks
+      @_callbacks = []
 
     delegateEvents: (events) ->
       for key, method of events
@@ -199,6 +223,8 @@ define [
       @el.off()#.remove()
       @el = @$el = null
 
+      @clearCallbacks()
+
 
     html: (element) ->
       @el.html(element.el or element)
@@ -242,7 +268,7 @@ define [
       @widget.sentenceChildrenToDeath()
       @defer 'render', =>
         if @widget?
-          console.log "#{ @widget.debug 're-render' }"
+          _console.log "#{ @widget.debug 're-render' }"
           # renderTemplate will clean this behaviour, so we must save links...
           widget = @widget
           widget.renderTemplate (err, out) ->

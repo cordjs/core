@@ -122,7 +122,7 @@ define [
       if syncMode == ':cache' || syncMode == ':cache-async'
         model = @probeCollectionsForModel(id, fields)
         if model
-          console.log 'debug: buildSingleModel found in an existing collection'
+          _console.log 'debug: buildSingleModel found in an existing collection'
           options =
              fields: fields
              id: model.id
@@ -132,7 +132,7 @@ define [
           callback(collection.get(id))
           return collection
         else
-          console.log 'debug: buildSingleModel missed in existing collections :('
+          _console.log 'debug: buildSingleModel missed in existing collections :('
 
       syncMode = ':async' if syncMode == ':cache-async'
       collection = @createSingleModel(id, fields)
@@ -149,19 +149,53 @@ define [
       @param Array[String] fields list of fields names for a model
       @return Object|null - model or null if not found
       ###
-      options=
-        id: id
-        fields: fields
-      probeName = Collection.generateName(options, true)
-
-      matchedCollections = _.filter @_collections, (collection, key) ->
-        key.substr(0, probeName.length) == probeName
+      if (_.isArray fields)
+        matchedCollections = @scanCollections(fields)
+      else
+        matchedCollections = @_collections
 
       for collection in matchedCollections
         if collection.have(id)
           return collection.get(id)
 
       null
+
+    scanCollections: (scannedFields) ->
+      _.filter @_collections, (collection, key) ->
+        found = 0
+        for field in scannedFields
+          if _.indexOf(collection._fields, field) > -1 || field == 'id'
+            found += 1
+        if found == scannedFields.length then true else false
+
+
+
+    scanLoadedModels: (scannedFields, searchedText, limit) ->
+      ###
+      Scans existing collections for models, containing searchedText
+      @param Array[String] scannedFields - model fields to be scanned, only collections, having all the fields will be scanned
+      @param String searchedText - 
+      ###
+      options=
+        fields: scannedFields
+
+
+      matchedCollections = @scanCollections(scannedFields)
+      result = {}
+      for collection in matchedCollections
+        foundModels = collection.scanModels scannedFields, searchedText, limit
+        result = _.extend result, foundModels
+        if limit
+          limit -= _.size foundModels
+          if limit <= 0
+            break
+
+      options =
+        fixed: true
+        models: result
+        fields: scannedFields
+
+      collection = new Collection(this, 'fixed', options)
 
 
     getCollection: (name, returnMode, callback) ->
@@ -388,7 +422,7 @@ define [
       @return Model
       ###
       result = new @model(attrs)
-      @_injectActionMethods(result) if attrs.id
+      @_injectActionMethods(result) if attrs?.id
       result
 
 
@@ -441,7 +475,7 @@ define [
           result.resolve()
 
           result.fail (error) ->
-            console.error "cacheCollection failed: ", error
+            _console.error "cacheCollection failed: ", error
       else
         result.reject("ModelRepo::cacheCollection is not applicable on server-side!")
 
