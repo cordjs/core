@@ -1202,7 +1202,7 @@ define [
       @browser-only
       @param jQuery $domRoot injected DOM root for the widget
       ###
-      promise = new Future
+      promise = new Future(1)
       if @behaviour?
         @behaviour.clean()
         @behaviour = null
@@ -1210,13 +1210,15 @@ define [
       behaviourClass = @getBehaviourClass()
 
       if behaviourClass
-        promise.fork()
         require ["cord!/#{ @getDir() }/#{ behaviourClass }"], (BehaviourClass) =>
           if BehaviourClass instanceof Function
             @behaviour = new BehaviourClass(this, $domRoot)
           else
             _console.error 'WRONG BEHAVIOUR CLASS:', behaviourClass
           promise.resolve()
+      else
+        promise.resolve()
+        
       promise
 
 
@@ -1275,8 +1277,8 @@ define [
 
           @initBehaviour($domRoot).done =>
             @ctx.replayStashedEvents()
-
-          @_widgetReadyPromise.resolve()
+            @_widgetReadyPromise.resolve()
+          
           @_widgetReadyPromise.done =>
             @emit 'render.complete'
 

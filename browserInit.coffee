@@ -35,6 +35,8 @@ require.config
       exports: 'dust'
     'underscore':
       exports: '_'
+    'jquery.ui.selectionMenu':
+      deps: ['jquery.ui']
 
 
 define [
