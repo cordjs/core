@@ -164,7 +164,7 @@ define [
       _.filter @_collections, (collection, key) ->
         found = 0
         for field in scannedFields
-          if _.indexOf(collection._fields, field) > -1
+          if _.indexOf(collection._fields, field) > -1 || field == 'id'
             found += 1
         if found == scannedFields.length then true else false
 
