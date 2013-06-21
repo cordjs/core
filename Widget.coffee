@@ -695,6 +695,7 @@ define [
                 if _.isObject @ctx[value]
                   for subName, subValue of @ctx[value]
                     params[subName] = subValue
+                  @widgetRepo.subscribePushBinding(@ctx.id, value, widget, 'params', @ctx.getVersion()) if isBrowser
                 else
                   # todo: warning?
               else
@@ -1231,7 +1232,7 @@ define [
           promise.resolve()
       else
         promise.resolve()
-        
+
       promise
 
 
@@ -1291,7 +1292,7 @@ define [
           @initBehaviour($domRoot).done =>
             @ctx.replayStashedEvents()
             @_widgetReadyPromise.resolve()
-          
+
           @_widgetReadyPromise.done =>
             @emit 'render.complete'
 
