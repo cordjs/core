@@ -144,7 +144,7 @@ define [
           requestParams.access_token = accessToken
 
           @serviceContainer.eval 'request', (request) =>
-            doRequest = ()=>
+            doRequest = =>
               request[method] requestUrl, requestParams, (response, error) =>
                 if response?.error == 'invalid_grant'
                   return processRequest null, refreshToken

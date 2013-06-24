@@ -48,10 +48,4 @@ define [
 
     # read all data from the browser request and pass it to the target server
     req.on 'data', (chunk) -> proxyReq.write(chunk)
-
-    req.on 'end', -> 
-      #Make your code robust.
-#      if (r = Math.random()*10) > 5
-#        proxyReq.abort()
-      
-      proxyReq.end()
+    req.on 'end', -> proxyReq.end()
