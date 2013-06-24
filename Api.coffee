@@ -82,6 +82,12 @@ define [
           @storeTokens accessToken, refreshToken, callback
 
 
+    getTokensByExtensions: (url, params, callback) ->
+      @serviceContainer.eval 'oauth2', (oauth2) =>
+        oauth2.grantAccessTokenByExtensions url, params, @getScope(), (accessToken, refreshToken) =>
+          @storeTokens accessToken, refreshToken, callback
+
+
     getTokensByRefreshToken: (refreshToken, callback) ->
       @serviceContainer.eval 'oauth2', (oauth2) =>
         oauth2.grantAccessTokenByRefreshToken refreshToken, @getScope(), (grantedAccessToken, grantedRefreshToken) =>
@@ -144,7 +150,7 @@ define [
           requestParams.access_token = accessToken
 
           @serviceContainer.eval 'request', (request) =>
-            doRequest = ()=>
+            doRequest = =>
               request[method] requestUrl, requestParams, (response, error) =>
                 if response?.error == 'invalid_grant'
                   return processRequest null, refreshToken

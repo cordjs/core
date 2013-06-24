@@ -4,7 +4,6 @@ define [
 
   class OAuth2
 
-
     constructor: (serviceContainer, options) ->
       @deferredRefreshTokenCallbacks = []
       @refreshTokenRequested = false
@@ -33,8 +32,26 @@ define [
         request.get @options.endpoints.accessToken, params, (result) =>
           callback result.access_token, result.refresh_token
 
+
+    ## Получение токена по grant_type = extension (например, одноразовый ключ)
+    grantAccessTokenByExtensions: (url, params, scope, callback) =>
+      requestParams =
+        grant_type: 'extensions'
+        url: url
+        client_id: @options.clientId
+        scope: scope
+        json: true
+
+      requestParams = _.extend params, requestParams
+
+      @serviceContainer.eval 'request', (request) =>
+        request.get @options.endpoints.accessToken, requestParams, (result) =>
+          callback result.access_token, result.refresh_token
+
+
     clear: ->
       @deferredRefreshTokenCallbacks = []
+
 
     ## Получение токена по grant_type = refresh_token (токен обновления)
     grantAccessTokenByRefreshToken: (refreshToken, scope, callback) =>
