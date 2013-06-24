@@ -443,12 +443,10 @@ define [
       @final
       ###
       # to avoid handle context change events in the behaviour during initial processing
-      @ctx.setInitMode(true) if isBrowser
       @setParams params, =>
         _console.log "#{ @debug 'show' } -> params:", params, " context:", @ctx if global.config.debug.widget
         @_handleOnShow =>
           @renderTemplate (err, out) =>
-            @ctx.setInitMode(false) if isBrowser
             callback(err, out)
 
 
@@ -540,11 +538,9 @@ define [
 
       @widgetRepo.registerNewExtendWidget this
 
-      @ctx.setInitMode(true)
       @setParams params, =>
         _console.log "#{ @debug 'injectAction' } processes context:", @ctx
         @_handleOnShow =>
-          @ctx.setInitMode(false)
           @getStructTemplate (tmpl) =>
             @_injectRender tmpl, transition, callback
 
@@ -556,6 +552,7 @@ define [
       _console.log "#{ @debug '_injectRender' }" if global.config.debug.widget
 
       @_resetWidgetReady()
+      @_behaviourContextBorderVersion = null
 
       extendWidgetInfo = if tmpl != ':empty' then tmpl.struct.extend else null
       if extendWidgetInfo?
@@ -564,16 +561,19 @@ define [
           readyPromise = new Future(1)
           @_inlinesRuntimeInfo = []
 
+          @registerChild extendWidget
+          extendWidget.cleanSubscriptions() # clean up supscriptions to the old parent's context change
+          @resolveParamRefs extendWidget, extendWidgetInfo.params, (params) ->
+            extendWidget.setParams(params)
+            readyPromise.resolve()
+
           tmpl.assignWidget extendWidgetInfo.widget, extendWidget
+
           cb = new Future
           require ['jquery'], cb.callback()
           tmpl.replacePlaceholders extendWidgetInfo.widget, extendWidget.ctx[':placeholders'], transition, cb.callback()
-          cb.done ($) =>
-            @registerChild extendWidget
-            @resolveParamRefs extendWidget, extendWidgetInfo.params, (params) ->
-              extendWidget.setParams(params)
-              readyPromise.resolve()
 
+          cb.done ($) =>
             # if there are inlines owned by this widget
             if @_inlinesRuntimeInfo.length
               $el = $()
@@ -620,6 +620,7 @@ define [
       _console.log @debug('renderTemplate') if global.config.debug.widget
 
       @_resetWidgetReady() # allowing to call browserInit() after template re-render is reasonable
+      @_behaviourContextBorderVersion = null
 
       @getStructTemplate (tmpl) =>
         if tmpl != ':empty' and tmpl.struct.extend?
@@ -639,6 +640,7 @@ define [
       actualRender = =>
         @markRenderStarted()
         @cleanChildren()
+        @_saveContextVersionForBehaviourSubscriptions()
         dust.render tmplPath, @getBaseContext().push(@ctx), callback
         @markRenderFinished()
 
@@ -673,13 +675,14 @@ define [
             bindings[value] = name
 
             # if context value is deferred, than waiting asyncronously...
-            if @ctx.isDeferred value
+            if @ctx.isDeferred(value)
               waitCounter++
-              @subscribeValueChange params, name, value, =>
-                waitCounter--
-                @widgetRepo.subscribePushBinding @ctx.id, value, widget, name if isBrowser
-                if waitCounter == 0 and waitCounterFinish
-                  callback params
+              do (name, value) =>
+                @subscribeValueChange params, name, value, =>
+                  waitCounter--
+                  @widgetRepo.subscribePushBinding(@ctx.id, value, widget, name, @ctx.getVersion()) if isBrowser
+                  if waitCounter == 0 and waitCounterFinish
+                    callback params
 
             # otherwise just getting it's value syncronously
             else
@@ -689,11 +692,12 @@ define [
                 if _.isObject @ctx[value]
                   for subName, subValue of @ctx[value]
                     params[subName] = subValue
+                  @widgetRepo.subscribePushBinding(@ctx.id, value, widget, 'params', @ctx.getVersion()) if isBrowser
                 else
                   # todo: warning?
               else
                 params[name] = @ctx[value]
-                @widgetRepo.subscribePushBinding @ctx.id, value, widget, name if isBrowser
+                @widgetRepo.subscribePushBinding(@ctx.id, value, widget, name, @ctx.getVersion()) if isBrowser
 
       # todo: potentially not cross-browser code!
       if Object.keys(bindings).length != 0
@@ -733,6 +737,7 @@ define [
         tmplPath = "#{ @getDir() }/#{ template }"
 
         actualRender = =>
+          @_saveContextVersionForBehaviourSubscriptions()
           dust.render tmplPath, @getBaseContext().push(@ctx), callback
 
         if dust.cache[tmplPath]?
@@ -794,6 +799,12 @@ define [
       @param String class space-separeted list of css class-names
       ###
       @ctx._modifierClass = cls
+
+
+    _saveContextVersionForBehaviourSubscriptions: ->
+      if not @_behaviourContextBorderVersion?
+        @_behaviourContextBorderVersion = @ctx.getVersion()
+        @ctx.stashEvents()
 
 
     setSubscribedPushBinding: (pushBindings) ->
@@ -875,7 +886,13 @@ define [
                       if $curEl.length == 1
                         $curEl.replaceWith($newRoot)
                       else
-                        throw new Error("Timeouted widget can't find it's place: #{ widget.debug() }, #{ $curEl }!")
+                        setTimeout ->
+                          $curEl = $('#'+widgetId, info.domRoot)
+                          if $curEl.length == 1
+                            $curEl.replaceWith($newRoot)
+                          else
+                            throw new Error("Timeouted widget can't find it's place: #{ widget.debug() }, #{ $curEl }!")
+                        , 100
 
             if isBrowser and info.timeout? and info.timeout >= 0
               setTimeout ->
@@ -920,7 +937,13 @@ define [
                       if $curEl.length == 1
                         $curEl.replaceWith($newRoot)
                       else
-                        throw new Error("Timeouted widget can't find it's place: #{ widget.debug() }, #{ $curEl }!")
+                        setTimeout ->
+                          $curEl = $('#'+widgetId, info.domRoot)
+                          if $curEl.length == 1
+                            $curEl.replaceWith($newRoot)
+                          else
+                            throw new Error("Timeouted widget can't find it's place: #{ widget.debug() }, #{ $curEl }!")
+                        , 100
 
           else
             placeholderOrder[info.template] = i
@@ -1202,7 +1225,7 @@ define [
       @browser-only
       @param jQuery $domRoot injected DOM root for the widget
       ###
-      promise = new Future
+      promise = new Future(1)
       if @behaviour?
         @behaviour.clean()
         @behaviour = null
@@ -1210,13 +1233,15 @@ define [
       behaviourClass = @getBehaviourClass()
 
       if behaviourClass
-        promise.fork()
         require ["cord!/#{ @getDir() }/#{ behaviourClass }"], (BehaviourClass) =>
           if BehaviourClass instanceof Function
             @behaviour = new BehaviourClass(this, $domRoot)
           else
             _console.error 'WRONG BEHAVIOUR CLASS:', behaviourClass
           promise.resolve()
+      else
+        promise.resolve()
+
       promise
 
 
@@ -1259,12 +1284,7 @@ define [
           @bindChildEvents()
 
           for widgetId, bindingMap of @childBindings
-            # todo: refactor subscriptions to clean only widget binding subscriptions here, not all
-            child = @childById[widgetId]
-            child.cleanSubscriptions()
-            child.setSubscribedPushBinding(bindingMap)
-            for ctxName, paramName of bindingMap
-              @widgetRepo.subscribePushBinding @ctx.id, ctxName, child, paramName
+            @childById[widgetId].setSubscribedPushBinding(bindingMap)
 
           @_widgetReadyPromise.when(@constructor._cssPromise)
           for childWidget in @children
@@ -1275,8 +1295,8 @@ define [
 
           @initBehaviour($domRoot).done =>
             @ctx.replayStashedEvents()
+            @_widgetReadyPromise.resolve()
 
-          @_widgetReadyPromise.resolve()
           @_widgetReadyPromise.done =>
             @emit 'render.complete'
 
@@ -1293,9 +1313,9 @@ define [
 
     subscribeChildPushBindings: (widget, bindingMap) ->
       ###
-      Subscribe widget to current widget context changes
-      @param widget
-      @param bindingMap - Object { widget_param_name: current_widget_context_param }
+      Subscribe the given child widget to the current widget's context changes
+      @param Widget widget the child widget
+      @param Object bindingMap { widget_param_name: current_widget_context_param }
       ###
       for paramName, ctxName of bindingMap
         @widgetRepo.subscribePushBinding @ctx.id, ctxName, widget, paramName

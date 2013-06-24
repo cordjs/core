@@ -16,26 +16,12 @@ define [
       if typeof arg1 is 'object'
         for key, value of arg1
           @[key] = value
-        @[':internal'].initMode = null if @[':internal'].initMode? # init mode can only be set later, not here
       else
         @id = arg1
         if arg2
           for key, value of arg2
             @[key] = value
             @_initDeferredDebug(key)
-
-
-    setInitMode: (mode) ->
-      ###
-      Sets/unsets initialization mode during wich change events are marked with special tag.
-      This is needed to avoid behaviours to react on async changes that was triggered while widget's initial rendering.
-      @param Boolen mode enable of disable the init mode
-      ###
-      if mode
-        @[':internal'].initMode = true
-      else
-        @[':internal'].initMode = null
-        @[':internal'].stash = []
 
 
     set: (args...) ->
@@ -87,7 +73,6 @@ define [
 
       if triggerChange
         callbackPromise.fork() if callbackPromise
-        curInitMode = @[':internal'].initMode
         curVersion = ++@[':internal'].version
         if @[':internal'].stash
           cursor = _.uniqueId()
@@ -104,7 +89,6 @@ define [
             name: name
             value: newValue
             oldValue: oldValue
-            initMode: curInitMode
             callbackPromise: callbackPromise
             cursor: cursor
             version: curVersion
@@ -143,6 +127,10 @@ define [
       callbackPromise
 
 
+    stashEvents: ->
+      @[':internal'].stash = []
+
+
     replayStashedEvents: ->
       ###
       Re-triggers stashed context-change events.
@@ -159,7 +147,12 @@ define [
               oldValue: ev.oldValue
               cursor: ev.cursor
               version: ev.version
+              stashed: true
           @[':internal'].stash = null
+
+
+    getVersion: ->
+      @[':internal'].version
 
 
     toJSON: ->

@@ -16,6 +16,8 @@ exports.services = services =
   fileServer: null
   router: null
 
+# Defaulting to standard console.
+# Using javascript here to change global variable.
 `_console = console`
 
 
@@ -26,13 +28,14 @@ exports.init = (baseUrl = 'public', configName = 'default', serverPort = 1337) -
 
   requirejs.config configPaths
   requirejs [
-    'cord!appManager'
-    'cord!Rest'
+    'cord!AppConfigLoader'
     'cord!configPaths'
-    'cord!request/xdrProxy'
-    'underscore'
     'cord!Console'
-  ], (router, Rest, configPaths, xdrProxy, _, _console) ->
+    'cord!Rest'
+    'cord!request/xdrProxy'
+    'cord!router/serverSideRouter'
+    'underscore'
+  ], (AppConfigLoader, configPaths, _console, Rest, xdrProxy, router, _) ->
     configPaths.PUBLIC_PREFIX = baseUrl
     services.router = router
     services.fileServer = new serverStatic.Server(baseUrl)
@@ -62,14 +65,18 @@ exports.init = (baseUrl = 'public', configName = 'default', serverPort = 1337) -
 
     global.config = services.config.node
 
+    # Using javascript here to change global variable.
     `_console = _console`
 
     Rest.host = global.config.server.host
     Rest.port = global.config.server.port
 
-    startServer ->
-      timeLog "Server running at http://#{ Rest.host }:#{ Rest.port }/"
-      timeLog "Current directory: #{ process.cwd() }"
+    AppConfigLoader.ready().done (appConfig) ->
+      router.addRoutes(appConfig.routes)
+
+      startServer ->
+        timeLog "Server running at http://#{ Rest.host }:#{ Rest.port }/"
+        timeLog "Current directory: #{ process.cwd() }"
 
 
 exports.startServer = startServer = (callback) ->
