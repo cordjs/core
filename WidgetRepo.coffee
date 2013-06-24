@@ -323,7 +323,9 @@ define [
       subscription = postal.subscribe
         topic: "widget.#{ parentWidgetId }.change.#{ ctxName }"
         callback: (data) ->
-          if not childWidget.isSentenced() and (not ctxVersionBorder? or data.version > ctxVersionBorder) # and not data.initMode
+          if not childWidget.isSentenced() \
+              and (not ctxVersionBorder? or data.version > ctxVersionBorder) \
+              and not data.stashed
             params = {}
 
             # param with name "params" is a special case and we should expand the value as key-value pairs
