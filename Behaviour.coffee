@@ -14,7 +14,6 @@ define [
 
     _widgetSubscriptions: null
     _modelBindings: null
-    _eventCursors: null
 
     constructor: (widget, $domRoot) ->
       ###
@@ -23,7 +22,6 @@ define [
       ###
       @_widgetSubscriptions = []
       @_modelBindings = {}
-      @_eventCursors = {}
 
       @widget = widget
       @id = widget.ctx.id
@@ -165,11 +163,11 @@ define [
         if not @widget.isSentenced() and data.value != ':deferred' and versionOk
           duplicate = false
           if data.cursor
-            if @_eventCursors[data.cursor]
-              delete @_eventCursors[data.cursor]
+            if @widget._eventCursors[data.cursor]
+              delete @widget._eventCursors[data.cursor]
               duplicate = true
             else
-              @_eventCursors[data.cursor] = true
+              @widget._eventCursors[data.cursor] = true
           if not duplicate
             @_registerModelBinding(data.value, fieldName, onChangeMethod)
             m.apply(this, arguments)

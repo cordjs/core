@@ -71,6 +71,7 @@ define [
     # Object of subscibed push binding (by parent widget context's param name)
     _subscibedPushBindings: null
 
+    # Behaviuor's event handler duplication prevention temporary map. Used in the widget's behaviuor class.
     _eventCursors: null
 
 
