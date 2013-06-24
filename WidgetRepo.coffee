@@ -324,7 +324,8 @@ define [
         topic: "widget.#{ parentWidgetId }.change.#{ ctxName }"
         callback: (data) ->
           if not childWidget.isSentenced() \
-              and (not ctxVersionBorder? or data.version > ctxVersionBorder) \
+              # if data.version is undefined than it's model-emitted event and need not version check
+              and (not ctxVersionBorder? or not data.version? or data.version > ctxVersionBorder) \
               and not data.stashed
             params = {}
 

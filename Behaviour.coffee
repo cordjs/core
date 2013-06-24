@@ -160,8 +160,9 @@ define [
       onChangeMethod = =>
         data = arguments[0]
         ctxVersionBorder = @widget._behaviourContextBorderVersion
-        versionOk = (not ctxVersionBorder? or data.version > ctxVersionBorder)
-        if not @widget.isSentenced() and data.value != ':deferred' and versionOk # and not data.initMode
+        # if data.version is undefined than it's model-emitted event and need not version check
+        versionOk = (not ctxVersionBorder? or not data.version? or data.version > ctxVersionBorder)
+        if not @widget.isSentenced() and data.value != ':deferred' and versionOk
           duplicate = false
           if data.cursor
             if @_eventCursors[data.cursor]
