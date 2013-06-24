@@ -1,9 +1,10 @@
 define [
   'cord!Model'
   'cord!utils/Defer'
+  'cord!utils/DomHelper'
   'jquery'
   'postal'
-], (Model, Defer, $, postal) ->
+], (Model, Defer, DomHelper, $, postal) ->
 
   class Behaviour
 
@@ -51,18 +52,11 @@ define [
       @refreshElements()                if @elements
       @_callbacks = []
 
-      Defer.nextTick => @initiateInit()
-
-
-    initiateInit: ->
-      #Protection from Defer.nextTick => @init()
-      #TODO: cleanup timeouts on destruction
-      if !@widget
-        return
       @init()
 
 
     init: ->
+      # TODO: try to remove this event, use widget.ready() instead
       postal.publish "widget.#{ @id }.behaviour.init", {}
 
 
@@ -82,6 +76,7 @@ define [
     addSubscription: (subscriptionDef) ->
       @_widgetSubscriptions.push subscriptionDef
 
+
     getCallback: (callback) =>
       ###
       Register callback and clear it in case of object destruction or clearCallbacks invocation
@@ -94,7 +89,7 @@ define [
           if !result.cleared
             callback.apply(this, arguments)
         result.cleared = false
-        
+
         result
 
       safeCallback = makeSafeCallback(callback)
@@ -105,6 +100,7 @@ define [
     clearCallbacks: ->
       callback.cleared = true for callback in @_callbacks
       @_callbacks = []
+
 
     delegateEvents: (events) ->
       for key, method of events
@@ -271,11 +267,13 @@ define [
           _console.log "#{ @widget.debug 're-render' }"
           # renderTemplate will clean this behaviour, so we must save links...
           widget = @widget
+          $rootEl = @el
           widget.renderTemplate (err, out) ->
             if err then throw err
             $newWidgetRoot = $(widget.renderRootTag(out))
             widget.browserInit($newWidgetRoot).done ->
-              $('#'+widget.ctx.id).replaceWith($newWidgetRoot)
+              DomHelper.replaceNode($rootEl, $newWidgetRoot).done ->
+                widget.emit 're-render.complete'
 
 
     renderInline: (name) ->
