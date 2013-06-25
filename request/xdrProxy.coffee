@@ -16,7 +16,7 @@ define [
     @param IncomingMessage req the node's request
     @param ServerResponse res the node's response
     ###
-    proxyUrl = url.parse(decodeURIComponent(targetUrl))
+    proxyUrl = url.parse(targetUrl)
 
     # copying headers and removing unnecessary ones
     headers = _.clone(req.headers)
