@@ -36,8 +36,7 @@ define [
     ## Получение токена по grant_type = extension (например, одноразовый ключ)
     grantAccessTokenByExtensions: (url, params, scope, callback) =>
       requestParams =
-        grant_type: 'extensions'
-        url: url
+        grant_type: url
         client_id: @options.clientId
         scope: scope
         json: true
