@@ -3,7 +3,9 @@ define [
   'cord!PageTransition'
   'jquery'
   'postal'
-], (Router, PageTransition, $, postal) ->
+  'cord!ServiceContainer'
+  'cord!AppConfigLoader'
+], (Router, PageTransition, $, postal, ServiceContainer, AppConfigLoader) ->
 
   class ClientSideRouter extends Router
 
@@ -47,9 +49,41 @@ define [
       if (routeInfo = @matchRoute(newPath))
         postal.publish('router.process', routeInfo)
 
-        @widgetRepo.transitPage(routeInfo.route.widget, routeInfo.params, new PageTransition(@currentPath, newPath))
-        @currentPath = newPath
-        true
+        if routeInfo.route.widget?
+          @widgetRepo.transitPage(routeInfo.route.widget, routeInfo.params, new PageTransition(@currentPath, newPath))
+          @currentPath = newPath
+          true
+        else if routeInfo.route.callback?
+          serviceContainer = new ServiceContainer
+          config = global.config
+          config.api.getUserPasswordCallback = (callback) ->
+            if serviceContainer
+              response = serviceContainer.get 'serverResponse'
+              request = serviceContainer.get 'serverRequest'
+              if !response.alreadyRelocated
+                response.shouldKeepAlive = false
+                response.alreadyRelocated = true
+                response.writeHead 302,
+                  "Location": '/user/login/?back=' + request.url
+                  "Cache-Control" : "no-cache, no-store, must-revalidate"
+                  "Pragma": "no-cache"
+                  "Expires": 0
+                response.end()
+                clear()
+
+          serviceContainer.set 'config', config
+
+          AppConfigLoader.ready().done (appConfig) ->
+            serviceContainer.def(serviceName, info.deps, info.factory) for serviceName, info of appConfig.services
+            routeInfo.route.callback
+              serviceContainer: serviceContainer
+              currentPath: @currentPath
+              newPath: newPath
+              params: routeInfo.params
+            , () =>
+          return true
+        else
+          return false
       else
         false
 

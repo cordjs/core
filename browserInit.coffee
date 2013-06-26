@@ -21,6 +21,7 @@ require.config
     'jquery.removeClass': 'vendor/jquery/plugins/jquery.removeClass'
     'curly':            'vendor/curly/browser'
     'underscore':       'vendor/underscore/underscore'
+    'xregexp':          'vendor/xregexp/xregexp'
     'requirejs':        'vendor/requirejs/require'
     'the-box':          'vendor/the-box/app'
     'moment':           'vendor/moment/moment'

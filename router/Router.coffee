@@ -26,9 +26,6 @@ define ['underscore'], (_) ->
                              false if route is not found
       ###
 
-      if path[path.length-1] != "/"
-        path = path + "/"
-        
       for route in @routes
         if (params = route.match(path))
           return {
@@ -51,8 +48,9 @@ define ['underscore'], (_) ->
     ###
 
     constructor: (@path, definition) ->
-      throw new Error("Required 'widget' option is not set in route '#{ path }' definition!") unless definition.widget?
+      throw new Error("Required 'widget' or 'callback' options is not set in route '#{ path }' definition!") if definition.widget? and definition.callback?
       @widget = definition.widget
+      @callback = definition.callback if definition.callback?
 
       @params = definition.params ? {}
 

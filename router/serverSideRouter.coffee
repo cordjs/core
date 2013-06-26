@@ -17,6 +17,7 @@ define [
       if (routeInfo = @matchRoute(path.pathname))
 
         rootWidgetPath = routeInfo.route.widget
+        routeCallback = routeInfo.route.callback
         params = _.extend(path.query, routeInfo.params)
 
         serviceContainer = new ServiceContainer
@@ -37,8 +38,9 @@ define [
         widgetRepo = new WidgetRepo
 
         clear = =>
-          serviceContainer.eval 'oauth2', (oauth2) =>
-            oauth2.clear()
+          if serviceContainer?
+            serviceContainer.eval 'oauth2', (oauth2) =>
+              oauth2.clear()
 
           serviceContainer = null
           widgetRepo = null
@@ -70,19 +72,31 @@ define [
         AppConfigLoader.ready().done (appConfig) ->
           serviceContainer.def(serviceName, info.deps, info.factory) for serviceName, info of appConfig.services
 
-          widgetRepo.createWidget rootWidgetPath, (rootWidget) ->
-            rootWidget._isExtended = true
-            widgetRepo.setRootWidget(rootWidget)
-
-            rootWidget.show params, (err, output) ->
-              if err then throw err
-              #prevent browser to use the same connection
-              res.shouldKeepAlive = false
-              res.writeHead 200, 'Content-Type': 'text/html'
-              res.end(output)
-              # todo: may be need some cleanup before?
+          if rootWidgetPath?
+            widgetRepo.createWidget rootWidgetPath, (rootWidget) ->
+              rootWidget._isExtended = true
+              widgetRepo.setRootWidget(rootWidget)
+              rootWidget.show params, (err, output) ->
+                if err then throw err
+                #prevent browser to use the same connection
+                res.shouldKeepAlive = false
+                res.writeHead 200, 'Content-Type': 'text/html'
+                res.end(output)
+                # todo: may be need some cleanup before?
+                clear()
+          else if routeCallback?
+            routeCallback
+              serviceContainer: serviceContainer
+              params: params
+            , () =>
+              console.log 'end'
+              res.end()
               clear()
-
+          else
+            res.shouldKeepAlive = false
+            res.writeHead 404, 'Content-Type': 'text/html'
+            res.end 'Error 404'
+            clear()
         true
       else
         false
