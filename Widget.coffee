@@ -470,7 +470,7 @@ define [
       if @children.length
         if @_structTemplate? and @_structTemplate != ':empty'
           @_structTemplate.unassignWidget widget for widget in @children
-        @widgetRepo.dropWidget(widget.ctx.id) for widget in @children
+        widget.drop() for widget in @children
         @resetChildren()
 
 
@@ -1133,6 +1133,13 @@ define [
         @_browserInitialized = false
 
 
+    drop: ->
+      ###
+      Removes self from widget repo
+      ###
+      @widgetRepo.dropWidget @ctx.id
+
+
     registerChild: (child, name) ->
       @children.push child
       @childById[child.ctx.id] = child
@@ -1162,8 +1169,9 @@ define [
       Drops and unregisters the child widget with the given id
       @param String childId
       ###
-      @unbindChild(@childById[childId])
-      @widgetRepo.dropWidget(childId)
+      childWidget = @childById[childId]
+      @unbindChild(childWidget)
+      childWidget.drop()
 
 
     appendChild: (widget, name) ->

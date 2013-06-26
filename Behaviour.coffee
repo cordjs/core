@@ -215,7 +215,7 @@ define [
       @_modelBindings = {}
 
       @widget = null
-      @el.off()#.remove()
+      @el.off()
       @el = @$el = null
 
       @clearCallbacks()
@@ -323,6 +323,10 @@ define [
 
       @widget.createChildWidget type, name, (newWidget) =>
         @renderNewWidget newWidget, params, callback
+
+
+    dropChildWidget: (widget) ->
+      @widget.dropChild(widget.ctx.id)
 
 
     defer: (id, fn) ->
