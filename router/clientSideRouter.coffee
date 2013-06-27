@@ -95,7 +95,7 @@ define [
       @param (optional)Boolean|Object options if last argument is boolean, than it's treated as options.trigger
                                               if last argument is Object, than it's treated as options
       ###
-      _console.clear()
+      #_console.clear()
       options = {}
       lastArg = args[args.length - 1]
       if typeof lastArg is 'object'
@@ -127,7 +127,8 @@ define [
         @process(newPath) unless newPath == @currentPath
 
       self = this
-      $(document).on 'click', 'a:not([data-bypass])', (event) ->
+      $(document).on 'click', 'a:not([data-bypass],[target="_blank"])', (event) ->
+        console.log 'click',event
         # Default behaviour for anchors if any modification key pressed
         return if event.metaKey or event.ctrlKey or event.altKey or event.shiftKey
 
