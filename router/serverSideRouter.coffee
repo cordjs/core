@@ -88,8 +88,7 @@ define [
             routeCallback
               serviceContainer: serviceContainer
               params: params
-            , () =>
-              console.log 'end'
+            , =>
               res.end()
               clear()
           else
