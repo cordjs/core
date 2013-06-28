@@ -94,7 +94,8 @@ define [
           @_runDoneCallbacks() if @_counter == 0 and @_doneCallbacks.length > 0
           # not changing state to 'resolved' here because it is possible to call fork() again if done hasn't called yet
       else
-        throw new Error("Future::resolve is called more times than Future::fork!")
+        nameStr = if @_name then " (name = #{ @_name})" else ''
+        throw new Error("Future::resolve() is called more times than Future::fork!#{ nameStr }")
 
       this
 
@@ -203,6 +204,17 @@ define [
     lock: ->
       @_locked = true
       this
+
+
+    zip: (those...) ->
+      ###
+      Zips the values of this and that future, and creates a new future holding the tuple of their results.
+      @param Future those another futures
+      @return Future
+      ###
+      result = new Future
+      those.push(this)
+      result.when.apply(result, those)
 
 
     _runDoneCallbacks: ->
