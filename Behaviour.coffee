@@ -51,6 +51,8 @@ define [
       @_callbacks = []
 
       @init()
+      if @show?
+        @widget.shown().done => @show()
 
 
     init: ->
@@ -272,6 +274,7 @@ define [
             $newWidgetRoot = $(widget.renderRootTag(out))
             widget.browserInit($newWidgetRoot).done ->
               DomHelper.replaceNode($rootEl, $newWidgetRoot).done ->
+                widget.markShown()
                 widget.emit 're-render.complete'
 
 

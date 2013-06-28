@@ -65,6 +65,10 @@ define [
     # and reset in certain places via _resetWidgetReady() method
     _browserInitialized: true
 
+    # promise that resolves when the widget is actually shown in the DOM
+    _shownPromise: null
+    _shown: false
+
     # temporary helper data container for inline-block processing
     _inlinesRuntimeInfo: null
 
@@ -218,6 +222,7 @@ define [
       if isBrowser
         @_browserInitialized = true
         @_widgetReadyPromise = new Future
+        @_shownPromise = Future.single()
 
       if not @ctx?
         if @compileMode
@@ -534,6 +539,9 @@ define [
     injectAction: (params, transition, callback) ->
       ###
       @browser-only
+      @param Object params
+      @param PageTransition transition
+      @param Function(commonBaseWidget) callback
       ###
       _console.log "#{ @debug 'injectAction' }", params if global.config.debug.widget
 
@@ -549,6 +557,9 @@ define [
     _injectRender: (tmpl, transition, callback) ->
       ###
       @browser-only
+      @param StructureTemplate tmpl
+      @param PageTransition transition
+      @param Function(commonBaseWidget) callback
       ###
       _console.log "#{ @debug '_injectRender' }" if global.config.debug.widget
 
@@ -580,7 +591,10 @@ define [
               $el = $()
               # collect all placeholder roots with all inlines to pass to the behaviour
               $el = $el.add(domRoot) for domRoot in @_inlinesRuntimeInfo
-              readyPromise.when(@browserInit($el))
+            else
+              $el = undefined
+            readyPromise.when(@browserInit(extendWidget, $el))
+            @ready().done => @markShown()
 
             readyPromise.done =>
               @_inlinesRuntimeInfo = null
@@ -590,8 +604,10 @@ define [
         else
           tmpl.getWidget extendWidgetInfo.widget, (extendWidget) =>
             @registerChild extendWidget
-            @resolveParamRefs extendWidget, extendWidgetInfo.params, (params) ->
-              extendWidget.injectAction params, transition, callback
+            @resolveParamRefs extendWidget, extendWidgetInfo.params, (params) =>
+              extendWidget.injectAction params, transition, (args...) =>
+                @browserInit(extendWidget).done => @markShown()
+                callback.apply(null, args)
       else
         if true
           location.reload()
@@ -832,6 +848,8 @@ define [
       phs = @ctx[':placeholders'] ? []
       ph = phs[name] ? []
 
+      showPromise = Future.single()
+
       for info in ph
         do (info) =>
           promise.fork()
@@ -880,20 +898,10 @@ define [
                   placeholderOut[placeholderOrder[widgetId]] = widget.renderRootTag(out)
                   renderInfo.push(type: 'widget', widget: widget)
                 else
-                  require ['jquery'], ($) ->
+                  require ['cord!utils/DomHelper', 'jquery'], (DomHelper, $) ->
                     $newRoot = $(widget.renderRootTag(out))
-                    widget.browserInit($newRoot).done ->
-                      $curEl = $('#'+widgetId, info.domRoot)
-                      if $curEl.length == 1
-                        $curEl.replaceWith($newRoot)
-                      else
-                        setTimeout ->
-                          $curEl = $('#'+widgetId, info.domRoot)
-                          if $curEl.length == 1
-                            $curEl.replaceWith($newRoot)
-                          else
-                            throw new Error("Timeouted widget can't find it's place: #{ widget.debug() }, #{ $curEl }!")
-                        , 100
+                    widget.browserInit($newRoot).zip(showPromise).done ->
+                      DomHelper.replaceNode($('#'+widgetId, info.domRoot), $newRoot).done -> widget.markShown()
 
             if isBrowser and info.timeout? and info.timeout >= 0
               setTimeout ->
@@ -931,20 +939,10 @@ define [
                   placeholderOut[placeholderOrder[widgetId]] = widget.renderRootTag(out)
                   renderInfo.push(type: 'widget', widget: widget)
                 else
-                  require ['jquery'], ($) ->
+                  require ['cord!utils/DomHelper', 'jquery'], (DomHelper, $) ->
                     $newRoot = $(widget.renderRootTag(out))
-                    widget.browserInit($newRoot).done ->
-                      $curEl = $('#'+widgetId, info.domRoot)
-                      if $curEl.length == 1
-                        $curEl.replaceWith($newRoot)
-                      else
-                        setTimeout ->
-                          $curEl = $('#'+widgetId, info.domRoot)
-                          if $curEl.length == 1
-                            $curEl.replaceWith($newRoot)
-                          else
-                            throw new Error("Timeouted widget can't find it's place: #{ widget.debug() }, #{ $curEl }!")
-                        , 100
+                    widget.browserInit($newRoot).zip(showPromise).done ->
+                      DomHelper.replaceNode($('#'+widgetId, info.domRoot), $newRoot).done -> widget.markShown()
 
           else
             placeholderOrder[info.template] = i
@@ -966,7 +964,7 @@ define [
           i++
 
       promise.done ->
-        callback(placeholderOut.join(''), renderInfo)
+        callback(placeholderOut.join(''), renderInfo, showPromise)
 
 
     _getPlaceholderDomId: (name) ->
@@ -995,7 +993,7 @@ define [
                                  and which should not
       @param Function() callback callback which should be called when replacement is done (async)
       ###
-      require ['jquery'], ($) =>
+      require ['cord!utils/DomHelper', 'jquery'], (DomHelper, $) =>
         readyPromise = new Future
 
         ph = {}
@@ -1018,7 +1016,7 @@ define [
           do (name) =>
             if replaceHints[name].replace
               readyPromise.fork()
-              @_renderPlaceholder name, (out, renderInfo) =>
+              @_renderPlaceholder name, (out, renderInfo, showPromise) =>
                 $el = $(@renderPlaceholderTag(name, out))
                 @ctx[':placeholders'][name].domRoot = $el
                 aggregatePromise = new Future # full placeholders members initialization promise
@@ -1031,8 +1029,10 @@ define [
                   # Inserting placeholder contents to the DOM-tree only after full behaviour initialization of all
                   # included widgets but not inline-blocks. Timeout-stubs are not waited for yet as they have no
                   # any behaviour initialization support yet.
-                  $('#'+@_getPlaceholderDomId(name)).replaceWith($el)
-                  readyPromise.resolve()
+                  DomHelper.replaceNode($('#'+@_getPlaceholderDomId(name)), $el).done ->
+                    info.widget.markShown() for info in renderInfo when info.type is 'widget'
+                    readyPromise.resolve()
+                    showPromise.resolve()
             else
               i = 0
               for item in items
@@ -1131,6 +1131,8 @@ define [
       if isBrowser
         @_widgetReadyPromise = new Future(1)
         @_browserInitialized = false
+        @_shownPromise = Future.single()
+        @_shown = false
 
 
     drop: ->
@@ -1336,6 +1338,29 @@ define [
       @return Future
       ###
       @_widgetReadyPromise
+
+
+    shown: ->
+      ###
+      Returns the widget's 'show' promise
+      @return Future
+      ###
+      @_shownPromise
+
+
+    markShown: (ignoreChildren = false) ->
+      ###
+      Triggers widget's show events and promises.
+      This method should be called when the widget's body is actually shown in the DOM.
+      @param Boolean ignoreChildren if true doesn't recursively call markShown for it's child widgets
+      ###
+      if not @_shown
+        child.markShown() for child in @children if not ignoreChildren
+        # _shown is necessary to protect from duplicate recursive calling of markShown() from the future's callbacks
+        # this redundancy can be removed when inline-generated widgets will have appropriate detection and separation API
+        @_shown = true
+        @_shownPromise.resolve()
+        @emit 'show'
 
 
     markRenderStarted: ->
