@@ -102,7 +102,7 @@ define [
         @widgets[widget.ctx.id] =
           widget: widget
 
-        callback(widget)
+        @injectServices(widget).done -> callback(widget)
 
 
     dropWidget: (id) ->
@@ -112,6 +112,20 @@ define [
         delete @widgets[id]
       else
         throw "Try to drop unknown widget with id = #{ id }"
+
+
+    injectServices: (widget) ->
+      injectPromise = new Future
+
+      if widget.constructor.inject
+        for serviceName in widget.constructor.inject
+          injectPromise.fork()
+          do (serviceName) =>
+            @serviceContainer.eval serviceName, (service) ->
+              widget[serviceName] = service
+              injectPromise.resolve()
+
+      injectPromise
 
 
     registerParent: (childWidget, parentWidget) ->
@@ -263,7 +277,7 @@ define [
           widget: widget
           namedChilds: namedChilds
 
-        @_parentPromises[ctx.id].resolve()
+        @injectServices(widget).done => @_parentPromises[ctx.id].resolve()
 
         if parentId?
           @_parentPromises[parentId].done =>
