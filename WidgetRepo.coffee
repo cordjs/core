@@ -188,7 +188,7 @@ define [
 
     getModelsInitCode: ->
       ###
-      Generates code for passing and initialing of all model repositories from server-side into browser.
+      Generates code for passing and initializing of all model repositories from server-side into browser.
       Loops through service container to find all repository services.
       ###
       result = []

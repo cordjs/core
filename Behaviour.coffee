@@ -282,6 +282,7 @@ define [
       ###
       Re-renders inline with the given name
       @param String name inline's name to render
+      @deprecated inlines re-rendering should be performed by render() method
       ###
       @widget._behaviourContextBorderVersion = null
       @widget.renderInline name, (err, out) =>
