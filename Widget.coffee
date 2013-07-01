@@ -69,6 +69,11 @@ define [
     _shownPromise: null
     _shown: false
 
+    # internal widget rendering promise
+    # it's need to inform timeout-stubs of the inner-placeholder-widgets about actual insertion of the whole top-most
+    # outer placeholder (see replacePlaceholder() method) into the DOM
+    _bubbledShowPromise: null
+
     # temporary helper data container for inline-block processing
     _inlinesRuntimeInfo: null
 
@@ -832,6 +837,25 @@ define [
       @_subscibedPushBindings = pushBindings
 
 
+    _bubbleShowPromise: (promise) ->
+      ###
+      Chains placeholder's showPromise with the special promise of this widget which is then bubbled up to the outer
+       renderPlaceholder call and chained with it's showPromise. By that way inner placeholder rendering function can
+       be notified when the top-most placeholder is actually inserted into the DOM.
+      @param Future promise the placeholder's showPromise
+      ###
+      promise.when(@_bubbledShowPromise) if @_bubbledShowPromise
+
+
+    linkBubbledShowPromise: (showPromise) ->
+      ###
+      Chains own bubbled showPlaceholder (for the rendered placeholders) with the given showPromise
+       (of the containing placeholder).
+      @param Future showPromise showPromise of the outer placeholder (which called this widget.show())
+      ###
+      @_bubbledShowPromise.when(showPromise) if @_bubbledShowPromise
+
+
     _renderPlaceholder: (name, callback) ->
       ###
       Render contents of the placeholder with the given name
@@ -884,6 +908,7 @@ define [
 
             complete = false
             widget.show info.params, (err, out) ->
+              widget.linkBubbledShowPromise(showPromise)
               if err then throw err
               if not complete
                 complete = true
@@ -1133,6 +1158,7 @@ define [
         @_browserInitialized = false
         @_shownPromise = Future.single()
         @_shown = false
+        @_bubbledShowPromise = Future.single()
 
 
     drop: ->
@@ -1415,6 +1441,7 @@ define [
       else
         @_buildNormalBaseContext()
 
+
     _buildNormalBaseContext: ->
       dust.makeBase
 
@@ -1466,15 +1493,17 @@ define [
             chunk.render bodies.block, context
 
 
-        #
-        # Placeholder - point of extension of the widget
-        #
         placeholder: (chunk, context, bodies, params) =>
+          ###
+          {#placeholder/} block handling
+          Placeholder - point of extension of the widget.
+          ###
           @childWidgetAdd()
           chunk.map (chunk) =>
             name = params?.name ? 'default'
-            @_renderPlaceholder name, (out) =>
+            @_renderPlaceholder name, (out, any, showPromise) =>
               @childWidgetComplete()
+              @_bubbleShowPromise(showPromise)
               chunk.end @renderPlaceholderTag(name, out)
 
         #
