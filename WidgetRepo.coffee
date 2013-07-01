@@ -121,8 +121,12 @@ define [
         for serviceName in widget.constructor.inject
           injectPromise.fork()
           do (serviceName) =>
-            @serviceContainer.eval serviceName, (service) ->
-              widget[serviceName] = service
+            try
+              @serviceContainer.eval serviceName, (service) ->
+                widget[serviceName] = service
+                injectPromise.resolve()
+            catch e
+              widget[serviceName] = undefined
               injectPromise.resolve()
 
       injectPromise
