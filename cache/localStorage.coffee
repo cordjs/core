@@ -54,6 +54,10 @@ define [
       @storage.getItem(key)
 
 
+    removeItem: (key) ->
+      @storage.removeItem(key)
+
+
     clear: ->
       ###
       Clear local storage

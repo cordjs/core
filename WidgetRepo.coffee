@@ -121,8 +121,12 @@ define [
         for serviceName in widget.constructor.inject
           injectPromise.fork()
           do (serviceName) =>
-            @serviceContainer.eval serviceName, (service) ->
-              widget[serviceName] = service
+            try
+              @serviceContainer.eval serviceName, (service) ->
+                widget[serviceName] = service
+                injectPromise.resolve()
+            catch e
+              widget[serviceName] = undefined
               injectPromise.resolve()
 
       injectPromise
@@ -277,17 +281,18 @@ define [
           widget: widget
           namedChilds: namedChilds
 
-        @injectServices(widget).done => @_parentPromises[ctx.id].resolve()
+        @injectServices(widget).done =>
+          @_parentPromises[ctx.id].resolve()
 
-        if parentId?
-          @_parentPromises[parentId].done =>
-            @widgets[parentId].widget.registerChild(widget, @widgets[parentId].namedChilds[ctx.id] ? null)
-            if widgetPath == '/cord/core//Switcher'
-              widget._contextBundle = @widgets[parentId].widget.getBundle()
+          if parentId?
+            @_parentPromises[parentId].done =>
+              @widgets[parentId].widget.registerChild(widget, @widgets[parentId].namedChilds[ctx.id] ? null)
+              if widgetPath == '/cord/core//Switcher'
+                widget._contextBundle = @widgets[parentId].widget.getBundle()
+              @_initPromise.resolve()
+          else
+            @rootWidget = widget
             @_initPromise.resolve()
-        else
-          @rootWidget = widget
-          @_initPromise.resolve()
 
 
     setupBindings: ->

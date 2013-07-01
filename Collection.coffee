@@ -487,6 +487,9 @@ define [
        and cutted down checking of fields in b that doesn't exists in a.
       ###
 
+      # Undefined models are never equal
+      return false if a == undefined || b == undefined
+
       # Identical objects are equal. `0 === -0`, but they aren't identical.
       # See the Harmony `egal` proposal: http://wiki.ecmascript.org/doku.php?id=harmony:egal.
       return a != 0 || 1 / a == 1 / b if a == b
