@@ -309,7 +309,8 @@ define [
       if @widgets[widgetId]?
         w = @widgets[widgetId].widget
         w.bindChildEvents()
-        w.initBehaviour()
+        w.initBehaviour().done ->
+          w.markShown(ignoreChildren = true)
       else
         throw "Try to use uninitialized widget with id = #{ widgetId }"
 
@@ -397,8 +398,11 @@ define [
               extendWidget.setParams(params)
               @dropWidget _oldRootWidget.ctx.id
               # todo: this browserInit may be always redundant
+              redundancyCheck = false
               @rootWidget.browserInit(extendWidget).done ->
+                redundancyCheck = true
                 transition.complete()
+              console.warn "Strange #{ extendWidget.debug('browserInit') } is not redundant!!!" if not redundancyCheck
         else
           # if the new widget is the same as the current root, than this is just params change and we should only push
           # new params to the root widget
@@ -411,8 +415,7 @@ define [
           @setRootWidget widget
           widget.injectAction params, transition, (commonBaseWidget) =>
             @dropWidget _oldRootWidget.ctx.id unless commonBaseWidget == _oldRootWidget
-            @rootWidget.browserInit(commonBaseWidget).done ->
-              transition.complete()
+            @rootWidget.shown().done -> transition.complete()
 
 
     findAndCutMatchingExtendWidget: (widgetPath) ->
