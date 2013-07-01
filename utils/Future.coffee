@@ -190,6 +190,7 @@ define [
       Indicates that callbacks() are already called at least once and fork() cannot be called anymore
       @return Boolean
       ###
+      @_completed = true if not @_completed and @_counter == 0
       @_completed
 
 
@@ -256,12 +257,12 @@ define [
 
     # syntax-sugar constructors
 
-    @single: ->
+    @single: (name = '')->
       ###
       Returns the future, which can not be forked and must be resolved by only single call of resolve().
       @return Future
       ###
-      (new Future(1)).lock()
+      (new Future(1, name)).lock()
 
 
     @resolved: (args...) ->
