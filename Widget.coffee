@@ -958,6 +958,7 @@ define [
 
             info.timeoutPromise.done (params) ->
               widget.show params, (err, out) ->
+                widget.linkBubbledShowPromise(showPromise)
                 if err then throw err
                 widget._delayedRender = false
                 if not promise.completed()
@@ -981,6 +982,7 @@ define [
               template: info.template
               class: info.class
             widget.renderInline info.name, (err, out) ->
+              widget.linkBubbledShowPromise(showPromise)
               if err then throw err
               placeholderOut[placeholderOrder[info.template]] =
                 "<#{ info.tag } id=\"#{ inlineId }\"#{ classAttr }>#{ out }</#{ info.tag }>"
