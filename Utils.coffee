@@ -159,6 +159,7 @@ define [
 
       nameInitials = nameSplited[0].charAt(0).toUpperCase() + '.'
       nameInitials += nameSplited[1].charAt(0).toUpperCase() + '.' if nameSplited[1]
+      nameInitials = nameInitials.replace /\-\./g, ''
 
       nameInitials
 
