@@ -19,6 +19,7 @@ require.config
     'jquery.wheel':     'vendor/jquery/plugins/jquery.wheel'
     'jquery.scrollTo':  'vendor/jquery/plugins/jquery.scrollTo'
     'jquery.removeClass': 'vendor/jquery/plugins/jquery.removeClass'
+    'jquery.jcrop':     'vendor/jquery/plugins/jcrop/jquery.Jcrop'
     'curly':            'vendor/curly/browser'
     'underscore':       'vendor/underscore/underscore'
     'requirejs':        'vendor/requirejs/require'
