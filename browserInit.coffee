@@ -62,7 +62,10 @@ define [
 
     AppConfigLoader.ready().done (appConfig) ->
       clientSideRouter.addRoutes(appConfig.routes)
-      serviceContainer.def(serviceName, info.deps, info.factory) for serviceName, info of appConfig.services
+      for serviceName, info of appConfig.services
+        do (info) ->
+          serviceContainer.def serviceName, info.deps, (get, done) ->
+            info.factory.call(serviceContainer, get, done)
 
       ###
         Конфиги

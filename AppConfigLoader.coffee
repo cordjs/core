@@ -69,6 +69,7 @@ define [
                 else
                   deps: def.deps
                   factory: def.factory
+                  autoStart: def.autoStart
 
         AppConfigLoader._promise.resolve
           routes: routes

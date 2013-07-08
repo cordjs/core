@@ -102,7 +102,7 @@ define [
         @widgets[widget.ctx.id] =
           widget: widget
 
-        @injectServices(widget).done -> callback(widget)
+        @serviceContainer.injectServices(widget).done -> callback(widget)
 
 
     dropWidget: (id) ->
@@ -112,24 +112,6 @@ define [
         delete @widgets[id]
       else
         throw "Try to drop unknown widget with id = #{ id }"
-
-
-    injectServices: (widget) ->
-      injectPromise = new Future
-
-      if widget.constructor.inject
-        for serviceName in widget.constructor.inject
-          injectPromise.fork()
-          do (serviceName) =>
-            try
-              @serviceContainer.eval serviceName, (service) ->
-                widget[serviceName] = service
-                injectPromise.resolve()
-            catch e
-              widget[serviceName] = undefined
-              injectPromise.resolve()
-
-      injectPromise
 
 
     registerParent: (childWidget, parentWidget) ->
@@ -186,8 +168,7 @@ define [
       collections = JSON.parse(decodeURIComponent(escape(collections))) # decode utf-8 and parse
 
       @serviceContainer.eval repoServiceName, (repo) ->
-        repo.setCollections(collections)
-        promise.resolve()
+        repo.setCollections(collections).done -> promise.resolve()
 
 
     getModelsInitCode: ->
@@ -232,7 +213,17 @@ define [
 
 
     endInit: ->
-      @_initPromise.done =>
+      ###
+      Performs final initialization of the transferred from the server-side objects on the browser-side.
+      This method is called when all data from the server is loaded.
+      ###
+      configPromise = Future.single()
+      require ['cord!AppConfigLoader'], (AppConfigLoader) -> configPromise.when(AppConfigLoader.ready())
+      @_initPromise.zip(configPromise).done (appConfig) =>
+        # start services registered with autostart option
+        for serviceName, info of appConfig.services
+          @serviceContainer.eval(serviceName) if info.autoStart
+        # setup browser-side behaviour for all loaded widgets
         @setupBindings()
         # for GC
         @_parentPromises = null
@@ -281,7 +272,7 @@ define [
           widget: widget
           namedChilds: namedChilds
 
-        @injectServices(widget).done =>
+        @serviceContainer.injectServices(widget).done =>
           @_parentPromises[ctx.id].resolve()
 
           if parentId?
