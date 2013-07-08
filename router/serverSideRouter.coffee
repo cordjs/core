@@ -70,7 +70,10 @@ define [
         widgetRepo.setResponse(res)
 
         AppConfigLoader.ready().done (appConfig) ->
-          serviceContainer.def(serviceName, info.deps, info.factory) for serviceName, info of appConfig.services
+          for serviceName, info of appConfig.services
+            do (info) ->
+              serviceContainer.def serviceName, info.deps, (get, done) ->
+                info.factory.call(serviceContainer, get, done)
 
           if rootWidgetPath?
             widgetRepo.createWidget rootWidgetPath, (rootWidget) ->
