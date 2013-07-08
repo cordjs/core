@@ -4,7 +4,10 @@ define [], ->
 
     @inject: ['userAgentText']
 
-    calculate: ->
-      console.log 'calculate: ->', @userAgentText
 
-      @appleMobole = '/(iPad|iPhone)/'.test userAgent.text
+    constructor: ->
+      @iOs = false
+
+
+    calculate: ->
+      @iOs = /(iPad|iPhone)/.test @userAgentText

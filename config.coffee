@@ -14,11 +14,11 @@ define [], () ->
           done null, new OAuth2(this, get('config').oauth2)
 
     userAgent:
-      deps: ['userAgentText']
+      deps: ['container']
       factory: (get, done) ->
         require ['cord!/cord/core/UserAgent'], (UserAgent) =>
           userAgent = new UserAgent()
-          @injectServices userAgent
+          get('container').injectServices userAgent
           userAgent.calculate()
           done null, userAgent
 
