@@ -65,12 +65,14 @@ define [
       else
         requestOptions = '';
 
+      clazz = if options.collectionClass? then options.collectionClass.name else ''
       fields = options.fields ? []
       calc = options.calc ? []
       id = options.id ? 0
       pageSize = if options.pageSize then options.pageSize else ''
 
-      (Collection._collectionVersion + '|' + fields.sort().join(',') + '|' + calc.sort().join(',') + '|' + filterId + '|' + filter + '|' + orderBy + '|' + id + '|' + requestOptions + '|' + pageSize).replace(/\:/g, '')
+      (@_collectionVersion + '|' + clazz + '|' + fields.sort().join(',') + '|' + calc.sort().join(',') + '|' \
+      + filterId + '|' + filter + '|' + orderBy + '|' + id + '|' + requestOptions + '|' + pageSize).replace(/\:/g, '')
 
 
     constructor: (@repo, @name, options) ->
@@ -940,10 +942,12 @@ define [
       filter: @_filter
       requestParams: @_requestParams
       pageSize: @_pageSize
+      canonicalPath: @constructor.path ? null
 
 
     @fromJSON: (repo, name, obj) ->
-      collection = new this(repo, name, {})
+      CollectionClass = obj.collectionClass ? this
+      collection = new CollectionClass(repo, name, {})
       models = []
       start = obj.start
       for m, i in obj.models
