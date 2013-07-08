@@ -56,6 +56,7 @@ define [
   ], (AppConfigLoader, _console, cssManager, clientSideRouter, ServiceContainer, WidgetRepo) ->
 
     serviceContainer = new ServiceContainer
+    serviceContainer.set 'container', serviceContainer
 
     window._console = _console
 

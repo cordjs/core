@@ -55,6 +55,7 @@ define [
           true
         else if routeInfo.route.callback?
           serviceContainer = new ServiceContainer
+          serviceContainer.set 'container', serviceContainer
           config = global.config
           config.api.getUserPasswordCallback = (callback) ->
             if serviceContainer

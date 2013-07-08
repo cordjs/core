@@ -21,6 +21,7 @@ define [
         params = _.extend(path.query, routeInfo.params)
 
         serviceContainer = new ServiceContainer
+        serviceContainer.set 'container', serviceContainer
 
         ###
           Другого места получить из первых рук запрос-ответ нет
