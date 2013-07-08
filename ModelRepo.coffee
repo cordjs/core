@@ -52,6 +52,8 @@ define [
       @param Object options
       @return Collection
       ###
+      if options.collectionClass
+        throw new Error("Extended collections should be created using ModelRepo::createExtendedCollection() method!")
       name = Collection.generateName(options)
       if @_collections[name]?
         collection = @_collections[name]
@@ -59,6 +61,32 @@ define [
         collection = new Collection(this, name, options)
         @_registerCollection(name, collection)
       collection
+
+
+    createExtendedCollection: (collectionClass, options) ->
+      ###
+      Creates extended collection using the given collection class. Besides just calling the class constructor
+       services are injected and browserInit method is called before returning the result (async).
+      @param Function collectionClass extended collection class constructor
+      @param Object options common collection options
+      @return Future(Collection)
+      ###
+      result = Future.single()
+      options.collectionClass = collectionClass
+      name = Collection.generateName(options)
+
+      if @_collections[name]?
+        result.resolve(@_collections[name])
+      else
+        CollectionClass = options.collectionClass ? Collection
+        collection = new CollectionClass(this, name, options)
+        @_registerCollection(name, collection)
+
+        @container.injectServices(collection).done ->
+          collection.browserInit?() if isBrowser
+          result.resolve(collection)
+
+      result
 
 
     buildCollection: (options, syncMode, callback) ->
@@ -93,7 +121,7 @@ define [
       @param Array[String] fields list of fields names for the collection
       @return Collection|null
       ###
-      
+
       options =
         id: id
         fields: fields
@@ -126,7 +154,7 @@ define [
           options =
              fields: fields
              id: model.id
-             
+
           options.model = _.clone model
           collection = @createCollection(options)
           callback(collection.get(id))
@@ -174,11 +202,10 @@ define [
       ###
       Scans existing collections for models, containing searchedText
       @param Array[String] scannedFields - model fields to be scanned, only collections, having all the fields will be scanned
-      @param String searchedText - 
+      @param String searchedText -
       ###
       options=
         fields: scannedFields
-
 
       matchedCollections = @scanCollections(scannedFields)
       result = {}
@@ -195,7 +222,7 @@ define [
         models: result
         fields: scannedFields
 
-      collection = new Collection(this, 'fixed', options)
+      new Collection(this, 'fixed', options)
 
 
     getCollection: (name, returnMode, callback) ->
@@ -243,7 +270,7 @@ define [
 
 
     _fieldHasTag: (fieldName, tag) ->
-      @fieldTags[fieldName]? and _.isArray(@fieldTags[fieldName]) and @fieldTags[fieldName].indexOf(tag) != -1
+      @fieldTags? and @fieldTags[fieldName]? and _.isArray(@fieldTags[fieldName]) and @fieldTags[fieldName].indexOf(tag) != -1
 
 
     # serialization related:
@@ -253,10 +280,30 @@ define [
 
 
     setCollections: (collections) ->
+      ###
+      Restores the repository collections from the serialized data passed from the server-side to the browser-side.
+      @param Object(String -> Object) collections key-value with collection name as a key and serialized collection info
+                                      as a value
+      @browser-only
+      ###
+      result = new Future
       @_collections = {}
       for name, info of collections
-        collection = Collection.fromJSON(this, name, info)
-        @_registerCollection(name, collection)
+        promise = Future.single()
+        result.fork()
+        do (promise, info, name) =>
+          if info.canonicalPath?
+            require ["cord-m!#{ info.canonicalPath }"], (CollectionClass) -> promise.resolve(CollectionClass)
+          else
+            promise.resolve(Collection)
+          promise.done (CollectionClass) =>
+            info.collectionClass = CollectionClass
+            collection = Collection.fromJSON(this, name, info)
+            @_registerCollection(name, collection)
+            @container.injectServices(collection).done =>
+              collection.browserInit?()
+              result.resolve()
+      result
 
 
     # REST related
