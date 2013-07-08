@@ -56,8 +56,9 @@ define [
 
 
     init: ->
-      # TODO: try to remove this event, use widget.ready() instead
-      postal.publish "widget.#{ @id }.behaviour.init", {}
+
+
+    destroy: ->
 
 
     $: (selector) ->
@@ -112,15 +113,7 @@ define [
 
         do (method) =>
           if selector is ''
-            if eventName == 'init' || eventName == 'destroy'
-              subscription = postal.subscribe
-                topic: "widget.#{ @id }.behaviour.#{ eventName }"
-                callback: ->
-                  method()
-                  subscription.unsubscribe()
-              @_widgetSubscriptions.push subscription
-            else
-              @$rootEls.on(eventName, method)
+            @$rootEls.on(eventName, method)
           else
             # special helper selector ##
             # ##someId is replaced by #{widgets id}-someId
@@ -207,7 +200,7 @@ define [
 
 
     clean: ->
-      postal.publish "widget.#{ @id }.behaviour.destroy", {}
+      @destroy()
 
       subscription.unsubscribe() for subscription in @_widgetSubscriptions
       @_widgetSubscriptions = []
