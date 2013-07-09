@@ -14,7 +14,7 @@ define [
     _filterId: null
     _filterFunction: null
 
-    _orderBy: 'id'
+    _orderBy: null
 
     _fields: null
 
@@ -52,7 +52,7 @@ define [
       @param Object options same options, that will be passed to the collection constructor
       @return String
       ###
-      orderBy = options.orderBy ? 'id'
+      orderBy = options.orderBy ? ''
       filterId = options.filterId ? ''
       filter = _.reduce options.filter , (memo, value, index) ->
         memo + index + '_' + value
@@ -89,12 +89,12 @@ define [
 
       if options.model
         @_fillModelList [options.model]
-        @_orderBy = 'id'
+        @_orderBy = null
         @_filterId = null
         @_id = options.model.id
         @_filter = {}
       else
-        @_orderBy = options.orderBy ? 'id'
+        @_orderBy = options.orderBy ? null
         @_filterId = options.filterId ? null
         @_id = options.id ? 0
         @_filter = options.filter ? {}
@@ -286,6 +286,31 @@ define [
           if found
             @_replaceModelList models, queryParams.start, queryParams.end
 
+
+    _reorderModelsLocal: ->
+      ###
+      Rearrange collection models according to the orderBy options.
+      ###
+      if @_orderBy? and @_orderBy != ''
+        iterator = @_orderBy
+      else if @constructor.orderBy? and @constructor.orderBy != ''
+        iterator = @constructor.orderBy
+      else
+        return
+
+      sortDesc = false
+
+      if _.isString(iterator)
+        first = iterator.substr(0, 1)
+        sortDesc = (first == '-')
+        iterator = iterator.substr(1) if first == '-' or first == '+'
+      else
+        sortDesc = true if @constructor.orderDir == ':desc'
+
+      @_models = _.sortBy(@_models, iterator)
+      @_models.reverse() if sortDesc
+
+
     _reindexModels: ->
       ###
       Rebuilds useful index of the models by their id.
@@ -377,6 +402,25 @@ define [
           result.start = @_loadedStart
           result.end = @_loadedEnd
       result
+
+
+    addModel: (model, position = ':tail') ->
+      ###
+      Manually adds model into the collection and reorders the list of the models.
+      Emits 'change' event for the collection.
+      @param Model model the new or updated model
+      @param String position ':head' or ':tail' append
+      ###
+      position = ':tail' if position != ':head'
+      model.setCollection(this)
+      @_models = _.without(@_models, @_byId[model.id]) if @_byId[model.id]?
+      if position == ':tail'
+        @_models.push(model)
+      else
+        @_models.unshift(model)
+      @_reorderModelsLocal()
+      @_byId[model.id] = model
+      @emit 'change'
 
 
     _fillModelList: (models, start, end) ->
