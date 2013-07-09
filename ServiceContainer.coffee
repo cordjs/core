@@ -22,7 +22,7 @@ define [
               target[serviceName] = service
               injectPromise.resolve()
           catch e
-            console.error "Error: ", e
+            console.error e.message
             target[serviceName] = undefined
             injectPromise.resolve()
 
