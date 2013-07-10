@@ -853,7 +853,12 @@ define [
        (of the containing placeholder).
       @param Future showPromise showPromise of the outer placeholder (which called this widget.show())
       ###
-      @_bubbledShowPromise.when(showPromise) if @_bubbledShowPromise
+      if @_bubbledShowPromise
+        if not @_bubbledShowLinkedPromise?
+          @_bubbledShowPromise.when(showPromise)
+          @_bubbledShowLinkedPromise = showPromise
+        else if @_bubbledShowLinkedPromise != showPromise
+          console.warn "WARNING: #{ @debug 'linkBubbledShowPromise' } -> Trying to duplicate link to another promise! This must be a mistake!"
 
 
     _renderPlaceholder: (name, callback) ->
