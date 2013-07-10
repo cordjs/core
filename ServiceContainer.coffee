@@ -1,7 +1,8 @@
 define [
   'the-box'
   'cord!utils/Future'
-], (Container, Future) ->
+  'underscore'
+], (Container, Future, _) ->
 
   Container::injectServices = (target) ->
     ###
@@ -14,7 +15,12 @@ define [
     injectPromise = new Future
 
     if target.constructor.inject
-      for serviceName in target.constructor.inject
+      if _.isFunction target.constructor.inject
+        services = target.constructor.inject()
+      else
+        services = target.constructor.inject
+
+      for serviceName in services
         injectPromise.fork()
         do (serviceName) =>
           try
