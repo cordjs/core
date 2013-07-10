@@ -66,9 +66,11 @@ define [
         for oldIndex of oldList
           break
 
+        oldIndex = parseInt(oldIndex)
+
         # find first element in oldList that exists in the newList
         # all non-existent elements are added to the result for removing
-        while oldIndex < oldLength and not newReverse[(oldId = id(oldList[oldIndex]))]?
+        while oldIndex < oldLength and newReverse[(oldId = id(oldList[oldIndex]))] == undefined
           result.push(['remove', oldList[oldIndex]])
           oldIndex++
         oldItem = oldList[oldIndex]
