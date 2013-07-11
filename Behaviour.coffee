@@ -41,13 +41,18 @@ define [
       if widget.ctx[':inlines']?
         @$rootEls = @$rootEls.add('#'+info.id, $domRoot) for inlineName, info of widget.ctx[':inlines']
 
-      @events       = @constructor.events unless @events
-      @widgetEvents = @constructor.widgetEvents unless @widgetEvents
       @elements     = @constructor.elements unless @elements
+      @elements     = @elements() if _.isFunction @elements
 
+      @events       = @constructor.events unless @events
+      @events       = @events() if _.isFunction @events
+
+      @widgetEvents = @constructor.widgetEvents unless @widgetEvents
+      @widgetEvents = @widgetEvents() if _.isFunction @widgetEvents
+
+      @refreshElements()                if @elements
       @delegateEvents(@events)          if @events
       @initWidgetEvents(@widgetEvents)  if @widgetEvents
-      @refreshElements()                if @elements
       @_callbacks = []
 
       @init()
@@ -111,7 +116,7 @@ define [
         eventName  = match[1]
         selector   = match[2]
 
-        do (method) =>
+        do (method, selector) =>
           if selector is ''
             @$rootEls.on(eventName, method)
           else
@@ -120,6 +125,9 @@ define [
             # in widget template it should look like id="{id}-someId"
             if selector.substr(0, 2) == '##'
               selector = '#' + @widget.ctx.id + '-' + selector.substr(2)
+
+            if selector[0] == '@' and @[selector.substr(1)]
+              selector = @[selector.substr(1)].selector
 
             if eventName == 'scroll'
               # scroll event is not bubbling up, so it have to be bound without event delegation feature
