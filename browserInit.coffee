@@ -75,7 +75,7 @@ define [
         config = global.config
         config.api.getUserPasswordCallback = (callback) =>
           backPath = window.location.pathname
-          backPath = '/' if backPath.indexOf('user/login') >= 0 or backPath.indexOf('user/logout') >= 0
+          return if backPath.indexOf('user/login') >= 0 or backPath.indexOf('user/logout') >= 0
           clientSideRouter.navigate '/user/login/?back=' + window.location.pathname
         config
 
