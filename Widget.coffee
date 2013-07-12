@@ -287,7 +287,7 @@ define [
       @_callbacks = []
 
 
-    addSubscription: (subscription) ->
+    addSubscription: (subscription, callback = null) ->
       ###
       Register event subscription associated with the widget.
 
@@ -295,7 +295,12 @@ define [
 
       All such subscritiptions need to be registered to be able to clean them up later (see @cleanChildren())
       ###
-      @_postalSubscriptions.push subscription
+      if callback and _.isString subscription
+        @_postalSubscriptions.push postal.subscribe
+          topic: subscription
+          callback: callback
+      else
+        @_postalSubscriptions.push subscription
 
 
     cleanSubscriptions: ->

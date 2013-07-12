@@ -79,8 +79,13 @@ define [
         $(selector)
 
 
-    addSubscription: (subscriptionDef) ->
-      @_widgetSubscriptions.push subscriptionDef
+    addSubscription: (subscription, callback = null) ->
+      if callback and _.isString subscription
+        @_widgetSubscriptions.push postal.subscribe
+          topic: subscription
+          callback: callback
+      else
+        @_widgetSubscriptions.push subscription
 
 
     getCallback: (callback) =>
