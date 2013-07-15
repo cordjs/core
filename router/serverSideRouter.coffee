@@ -47,7 +47,7 @@ define [
           widgetRepo = null
 
         config = global.config
-        config.api.getUserPasswordCallback = (callback) ->
+        config.api.authenticateUserCallback = ->
           if serviceContainer
             response = serviceContainer.get 'serverResponse'
             request = serviceContainer.get 'serverRequest'
@@ -61,6 +61,7 @@ define [
                 "Expires": 0
               response.end()
               clear()
+          false
 
         serviceContainer.set 'config', config
 

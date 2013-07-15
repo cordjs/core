@@ -73,10 +73,11 @@ define [
 
       serviceContainer.def 'config', ->
         config = global.config
-        config.api.getUserPasswordCallback = (callback) =>
+        config.api.authenticateUserCallback = ->
           backPath = window.location.pathname
-          return if backPath.indexOf('user/login') >= 0 or backPath.indexOf('user/logout') >= 0
-          clientSideRouter.navigate '/user/login/?back=' + window.location.pathname
+          if not (backPath.indexOf('user/login') >= 0 or backPath.indexOf('user/logout') >= 0)
+            clientSideRouter.navigate '/user/login/?back=' + window.location.pathname
+          true
         config
 
     ###

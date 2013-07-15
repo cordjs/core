@@ -1,8 +1,9 @@
 define [
   'cord!Utils'
+  'cord!utils/Future'
   'underscore'
   'postal'
-], (Utils, _, postal) ->
+], (Utils, Future, _, postal) ->
 
 
   class Api
@@ -17,8 +18,7 @@ define [
         host: 'megaplan.megaplan.ru'
         urlPrefix: ''
         params: {}
-        getUserPasswordCallback: (callback) ->
-          callback '', ''
+        authenticateUserCallback: -> false # @see authenticateUser() method
       @options = _.extend defaultOptions, options
 
       @serviceContainer = serviceContainer
@@ -80,12 +80,39 @@ define [
       @serviceContainer.eval 'oauth2', (oauth2) =>
         oauth2.grantAccessTokenByPassword username, password, @getScope(), (accessToken, refreshToken) =>
           @storeTokens accessToken, refreshToken, callback
+          postal.publish 'auth.tokens.ready',
+            accessToken: accessToken
+            refreshToken: refreshToken
 
 
     getTokensByExtensions: (url, params, callback) ->
       @serviceContainer.eval 'oauth2', (oauth2) =>
         oauth2.grantAccessTokenByExtensions url, params, @getScope(), (accessToken, refreshToken) =>
           @storeTokens accessToken, refreshToken, callback
+          postal.publish 'auth.tokens.ready',
+            accessToken: accessToken
+            refreshToken: refreshToken
+
+
+    authenticateUser: ->
+      ###
+      Initiates pluggable via authenticateUserCallback-option authentication of the user and waits for the global
+       event with the auth-tokens which must be triggered by that procedure.
+      Callback-function-option authenticateUserCallback must return boolean 'true' if it's supposed to trigger
+       'auth.tokens.ready' event eventually, or boolean 'false' if it's not (for example, there will be some kind
+       of page refresh and callback is not applicable.
+      @return Future(String, String) - eventually completed with access- and refresh-tokens.
+      ###
+      result = Future.single()
+      if @options.authenticateUserCallback()
+        subscription = postal.subscribe
+          topic: 'auth.tokens.ready'
+          callback: (tokens) =>
+            subscription.unsubscribe()
+            result.resolve(tokens.accessToken, tokens.refreshToken)
+      else
+        result.reject('Callback is not applicable in this case.')
+      result
 
 
     getTokensByRefreshToken: (refreshToken, callback) ->
@@ -95,22 +122,18 @@ define [
             @storeTokens grantedAccessToken, grantedRefreshToken, callback
             return true #continue processing other deferred callbacks in oauth
           else
-            @options.getUserPasswordCallback (username, password) =>
-              @getTokensByUsernamePassword username, password, (usernameAccessToken, usernameRefreshToken) =>
-                callback usernameAccessToken, usernameRefreshToken
+            @authenticateUser().done(callback).fail -> callback('', '')
             return false #stop processing other deferred callbacks in oauth
 
 
     getTokensByAllMeans: (accessToken, refreshToken, callback) ->
       if not accessToken
         if refreshToken
-          return @getTokensByRefreshToken refreshToken, callback
+          @getTokensByRefreshToken refreshToken, callback
         else
-          return @options.getUserPasswordCallback (username, password) =>
-            @getTokensByUsernamePassword username, password, (usernameAccessToken, usernameRefreshToken) =>
-              return callback usernameAccessToken, usernameRefreshToken
-
-      callback accessToken, refreshToken
+          @authenticateUser().done(callback).fail -> callback('', '')
+      else
+        callback accessToken, refreshToken
 
 
     get: (url, params, callback) ->
