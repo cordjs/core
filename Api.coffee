@@ -3,7 +3,8 @@ define [
   'cord!utils/Future'
   'underscore'
   'postal'
-], (Utils, Future, _, postal) ->
+  'cord!isBrowser'
+], (Utils, Future, _, postal, isBrowser) ->
 
 
   class Api
@@ -58,22 +59,21 @@ define [
 
     restoreTokens: (callback) ->
       # Возвращаем из локального кеша
-      #if @accessToken and @refreshToken
-      # _console.log "Restore tokens from local cache: #{@accessToken}, #{@refreshToken}" if global.config.debug.oauth2
-      #  callback @accessToken, @refreshToken
-      #else
-      @serviceContainer.eval 'cookie', (cookie) =>
-        accessToken = cookie.get 'accessToken'
-        refreshToken = cookie.get 'refreshToken'
-        scope = cookie.get 'oauthScope'
-
-        @accessToken = accessToken
-        @refreshToken = refreshToken
-        @scope = scope
-
-        _console.log "Restore tokens: #{accessToken}, #{refreshToken}" if global.config.debug.oauth2
-
+      if !isBrowser and @accessToken and @refreshToken
+        _console.log "Restore tokens from local cache: #{@accessToken}, #{@refreshToken}" if global.config.debug.oauth2
         callback @accessToken, @refreshToken
+      else
+        @serviceContainer.eval 'cookie', (cookie) =>
+          accessToken = cookie.get 'accessToken'
+          refreshToken = cookie.get 'refreshToken'
+          scope = cookie.get 'oauthScope'
+
+          @accessToken = accessToken
+          @refreshToken = refreshToken
+          @scope = scope
+
+          console.log "Restore tokens: #{accessToken}, #{refreshToken}" #if global.config.debug.oauth2
+          callback @accessToken, @refreshToken
 
 
     getTokensByUsernamePassword: (username, password, callback) ->
@@ -117,6 +117,7 @@ define [
 
     getTokensByRefreshToken: (refreshToken, callback) ->
       @serviceContainer.eval 'oauth2', (oauth2) =>
+        console.log 'getTokensByRefreshToken:',refreshToken
         oauth2.grantAccessTokenByRefreshToken refreshToken, @getScope(), (grantedAccessToken, grantedRefreshToken) =>
           if grantedAccessToken and grantedRefreshToken
             @storeTokens grantedAccessToken, grantedRefreshToken, callback
