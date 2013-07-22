@@ -42,7 +42,7 @@ define [
     # helper value for event propagation optimization
     _selfEmittedChangeModelId: null
 
-    @_collectionVersion: '0.03'
+    @_collectionVersion: '0.04'
 
 
     @generateName: (options) ->
@@ -359,6 +359,9 @@ define [
 
 
     _refreshPage: (page, paging, direction) ->
+      if paging.pages == 0
+      # special case, when collection nullifies on server
+        return @_replaceModelList [], @_loadedStart, @_loadedEnd
       if page > 0 && page <= paging.pages
         start = (page - 1) * @_pageSize
         end = page * @_pageSize - 1
@@ -470,9 +473,12 @@ define [
       oldList = _.clone(@_models)
 
       if start? and end?
+        ###
         #in case of refreshing, we'll just replace the list
         if start == @_loadedStart && end == @_loadedEnd
-          return @_fillModelList newList
+          @_fillModelList newList
+          return true
+        ###
 
         loadingStart = start
         loadingEnd = end
@@ -483,6 +489,9 @@ define [
         @_models = []
 
       changed = false
+
+      targetIndex = loadingStart - 1
+
       # appending/replacing new models to the collection according to the paging options
       for model, i in newList
         model.setCollection(this)
@@ -501,6 +510,7 @@ define [
       @_loadedEnd = loadingEnd if loadingEnd > @_loadedEnd
 
       @_reindexModels()
+      @_initialized = true
 
       # in situation when newList is empty, we must emit change event
       changed = true if newList.length == 0 and oldListCount != 0
@@ -860,6 +870,8 @@ define [
               @_fillModelList models, start, end
               @repo.cacheCollection(this)
 
+            @_initialized = true
+
             # not forgetting to remove the completed query from the queue
             if queryList[0] == waitForQuery
               queryList.shift()
@@ -989,6 +1001,7 @@ define [
       requestParams: @_requestParams
       pageSize: @_pageSize
       canonicalPath: @constructor.path ? null
+      initialized: @_initialized
 
 
     @fromJSON: (repo, name, obj) ->
@@ -1014,7 +1027,7 @@ define [
       collection._pageSize = obj.pageSize
 
       collection._reindexModels()
-      collection._initialized = (collection._models.length > 0)
+      collection._initialized = obj.initialized || (collection._models.length > 0)
 
       collection
 
