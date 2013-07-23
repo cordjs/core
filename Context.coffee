@@ -24,6 +24,15 @@ define [
             @_initDeferredDebug(key)
 
 
+    owner: (owner) ->
+      if owner
+        Object.defineProperty @, "_owner",
+          value: owner
+          writable: true
+          enumerable: false
+      @_owner
+
+
     set: (args...) ->
       triggerChange = false
       if args.length == 0
@@ -191,6 +200,6 @@ define [
     _initDeferredDebug: (name) ->
       if @[name] == ':deferred'
         setTimeout =>
-          _console.error '### Deferred timeout', name, @id if @[name] == ':deferred'
-        , 20000
+          _console.error '### Deferred timeout', name, @id, @_owner?.constructor.name  if @[name] == ':deferred'
+        , 10000
 
