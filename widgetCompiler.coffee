@@ -120,7 +120,7 @@ define [
         JSON.stringify res, null, 2
 
     printStructure: ->
-      console.log @getStructureCode false
+      _console.log @getStructureCode false
 
 
     extractBodiesAsStringList: (compiledSource) ->

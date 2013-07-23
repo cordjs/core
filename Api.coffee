@@ -72,7 +72,7 @@ define [
           @refreshToken = refreshToken
           @scope = scope
 
-          console.log "Restore tokens: #{accessToken}, #{refreshToken}" #if global.config.debug.oauth2
+          _console.log "Restore tokens: #{accessToken}, #{refreshToken}" if global.config.debug.oauth2
           callback @accessToken, @refreshToken
 
 

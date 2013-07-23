@@ -76,7 +76,7 @@ define [
         # debug problems: inform if insertion future is never completed
         setTimeout ->
           if not result.completed()
-            console.error "replaceNode didn't completed after 10 seconds!", $old, $new
+            _console.error "replaceNode didn't completed after 10 seconds!", $old, $new
             #result.reject()
         , 10000
 

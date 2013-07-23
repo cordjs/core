@@ -863,7 +863,7 @@ define [
           @_bubbledShowPromise.when(showPromise)
           @_bubbledShowLinkedPromise = showPromise
         else if @_bubbledShowLinkedPromise != showPromise
-          console.warn "WARNING: #{ @debug 'linkBubbledShowPromise' } -> Trying to duplicate link to another promise! This must be a mistake!"
+          _console.warn "WARNING: #{ @debug 'linkBubbledShowPromise' } -> Trying to duplicate link to another promise! This must be a mistake!"
 
 
     _renderPlaceholder: (name, callback) ->

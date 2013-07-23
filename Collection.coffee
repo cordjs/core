@@ -319,7 +319,7 @@ define [
       for m in @_models
         if m != undefined
           if @_byId[m.id]
-            console.warn 'model ' + m.id + ' already exists in collection'
+            _console.warn 'model ' + m.id + ' already exists in collection'
           @_byId[m.id] = m
 
 
