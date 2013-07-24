@@ -180,7 +180,7 @@ define [
       if (_.isArray fields)
         matchedCollections = @scanCollections(fields)
       else
-        matchedCollections = @_collections
+        matchedCollections = _.values @_collections
 
       for collection in matchedCollections
         if collection.have(id)
