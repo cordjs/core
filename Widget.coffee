@@ -1198,6 +1198,8 @@ define [
       if index != -1
         @children.splice index, 1
         delete @childById[child.ctx.id]
+        delete @childBindings[child.ctx.id]
+        
         for name, widget of @childByName
           if widget == child
             delete @childByName[name]

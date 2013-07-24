@@ -48,9 +48,12 @@ define [
       else if @setSingle args[0], args[1]
         triggerChange = true
 
-      if triggerChange
+      #Prevent multiple someChange events in one tick
+      if triggerChange && !@_someChangeNotHappened
+        @_someChangeNotHappened = true
         Defer.nextTick =>
           postal.publish "widget.#{ @id }.someChange", {}
+          @_someChangeNotHappened = false
 
 
     setSingle: (name, newValue, callbackPromise) ->
