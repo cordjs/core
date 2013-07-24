@@ -1199,7 +1199,7 @@ define [
         @children.splice index, 1
         delete @childById[child.ctx.id]
         delete @childBindings[child.ctx.id]
-        
+
         for name, widget of @childByName
           if widget == child
             delete @childByName[name]
@@ -1325,6 +1325,9 @@ define [
       @param (optional)jQuery domRoot injected DOM root for the widget or it's children
       ###
       _console.log "#{ @debug 'browserInit' }" if global.config.debug.widget
+      if @_sentenced
+        _console.log "browserInit called for dead #{ @ctx.id }"
+        return @_widgetReadyPromise
 
       if not @_browserInitialized and not @_delayedRender
         @_browserInitialized = true
