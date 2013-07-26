@@ -1287,10 +1287,11 @@ define [
 
       if behaviourClass
         require ["cord!/#{ @getDir() }/#{ behaviourClass }"], (BehaviourClass) =>
-          if BehaviourClass instanceof Function
-            @behaviour = new BehaviourClass(this, $domRoot)
-          else
-            _console.error 'WRONG BEHAVIOUR CLASS:', behaviourClass
+          if !@_sentenced
+            if BehaviourClass instanceof Function
+              @behaviour = new BehaviourClass(this, $domRoot)
+            else
+              _console.error 'WRONG BEHAVIOUR CLASS:', behaviourClass
           promise.resolve()
       else
         promise.resolve()
