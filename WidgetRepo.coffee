@@ -406,7 +406,7 @@ define [
         @createWidget newRootWidgetPath, (widget) =>
           @setRootWidget widget
           widget.injectAction params, transition, (commonBaseWidget) =>
-            @dropWidget _oldRootWidget.ctx.id unless commonBaseWidget == _oldRootWidget
+            @dropWidget _oldRootWidget.ctx.id if _oldRootWidget && commonBaseWidget != _oldRootWidget
             @rootWidget.shown().done -> transition.complete()
 
 

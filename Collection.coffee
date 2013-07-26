@@ -361,6 +361,7 @@ define [
     _refreshPage: (page, paging, direction) ->
       if paging.pages == 0
       # special case, when collection nullifies on server
+        @_refreshInProgress = false
         return @_replaceModelList [], @_loadedStart, @_loadedEnd
       if page > 0 && page <= paging.pages
         start = (page - 1) * @_pageSize
@@ -730,7 +731,7 @@ define [
 
       cachePromise.done =>
         localCalculated = false
-        if @_totalCount?
+        if @_totalCount? && @_totalCount > 0
           if selectedId
             if (m = @_byId[selectedId])?
               index = @_models.indexOf(m)
@@ -756,6 +757,9 @@ define [
 
           @repo.paging(params).done (response) =>
             @_totalCount = response.total
+            #special case: collections with zero amount of model will be never initialized otherwize
+            if @_totalCount == 0
+              @_initialized = true
             result.resolve(response)
 
       result
