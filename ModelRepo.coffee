@@ -155,7 +155,8 @@ define [
              fields: fields
              id: model.id
 
-          options.model = _.clone model
+          options.model = new @model(model)
+
           collection = @createCollection(options)
           callback(collection.get(id))
           return collection

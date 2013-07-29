@@ -13,10 +13,18 @@ define [
     # old values of changed fields (by method set()) until the model is saved
     _changed: null
 
-
     constructor: (attrs) ->
+      ###
+      attrs could be another model as well, ctor will return a copy of the original model
+      ###
+
       @_fieldNames = []
       @_changed = {}
+      if (attrs instanceof Model)
+        attrs  = _.clone attrs
+        delete attrs._fieldNames if attrs._fieldNames
+        delete attrs._changed if attrs._changed
+
       @_load(attrs) if attrs
 
 
