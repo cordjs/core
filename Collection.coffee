@@ -440,8 +440,9 @@ define [
       if start? and end?
         # appending new models to the collection according to the paging options
         for model, i in models
-          model.setCollection(this)
-          @_models[start + i] = model
+          if model
+            model.setCollection(this)
+            @_models[start + i] = model
 
         @_loadedStart = start if start < @_loadedStart
         @_loadedEnd = end if end > @_loadedEnd

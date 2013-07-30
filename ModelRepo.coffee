@@ -559,8 +559,9 @@ define [
         require ['cord!cache/localStorage'], (storage) =>
           storage.getCollection(@constructor.name, name).done (models) =>
             result = []
-            for m in models
-              result.push(@buildModel(m))
+            for m,index in models
+              if m
+                result[index] = @buildModel(m)
             resultPromise.resolve(result)
         resultPromise
       else
