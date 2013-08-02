@@ -361,4 +361,4 @@ define [
       @return String
       ###
       methodStr = if method? then "::#{ method }" else ''
-      "#{ @widget.getPath() }Behaviuor(#{ @widget.ctx.id })#{ methodStr }"
+      "#{ @widget.getPath() }Behaviour(#{ @widget.ctx.id })#{ methodStr }"
