@@ -77,6 +77,10 @@ define [
     # temporary helper data container for inline-block processing
     _inlinesRuntimeInfo: null
 
+    # list of placeholders render information including deep placeholders of immediate-included widgets
+    # deep infomation is need by replacePlaceholders() to include child widgets and inlines correctly
+    _placeholdersRenderInfo: null
+
     # Object of subscibed push binding (by parent widget context's param name)
     _subscibedPushBindings: null
 
@@ -577,10 +581,11 @@ define [
 
       @_resetWidgetReady()
       @_behaviourContextBorderVersion = null
+      @_placeholdersRenderInfo = []
 
       extendWidgetInfo = if tmpl != ':empty' then tmpl.struct.extend else null
       if extendWidgetInfo?
-        extendWidget = @widgetRepo.findAndCutMatchingExtendWidget tmpl.struct.widgets[extendWidgetInfo.widget].path
+        extendWidget = @widgetRepo.findAndCutMatchingExtendWidget(tmpl.struct.widgets[extendWidgetInfo.widget].path)
         if extendWidget?
           readyPromise = new Future(1)
           @_inlinesRuntimeInfo = []
@@ -596,6 +601,8 @@ define [
           cb = new Future
           require ['jquery'], cb.callback()
           tmpl.replacePlaceholders extendWidgetInfo.widget, extendWidget.ctx[':placeholders'], transition, cb.callback()
+
+#          Future.require('jquery').zip(placeholdersFuture).done ($) =>
 
           cb.done ($) =>
             # if there are inlines owned by this widget
@@ -650,6 +657,7 @@ define [
 
       @_resetWidgetReady() # allowing to call browserInit() after template re-render is reasonable
       @_behaviourContextBorderVersion = null
+      @_placeholdersRenderInfo = []
 
       @getStructTemplate (tmpl) =>
         if tmpl != ':empty' and tmpl.struct.extend?
@@ -898,6 +906,9 @@ define [
           delete info.timeoutTemplateOwner
 
           renderTimeoutTemplate = ->
+            ###
+            Renders timeout template
+            ###
             tmplPath = "#{ timeoutTemplateOwner.getDir() }/#{ info.timeoutTemplate }"
 
             actualRender = ->
@@ -915,50 +926,19 @@ define [
                 dust.loadSource tmplString, tmplPath
                 actualRender()
 
-          if info.type == 'widget'
-            placeholderOrder[widgetId] = i
+          processWidget = (out) ->
+            ###
+            DRY for regular widget result fixing
+            ###
+            placeholderOut[placeholderOrder[widgetId]] = widget.renderRootTag(out)
+            renderInfo.push(type: 'widget', widget: widget)
+            renderInfo.push(subInfo) for subInfo in widget.getPlaceholdersRenderInfo()
+            # TODO: may be we can clean placeholders render info here to free some memory
 
-            complete = false
-            widget.show info.params, (err, out) ->
-              widget.linkBubbledShowPromise(showPromise)
-              if err then throw err
-              if not complete
-                complete = true
-                placeholderOut[placeholderOrder[widgetId]] = widget.renderRootTag(out)
-                renderInfo.push(type: 'widget', widget: widget)
-                promise.resolve()
-              else
-                # insert actual content of the widget instead of timeout stub, inserted before
-                # @browser-only
-                widget._delayedRender = false
-                if not promise.completed()
-                  placeholderOut[placeholderOrder[widgetId]] = widget.renderRootTag(out)
-                  renderInfo.push(type: 'widget', widget: widget)
-                else
-                  require ['cord!utils/DomHelper', 'jquery'], (DomHelper, $) ->
-                    $newRoot = $(widget.renderRootTag(out))
-                    widget.browserInit($newRoot).zip(showPromise).done ->
-                      DomHelper.replaceNode($('#'+widgetId, info.domRoot), $newRoot).done -> widget.markShown()
-
-            if isBrowser and info.timeout? and info.timeout >= 0
-              setTimeout ->
-                # if the widget has not been rendered within given timeout, render stub template from the {:timeout} block
-                if not complete
-                  complete = true
-                  widget._delayedRender = true
-                  if info.timeoutTemplate?
-                    renderTimeoutTemplate()
-                  else
-                    placeholderOut[placeholderOrder[widgetId]] =
-                      widget.renderRootTag('<b>Hardcode Stub Text!!</b>')
-                    renderInfo.push(type: 'timeout-stub', widget: widget)
-                    promise.resolve()
-
-              , info.timeout
-
-          else if info.type == 'timeouted-widget'
-            placeholderOrder[widgetId] = i
-
+          processTimeoutStub = ->
+            ###
+            DRY for timeout stub processing
+            ###
             widget._delayedRender = true
             if info.timeoutTemplate?
               renderTimeoutTemplate()
@@ -968,19 +948,51 @@ define [
               renderInfo.push(type: 'timeout-stub', widget: widget)
               promise.resolve()
 
+          replaceTimeoutStub = (out) ->
+            ###
+            DRY insert actual content of the widget instead of timeout stub, inserted before
+            @browser-only
+            ###
+            widget._delayedRender = false
+            if not promise.completed()
+              processWidget(out)
+            else
+              require ['cord!utils/DomHelper', 'jquery'], (DomHelper, $) ->
+                $newRoot = $(widget.renderRootTag(out))
+                widget.browserInit($newRoot).zip(showPromise).done ->
+                  DomHelper.replaceNode($('#'+widgetId, info.domRoot), $newRoot).done -> widget.markShown()
+
+
+          if info.type == 'widget'
+            placeholderOrder[widgetId] = i
+
+            complete = false
+            widget.show info.params, (err, out) ->
+              widget.linkBubbledShowPromise(showPromise)
+              if err then throw err
+              if not complete
+                complete = true
+                processWidget(out)
+                promise.resolve()
+              else
+                replaceTimeoutStub(out)
+
+            if isBrowser and info.timeout? and info.timeout >= 0
+              setTimeout ->
+                # if the widget has not been rendered within given timeout, render stub template from the {:timeout} block
+                if not complete
+                  complete = true
+                  processTimeoutStub()
+              , info.timeout
+
+          else if info.type == 'timeouted-widget'
+            placeholderOrder[widgetId] = i
+            processTimeoutStub()
             info.timeoutPromise.done (params) ->
               widget.show params, (err, out) ->
                 widget.linkBubbledShowPromise(showPromise)
                 if err then throw err
-                widget._delayedRender = false
-                if not promise.completed()
-                  placeholderOut[placeholderOrder[widgetId]] = widget.renderRootTag(out)
-                  renderInfo.push(type: 'widget', widget: widget)
-                else
-                  require ['cord!utils/DomHelper', 'jquery'], (DomHelper, $) ->
-                    $newRoot = $(widget.renderRootTag(out))
-                    widget.browserInit($newRoot).zip(showPromise).done ->
-                      DomHelper.replaceNode($('#'+widgetId, info.domRoot), $newRoot).done -> widget.markShown()
+                replaceTimeoutStub(out)
 
           else
             placeholderOrder[info.template] = i
@@ -1002,8 +1014,13 @@ define [
               promise.resolve()
           i++
 
-      promise.done ->
+      promise.done =>
+        @_placeholdersRenderInfo.push(info) for info in renderInfo # collecting render info for the future usage by the enclosing widget
         callback(placeholderOut.join(''), renderInfo, showPromise)
+
+
+    getPlaceholdersRenderInfo: ->
+      @_placeholdersRenderInfo
 
 
     _getPlaceholderDomId: (name) ->
@@ -1050,6 +1067,7 @@ define [
           $('#' + @_getPlaceholderDomId name).empty()
 
         @ctx[':placeholders'] = ph
+        @_placeholdersRenderInfo = []
 
         for name, items of ph
           do (name) =>
