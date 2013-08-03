@@ -291,6 +291,7 @@ define [
       @deprecated inlines re-rendering should be performed by render() method
       ###
       @widget._behaviourContextBorderVersion = null
+      @widget._resetWidgetReady()
       @widget.renderInline name, (err, out) =>
         if err then throw err
         id = @widget.ctx[':inlines'][name].id

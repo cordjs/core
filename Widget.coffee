@@ -767,8 +767,6 @@ define [
       ###
       _console.log "#{ @constructor.name }::renderInline(#{ inlineName })" if global.config.debug.widget
 
-      @_resetWidgetReady() # if inline is rendered, it will be necessary to call browserInit()
-
       if @ctx[':inlines'][inlineName]?
         template = @ctx[':inlines'][inlineName].template
         tmplPath = "#{ @getDir() }/#{ template }"
@@ -960,7 +958,9 @@ define [
               require ['cord!utils/DomHelper', 'jquery'], (DomHelper, $) ->
                 $newRoot = $(widget.renderRootTag(out))
                 widget.browserInit($newRoot).zip(showPromise).done ->
-                  DomHelper.replaceNode($('#'+widgetId, info.domRoot), $newRoot).done -> widget.markShown()
+                  promise = if info.domRoot? then Future.resolved() else Future.timeout(500)
+                  promise.done ->
+                    DomHelper.replaceNode($('#'+widgetId, info.domRoot), $newRoot).done -> widget.markShown()
 
 
           if info.type == 'widget'
@@ -1073,8 +1073,10 @@ define [
           do (name) =>
             if replaceHints[name].replace
               readyPromise.fork()
+#              domPromise = Future.single()
               @_renderPlaceholder name, (out, renderInfo, showPromise) =>
                 $el = $(@renderPlaceholderTag(name, out))
+#                domPromise.resolve($el)
                 @ctx[':placeholders'][name].domRoot = $el
                 aggregatePromise = new Future # full placeholders members initialization promise
                 for info in renderInfo
