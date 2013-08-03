@@ -42,6 +42,7 @@ define [
     _counter: 0
     _doneCallbacks: null
     _failCallbacks: null
+    _alwaysCallbacks: null
     _order: 0
     _callbackArgs: null
 
@@ -66,6 +67,7 @@ define [
       @_counter = initialCounter
       @_doneCallbacks = []
       @_failCallbacks = []
+      @_alwaysCallbacks = []
       @_name = name
 
 
@@ -75,7 +77,7 @@ define [
       Should be paired with following resolve() call.
       @return Future(self)
       ###
-      throw Error("Trying to use the completed promise!") if @_completed
+      throw Error("Trying to use the completed promise!") if @_completed and not (@_state == 'rejected' and @_counter > 0)
       throw Error("Trying to fork locked promise!") if @_locked
       @_counter++
       this
@@ -93,7 +95,9 @@ define [
         @_counter--
         if @_state != 'rejected'
           @_callbackArgs = [args] if args.length > 0
-          @_runDoneCallbacks() if @_counter == 0 and @_doneCallbacks.length > 0
+          if @_counter == 0
+            @_runDoneCallbacks() if @_doneCallbacks.length > 0
+            @_runAlwaysCallbacks() if @_alwaysCallbacks.length > 0
           # not changing state to 'resolved' here because it is possible to call fork() again if done hasn't called yet
       else
         nameStr = if @_name then " (name = #{ @_name})" else ''
@@ -102,10 +106,10 @@ define [
       this
 
 
-    reject: (args...) ->
+    reject: (err) ->
       ###
       Indicates that the promise is rejected (failed) and fail-callbacks should be called.
-      If there are some arguments passed then they are passed unchanged to the done-callbacks.
+      If there are some arguments passed then they are passed unchanged to the fail-callbacks.
       If fail-method is already called than callbacks are fired immediately, otherwise they'll be fired
        when fail-method is called.
       Only first call of this method is important. Any subsequent calls does nothing but decrementing the counter.
@@ -114,12 +118,26 @@ define [
         @_counter--
         if @_state != 'rejected'
           @_state = 'rejected'
-          @_callbackArgs = [args] if args.length > 0
+          @_callbackArgs = [err ? 'Future rejected without error message!']
           @_runFailCallbacks() if @_failCallbacks.length > 0
+          @_runAlwaysCallbacks() if @_alwaysCallbacks.length > 0
       else
         throw new Error("Future::reject is called more times than Future::fork!")
 
       this
+
+
+    complete: (err, args...) ->
+      ###
+      Completes this promise either with successful of failure result depending on the arguments.
+      If first argument is not null than the promise is completed with reject using first argument as an error.
+      Otherwise remainin arguments are used for promise.resolve() call.
+      This method is useful to work with lots of APIs using such semantics of the callback agruments.
+      ###
+      if err?
+        @reject(err)
+      else
+        @resolve.apply(this, args)
 
 
     when: (args...) ->
@@ -160,6 +178,17 @@ define [
       this
 
 
+    always: (callback) ->
+      ###
+      Defines callback funtion to be called when future is completed by any mean.
+      Callback arguments are using popular semantics with first-argument-as-an-error (Left) and other arguments
+       are successful results of the future.
+      ###
+      @_alwaysCallbacks.push(callback)
+      @_runAlwaysCallbacks() if @_counter == 0
+      this
+
+
     failAloud: ->
       ###
       Adds often-used scenario of fail that just throws exception with the error
@@ -183,14 +212,14 @@ define [
       order = @_order++
       @_callbackArgs ?= {}
       (args...) =>
-        if neededArgs.length
-          result = []
-          for i in neededArgs
-            result.push args[i]
-        else
-          result = args
-
-        @_callbackArgs[order] = result
+        if @_state != 'rejected'
+          if neededArgs.length
+            result = []
+            for i in neededArgs
+              result.push args[i]
+          else
+            result = args
+          @_callbackArgs[order] = result
         @resolve()
 
 
@@ -222,12 +251,28 @@ define [
       Returns result of the callback as a new Future.
       Callback must return a Future, and resulting Future is completed when the callback-returned future is completed.
       If this Future is rejected than the resulting Future will contain the same error.
-      @param Function(this.type -> Future(A)) callback
+      @param Function(this.result -> Future(A)) callback
       @return Future(A)
       ###
       result = Future.single()
       @done (args...) -> result.when(callback.apply(null, args))
       @fail (err)     -> result.reject(err)
+      result
+
+
+    andThen: (callback) ->
+      ###
+      Creates and returns a new future with the same result as this future but completed only after invoking
+       of the given callback-function. Callback is called on any result of the future.
+      Arguments of the callback has the same meaning as always()-callbacks.
+      This method allows for establishing order of callbacks.
+      @param Function(err, results...) callback
+      @return Future(this.result)
+      ###
+      result = Future.single()
+      @always (args...) ->
+        callback.apply(null, args)
+        result.complete.apply(result, args)
       result
 
 
@@ -250,7 +295,7 @@ define [
       # this is need to avoid duplicate callback calling in case of recursive coming here from callback function
       callbacksCopy = @_doneCallbacks
       @_doneCallbacks = []
-      @_runCallbacks(callbacksCopy)
+      @_runCallbacks(callbacksCopy, true)
 
 
     _runFailCallbacks: ->
@@ -263,7 +308,30 @@ define [
       @_runCallbacks(callbacksCopy)
 
 
-    _runCallbacks: (callbacks) ->
+    _runAlwaysCallbacks: ->
+      ###
+      Fires resulting callback functions defined by always with right list of arguments.
+      ###
+      @_state = 'resolved' if @_state == 'pending'
+      callbacksCopy = @_alwaysCallbacks
+      @_alwaysCallbacks = []
+      @_completed = true
+
+      args = []
+      if @_state == 'resolved'
+        # for successfully completed future we must add null-error first argument.
+        args.push(null)
+        if @_callbackArgs?
+          for i in [0..@_order-1]
+            args = args.concat(@_callbackArgs[i])
+      else
+        # for rejected future there is no need to flatten argument as there is only one error.
+        args = @_callbackArgs
+
+      callback.apply(null, args) for callback in callbacksCopy
+
+
+    _runCallbacks: (callbacks, flattenArgs = false) ->
       ###
       Helper-method to run list of callbacks.
       @param Array(Function) callbacks
@@ -272,8 +340,11 @@ define [
 
       if @_callbackArgs?
         args = []
-        for i in [0..@_order-1]
-          args = args.concat(@_callbackArgs[i])
+        if flattenArgs
+          for i in [0..@_order-1]
+            args = args.concat(@_callbackArgs[i])
+        else
+          args = @_callbackArgs
         callback.apply(null, args) for callback in callbacks
       else
         callback() for callback in callbacks
@@ -321,6 +392,20 @@ define [
       , millisec
       result
 
+
+    @require: (paths...) ->
+      ###
+      Convenient Future-wrapper for requirejs's require call.
+      @param String* paths list of modules requirejs-format paths
+      @return Future(modules...)
+      ###
+      result = @single()
+      console.log "REQUIRE: -> ", paths
+      require paths, (modules...) ->
+        console.log "require complete", modules
+        result.resolve.apply(result, modules)
+      , (err) -> result.reject(err)
+      result
 
     # debugging
 
