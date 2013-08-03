@@ -285,6 +285,18 @@ define [
       result.reject(error)
       result
 
+    @timeout: (millisec) ->
+      ###
+      Returns the future wich will complete after the given number of milliseconds
+      @param Int millisec number of millis before resolving the future
+      @return Future
+      ###
+      result = @single()
+      setTimeout ->
+        result.resolve()
+      , millisec
+      result
+
 
     # debugging
 
