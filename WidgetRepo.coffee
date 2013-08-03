@@ -384,7 +384,7 @@ define [
           # of the new root (because the old root extends from the new one directly or indirectly)
           # and push new params into the new root widget
           @setRootWidget extendWidget
-          extendWidget.getStructTemplate (tmpl) =>
+          extendWidget.getStructTemplate().done (tmpl) =>
             tmpl.assignWidget(tmpl.struct.ownerWidget, extendWidget)
             tmpl.replacePlaceholders tmpl.struct.ownerWidget, extendWidget.ctx[':placeholders'], transition, =>
               extendWidget.setParams(params)

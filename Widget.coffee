@@ -532,18 +532,23 @@ define [
               callback(null, '')
 
 
-    getStructTemplate: (callback) ->
+    getStructTemplate: ->
+      ###
+      Loads (if neccessary) and returns in Future structure teamplate of the widget or :empty if it has no one.
+      @return Future(StructureTemplate | :empty)
+      ###
       if @_structTemplate?
-        callback @_structTemplate
+        Future.resolved(@_structTemplate)
       else
+        result = Future.single()
         tmplStructureFile = "bundles/#{ @getTemplatePath() }.structure.json"
         returnCallback = =>
           struct = dust.cache[tmplStructureFile]
           if struct.widgets? and Object.keys(struct.widgets).length > 1
-            @_structTemplate = new StructureTemplate struct, this
+            @_structTemplate = new StructureTemplate(struct, this)
           else
             @_structTemplate = ':empty'
-          callback @_structTemplate
+          result.resolve(@_structTemplate)
 
         if dust.cache[tmplStructureFile]?
           returnCallback()
@@ -551,6 +556,7 @@ define [
           require ["text!#{ tmplStructureFile }"], (jsonString) =>
             dust.register tmplStructureFile, JSON.parse(jsonString)
             returnCallback()
+        result
 
 
     injectAction: (params, transition, callback) ->
@@ -567,7 +573,7 @@ define [
       @setParams params, =>
         _console.log "#{ @debug 'injectAction' } processes context:", @ctx
         @_handleOnShow =>
-          @getStructTemplate (tmpl) =>
+          @getStructTemplate().done (tmpl) =>
             @_injectRender tmpl, transition, callback
 
 
@@ -656,17 +662,15 @@ define [
       ###
       _console.log @debug('renderTemplate') if global.config.debug.widget
 
-      result = Future.single()
       @_resetWidgetReady() # allowing to call browserInit() after template re-render is reasonable
       @_behaviourContextBorderVersion = null
       @_placeholdersRenderInfo = []
 
-      @getStructTemplate (tmpl) =>
+      @getStructTemplate().flatMap (tmpl) =>
         if tmpl != ':empty' and tmpl.struct.extend?
-          result.when(@_renderExtendedTemplate(tmpl))
+          @_renderExtendedTemplate(tmpl)
         else
-          result.when(@_renderSelfTemplate())
-      result
+          @_renderSelfTemplate()
 
 
     _renderSelfTemplate: ->
@@ -1507,7 +1511,7 @@ define [
                   chunk.end widget.renderRootTag(out)
 
             if bodies.block?
-              @getStructTemplate (tmpl) ->
+              @getStructTemplate().done (tmpl) ->
                 tmpl.getWidgetByName params.name, callbackRender
             else
               @widgetRepo.createWidget params.type, @getBundle(), callbackRender
