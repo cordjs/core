@@ -683,19 +683,13 @@ define [
       result = Future.single()
       tmplPath = @getPath()
 
-      actualRender = =>
+      templateLoader.loadWidgetTemplate(tmplPath).done =>
         @markRenderStarted()
         @cleanChildren()
         @_saveContextVersionForBehaviourSubscriptions()
-        dust.render tmplPath, @getBaseContext().push(@ctx), (err, out) ->
-          if err then result.reject(err) else result.resolve(out)
+        dust.render tmplPath, @getBaseContext().push(@ctx), (err, out) -> result.complete(err, out)
         @markRenderFinished()
 
-      if dust.cache[tmplPath]?
-        actualRender()
-      else
-        templateLoader.loadWidgetTemplate tmplPath, ->
-          actualRender()
       result
 
 
