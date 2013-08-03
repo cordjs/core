@@ -2,6 +2,8 @@ define [
   'underscore'
 ], (_) ->
 
+  throwExceptionCallback = (err) -> throw err
+
   class Future
     ###
     Simple aggregative future/promise class.
@@ -156,6 +158,13 @@ define [
       @_failCallbacks.push(callback)
       @_runFailCallbacks() if @_state == 'rejected'
       this
+
+
+    failAloud: ->
+      ###
+      Adds often-used scenario of fail that just throws exception with the error
+      ###
+      @fail(throwExceptionCallback)
 
 
     callback: (neededArgs...) ->
