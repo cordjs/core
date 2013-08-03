@@ -400,11 +400,10 @@ define [
       @return Future(modules...)
       ###
       result = @single()
-      console.log "REQUIRE: -> ", paths
       require paths, (modules...) ->
-        console.log "require complete", modules
         result.resolve.apply(result, modules)
-      , (err) -> result.reject(err)
+      , (err) ->
+        result.reject(err)
       result
 
     # debugging
