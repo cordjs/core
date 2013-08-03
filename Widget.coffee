@@ -663,8 +663,7 @@ define [
 
       @getStructTemplate (tmpl) =>
         if tmpl != ':empty' and tmpl.struct.extend?
-          @_renderExtendedTemplate tmpl, (err, out) ->
-            if err then result.reject(err) else result.resolve(out)
+          result.when(@_renderExtendedTemplate(tmpl))
         else
           result.when(@_renderSelfTemplate())
       result
@@ -673,6 +672,7 @@ define [
     _renderSelfTemplate: ->
       ###
       Usual way of rendering template via dust.
+      @return Future(String)
       ###
       _console.log @debug('_renderSelfTemplate') if global.config.debug.widget
 
@@ -752,23 +752,22 @@ define [
         callback params
 
 
-    _renderExtendedTemplate: (tmpl, callback) ->
+    _renderExtendedTemplate: (tmpl) ->
       ###
       Render template if it uses #extend plugin to extend another widget
       @param StructureTemplate tmpl structure template object
       @param Function(err, output) callback
+      @return Future(String)
       ###
-
+      result = Future.single()
       extendWidgetInfo = tmpl.struct.extend
 
       tmpl.getWidget extendWidgetInfo.widget, (extendWidget) =>
         extendWidget._isExtended = true if @_isExtended
         @registerChild extendWidget, extendWidgetInfo.name
         @resolveParamRefs extendWidget, extendWidgetInfo.params, (params) ->
-          extendWidget.show(params).done (out) ->
-            callback(null, out)
-          .fail (err) ->
-            callback(err, null)
+          result.when(extendWidget.show(params))
+      result
 
 
     renderInline: (inlineName, callback) ->
