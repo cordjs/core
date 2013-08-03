@@ -310,8 +310,7 @@ define [
       @param Function(jquery) callback callback which is called with the resulting jquery element and created object of widget
       ###
       if (parentWidget = @widget)?
-        widget.show params, (err, out) ->
-          if err then throw err
+        widget.show(params).failAloud().done (out) ->
           $el = $(widget.renderRootTag(out))
           widget.browserInit($el).done ->
             callback($el, widget) if not parentWidget.isSentenced()

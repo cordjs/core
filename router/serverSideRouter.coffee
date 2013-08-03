@@ -81,12 +81,11 @@ define [
             widgetRepo.createWidget rootWidgetPath, (rootWidget) ->
               rootWidget._isExtended = true
               widgetRepo.setRootWidget(rootWidget)
-              rootWidget.show params, (err, output) ->
-                if err then throw err
+              rootWidget.show(params).failAloud().done (out) ->
                 #prevent browser to use the same connection
                 res.shouldKeepAlive = false
                 res.writeHead 200, 'Content-Type': 'text/html'
-                res.end(output)
+                res.end(out)
                 # todo: may be need some cleanup before?
                 clear()
           else if routeCallback?

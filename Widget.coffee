@@ -456,7 +456,7 @@ define [
         callback()
 
 
-    show: (params, callback) ->
+    show: (params) ->
       ###
       Main method to call if you want to show rendered widget template
       @param Object params params to pass to the widget processor
@@ -464,12 +464,13 @@ define [
       @public
       @final
       ###
-      # to avoid handle context change events in the behaviour during initial processing
+      result = Future.single()
       @setParams params, =>
         _console.log "#{ @debug 'show' } -> params:", params, " context:", @ctx if global.config.debug.widget
         @_handleOnShow =>
           @renderTemplate (err, out) =>
-            callback(err, out)
+            if err then result.reject(err) else result.resolve(out)
+      result
 
 
     showJson: (params, callback) ->
@@ -758,7 +759,10 @@ define [
         extendWidget._isExtended = true if @_isExtended
         @registerChild extendWidget, extendWidgetInfo.name
         @resolveParamRefs extendWidget, extendWidgetInfo.params, (params) ->
-          extendWidget.show params, callback
+          extendWidget.show(params).done (out) ->
+            callback(null, out)
+          .fail (err) ->
+            callback(err, null)
 
 
     renderInline: (inlineName, callback) ->
@@ -967,9 +971,8 @@ define [
             placeholderOrder[widgetId] = i
 
             complete = false
-            widget.show info.params, (err, out) ->
+            widget.show(info.params).failAloud().done (out) ->
               widget.linkBubbledShowPromise(showPromise)
-              if err then throw err
               if not complete
                 complete = true
                 processWidget(out)
@@ -989,9 +992,8 @@ define [
             placeholderOrder[widgetId] = i
             processTimeoutStub()
             info.timeoutPromise.done (params) ->
-              widget.show params, (err, out) ->
+              widget.show(params).failAloud().done (out) ->
                 widget.linkBubbledShowPromise(showPromise)
-                if err then throw err
                 replaceTimeoutStub(out)
 
           else
@@ -1495,9 +1497,8 @@ define [
               @registerChild widget, params.name
               @resolveParamRefs widget, params, (resolvedParams) =>
                 widget.setModifierClass(params.class)
-                widget.show resolvedParams, (err, out) =>
+                widget.show(resolvedParams).failAloud().done (out) =>
                   @childWidgetComplete()
-                  if err then throw err
                   chunk.end widget.renderRootTag(out)
 
             if bodies.block?
