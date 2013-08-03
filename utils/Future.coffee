@@ -216,6 +216,21 @@ define [
       this
 
 
+    flatMap: (callback) ->
+      ###
+      Creates new Future by applying the given callback to the successful result of this Future.
+      Returns result of the callback as a new Future.
+      Callback must return a Future, and resulting Future is completed when the callback-returned future is completed.
+      If this Future is rejected than the resulting Future will contain the same error.
+      @param Function(this.type -> Future(A)) callback
+      @return Future(A)
+      ###
+      result = Future.single()
+      @done (args...) -> result.when(callback.apply(null, args))
+      @fail (err)     -> result.reject(err)
+      result
+
+
     zip: (those...) ->
       ###
       Zips the values of this and that future, and creates a new future holding the tuple of their results.
