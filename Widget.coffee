@@ -463,13 +463,13 @@ define [
       @param Function(err, String) callback callback to be called when widget's template is rendered
       @public
       @final
+      @return Future(String)
       ###
       result = Future.single()
       @setParams params, =>
         _console.log "#{ @debug 'show' } -> params:", params, " context:", @ctx if global.config.debug.widget
         @_handleOnShow =>
-          @renderTemplate (err, out) =>
-            if err then result.reject(err) else result.resolve(out)
+          result.when(@renderTemplate())
       result
 
 
@@ -637,8 +637,7 @@ define [
           # So I decided to leave this code for the promising future and fallback to force page reload as for now.
           _console.log "FULL PAGE REWRITE!!! struct tmpl: ", tmpl
           @widgetRepo.replaceExtendTree()
-          @renderTemplate (err, out) =>
-            if err then throw err
+          @renderTemplate().failAloud().done (out) =>
             document.open()
             document.write out
             document.close()
@@ -650,21 +649,26 @@ define [
             callback()
 
 
-    renderTemplate: (callback) ->
+    renderTemplate: ->
       ###
       Decides wether to call extended template parsing of self-template parsing and calls it.
+      @return Future(String)
       ###
       _console.log @debug('renderTemplate') if global.config.debug.widget
 
+      result = Future.single()
       @_resetWidgetReady() # allowing to call browserInit() after template re-render is reasonable
       @_behaviourContextBorderVersion = null
       @_placeholdersRenderInfo = []
 
       @getStructTemplate (tmpl) =>
         if tmpl != ':empty' and tmpl.struct.extend?
-          @_renderExtendedTemplate tmpl, callback
+          @_renderExtendedTemplate tmpl, (err, out) ->
+            if err then result.reject(err) else result.resolve(out)
         else
-          @_renderSelfTemplate callback
+          @_renderSelfTemplate (err, out) ->
+            if err then result.reject(err) else result.resolve(out)
+      result
 
 
     _renderSelfTemplate: (callback) ->

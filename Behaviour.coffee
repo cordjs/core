@@ -275,8 +275,7 @@ define [
           # renderTemplate will clean this behaviour, so we must save links...
           widget = @widget
           $rootEl = @el
-          widget.renderTemplate (err, out) ->
-            if err then throw err
+          widget.renderTemplate().failAloud().done (out) ->
             $newWidgetRoot = $(widget.renderRootTag(out))
             widget.browserInit($newWidgetRoot).done ->
               DomHelper.replaceNode($rootEl, $newWidgetRoot).done ->
