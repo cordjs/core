@@ -666,24 +666,25 @@ define [
           @_renderExtendedTemplate tmpl, (err, out) ->
             if err then result.reject(err) else result.resolve(out)
         else
-          @_renderSelfTemplate (err, out) ->
-            if err then result.reject(err) else result.resolve(out)
+          result.when(@_renderSelfTemplate())
       result
 
 
-    _renderSelfTemplate: (callback) ->
+    _renderSelfTemplate: ->
       ###
       Usual way of rendering template via dust.
       ###
       _console.log @debug('_renderSelfTemplate') if global.config.debug.widget
 
+      result = Future.single()
       tmplPath = @getPath()
 
       actualRender = =>
         @markRenderStarted()
         @cleanChildren()
         @_saveContextVersionForBehaviourSubscriptions()
-        dust.render tmplPath, @getBaseContext().push(@ctx), callback
+        dust.render tmplPath, @getBaseContext().push(@ctx), (err, out) ->
+          if err then result.reject(err) else result.resolve(out)
         @markRenderFinished()
 
       if dust.cache[tmplPath]?
@@ -691,6 +692,7 @@ define [
       else
         templateLoader.loadWidgetTemplate tmplPath, ->
           actualRender()
+      result
 
 
     resolveParamRefs: (widget, params, callback) ->
