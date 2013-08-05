@@ -132,6 +132,10 @@ define [
       @rootWidget = widget
 
 
+    getRootWidget: ->
+      @rootWidget
+
+
     _unserializeModelBindings: (serializedBindings, callback) ->
       ###
       Simply replaces serialized links to models and collections to the actual restored instances of those
