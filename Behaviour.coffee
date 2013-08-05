@@ -2,9 +2,10 @@ define [
   'cord!Model'
   'cord!utils/Defer'
   'cord!utils/DomHelper'
+  'cord!utils/DomInfo'
   'jquery'
   'postal'
-], (Model, Defer, DomHelper, $, postal) ->
+], (Model, Defer, DomHelper, DomInfo, $, postal) ->
 
   class Behaviour
 
@@ -275,10 +276,13 @@ define [
           # renderTemplate will clean this behaviour, so we must save links...
           widget = @widget
           $rootEl = @el
-          widget.renderTemplate().failAloud().done (out) ->
+          domInfo = new DomInfo
+          widget.renderTemplate(domInfo).failAloud().done (out) ->
             $newWidgetRoot = $(widget.renderRootTag(out))
+            domInfo.setDomRoot($newWidgetRoot)
             widget.browserInit($newWidgetRoot).done ->
               DomHelper.replaceNode($rootEl, $newWidgetRoot).done ->
+                domInfo.markShown()
                 widget.markShown()
                 widget.emit 're-render.complete'
 
@@ -291,11 +295,14 @@ define [
       ###
       @widget._behaviourContextBorderVersion = null
       @widget._resetWidgetReady()
-      @widget.renderInline(name).failAloud().done (out) =>
+      domInfo = new DomInfo
+      @widget.renderInline(name, domInfo).failAloud().done (out) =>
+        $newInlineRoot = $(@widget.renderInlineTag(name, out))
+        domInfo.setDomRoot($newInlineRoot)
         id = @widget.ctx[':inlines'][name].id
-        $el = $('#'+id)
-        $el.html(out)
-#        $el.on 'DOMNodeInserted', =>
+        $oldInlineRoot = $('#'+id)
+        DomHelper.replaceNode($oldInlineRoot, $newInlineRoot).done ->
+          domInfo.markShown()
 #          @widget.browserInit()
 
 
@@ -308,10 +315,12 @@ define [
       @param Function(jquery) callback callback which is called with the resulting jquery element and created object of widget
       ###
       if (parentWidget = @widget)?
-        widget.show(params).failAloud().done (out) ->
+        domInfo = new DomInfo
+        widget.show(params, domInfo).failAloud().done (out) ->
           $el = $(widget.renderRootTag(out))
+          domInfo.setDomRoot($el)
           widget.browserInit($el).done ->
-            callback($el, widget) if not parentWidget.isSentenced()
+            callback($el, widget, domInfo) if not parentWidget.isSentenced()
 
 
     initChildWidget: (type, name, params, callback) ->

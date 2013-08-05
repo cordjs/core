@@ -3,9 +3,10 @@ define [
   'cord!router/Router'
   'cord!ServiceContainer'
   'cord!WidgetRepo'
+  'cord!utils/DomInfo'
   'underscore'
   'url'
-], (AppConfigLoader, Router, ServiceContainer, WidgetRepo, _, url) ->
+], (AppConfigLoader, Router, ServiceContainer, WidgetRepo, DomInfo, _, url) ->
 
   class ServerSideRouter extends Router
 
@@ -81,7 +82,7 @@ define [
             widgetRepo.createWidget rootWidgetPath, (rootWidget) ->
               rootWidget._isExtended = true
               widgetRepo.setRootWidget(rootWidget)
-              rootWidget.show(params).failAloud().done (out) ->
+              rootWidget.show(params, DomInfo.fake()).failAloud().done (out) ->
                 #prevent browser to use the same connection
                 res.shouldKeepAlive = false
                 res.writeHead 200, 'Content-Type': 'text/html'

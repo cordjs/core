@@ -7,13 +7,17 @@ define [
   'cord!Model'
   'cord!Module'
   'cord!StructureTemplate'
+
   'cord!templateLoader'
+  'cord!utils/DomInfo'
   'cord!utils/Future'
+
   'dustjs-helpers'
   'monologue' + (if document? then '' else '.js')
   'postal'
   'underscore'
-], (Collection, configPaths, Context, cssHelper, isBrowser, Model, Module,StructureTemplate, templateLoader, Future,
+], (Collection, configPaths, Context, cssHelper, isBrowser, Model, Module,StructureTemplate,
+    templateLoader, DomInfo, Future,
     dust, Monologue, postal, _) ->
 
   dust.onLoad = (tmplPath, callback) ->
@@ -456,11 +460,11 @@ define [
         callback()
 
 
-    show: (params) ->
+    show: (params, domInfo) ->
       ###
       Main method to call if you want to show rendered widget template
       @param Object params params to pass to the widget processor
-      @param Function(err, String) callback callback to be called when widget's template is rendered
+      @param DomInfo domInfo DOM creating and inserting promise container
       @public
       @final
       @return Future(String)
@@ -469,7 +473,7 @@ define [
       @setParams params, =>
         _console.log "#{ @debug 'show' } -> params:", params, " context:", @ctx if global.config.debug.widget
         @_handleOnShow =>
-          result.when(@renderTemplate())
+          result.when(@renderTemplate(domInfo))
       result
 
 
@@ -643,7 +647,7 @@ define [
           # So I decided to leave this code for the promising future and fallback to force page reload as for now.
           _console.log "FULL PAGE REWRITE!!! struct tmpl: ", tmpl
           @widgetRepo.replaceExtendTree()
-          @renderTemplate().failAloud().done (out) =>
+          @renderTemplate(DomInfo.fake()).failAloud().done (out) =>
             document.open()
             document.write out
             document.close()
@@ -655,9 +659,10 @@ define [
             callback()
 
 
-    renderTemplate: ->
+    renderTemplate: (domInfo) ->
       ###
       Decides wether to call extended template parsing of self-template parsing and calls it.
+      @param DomInfo domInfo DOM creating and inserting promise container
       @return Future(String)
       ###
       _console.log @debug('renderTemplate') if global.config.debug.widget
@@ -668,14 +673,15 @@ define [
 
       @getStructTemplate().flatMap (tmpl) =>
         if tmpl != ':empty' and tmpl.struct.extend?
-          @_renderExtendedTemplate(tmpl)
+          @_renderExtendedTemplate(tmpl, domInfo)
         else
-          @_renderSelfTemplate()
+          @_renderSelfTemplate(domInfo)
 
 
-    _renderSelfTemplate: ->
+    _renderSelfTemplate: (domInfo) ->
       ###
       Usual way of rendering template via dust.
+      @param DomInfo domInfo DOM creating and inserting promise container
       @return Future(String)
       ###
       _console.log @debug('_renderSelfTemplate') if global.config.debug.widget
@@ -687,6 +693,7 @@ define [
         @markRenderStarted()
         @cleanChildren()
         @_saveContextVersionForBehaviourSubscriptions()
+        @_domInfo = domInfo
         dust.render tmplPath, @getBaseContext().push(@ctx), (err, out) -> result.complete(err, out)
         @markRenderFinished()
 
@@ -750,11 +757,11 @@ define [
         callback params
 
 
-    _renderExtendedTemplate: (tmpl) ->
+    _renderExtendedTemplate: (tmpl, domInfo) ->
       ###
       Render template if it uses #extend plugin to extend another widget
       @param StructureTemplate tmpl structure template object
-      @param Function(err, output) callback
+      @param DomInfo domInfo DOM creating and inserting promise container
       @return Future(String)
       ###
       result = Future.single()
@@ -764,13 +771,15 @@ define [
         extendWidget._isExtended = true if @_isExtended
         @registerChild extendWidget, extendWidgetInfo.name
         @resolveParamRefs extendWidget, extendWidgetInfo.params, (params) ->
-          result.when(extendWidget.show(params))
+          result.when(extendWidget.show(params, domInfo))
       result
 
 
-    renderInline: (inlineName) ->
+    renderInline: (inlineName, domInfo) ->
       ###
       Renders widget's inline-block by name
+      @param String inlineName name of the inline to render
+      @param DomInfo domInfo DOM creating and inserting promise container
       @return Future(String)
       ###
       _console.log "#{ @constructor.name }::renderInline(#{ inlineName })" if global.config.debug.widget
@@ -780,6 +789,7 @@ define [
         tmplPath = "/#{ @getDir() }/#{ @ctx[':inlines'][inlineName].template }"
         templateLoader.loadToDust(tmplPath).done =>
           @_saveContextVersionForBehaviourSubscriptions()
+          @_domInfo = domInfo
           dust.render tmplPath, @getBaseContext().push(@ctx), (err, out) -> result.complete(err, out)
         result
       else
@@ -805,6 +815,19 @@ define [
       @return String
       ###
       "<div id=\"#{ @_getPlaceholderDomId(name) }\">#{ content }</div>"
+
+
+    renderInlineTag: (name, content) ->
+      ###
+      Builds and returns correct html-code of the widget's inline root tag with the given name and rendered contents.
+      @param String name inline name
+      @param String content rendered template of the widget
+      @return String
+      ###
+      info = @ctx[':inlines'][name]
+      classString = @_buildClassString(info.class)
+      classAttr = if classString.length then ' class="' + classString + '"' else ''
+      "<#{ info.tag } id=\"#{ info.id }\"#{ classAttr }>#{ content }</#{ info.tag }>"
 
 
     replaceModifierClass: (cls) ->
@@ -874,7 +897,7 @@ define [
           _console.warn "WARNING: #{ @debug 'linkBubbledShowPromise' } -> Trying to duplicate link to another promise! This must be a mistake!"
 
 
-    _renderPlaceholder: (name) ->
+    _renderPlaceholder: (name, domInfo) ->
       ###
       Render contents of the placeholder with the given name
       @param String name name of the placeholder to render
@@ -949,17 +972,16 @@ define [
             else
               require ['cord!utils/DomHelper', 'jquery'], (DomHelper, $) ->
                 $newRoot = $(widget.renderRootTag(out))
-                widget.browserInit($newRoot).zip(showPromise).done ->
-                  promise = if info.domRoot? then Future.resolved() else Future.timeout(500)
-                  promise.done ->
-                    DomHelper.replaceNode($('#'+widgetId, info.domRoot), $newRoot).done -> widget.markShown()
+                widget.browserInit($newRoot).zip(domInfo.domRootCreated()).done ($contextRoot) ->
+                  DomHelper.replaceNode($('#'+widgetId, $contextRoot), $newRoot).zip(showPromise).done ->
+                    widget.markShown()
 
 
           if info.type == 'widget'
             placeholderOrder[widgetId] = i
 
             complete = false
-            widget.show(info.params).failAloud().done (out) ->
+            widget.show(info.params, domInfo).failAloud().done (out) ->
               widget.linkBubbledShowPromise(showPromise)
               if not complete
                 complete = true
@@ -980,7 +1002,7 @@ define [
             placeholderOrder[widgetId] = i
             processTimeoutStub()
             info.timeoutPromise.done (params) ->
-              widget.show(params).failAloud().done (out) ->
+              widget.show(params, domInfo).failAloud().done (out) ->
                 widget.linkBubbledShowPromise(showPromise)
                 replaceTimeoutStub(out)
 
@@ -988,17 +1010,15 @@ define [
             placeholderOrder[info.template] = i
 
             inlineId = "inline-#{ widget.ctx.id }-#{ info.name }"
-            classString = widget._buildClassString(info.class)
-            classAttr = if classString.length then ' class="' + classString + '"' else ''
             widget.ctx[':inlines'] ?= {}
             widget.ctx[':inlines'][info.name] =
               id: inlineId
               template: info.template
               class: info.class
-            widget.renderInline(info.name).failAloud().done (out) ->
+              tag: info.tag
+            widget.renderInline(info.name, domInfo).failAloud().done (out) ->
               widget.linkBubbledShowPromise(showPromise)
-              placeholderOut[placeholderOrder[info.template]] =
-                "<#{ info.tag } id=\"#{ inlineId }\"#{ classAttr }>#{ out }</#{ info.tag }>"
+              placeholderOut[placeholderOrder[info.template]] = widget.renderInlineTag(info.name, out)
               renderInfo.push(type: 'inline', name: info.name, widget: widget)
               promise.resolve()
           i++
@@ -1062,11 +1082,10 @@ define [
           do (name) =>
             if replaceHints[name].replace
               readyPromise.fork()
-#              domPromise = Future.single()
-              @_renderPlaceholder(name).done (out, renderInfo, showPromise) =>
+              domInfo = new DomInfo
+              @_renderPlaceholder(name, domInfo).done (out, renderInfo, showPromise) =>
                 $el = $(@renderPlaceholderTag(name, out))
-#                domPromise.resolve($el)
-                @ctx[':placeholders'][name].domRoot = $el
+                domInfo.setDomRoot($el)
                 aggregatePromise = new Future # full placeholders members initialization promise
                 for info in renderInfo
                   switch info.type
@@ -1079,6 +1098,7 @@ define [
                   # any behaviour initialization support yet.
                   DomHelper.replaceNode($('#'+@_getPlaceholderDomId(name)), $el).done ->
                     info.widget.markShown() for info in renderInfo when info.type is 'widget'
+                    domInfo.markShown()
                     readyPromise.resolve()
                     showPromise.resolve()
             else
@@ -1484,7 +1504,7 @@ define [
               @registerChild widget, params.name
               @resolveParamRefs widget, params, (resolvedParams) =>
                 widget.setModifierClass(params.class)
-                widget.show(resolvedParams).failAloud().done (out) =>
+                widget.show(resolvedParams, @_domInfo).failAloud().done (out) =>
                   @childWidgetComplete()
                   chunk.end widget.renderRootTag(out)
 
@@ -1529,7 +1549,7 @@ define [
           @childWidgetAdd()
           chunk.map (chunk) =>
             name = params?.name ? 'default'
-            @_renderPlaceholder(name).done (out, any, showPromise) =>
+            @_renderPlaceholder(name, @_domInfo).done (out, any, showPromise) =>
               @childWidgetComplete()
               @_bubbleShowPromise(showPromise)
               chunk.end @renderPlaceholderTag(name, out)
