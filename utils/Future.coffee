@@ -245,6 +245,25 @@ define [
       this
 
 
+    map: (callback) ->
+      ###
+      Creates new Future by applying the given callback to the successful result of this Future.
+      Resolves resulting future with the result of the callback.
+      If callback returns an Array than it's considered as a list of results. If it is necessary to return a single
+       array than callback must return an Array with single item containing the resulting Array (Array in Array).
+      If this Future is rejected than the resulting Future will contain the same error.
+      ###
+      result = Future.single()
+      @done (args...) ->
+        mapRes = callback.apply(null, args)
+        if _.isArray(mapRes)
+          result.resolve.apply(result, mapRes)
+        else
+          result.resolve(mapRes)
+      @fail (err) -> result.reject(err)
+      result
+
+
     flatMap: (callback) ->
       ###
       Creates new Future by applying the given callback to the successful result of this Future.
