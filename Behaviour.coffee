@@ -291,11 +291,10 @@ define [
       ###
       @widget._behaviourContextBorderVersion = null
       @widget._resetWidgetReady()
-      @widget.renderInline name, (err, out) =>
-        if err then throw err
+      @widget.renderInline(name).failAloud().done (out) =>
         id = @widget.ctx[':inlines'][name].id
         $el = $('#'+id)
-        $el.html out
+        $el.html(out)
 #        $el.on 'DOMNodeInserted', =>
 #          @widget.browserInit()
 

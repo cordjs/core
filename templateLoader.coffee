@@ -19,6 +19,20 @@ define [
           throw err if err
           dust.loadSource tmplString, path
 
+
   loadTemplate: (path, callback) ->
     require ["cord-t!" + path], ->
       callback()
+
+
+  loadToDust: (path) ->
+    ###
+    Loads compiled dust template from the given path into the dust cache.
+    Path is considered as relative to 'bundles' root, but must begin with slash (/).
+    @return Future()
+    ###
+    if dust.cache[path]?
+      Future.resolved()
+    else
+      Future.require("text!#{ pathConfig.paths.pathBundles }#{ path }").map (tmplString) ->
+        dust.register(path, dust.loadSource(tmplString))

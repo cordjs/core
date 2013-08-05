@@ -768,29 +768,22 @@ define [
       result
 
 
-    renderInline: (inlineName, callback) ->
+    renderInline: (inlineName) ->
       ###
       Renders widget's inline-block by name
+      @return Future(String)
       ###
       _console.log "#{ @constructor.name }::renderInline(#{ inlineName })" if global.config.debug.widget
 
       if @ctx[':inlines'][inlineName]?
-        template = @ctx[':inlines'][inlineName].template
-        tmplPath = "#{ @getDir() }/#{ template }"
-
-        actualRender = =>
+        result = Future.single()
+        tmplPath = "/#{ @getDir() }/#{ @ctx[':inlines'][inlineName].template }"
+        templateLoader.loadToDust(tmplPath).done =>
           @_saveContextVersionForBehaviourSubscriptions()
-          dust.render tmplPath, @getBaseContext().push(@ctx), callback
-
-        if dust.cache[tmplPath]?
-          actualRender()
-        else
-          # todo: load via cord-t
-          require ["text!bundles/#{ tmplPath }"], (tmplString) =>
-            dust.loadSource tmplString, tmplPath
-            actualRender()
+          dust.render tmplPath, @getBaseContext().push(@ctx), (err, out) -> result.complete(err, out)
+        result
       else
-        throw "Trying to render unknown inline (name = #{ inlineName })!"
+        throw new Error("Trying to render unknown inline (name = #{ inlineName })!")
 
 
     renderRootTag: (content) ->
@@ -914,22 +907,14 @@ define [
             ###
             Renders timeout template
             ###
-            tmplPath = "#{ timeoutTemplateOwner.getDir() }/#{ info.timeoutTemplate }"
+            tmplPath = "/#{ timeoutTemplateOwner.getDir() }/#{ info.timeoutTemplate }"
 
-            actualRender = ->
+            templateLoader.loadToDust(tmplPath).done ->
               dust.render tmplPath, timeoutTemplateOwner.getBaseContext().push(timeoutTemplateOwner.ctx), (err, out) ->
                 if err then throw err
                 placeholderOut[placeholderOrder[widgetId]] = widget.renderRootTag(out)
                 renderInfo.push(type: 'timeout-stub', widget: widget)
                 promise.resolve()
-
-            if dust.cache[tmplPath]?
-              actualRender()
-            else
-              # todo: load via cord-t
-              require ["text!bundles/#{ tmplPath }"], (tmplString) =>
-                dust.loadSource tmplString, tmplPath
-                actualRender()
 
           processWidget = (out) ->
             ###
@@ -1010,9 +995,8 @@ define [
               id: inlineId
               template: info.template
               class: info.class
-            widget.renderInline info.name, (err, out) ->
+            widget.renderInline(info.name).failAloud().done (out) ->
               widget.linkBubbledShowPromise(showPromise)
-              if err then throw err
               placeholderOut[placeholderOrder[info.template]] =
                 "<#{ info.tag } id=\"#{ inlineId }\"#{ classAttr }>#{ out }</#{ info.tag }>"
               renderInfo.push(type: 'inline', name: info.name, widget: widget)
