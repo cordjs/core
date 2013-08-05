@@ -881,7 +881,7 @@ define [
           _console.warn "WARNING: #{ @debug 'linkBubbledShowPromise' } -> Trying to duplicate link to another promise! This must be a mistake!"
 
 
-    _renderPlaceholder: (name, callback) ->
+    _renderPlaceholder: (name) ->
       ###
       Render contents of the placeholder with the given name
       @param String name name of the placeholder to render
@@ -1019,9 +1019,9 @@ define [
               promise.resolve()
           i++
 
-      promise.done =>
+      promise.map =>
         @_placeholdersRenderInfo.push(info) for info in renderInfo # collecting render info for the future usage by the enclosing widget
-        callback(placeholderOut.join(''), renderInfo, showPromise)
+        [placeholderOut.join(''), renderInfo, showPromise]
 
 
     getPlaceholdersRenderInfo: ->
@@ -1079,7 +1079,7 @@ define [
             if replaceHints[name].replace
               readyPromise.fork()
 #              domPromise = Future.single()
-              @_renderPlaceholder name, (out, renderInfo, showPromise) =>
+              @_renderPlaceholder(name).done (out, renderInfo, showPromise) =>
                 $el = $(@renderPlaceholderTag(name, out))
 #                domPromise.resolve($el)
                 @ctx[':placeholders'][name].domRoot = $el
@@ -1545,7 +1545,7 @@ define [
           @childWidgetAdd()
           chunk.map (chunk) =>
             name = params?.name ? 'default'
-            @_renderPlaceholder name, (out, any, showPromise) =>
+            @_renderPlaceholder(name).done (out, any, showPromise) =>
               @childWidgetComplete()
               @_bubbleShowPromise(showPromise)
               chunk.end @renderPlaceholderTag(name, out)
