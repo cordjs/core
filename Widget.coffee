@@ -73,11 +73,6 @@ define [
     _shownPromise: null
     _shown: false
 
-    # internal widget rendering promise
-    # it's need to inform timeout-stubs of the inner-placeholder-widgets about actual insertion of the whole top-most
-    # outer placeholder (see replacePlaceholder() method) into the DOM
-    _bubbledShowPromise: null
-
     # temporary helper data container for inline-block processing
     _inlinesRuntimeInfo: null
 
@@ -873,30 +868,6 @@ define [
       @_subscibedPushBindings = pushBindings
 
 
-    _bubbleShowPromise: (promise) ->
-      ###
-      Chains placeholder's showPromise with the special promise of this widget which is then bubbled up to the outer
-       renderPlaceholder call and chained with it's showPromise. By that way inner placeholder rendering function can
-       be notified when the top-most placeholder is actually inserted into the DOM.
-      @param Future promise the placeholder's showPromise
-      ###
-      promise.when(@_bubbledShowPromise) if @_bubbledShowPromise
-
-
-    linkBubbledShowPromise: (showPromise) ->
-      ###
-      Chains own bubbled showPlaceholder (for the rendered placeholders) with the given showPromise
-       (of the containing placeholder).
-      @param Future showPromise showPromise of the outer placeholder (which called this widget.show())
-      ###
-      if @_bubbledShowPromise
-        if not @_bubbledShowLinkedPromise?
-          @_bubbledShowPromise.when(showPromise)
-          @_bubbledShowLinkedPromise = showPromise
-        else if @_bubbledShowLinkedPromise != showPromise
-          _console.warn "WARNING: #{ @debug 'linkBubbledShowPromise' } -> Trying to duplicate link to another promise! This must be a mistake!"
-
-
     _renderPlaceholder: (name, domInfo) ->
       ###
       Render contents of the placeholder with the given name
@@ -912,8 +883,6 @@ define [
       placeholderOrder = {}
       phs = @ctx[':placeholders'] ? []
       ph = phs[name] ? []
-
-      showPromise = Future.single()
 
       for info in ph
         do (info) =>
@@ -973,7 +942,7 @@ define [
               require ['cord!utils/DomHelper', 'jquery'], (DomHelper, $) ->
                 $newRoot = $(widget.renderRootTag(out))
                 widget.browserInit($newRoot).zip(domInfo.domRootCreated()).done ($contextRoot) ->
-                  DomHelper.replaceNode($('#'+widgetId, $contextRoot), $newRoot).zip(showPromise).done ->
+                  DomHelper.replaceNode($('#'+widgetId, $contextRoot), $newRoot).zip(domInfo.domInserted()).done ->
                     widget.markShown()
 
 
@@ -982,7 +951,6 @@ define [
 
             complete = false
             widget.show(info.params, domInfo).failAloud().done (out) ->
-              widget.linkBubbledShowPromise(showPromise)
               if not complete
                 complete = true
                 processWidget(out)
@@ -1003,7 +971,6 @@ define [
             processTimeoutStub()
             info.timeoutPromise.done (params) ->
               widget.show(params, domInfo).failAloud().done (out) ->
-                widget.linkBubbledShowPromise(showPromise)
                 replaceTimeoutStub(out)
 
           else
@@ -1017,7 +984,6 @@ define [
               class: info.class
               tag: info.tag
             widget.renderInline(info.name, domInfo).failAloud().done (out) ->
-              widget.linkBubbledShowPromise(showPromise)
               placeholderOut[placeholderOrder[info.template]] = widget.renderInlineTag(info.name, out)
               renderInfo.push(type: 'inline', name: info.name, widget: widget)
               promise.resolve()
@@ -1025,7 +991,7 @@ define [
 
       promise.map =>
         @_placeholdersRenderInfo.push(info) for info in renderInfo # collecting render info for the future usage by the enclosing widget
-        [placeholderOut.join(''), renderInfo, showPromise]
+        [placeholderOut.join(''), renderInfo]
 
 
     getPlaceholdersRenderInfo: ->
@@ -1083,7 +1049,7 @@ define [
             if replaceHints[name].replace
               readyPromise.fork()
               domInfo = new DomInfo
-              @_renderPlaceholder(name, domInfo).done (out, renderInfo, showPromise) =>
+              @_renderPlaceholder(name, domInfo).done (out, renderInfo) =>
                 $el = $(@renderPlaceholderTag(name, out))
                 domInfo.setDomRoot($el)
                 aggregatePromise = new Future # full placeholders members initialization promise
@@ -1100,7 +1066,6 @@ define [
                     info.widget.markShown() for info in renderInfo when info.type is 'widget'
                     domInfo.markShown()
                     readyPromise.resolve()
-                    showPromise.resolve()
             else
               i = 0
               for item in items
@@ -1201,7 +1166,6 @@ define [
         @_browserInitialized = false
         @_shownPromise = Future.single()
         @_shown = false
-        @_bubbledShowPromise = Future.single()
 
 
     drop: ->
@@ -1549,9 +1513,8 @@ define [
           @childWidgetAdd()
           chunk.map (chunk) =>
             name = params?.name ? 'default'
-            @_renderPlaceholder(name, @_domInfo).done (out, any, showPromise) =>
+            @_renderPlaceholder(name, @_domInfo).done (out) =>
               @childWidgetComplete()
-              @_bubbleShowPromise(showPromise)
               chunk.end @renderPlaceholderTag(name, out)
 
         #
