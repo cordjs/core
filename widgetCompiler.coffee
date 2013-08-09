@@ -5,6 +5,14 @@ define [
   'fs'
 ], (_, dust, pathUtils, fs) ->
 
+  dustPartialsPreventionCallback = (tmplPath, callback) ->
+    ###
+    Special callback for dust.onLoad to prevent loading of partials during widget compilation
+    ###
+    dust.cache[tmplPath] = ''
+    callback null, ''
+
+
   class WidgetCompiler
 
     structure: {}
@@ -32,6 +40,9 @@ define [
       ###
       Resets compiler's state
       ###
+
+      # Preventing loading of partials during widget compilation
+      dust.onLoad = dustPartialsPreventionCallback
 
       @_extendPhaseFinished = false
       @_extend = null
@@ -172,12 +183,5 @@ define [
         console.log "template saved #{ tmplFullPath }"
 
 
-
-  #
-  # Preventing loading of partials during widget compilation
-  #
-  dust.onLoad = (tmplPath, callback) ->
-    dust.cache[tmplPath] = ''
-    callback null, ''
 
   new WidgetCompiler
