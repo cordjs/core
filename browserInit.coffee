@@ -1,8 +1,6 @@
-baseUrl = '/'
-
 require.config
 
-  baseUrl: baseUrl
+  baseUrl: '/'
 
   urlArgs: "release=" + global.config.static.release
 
@@ -40,12 +38,12 @@ require.config
       deps: ['jquery.ui']
 
 
-define [
+require [
+  'bundles/cord/core/requirejs/pathConfig'
   'jquery'
-  'bundles/cord/core/configPaths'
-], ($, configPaths) ->
+], (pathConfig, $) ->
 
-  require.config configPaths
+  require.config(paths: pathConfig)
   require [
     'cord!AppConfigLoader'
     'cord!Console'

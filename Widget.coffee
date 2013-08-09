@@ -1,6 +1,6 @@
 define [
   'cord!Collection'
-  'cord!configPaths'
+  'pathUtils'
   'cord!Context'
   'cord!css/helper'
   'cord!isBrowser'
@@ -16,7 +16,7 @@ define [
   'monologue' + (if document? then '' else '.js')
   'postal'
   'underscore'
-], (Collection, configPaths, Context, cssHelper, isBrowser, Model, Module,StructureTemplate,
+], (Collection, pathUtils, Context, cssHelper, isBrowser, Model, Module,StructureTemplate,
     templateLoader, DomInfo, Future,
     dust, Monologue, postal, _) ->
 
@@ -516,7 +516,7 @@ define [
       else
         @inlineCounter = 0 # for generating inline block IDs
         tmplPath = @getPath()
-        tmplFullPath = "./#{ configPaths.PUBLIC_PREFIX }/bundles/#{ @getTemplatePath() }"
+        tmplFullPath = "./#{ pathUtils.getPublicPrefix() }/bundles/#{ @getTemplatePath() }"
         require ['fs'], (fs) =>
           fs.readFile tmplFullPath, (err, data) =>
             throw err if err

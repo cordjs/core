@@ -14,5 +14,5 @@ define [], ->
     else if name.indexOf('@') != -1
       throw "Bundle spec for fully-qualified name is not supported!"
 
-    req [config.paths.pathBundles + name], (module) ->
+    req [config.paths.bundles + name], (module) ->
       load module

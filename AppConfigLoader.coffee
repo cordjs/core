@@ -2,7 +2,7 @@ define [
   'app/application'
   'cord!isBrowser'
   'cord!utils/Future'
-  "underscore"
+  'underscore'
 ], (application, isBrowser, Future, _) ->
 
   class AppConfigLoader

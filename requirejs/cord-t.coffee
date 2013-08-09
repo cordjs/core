@@ -1,10 +1,10 @@
 define [
   'dustjs-helpers'
-  'cord!configPaths'
-], (dust, configPaths) ->
+  'pathUtils'
+], (dust, pathUtils) ->
 
   getFullInfo: (name) ->
-    info = configPaths.parsePathRaw(name)
+    info = pathUtils.parsePathRaw(name)
     bundleSpec = info.bundle
     relativePath = info.relativePath
 
@@ -23,7 +23,7 @@ define [
       dust.cache[name] = dust.cache[info.canonicalPath]
       load dust.cache[name]
     else
-      req ["text!#{ config.paths.pathBundles }/#{ info.relativeFilePath }.html"], (tmplString) ->
+      req ["text!#{ config.paths.bundles }/#{ info.relativeFilePath }.html"], (tmplString) ->
         dust.loadSource dust.compile(tmplString, info.canonicalPath)
         dust.cache[name] = dust.cache[info.canonicalPath]
         load dust.cache[name]

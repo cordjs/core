@@ -1,9 +1,9 @@
 define [
   'underscore'
   'dustjs-helpers'
-  'cord!configPaths'
+  'pathUtils'
   'fs'
-], (_, dust, configPaths, fs) ->
+], (_, dust, pathUtils, fs) ->
 
   class WidgetCompiler
 
@@ -158,7 +158,7 @@ define [
         bodies
 
       # todo: detect bundles or vendor dir correctly
-      tmplFullPath = "./#{ configPaths.PUBLIC_PREFIX }/bundles/#{ tmplPath }"
+      tmplFullPath = "./#{ pathUtils.getPublicPrefix() }/bundles/#{ tmplPath }"
 
       bodyFnName = bodyFn.name
       bodyStringList = @extractBodiesAsStringList compiledSource

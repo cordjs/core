@@ -1,23 +1,15 @@
 `if (typeof define !== 'function') { var define = require('amdefine')(module) }`
 
 define [],  ->
-  dir = if window? then '' else './'
-  class Config
-    PUBLIC_PREFIX: 'preved'
 
-    paths:
+  class PathUtils
 
-      'pathBundles':    dir + 'bundles'
+    _publicPrefix: 'preved'
 
-      'configPaths':    dir + 'bundles/cord/core/configPaths'
+    setPublicPrefix: (prefix) ->
+      @_publicPrefix = prefix
 
-
-      #plugins
-      'text':           dir + 'vendor/requirejs/plugins/text'
-      'cord':           dir + 'bundles/cord/core/requirejs/cord'
-      'cord-w':         dir + 'bundles/cord/core/requirejs/cord-w'
-      'cord-m':         dir + 'bundles/cord/core/requirejs/cord-m'
-      'cord-t':         dir + 'bundles/cord/core/requirejs/cord-t'
+    getPublicPrefix: -> @_publicPrefix
 
     parsePathRaw: (path) ->
       ###
@@ -113,4 +105,5 @@ define [],  ->
         throw "Can not extract bundle name from not-in-bundle file path: [#{ path }]!"
 
 
-  new Config
+
+  new PathUtils

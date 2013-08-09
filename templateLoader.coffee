@@ -1,7 +1,7 @@
 define [
   'cord-w'
   'dustjs-helpers'
-  'cord!configPaths'
+  'cord!requirejs/pathConfig'
   'cord!utils/Future'
 ], (cord, dust, pathConfig, Future) ->
 
@@ -14,7 +14,7 @@ define [
       Future.resolved()
     else
       info = cord.getFullInfo(path)
-      Future.require("text!#{ pathConfig.paths.pathBundles }/#{ info.relativeDirPath }/#{ info.dirName }.html.js")
+      Future.require("text!#{ pathConfig.bundles }/#{ info.relativeDirPath }/#{ info.dirName }.html.js")
         .andThen (err, tmplString) ->
           throw err if err
           dust.loadSource tmplString, path
@@ -34,5 +34,5 @@ define [
     if dust.cache[path]?
       Future.resolved()
     else
-      Future.require("text!#{ pathConfig.paths.pathBundles }#{ path }").map (tmplString) ->
+      Future.require("text!#{ pathConfig.bundles }#{ path }").map (tmplString) ->
         dust.register(path, dust.loadSource(tmplString))

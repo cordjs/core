@@ -1,12 +1,10 @@
-define [
-  'cord!configPaths'
-], (configPaths) ->
+define ['pathUtils'], (pathUtils) ->
 
   classNameFormat: /^[A-Z][A-Za-z0-9]*$/
 
 
   getFullInfo: (name) ->
-    info = configPaths.parsePathRaw(name)
+    info = pathUtils.parsePathRaw(name)
     bundleSpec = info.bundle
     relativePath = info.relativePath
 
@@ -27,7 +25,7 @@ define [
 
   load: (name, req, load, config) ->
     info = @getFullInfo name
-    req ["#{ config.paths.pathBundles }/#{ info.relativeFilePath }"], (ModelClass) ->
+    req ["#{ config.paths.bundles }/#{ info.relativeFilePath }"], (ModelClass) ->
       ModelClass.path = info.canonicalPath
       ModelClass.bundle = info.bundle
       load ModelClass

@@ -7,9 +7,8 @@ requirejs     = require 'requirejs'
 http          = require 'http'
 serverStatic  = require 'node-static'
 
-configPaths   = require './configPaths'
 
-pathDir   = fs.realpathSync '.'
+pathDir = fs.realpathSync('.')
 
 exports.services = services =
   nodeServer: null
@@ -23,20 +22,20 @@ exports.services = services =
 
 exports.init = (baseUrl = 'public', configName = 'default', serverPort = 1337) ->
   requirejs.config
+    paths: require('./requirejs/pathConfig')
     baseUrl: baseUrl
     nodeRequire: require
 
-  requirejs.config configPaths
   requirejs [
+    'pathUtils'
     'cord!AppConfigLoader'
-    'cord!configPaths'
     'cord!Console'
     'cord!Rest'
     'cord!request/xdrProxy'
     'cord!router/serverSideRouter'
     'underscore'
-  ], (AppConfigLoader, configPaths, _console, Rest, xdrProxy, router, _) ->
-    configPaths.PUBLIC_PREFIX = baseUrl
+  ], (pathUtils, AppConfigLoader, _console, Rest, xdrProxy, router, _) ->
+    pathUtils.setPublicPrefix(baseUrl)
     services.router = router
     services.fileServer = new serverStatic.Server(baseUrl)
     services.xdrProxy = xdrProxy
