@@ -1286,6 +1286,8 @@ define [
             else
               _console.error 'WRONG BEHAVIOUR CLASS:', behaviourClass
           promise.resolve()
+        , (err) =>
+          console.error "#{ @debug 'initBehaviour' } --> error occurred while loading behaviour", err
       else
         promise.resolve()
 
