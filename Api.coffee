@@ -117,7 +117,6 @@ define [
 
     getTokensByRefreshToken: (refreshToken, callback) ->
       @serviceContainer.eval 'oauth2', (oauth2) =>
-        console.log 'getTokensByRefreshToken:',refreshToken
         oauth2.grantAccessTokenByRefreshToken refreshToken, @getScope(), (grantedAccessToken, grantedRefreshToken) =>
           if grantedAccessToken and grantedRefreshToken
             @storeTokens grantedAccessToken, grantedRefreshToken, callback
