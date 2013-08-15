@@ -272,7 +272,6 @@ define [
       @widget.sentenceChildrenToDeath()
       @defer 'render', =>
         if @widget?
-          _console.log "#{ @widget.debug 're-render' }"
           # renderTemplate will clean this behaviour, so we must save links...
           widget = @widget
           $rootEl = @el
