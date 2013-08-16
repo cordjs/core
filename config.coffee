@@ -51,3 +51,7 @@ define [], () ->
       localStorage: (get, done) ->
         require ['cord!cache/localStorage'], (LocalStorage) ->
           done null, LocalStorage
+
+  routes:
+    '/REQUIRESTAT/optimizer':
+      widget: '//Optimizer'

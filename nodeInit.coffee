@@ -32,13 +32,15 @@ exports.init = (baseUrl = 'public', configName = 'default', serverPort = 1337) -
     'cord!Console'
     'cord!Rest'
     'cord!request/xdrProxy'
+    'cord!requirejs/statCollector'
     'cord!router/serverSideRouter'
     'underscore'
-  ], (pathUtils, AppConfigLoader, _console, Rest, xdrProxy, router, _) ->
+  ], (pathUtils, AppConfigLoader, _console, Rest, xdrProxy, statCollector, router, _) ->
     pathUtils.setPublicPrefix(baseUrl)
     services.router = router
     services.fileServer = new serverStatic.Server(baseUrl)
     services.xdrProxy = xdrProxy
+    services.statCollector = statCollector
 
     # Loading configuration
     try
@@ -82,6 +84,8 @@ exports.startServer = startServer = (callback) ->
   services.nodeServer = http.createServer (req, res) ->
     if (pos = req.url.indexOf('/XDR/')) != -1 # cross-domain request proxy
       services.xdrProxy(req.url.substr(pos + 5), req, res)
+    else if req.url.indexOf('/REQUIRESTAT/collect') == 0
+      services.statCollector(req, res)
     else if not services.router.process(req, res)
       req.addListener 'end', (err) ->
         services.fileServer.serve req, res, (err) ->
