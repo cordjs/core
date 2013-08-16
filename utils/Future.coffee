@@ -306,6 +306,21 @@ define [
       result.when.apply(result, those)
 
 
+    @sequence: (futureList) ->
+      ###
+      Converts Array[Future[X]] to Future[Array[X]]
+      ###
+      promise = new Future
+      result = []
+      for f, i in futureList
+        do (i) ->
+          promise.fork()
+          f.done (res) ->
+            result[i] = res
+            promise.resolve()
+      promise.map -> result
+
+
     _runDoneCallbacks: ->
       ###
       Fires resulting callback functions defined by done with right list of arguments.
