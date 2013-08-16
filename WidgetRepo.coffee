@@ -195,7 +195,7 @@ define [
           config: #{ JSON.stringify(global.appConfig.browser) }
         };
       </script>
-      <script data-main="/bundles/cord/core/browserInit" src="/vendor/requirejs/require.js"></script>
+      <script data-main="/bundles/cord/core/browserInit.js?rel=#{ Math.random() }" src="/vendor/requirejs/require.js?rel=#{ Math.random() }"></script>
       <script>
           function cordcorewidgetinitializerbrowser(wi) {
             requirejs(['cord!utils/Future'], function(Future) {
@@ -297,7 +297,16 @@ define [
         if widget._isExtended
           @_currentExtendList.push(widget)
       # initializing DOM bindings of widgets in reverse order (leafs of widget tree - first)
-      @bind(id) for id in @_widgetOrder.reverse()
+      futures = @bind(id) for id in @_widgetOrder.reverse()
+      Future.sequence(futures).done ->
+        keys = Object.keys(require.s.contexts._.defined)
+        re = /^cord(-\w)?!/
+        keys = _.filter keys, (name) ->
+          not re.test(name)
+        require ['jquery'], ($) ->
+          $.post('/REQUIRESTAT/collect', definedModules: keys).done (resp) ->
+            console.log "/REQUIRESTAT/collect response", resp
+
       @_widgetOrder = null
 
 
