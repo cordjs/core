@@ -1271,7 +1271,7 @@ define [
       @browser-only
       @param jQuery $domRoot injected DOM root for the widget
       ###
-      promise = new Future(1)
+      promise = Future.single()
       if @behaviour?
         @behaviour.clean()
         @behaviour = null
