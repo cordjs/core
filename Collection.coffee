@@ -447,6 +447,11 @@ define [
         model.setCollection(this) for model in @_models
 
       @_reindexModels()
+
+      #Emit change event in case of filling previously empty collection
+      if @_initialized == true
+        @emit 'change'
+
       @_initialized = true
 
 
