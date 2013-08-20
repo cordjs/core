@@ -42,7 +42,7 @@ define [
     # helper value for event propagation optimization
     _selfEmittedChangeModelId: null
 
-    @_collectionVersion: '0.05'
+    @_collectionVersion: '0.06'
 
     @generateName: (options) ->
       ###
@@ -274,16 +274,7 @@ define [
       @param Model model the new model
       ###
       if not @_id
-        queryParams = @_buildRefreshQueryParams()
-        @repo.query queryParams, (models) =>
-          newId = model.id
-          found = false
-          for m in models
-            if m.id == newId
-              found = true
-              break
-          if found
-            @_replaceModelList models, queryParams.start, queryParams.end
+        @refresh model.id
 
 
     _reorderModelsLocal: ->
