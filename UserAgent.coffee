@@ -9,8 +9,22 @@ define [], ->
     constructor: ->
       @iOs = false
       @firefox = false
+      @safari = false
+      @opera = false
+
+      @agents = []
 
 
     calculate: ->
-      @iOs = /(iPad|iPhone)/.test @userAgentText
-      @firefox = /Firefox/.test @userAgentText
+      @agents['iOs'] = @iOs = /(iPad|iPhone)/.test @userAgentText
+      @agents['firefox'] = @firefox = /Firefox/.test @userAgentText
+      @agents['safari'] = @safari = (/Safari/.test(@userAgentText) and not (/Chrome/.test(@userAgentText) or /Chromium/.test(@userAgentText)))
+      @agents['opera'] = @opera = /Opera/.test @userAgentText
+
+
+    toString: ->
+      agentsString = ''
+      for name, value of @agents
+        agentsString += (name + ' ') if value
+
+      agentsString
