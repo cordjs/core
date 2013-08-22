@@ -42,7 +42,7 @@ define [
     # helper value for event propagation optimization
     _selfEmittedChangeModelId: null
 
-    @_collectionVersion: '0.06'
+    @_collectionVersion: '0.07'
 
     @generateName: (options) ->
       ###
