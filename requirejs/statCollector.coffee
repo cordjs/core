@@ -15,8 +15,7 @@ define [
       post = qs.parse(body)
       fs.readFile statFile, (err, data) ->
         stat = if err then {} else JSON.parse(data)
-        stat[url.parse(req.headers.referer).path] = post['definedModules[]'].sort()
-        console.log "post ======== ", body, post, req
+        stat[post.root] = post['definedModules[]'].sort()
         fs.writeFile statFile, JSON.stringify(stat, null, 2), (err)->
           throw err if err
 
