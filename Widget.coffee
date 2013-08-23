@@ -266,6 +266,8 @@ define [
       @_modelBindings = {}
       @_subscibedPushBindings = {}
       @clearCallbacks()
+      #clean monologue subscriptions
+      @off()
 
 
     getCallback: (callback) =>
