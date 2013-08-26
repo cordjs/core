@@ -19,14 +19,14 @@ define [
 
 
     generateOptimizationMap: (stat) ->
-      resultGroups = []
+      iterations = 1
+      while iterations--
+        # grouping by 100% correlation condition
+        corrOptimizer = new CorrelationGroupOptimizer
+        stat = corrOptimizer.process(stat)
 
-      # grouping by 100% correlation condition
-      corrOptimizer = new CorrelationGroupOptimizer
-      stat = corrOptimizer.process(stat)
-
-      # heuristic optimization of the previous stage result
-      heuristicOptimizer = new HeuristicGroupOptimizer
-      stat = heuristicOptimizer.process(stat)
+        # heuristic optimization of the previous stage result
+        heuristicOptimizer = new HeuristicGroupOptimizer
+        stat = heuristicOptimizer.process(stat)
 
       stat
