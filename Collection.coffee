@@ -426,11 +426,14 @@ define [
       @param (optional)Int start starting index of the loading range
       @param (optional)Int end ending index of the loading range
       ###
+      changed = false
       if start? and end?
         # appending new models to the collection according to the paging options
         for model, i in models
           if model
             model.setCollection(this)
+            if @_models[start + i]? and @_compareModels(model, @_models[start + i])
+              changed = true
             @_models[start + i] = model
 
         @_loadedStart = start if start < @_loadedStart
@@ -449,7 +452,7 @@ define [
       @_reindexModels()
 
       #Emit change event in case of filling previously empty collection
-      if @_initialized == true
+      if @_initialized == true && changed
         @emit 'change'
 
       @_initialized = true
@@ -603,7 +606,8 @@ define [
             # Count the expected number of properties.
             size++
             # Deep compare each member.
-            if !(result = _.has(b, key) && @_modelsEq(a[key], b[key]))
+            # Ignore properties from b which a does not contain
+            if _.has(b, key) && !(result = @_modelsEq(a[key], b[key]))
               break
       result
 
