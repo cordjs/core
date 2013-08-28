@@ -131,7 +131,9 @@ define [
         if refreshToken
           @getTokensByRefreshToken refreshToken, callback
         else
-          @authenticateUser().done(callback).fail -> callback('', '')
+          @authenticateUser().done(callback)
+          #in case of fail dont call callback - it wont be able to solve the problem,
+          #but might run into everlasting loop
       else
         callback accessToken, refreshToken
 
@@ -175,7 +177,7 @@ define [
           @serviceContainer.eval 'request', (request) =>
             doRequest = =>
               request[method] requestUrl, requestParams, (response, error) =>
-                if response?.error == 'invalid_grant'
+                if response?.error == 'invalid_grant' || response?.error == 'invalid_request'
                   return processRequest null, refreshToken
 
                 if (response && response.code)
