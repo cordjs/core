@@ -432,7 +432,7 @@ define [
         for model, i in models
           if model
             model.setCollection(this)
-            if @_models[start + i]? and @_compareModels(model, @_models[start + i])
+            if !@_models[start + i] || (@_models[start + i]? and @_compareModels(model, @_models[start + i]))
               changed = true
             @_models[start + i] = model
 
