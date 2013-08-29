@@ -166,40 +166,49 @@ define [
         params: 'object'
         callback: 'function'
 
+      noAuthTokens = args.params and args.params.noAuthTokens == true
+
       processRequest = (accessToken, refreshToken) =>
-        @getTokensByAllMeans accessToken, refreshToken, (accessToken, refreshToken) =>
-          requestUrl = "#{@options.protocol}://#{@options.host}/#{@options.urlPrefix}#{args.url}"
-          requestUrl += ( if requestUrl.lastIndexOf("?") == -1 then "?" else "&" ) + "access_token=#{accessToken}"
-          defaultParams = _.clone @options.params
-          requestParams = _.extend defaultParams, args.params
-          requestParams.access_token = accessToken
+        requestUrl = "#{@options.protocol}://#{@options.host}/#{@options.urlPrefix}#{args.url}"
+        defaultParams = _.clone @options.params
+        requestParams = _.extend defaultParams, args.params
 
-          @serviceContainer.eval 'request', (request) =>
-            doRequest = =>
-              request[method] requestUrl, requestParams, (response, error) =>
-                if response?.error == 'invalid_grant' || response?.error == 'invalid_request'
-                  return processRequest null, refreshToken
+        @serviceContainer.eval 'request', (request) =>
+          doRequest = =>
+            request[method] requestUrl, requestParams, (response, error) =>
+              if response?.error == 'invalid_grant' || response?.error == 'invalid_request'
+                return processRequest null, refreshToken
 
-                if (response && response.code)
-                  message = 'Ошибка ' + response.code + ': ' + response._message
-                  postal.publish 'notify.addMessage', {link:'', message: message, details: response?.message, error: true, timeOut: 30000 }
+              if (response && response.code)
+                message = 'Ошибка ' + response.code + ': ' + response._message
+                postal.publish 'notify.addMessage', {link:'', message: message, details: response?.message, error: true, timeOut: 30000 }
 
-                if (error && (error.statusCode || error.message))
-                  message = error.message if error.message
-                  message = error.statusText if error.statusText
+              if (error && (error.statusCode || error.message))
+                message = error.message if error.message
+                message = error.statusText if error.statusText
 
-                  #Post could make duplicates
-                  if method != 'post' && requestParams.reconnect != false && (!error.statusCode || error.statusCode == 500) && requestParams.deepCounter < 10
-                    requestParams.deepCounter = if ! requestParams.deepCounter then 1 else requestParams.deepCounter + 1
-                    _console.log requestParams.deepCounter + " Repeat request in 0.5s", requestUrl
-                    setTimeout doRequest, 500
-                  else
-                    message = 'Ошибка' + (if error.statusCode != undefined then (' ' + error.statusCode)) + ': ' + message
-                    postal.publish 'notify.addMessage', {link:'', message: message, error:true, timeOut: 30000 }
-                    args.callback response, error if args.callback
+                #Post could make duplicates
+                if method != 'post' && requestParams.reconnect != false && (!error.statusCode || error.statusCode == 500) && requestParams.deepCounter < 10
+                  requestParams.deepCounter = if ! requestParams.deepCounter then 1 else requestParams.deepCounter + 1
+                  _console.log requestParams.deepCounter + " Repeat request in 0.5s", requestUrl
+                  setTimeout doRequest, 500
                 else
+                  message = 'Ошибка' + (if error.statusCode != undefined then (' ' + error.statusCode)) + ': ' + message
+                  postal.publish 'notify.addMessage', {link:'', message: message, error:true, timeOut: 30000 }
                   args.callback response, error if args.callback
+              else
+                args.callback response, error if args.callback
 
+          if noAuthTokens
             doRequest()
+          else
+            @getTokensByAllMeans accessToken, refreshToken, (accessToken, refreshToken) =>
+              requestUrl += ( if requestUrl.lastIndexOf("?") == -1 then "?" else "&" ) + "access_token=#{accessToken}"
+              requestParams.access_token = accessToken
 
-      @restoreTokens processRequest
+              doRequest()
+
+      if noAuthTokens
+        processRequest()
+      else
+        @restoreTokens processRequest
