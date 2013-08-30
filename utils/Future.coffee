@@ -70,6 +70,10 @@ define [
       @_alwaysCallbacks = []
       @_name = name
 
+      setTimeout =>
+        console.warn 'Future uncompleted', @_name if @state() == 'pending'
+      , 30 * 1000
+
 
     fork: ->
       ###

@@ -66,7 +66,7 @@ define [
       @param (optional)Boolean|Object options if last argument is boolean, than it's treated as options.trigger
                                               if last argument is Object, than it's treated as options
       ###
-      _console.clear()
+      _console.clear() if not window?.noClearConsole
       options = {}
       lastArg = args[args.length - 1]
       if typeof lastArg is 'object'

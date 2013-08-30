@@ -12,7 +12,7 @@ define [
     @param Object target the instance to be injected to
     @return Future completed when all services asyncronously loaded and assigned into the target object
     ###
-    injectPromise = new Future
+    injectPromise = new Future('Container::injectServices')
 
     if target.constructor.inject
       if _.isFunction target.constructor.inject
@@ -24,8 +24,11 @@ define [
         injectPromise.fork()
         do (serviceName) =>
           try
+            servicePromise = new Future('Container::injectServices -> eval(' + serviceName + ')')
+            servicePromise.fork()
             @eval serviceName, (service) ->
               target[serviceName] = service
+              servicePromise.resolve()
               injectPromise.resolve()
           catch e
             console.error e.message
