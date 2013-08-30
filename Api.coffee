@@ -131,9 +131,9 @@ define [
         if refreshToken
           @getTokensByRefreshToken refreshToken, callback
         else
-          @authenticateUser().done(callback)
           #in case of fail dont call callback - it wont be able to solve the problem,
           #but might run into everlasting loop
+          @authenticateUser()
       else
         callback accessToken, refreshToken
 
