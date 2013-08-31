@@ -418,6 +418,7 @@ define [
       result.reject(error)
       result
 
+
     @timeout: (millisec) ->
       ###
       Returns the future wich will complete after the given number of milliseconds
