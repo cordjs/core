@@ -122,7 +122,9 @@ define [
             @storeTokens grantedAccessToken, grantedRefreshToken, callback
             return true #continue processing other deferred callbacks in oauth
           else
-            @authenticateUser().done(callback).fail -> callback('', '')
+            #in case of fail dont call callback - it wont be able to solve the problem,
+            #but might run into everlasting loop
+            @authenticateUser()
             return false #stop processing other deferred callbacks in oauth
 
 
