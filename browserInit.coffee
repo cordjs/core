@@ -85,14 +85,7 @@ require [
 
     #Global errors handling
     requirejs.onError = (error) ->
-      requirejs ['postal'], (postal) ->
-        message = 'Ой! Кажется, нет связи, подождите, может восстановится.'
-        postal.publish 'notify.addMessage',
-          link: ''
-          message: message
-          details: error.toString()
-          error:true
-          timeOut: 50000
+      _console.warn error.toString()
 
 
     widgetRepo = new WidgetRepo

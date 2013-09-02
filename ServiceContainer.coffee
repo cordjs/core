@@ -31,7 +31,7 @@ define [
               servicePromise.resolve()
               injectPromise.resolve()
           catch e
-            console.error e.message
+            _console.error e.message
             target[serviceName] = undefined
             injectPromise.resolve()
 
