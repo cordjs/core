@@ -643,7 +643,7 @@ define [
             else
               if _.isArray dst[key]
                 for newVal,newKey in val
-                  result |= @_recursiveCompare(newVal, dst[key][newKey])
+                  result |= dst[key][newKey] == undefined || @_recursiveCompare(newVal, dst[key][newKey])
                   if result
                     dst[key] = _.clone(val)
                     break
