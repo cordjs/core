@@ -441,6 +441,56 @@ define [
         changeInfo = model
       @emit 'change', changeInfo
 
+    propagateFieldChange: (id, fieldName, newValue) ->
+      ###
+      Fixes that particular field has been changed and needs to be updated in all collections
+      @param id Int - model id
+      @param fieldName String - changed field name
+      @param newValue mixed - new value for the object
+      ###
+
+      #Collect field definition in all collections
+      fieldDefinitions = []
+      nameLength = fieldName.length
+      for key,collection of @_collections
+        fieldDefinitions = _.union fieldDefinitions, _.filter(collection._fields, (item) ->
+          item.substr(0, nameLength) == fieldName
+        )
+
+      if fieldDefinitions.length == 0
+        return
+
+      # Check if we need to make a request
+      needRequest = false
+      for fieldDefinition in fieldDefinitions
+        subFields = fieldDefinition.split '.'
+        currentValue = newValue
+        for i in [1..subFields.length]
+          if currentValue == undefined
+            needRequest = true
+            break
+          currentValue = currentValue[subFields[i]]
+        if needRequest == true
+          break
+
+      #Do request, or not
+      promise = new Future(1)
+      if needRequest
+        @container.eval 'api', (api) =>
+          apiParams =
+            _fields: fieldDefinitions.join ','
+          api.get @restResource + '/' + id, apiParams, (result, error) ->
+            promise.resolve result
+      else
+        promise.resolve newValue
+
+      #Propagate new value
+      promise.done (result) =>
+        changeset = _.clone result
+        changeset.id = id
+        for key,collection of @_collections
+          collection._handleModelChange changeset
+
 
     callModelAction: (id, method, action, params) ->
       ###

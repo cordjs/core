@@ -637,11 +637,19 @@ define [
         if dst[key] != undefined
           if _.isArray(val)
             if val.length == 0
+              #If dst was an array longer than 0
+              result = (!_.isArray(dst[key])) || dst[key].length > 0
               dst[key] = []
-              result = true
-            else if _.isArray(val[0]) or not _.isObject(val[0]) or not val[0].id?
-              dst[key] = _.clone(val)
-              result = true
+            else
+              if _.isArray dst[key]
+                for newVal,newKey in val
+                  result |= @_recursiveCompare(newVal, dst[key][newKey])
+                  if result
+                    dst[key] = _.clone(val)
+                    break
+              else
+                dst[key] = _.clone(val)
+                result = true
             # todo: can be more smart here, but very difficult
           else if not _.isObject(val)
             if not _.isEqual(val, dst[key])
@@ -649,6 +657,33 @@ define [
               result = true
           else if @_recursiveCompareAndChange(val, dst[key])
             result = true
+      result
+
+
+    _recursiveCompare: (src, dst) ->
+      result = false
+      for key, val of src
+        if dst[key] != undefined
+          if _.isArray(val)
+            if val.length == 0
+              #If dst was an array longer than 0
+              result = (!_.isArray(dst[key])) || dst[key].length > 0
+            else
+              if _.isArray dst[key]
+                for newVal,newKey in val
+                  result |= @_recursiveCompare(newVal, dst[key][newKey])
+                  if result
+                    break
+              else
+                result = true
+            # todo: can be more smart here, but very difficult
+          else if not _.isObject(val)
+            if not _.isEqual(val, dst[key])
+              result = true
+          else if @_recursiveCompareAndChange(val, dst[key])
+            result = true
+        if result
+          break
       result
 
 
