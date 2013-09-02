@@ -655,7 +655,7 @@ define [
             if not _.isEqual(val, dst[key])
               dst[key] = _.clone(val)
               result = true
-          else if @_recursiveCompareAndChange(val, dst[key])
+          else if dst[key] and @_recursiveCompareAndChange(val, dst[key])
             result = true
       result
 
