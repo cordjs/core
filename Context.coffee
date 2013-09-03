@@ -6,13 +6,18 @@ define [
   'postal'
   'underscore'
   'cord!Console'
-], (Collection, Model, Defer, Future, postal, _, _console) ->
+  'cord!isBrowser'
+], (Collection, Model, Defer, Future, postal, _, _console, isBrowser) ->
 
   class Context
 
     constructor: (arg1, arg2) ->
       @[':internal'] = {}
       @[':internal'].version = 0
+
+      @deferredTimes = {}
+      @deferredTime = new Date()
+
       if typeof arg1 is 'object'
         for key, value of arg1
           @[key] = value
@@ -21,6 +26,7 @@ define [
         if arg2
           for key, value of arg2
             @[key] = value
+
             @_initDeferredDebug(key)
 
 
@@ -68,6 +74,12 @@ define [
         if @[name] == ':deferred'
           # if the current value special :deferred than event should be triggered even if the new value is null
           triggerChange = (newValue != ':deferred')
+
+          # only for debugging
+          if triggerChange
+            time = new Date()
+            deferTime = (time - (if @deferredTimes[name] then @deferredTimes[name] else @deferredTime) ) / 1000
+            _console.log '!!! Deferred time', name, @id, @_owner?.constructor.name, 'was', deferTime, 'secs' if deferTime > 0.1
         else
           oldValue = @[name]
           if oldValue == null
@@ -113,7 +125,14 @@ define [
 
     setDeferred: (args...) ->
       for name in args
+        @deferredTimes[name] = new Date()
         @setSingle(name, ':deferred')
+
+
+    setServerDeferred: (args...) ->
+      if not isBrowser
+        for name in args
+          @setSingle(name, ':deferred')
 
 
     isDeferred: (name) ->
