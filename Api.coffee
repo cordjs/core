@@ -183,7 +183,7 @@ define [
 
               if (response && response.code)
                 message = 'Ошибка ' + response.code + ': ' + response._message
-                postal.publish 'notify.addMessage', {link:'', message: message, details: response?.message, error: true, timeOut: 30000 }
+                postal.publish 'error.notify.publish', {link:'', message: message, details: response?.message timeOut: 30000 }
 
               if (error && (error.statusCode || error.message))
                 message = error.message if error.message
@@ -196,7 +196,7 @@ define [
                   setTimeout doRequest, 500
                 else
                   message = 'Ошибка' + (if error.statusCode != undefined then (' ' + error.statusCode)) + ': ' + message
-                  postal.publish 'notify.addMessage', {link:'', message: message, error:true, timeOut: 30000 }
+                  postal.publish 'error.notify.publish', {link:'', message: message, error:true, timeOut: 30000 }
                   args.callback response, error if args.callback
               else
                 args.callback response, error if args.callback
