@@ -278,7 +278,7 @@ define [
         @ctx.set 'apiResult', result
       ###
       makeSafeCallback = (callback) ->
-        result = () ->
+        result = ->
           if !result.cleared
             callback.apply(this, arguments)
         result.cleared = false

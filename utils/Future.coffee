@@ -390,7 +390,7 @@ define [
 
     # syntax-sugar constructors
 
-    @single: (name = '')->
+    @single: (name = '') ->
       ###
       Returns the future, which can not be forked and must be resolved by only single call of resolve().
       @return Future
