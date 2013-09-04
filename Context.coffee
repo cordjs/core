@@ -79,7 +79,7 @@ define [
           if triggerChange
             time = new Date()
             deferTime = (time - (if @deferredTimes[name] then @deferredTimes[name] else @deferredTime) ) / 1000
-            _console.log '!!! Deferred time', name, @id, @_owner?.constructor.name, 'was', deferTime, 'secs' if deferTime > 0.1
+            _console.warn '!!! Deferred time', name, @id, @_owner?.constructor.name, 'was', deferTime, 'secs' if deferTime > 0.1
         else
           oldValue = @[name]
           if oldValue == null
