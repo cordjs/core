@@ -63,6 +63,8 @@ define [
 
     _subscribeOnAnyChild: null
 
+    _placeholdersClasses: {}
+
     # promise to load widget completely (with all styles and behaviours, including children)
     _widgetReadyPromise: null
     # indicates that browserInit was already called. Initially should be true
@@ -811,7 +813,11 @@ define [
       @param String content html-contents of the placeholder
       @return String
       ###
-      "<div id=\"#{ @_getPlaceholderDomId(name) }\">#{ content }</div>"
+      classParam = ""
+      if @_placeholdersClasses[name]
+        classParam = "class=\"#{ @_placeholdersClasses[name] }\""
+
+      "<div id=\"#{ @_getPlaceholderDomId(name) }\"  #{ classParam }>#{ content }</div>"
 
 
     renderInlineTag: (name, content) ->
@@ -1519,6 +1525,9 @@ define [
           @childWidgetAdd()
           chunk.map (chunk) =>
             name = params?.name ? 'default'
+            if params and params.class
+              @_placeholdersClasses[name] = params.class
+
             @_renderPlaceholder(name, @_domInfo).done (out) =>
               @childWidgetComplete()
               chunk.end @renderPlaceholderTag(name, out)
