@@ -789,11 +789,14 @@ define [
           params.filter = @_filter if @_filter
 
           @repo.paging(params).done (response) =>
-            @_totalCount = response.total
+            @_totalCount = if response then response.total else response
             #special case: collections with zero amount of model will be never initialized otherwize
             if @_totalCount == 0
               @_initialized = true
-            result.resolve(response)
+            if response
+              result.resolve(response)
+            else
+              result.resolve({})
 
       result
 

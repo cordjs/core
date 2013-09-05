@@ -195,7 +195,7 @@ define [
                   _console.log requestParams.deepCounter + " Repeat request in 0.5s", requestUrl
                   setTimeout doRequest, 500
                 else
-                  message = 'Ошибка' + (if error.statusCode != undefined then (' ' + error.statusCode)) + ': ' + message
+                  message = 'Ошибка ' + (if error.statusCode != undefined then (' ' + error.statusCode)) + ': ' + message
                   postal.publish 'error.notify.publish', {link:'', message: message, error:true, timeOut: 30000 }
                   args.callback response, error if args.callback
               else
