@@ -104,7 +104,6 @@ define [
       swRef.placeholders[placeholderName].push info
 
 
-
     addPlaceholderInline: (surroundingWidget, placeholderName, widget, templateName, name, tag, cls) ->
       @extendPhaseFinished = true
 
@@ -129,6 +128,7 @@ define [
         JSON.stringify res
       else
         JSON.stringify res, null, 2
+
 
     printStructure: ->
       _console.log @getStructureCode false
