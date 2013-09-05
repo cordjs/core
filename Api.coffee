@@ -168,6 +168,7 @@ define [
         params: 'object'
         callback: 'function'
 
+      args.params = _.extend @options.params, args.params
       noAuthTokens = args.params and args.params.noAuthTokens == true
 
       processRequest = (accessToken, refreshToken) =>
