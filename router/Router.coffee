@@ -71,6 +71,10 @@ define ['underscore'], (_) ->
                    .replace(namedParam, '([^\/]*)')
                    .replace(splatParam, '(.*?)')
 
+
+        if path.charAt(path.length - 1) == '/'
+          path += '?'
+
         @route = new RegExp('^' + path + '$')
       else
         @route = path
