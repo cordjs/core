@@ -59,7 +59,7 @@ define [
       @init()
       if @show?
         @widget.shown().done @getCallback =>
-          @show
+          @show()
 
 
     init: ->
