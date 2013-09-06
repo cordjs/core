@@ -58,7 +58,8 @@ define [
 
       @init()
       if @show?
-        @widget.shown().done => @show()
+        @widget.shown().done @getCallback =>
+          @show
 
 
     init: ->
