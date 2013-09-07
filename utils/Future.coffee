@@ -16,11 +16,12 @@ define [
       promise = new Future
       result = []
       for i in [1..10]
-        promise.fork()
-        setTimeout ->
-          result.push(i)
-          promise.resolve()
-        , 1000
+        do (i) =>
+          promise.fork()
+          setTimeout ->
+            result.push(i)
+            promise.resolve()
+          , 1000
       promise.done ->
         _console.log result.join(', ')
 
@@ -321,6 +322,31 @@ define [
       promise.map -> result
 
 
+    @select: (futureList) ->
+      ###
+      Returns new future which completes successfully when one of the given futures completes successfully (which comes
+       first). Resulting future resolves with that first-completed future's result. All subsequent completing
+       futures are ignored.
+      Result completes with failure if all of the given futures fails.
+      @param Array[Future[X]] futureList
+      @return Future[X]
+      ###
+      result = @single()
+      ready = false
+      failCounter = futureList.length
+      for f in futureList
+        do (f) ->
+          f.done ->
+            if not ready
+              result.when(f)
+              ready = true
+          .fail ->
+            failCounter--
+            if failCounter == 0
+              result.reject("All selecting futures have failed!")
+      result
+
+
     _runDoneCallbacks: ->
       ###
       Fires resulting callback functions defined by done with right list of arguments.
@@ -413,6 +439,31 @@ define [
       result = @single()
       result.reject(error)
       result
+
+
+    @call: (fn, args...) ->
+      ###
+      Converts node-style function call with last-agrument-callback result to pretty composable future-result call.
+      Node-style callback mean Function[err, A] - first argument if not-null means error and converts to
+       Future.reject(), all subsequent arguments are treated as a successful result and passed to Future.resolve().
+      Example:
+        Traditional style:
+          fs.readFile '/tmp/file', (err, data) ->
+            throw err if err
+            // do something with data
+        Future-style:
+          Future.call(fs.readFile, '/tmp/file').failAloud().done (data) ->
+            // do something with data
+      @param Function fn callback-style function to be called (e.g. fs.readFile)
+      @param Any args* arguments of that function without last callback-result argument.
+      @return Future[A]
+      ###
+      result = @single()
+      args.push (callbackArgs...) ->
+        result.complete.apply(result, callbackArgs)
+      fn.apply(null, args)
+      result
+
 
     @timeout: (millisec) ->
       ###
