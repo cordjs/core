@@ -114,8 +114,8 @@ define [
 
     createSingleModel: (id, fields, extraOptions = {}) ->
       ###
-      Creates and syncs single-model collection by id and field list. In callback returns resulting model.
-       Method returns single-model collection.
+      Creates single-model collection by id and field list. In callback returns resulting model.
+      Method returns single-model collection.
 
       @param Integer id
       @param Array[String] fields list of fields names for the collection
@@ -132,7 +132,7 @@ define [
       @createCollection(options)
 
 
-    buildSingleModel: (id, fields, syncMode, callback) ->
+    buildSingleModel: (id, fields, syncMode) ->
       ###
       Creates and syncs single-model collection by id and field list. In callback returns resulting model.
        Method returns single-model collection.
@@ -145,8 +145,10 @@ define [
              special sync mode :cache-async, tries to find model in existing collections,
              if not found, calls sync in async mode to refresh model
       @param Function(Model) callback
-      @return Collection|null
+      @return promise
       ###
+      promise = new Future(1)
+
       if syncMode == ':cache' || syncMode == ':cache-async'
         model = @probeCollectionsForModel(id, fields)
         if model
@@ -158,8 +160,13 @@ define [
           options.model = new @model(model)
 
           collection = @createCollection(options)
-          callback(collection.get(id))
-          return collection
+          try
+            promise.resolve(collection.get(id))
+          catch error
+            if error.name == 'ModelNotExists'
+              promise.fail(error)
+
+          return promise
         else
           _console.log 'debug: buildSingleModel missed in existing collections :('
 
@@ -167,8 +174,13 @@ define [
       collection = @createSingleModel(id, fields)
 
       collection.sync syncMode, ->
-        callback(collection.get(id))
-      collection
+        try
+          promise.resolve(collection.get(id))
+        catch error
+          if error.name == 'ModelNotExists'
+            promise.fail(error)
+
+      promise
 
 
     probeCollectionsForModel: (id, fields) ->

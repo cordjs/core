@@ -270,6 +270,7 @@ define [
       @clearCallbacks()
       #clean monologue subscriptions
       @off()
+      @clearPromises()
 
 
     getCallback: (callback) =>
@@ -294,6 +295,21 @@ define [
     clearCallbacks: ->
       callback.cleared = true for callback in @_callbacks
       @_callbacks = []
+
+
+
+    createPromise: (initialCounter = 0, name = '') ->
+      promise = new Future initialCounter = 0, name = ''
+      @_promises.push promise
+
+
+    addPromise: (promise) ->
+      @_promises.push promise
+
+
+    clearPromises: ->
+      promise.clearAllCallbacks() for promise in @_promises
+      @_promises = []
 
 
     addSubscription: (subscription, callback = null) ->
