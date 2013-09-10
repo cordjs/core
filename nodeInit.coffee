@@ -5,8 +5,8 @@ path          = require 'path'
 requirejs     = require 'requirejs'
 
 http          = require 'http'
-#v8profiler    = require 'v8-profiler'
 serverStatic  = require 'node-static'
+EventEmitter  = require('events').EventEmitter
 
 pathDir = fs.realpathSync('.')
 
@@ -37,7 +37,7 @@ exports.init = (baseUrl = 'public', configName = 'default', serverPort = 1337) -
   ], (pathUtils, AppConfigLoader, _console, Rest, xdrProxy, router, _) ->
     pathUtils.setPublicPrefix(baseUrl)
 
-
+    router.EventEmitter = EventEmitter
     services.router = router
     services.fileServer = new serverStatic.Server(baseUrl)
     services.xdrProxy = xdrProxy

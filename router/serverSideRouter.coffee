@@ -8,8 +8,6 @@ define [
   'url'
 ], (AppConfigLoader, Router, ServiceContainer, WidgetRepo, DomInfo, _, url) ->
 
-  EventEmitter  = require('events').EventEmitter
-
   class ServerSideFallback
 
     constructor: (@eventEmitter) ->
@@ -90,7 +88,7 @@ define [
         widgetRepo.setRequest(req)
         widgetRepo.setResponse(res)
 
-        eventEmitter = new EventEmitter()
+        eventEmitter = new   @EventEmitter()
         fallback = new ServerSideFallback(eventEmitter)
 
         serviceContainer.set 'fallback', fallback
