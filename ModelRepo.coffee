@@ -178,7 +178,7 @@ define [
           promise.resolve(collection.get(id))
         catch error
           if error.name == 'ModelNotExists'
-            promise.fail(error)
+            promise.reject(error)
 
       promise
 
