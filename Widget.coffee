@@ -244,6 +244,7 @@ define [
         @ctx.owner(@)
 
       @_callbacks = []
+      @_promises = []
 
 
     clean: ->
