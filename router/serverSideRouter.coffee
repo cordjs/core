@@ -8,6 +8,20 @@ define [
   'url'
 ], (AppConfigLoader, Router, ServiceContainer, WidgetRepo, DomInfo, _, url) ->
 
+  EventEmitter  = require('events').EventEmitter
+
+  class ServerSideFallback
+
+    constructor: (@eventEmitter) ->
+
+    fallback: (widgetPath, params) ->
+      #TODO: find better way to change root widget
+      @eventEmitter.emit 'fallback',
+        widgetPath:widgetPath,
+        params:params
+
+
+
   class ServerSideRouter extends Router
 
     process: (req, res, fallback = false) ->
@@ -50,6 +64,7 @@ define [
           widgetRepo = null
           rootWidget = null
 
+
         config = global.config
         config.api.authenticateUserCallback = ->
           if serviceContainer
@@ -75,7 +90,10 @@ define [
         widgetRepo.setRequest(req)
         widgetRepo.setResponse(res)
 
-        eventEmitter = @eventEmitter
+        eventEmitter = new EventEmitter()
+        fallback = new ServerSideFallback(eventEmitter)
+
+        serviceContainer.set 'fallback', fallback
 
         AppConfigLoader.ready().done (appConfig) ->
           for serviceName, info of appConfig.services
@@ -86,14 +104,12 @@ define [
           previousProcess = {}
 
           processWidget = (rootWidgetPath, params) =>
-            if previousProcess.showPromise
-              previousProcess.showPromise.clearAllCallbacks()
-
             widgetRepo.createWidget rootWidgetPath, (rootWidget) ->
               rootWidget._isExtended = true
               widgetRepo.setRootWidget(rootWidget)
               previousProcess.showPromise = rootWidget.show(params, DomInfo.fake())
               previousProcess.showPromise.failAloud().done (out) ->
+                eventEmitter.removeAllListeners('fallback')
                 #prevent browser to use the same connection
                 res.shouldKeepAlive = false
                 res.writeHead 200, 'Content-Type': 'text/html'
@@ -102,6 +118,9 @@ define [
                 clear()
 
           eventEmitter.once 'fallback', (args) =>
+            if previousProcess.showPromise
+              previousProcess.showPromise.clearAllCallbacks()
+
             # Clear previous root widget
             if widgetRepo.getRootWidget()
               widgetRepo.dropWidget widgetRepo.getRootWidget().ctx.id
@@ -127,13 +146,5 @@ define [
         true
       else
         false
-
-
-    fallback: (widgetPath, params) ->
-      #TODO: find better way to change root widget
-      @eventEmitter.emit 'fallback',
-        widgetPath:widgetPath,
-        params:params
-
 
   new ServerSideRouter

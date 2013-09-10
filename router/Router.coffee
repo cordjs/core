@@ -9,10 +9,6 @@ define ['underscore'], (_) ->
       @routes = []
       @fallbackRoutes = []
 
-    fallback: (widgetPath, params) ->
-      #TODO: implement on server side
-      false
-
     addRoutes: (routes) ->
       ###
       Registers array of routes.

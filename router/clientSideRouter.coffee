@@ -59,11 +59,6 @@ define [
         false
 
 
-    fallback: (widgetPath, params) ->
-      #Change page
-      @widgetRepo.transitPage(routeInfo.route.widget, params, new PageTransition(@currentPath, @currentPath))
-
-
     navigate: (args...) ->
       ###
       Initiates url changing and related client-side page transition.
