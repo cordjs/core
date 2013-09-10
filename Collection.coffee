@@ -7,6 +7,12 @@ define [
   'underscore'
 ], (isBrowser, Module, Defer, Future, Monologue, _) ->
 
+  class ModelNotExists extends Error
+
+    constructor: (@message) ->
+      @name = 'ModelNotExists'
+
+
   class Collection extends Module
     @include Monologue.prototype
 
@@ -253,7 +259,7 @@ define [
       if @_byId[id]?
         @_byId[id]
       else
-        throw new Error("There is no model with id = #{ id } in collection [#{ @debug() }]!")
+        throw new ModelNotExists("There is no model with id = #{ id } in collection [#{ @debug() }]!")
 
 
     toArray: ->

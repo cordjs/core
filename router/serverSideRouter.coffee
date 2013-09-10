@@ -10,7 +10,7 @@ define [
 
   class ServerSideRouter extends Router
 
-    process: (req, res) ->
+    process: (req, res, fallback = false) ->
       path = url.parse(req.url, true)
 
       @currentPath = req.url
@@ -30,6 +30,7 @@ define [
 
         serviceContainer.set 'serverRequest', req
         serviceContainer.set 'serverResponse', res
+        serviceContainer.set 'router', this
 
         ###
           Конфиги
@@ -44,8 +45,10 @@ define [
             serviceContainer.eval 'oauth2', (oauth2) =>
               oauth2.clear()
 
+          serviceContainer.set 'router', null
           serviceContainer = null
           widgetRepo = null
+          rootWidget = null
 
         config = global.config
         config.api.authenticateUserCallback = ->
@@ -72,23 +75,43 @@ define [
         widgetRepo.setRequest(req)
         widgetRepo.setResponse(res)
 
+        eventEmitter = @eventEmitter
+
         AppConfigLoader.ready().done (appConfig) ->
           for serviceName, info of appConfig.services
             do (info) ->
               serviceContainer.def serviceName, info.deps, (get, done) ->
                 info.factory.call(serviceContainer, get, done)
 
-          if rootWidgetPath?
+          previousProcess = {}
+
+          processWidget = (rootWidgetPath, params) =>
+            if previousProcess.showPromise
+              previousProcess.showPromise.clearAllCallbacks()
+
             widgetRepo.createWidget rootWidgetPath, (rootWidget) ->
               rootWidget._isExtended = true
               widgetRepo.setRootWidget(rootWidget)
-              rootWidget.show(params, DomInfo.fake()).failAloud().done (out) ->
+              previousProcess.showPromise = rootWidget.show(params, DomInfo.fake())
+              previousProcess.showPromise.failAloud().done (out) ->
                 #prevent browser to use the same connection
                 res.shouldKeepAlive = false
                 res.writeHead 200, 'Content-Type': 'text/html'
                 res.end(out)
                 # todo: may be need some cleanup before?
                 clear()
+
+          eventEmitter.once 'fallback', (args) =>
+            # Clear previous root widget
+            if widgetRepo.getRootWidget()
+              widgetRepo.dropWidget widgetRepo.getRootWidget().ctx.id
+
+            processWidget args.widgetPath, args.params
+
+          if rootWidgetPath?
+            processWidget rootWidgetPath, params
+
+
           else if routeCallback?
             routeCallback
               serviceContainer: serviceContainer
@@ -105,6 +128,12 @@ define [
       else
         false
 
+
+    fallback: (widgetPath, params) ->
+      #TODO: find better way to change root widget
+      @eventEmitter.emit 'fallback',
+        widgetPath:widgetPath,
+        params:params
 
 
   new ServerSideRouter

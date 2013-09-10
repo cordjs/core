@@ -75,6 +75,19 @@ define [
       , 30 * 1000
 
 
+    clearDoneCallbacks: ->
+      @_doneCallbacks = []
+
+
+    clearFailCallbacks: ->
+      @_failCallbacks = []
+
+
+    clearAllCallbacks: ->
+      @_doneCallbacks = []
+      @_failCallbacks = []
+    
+
     fork: ->
       ###
       Adds one more value to wait.

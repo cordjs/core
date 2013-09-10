@@ -61,6 +61,7 @@ require [
 
     AppConfigLoader.ready().done (appConfig) ->
       clientSideRouter.addRoutes(appConfig.routes)
+      clientSideRouter.addFallbackRoutes(appConfig.fallbackRoutes)
       for serviceName, info of appConfig.services
         do (info) ->
           serviceContainer.def serviceName, info.deps, (get, done) ->
@@ -89,6 +90,8 @@ require [
 
 
     widgetRepo = new WidgetRepo
+
+    serviceContainer.set 'router', clientSideRouter
 
     serviceContainer.set('widgetRepo', widgetRepo)
     widgetRepo.setServiceContainer(serviceContainer)

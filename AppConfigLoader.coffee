@@ -38,16 +38,25 @@ define [
       require configs, (args...) ->
         routes = {}
         services = {}
+        fallbackRoutes = {}
 
-        for config, i in args
-          if config.routes?
-            for route, params of config.routes
+        processRoutes = (source, destination) ->
+            for route, params of source
               # expanding widget path to fully-qualified canonical name if short path is given
               if params.widget and params.widget.substr(0, 2) is '//'
                 params.widget = "/#{ application[i] }#{ params.widget }"
             # eliminating duplicate routes here
             # todo: may be it should be reported when there are duplicate routes?
-            _.extend(routes, config.routes)
+            _.extend(destination, source)
+
+        for config, i in args
+
+
+          if config.fallbackRoutes?
+            processRoutes config.fallbackRoutes, fallbackRoutes
+
+          if config.routes?
+            processRoutes config.routes, routes
 
           if config.services
             # flatten services configuration (excluding server-only or browser-only configuration)
@@ -74,6 +83,7 @@ define [
         AppConfigLoader._promise.resolve
           routes: routes
           services: services
+          fallbackRoutes: fallbackRoutes
 
     # start loading immediately on class loading
     @_load()
