@@ -52,15 +52,16 @@ require [
     'cord!router/clientSideRouter'
     'cord!ServiceContainer'
     'cord!WidgetRepo'
-  ], (AppConfigLoader, _console, cssManager, clientSideRouter, ServiceContainer, WidgetRepo) ->
+    'cord!PageTransition'
+  ], (AppConfigLoader, _console, cssManager, clientSideRouter, ServiceContainer, WidgetRepo, PageTransition) ->
 
     class ClientFallback
 
-      constructor: (@widgetRepo) ->
+      constructor: (@router) ->
 
-      fallback: () ->
-        @widgetRepo.transitPage(routeInfo.route.widget, params, new PageTransition(@currentPath, @currentPath))
-        
+      fallback: (newWidgetPath, params) ->
+        @router.widgetRepo.transitPage(newWidgetPath, params, new PageTransition(@router.currentPath, @router.currentPath))
+
 
     serviceContainer = new ServiceContainer
     serviceContainer.set 'container', serviceContainer
@@ -99,7 +100,7 @@ require [
 
     widgetRepo = new WidgetRepo
 
-    fallback = new ClientFallback(widgetRepo)
+    fallback = new ClientFallback(clientSideRouter)
 
     serviceContainer.set 'fallback', fallback
     serviceContainer.set 'router', clientSideRouter
