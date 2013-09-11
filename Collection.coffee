@@ -432,14 +432,11 @@ define [
       @param (optional)Int start starting index of the loading range
       @param (optional)Int end ending index of the loading range
       ###
-      changed = false
       if start? and end?
         # appending new models to the collection according to the paging options
         for model, i in models
           if model
             model.setCollection(this)
-            if !@_models[start + i] || (@_models[start + i]? and @_compareModels(model, @_models[start + i]))
-              changed = true
             @_models[start + i] = model
 
         @_loadedStart = start if start < @_loadedStart
@@ -456,11 +453,6 @@ define [
         model.setCollection(this) for model in @_models
 
       @_reindexModels()
-
-      #Emit change event in case of filling previously empty collection
-      if @_initialized == true && changed
-        @emit 'change'
-
       @_initialized = true
 
 
@@ -473,10 +465,12 @@ define [
       @param (optional)Int end index of last item to replace
       ###
 
+      # This means that previously collection was empty and something new has arrived
+
       oldListCount = @_models.length
       oldList = _.clone(@_models)
 
-      if start? and end?
+      if (start? and end?) and (start < end)
         ###
         #in case of refreshing, we'll just replace the list
         if start == @_loadedStart && end == @_loadedEnd
@@ -511,7 +505,10 @@ define [
         @_models.splice(targetIndex + 1, loadingEnd - targetIndex)
 
       @_loadedStart = loadingStart if loadingStart < @_loadedStart
-      @_loadedEnd = loadingEnd if loadingEnd > @_loadedEnd
+      if loadingEnd > @_loadedEnd
+        @_loadedEnd = loadingEnd
+      else if loadingEnd =-1 and @_loadedEnd == -1
+        @_loadedEnd = 0
 
       @_reindexModels()
       @_initialized = true
