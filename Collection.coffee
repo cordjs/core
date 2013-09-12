@@ -127,11 +127,17 @@ define [
         Return true if collection or array has no gaps
       ###
       if !array
-        array = @_models
-
-      for model in array
-        if model == undefined
+        if @_loadedStart > @_loadedEnd and @_models.length > 0
           return false
+
+        for i in [@_loadedStart..@_loadedEnd]
+          if @_models[i] == undefined
+            return false
+      else
+        for model in array
+          if model == undefined
+            return false
+
       return true
 
 

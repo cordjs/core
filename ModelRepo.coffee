@@ -58,6 +58,7 @@ define [
       if @_collections[name]? and @_collections[name].isConsistent()
         collection = @_collections[name]
       else
+        @_collections[name] = null
         collection = new Collection(this, name, options)
         @_registerCollection(name, collection)
       collection
