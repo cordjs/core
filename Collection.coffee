@@ -122,6 +122,19 @@ define [
       @repo.on('change', @_handleModelChange).withContext(this)
 
 
+    isConsistent: (array) ->
+      ###
+        Return true if collection or array has no gaps
+      ###
+      if !array
+        array = @_models
+
+      for model in array
+        if model == undefined
+          return false
+      return true
+
+
     sync: (returnMode, start, end, callback) ->
       ###
       Initiates synchronization of the collection with some backend; fires callback and completes resulting future
@@ -730,8 +743,10 @@ define [
           @toArray()
 
       promise = Future.single()
-      if @_loadedStart <= start and (@_loadedEnd >= end || @_totalCount == @_loadedEnd + 1)
-        promise.resolve(slice())
+
+      #sometimes collection could be toren apart, check for this case
+      if @_loadedStart <= start and (@_loadedEnd >= end || @_totalCount == @_loadedEnd + 1) and @isConsistent((sliced = slice())) == -1
+        promise.resolve(sliced)
       else
         @sync ':async', start, end, =>
           promise.resolve(slice())

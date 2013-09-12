@@ -55,7 +55,7 @@ define [
       if options.collectionClass
         throw new Error("Extended collections should be created using ModelRepo::createExtendedCollection() method!")
       name = Collection.generateName(options)
-      if @_collections[name]?
+      if @_collections[name]? and @_collections[name].isConsistent()
         collection = @_collections[name]
       else
         collection = new Collection(this, name, options)

@@ -156,7 +156,7 @@ define [
        browser.
       @browser-only
       ###
-      @_cssPromise = new Future
+      @_cssPromise = new Future(0, '_cssPromise')
       if not restoreMode
         @_cssPromise.fork()
         require ['cord!css/browserManager'], (cssManager) =>
