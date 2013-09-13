@@ -156,6 +156,18 @@ define [
       this
 
 
+    link: (anotherPromise) ->
+      ###
+      Inversion of `when` method. Tells that the given future will complete when this future will complete.
+      Just syntax sugar to convert anotherFuture.when(future) to future.link(anotherFuture).
+      In some cases using link instead of when leads to more elegant code.
+      @param Future anotherFuture
+      @return Future self
+      ###
+      anotherPromise.when(this)
+      this
+
+
     done: (callback) ->
       ###
       Defines callback function to be called when future is resolved.
