@@ -314,9 +314,8 @@ define [
       @param Future those another futures
       @return Future
       ###
-      result = new Future
-      those.push(this)
-      result.when.apply(result, those)
+      those.unshift(this)
+      Future.sequence(those).map (result) -> result
 
 
     @sequence: (futureList) ->
@@ -331,7 +330,7 @@ define [
           f.done (res) ->
             result[i] = res
             promise.resolve()
-      promise.map -> result
+      promise.map -> [result]
 
 
     @select: (futureList) ->
