@@ -751,7 +751,7 @@ define [
       promise = Future.single()
 
       #sometimes collection could be toren apart, check for this case
-      if @_loadedStart <= start and (@_loadedEnd >= end || @_totalCount == @_loadedEnd + 1) and @isConsistent((sliced = slice())) == -1
+      if @_loadedStart <= start and (@_loadedEnd >= end || @_totalCount == @_loadedEnd + 1) and @isConsistent((sliced = slice())) == true
         promise.resolve(sliced)
       else
         @sync ':async', start, end, =>
@@ -963,7 +963,7 @@ define [
       @param Int lodedEnd cached range end
       @return [Int, Int] tuple of adjusted start and end position
       ###
-      base = targetStart - targetEnd + 1
+      base = targetEnd - targetStart + 1
       before = Math.floor((targetStart - loadedStart) / base)
       after = Math.floor((loadedEnd - targetEnd) / base)
       if before + after > 6
