@@ -402,6 +402,7 @@ define [
                 @cacheCollection(model.collection) if model.collection?
                 model.resetChangedFields()
                 @emit 'sync', model
+                @_suggestNewModelToCollections(model)
                 promise.resolve(response)
           else
             api.post @restResource, model.getChangedFields(), (response, error) =>
@@ -456,6 +457,7 @@ define [
       else
         changeInfo = model
       @emit 'change', changeInfo
+
 
     propagateFieldChange: (id, fieldName, newValue) ->
       ###
