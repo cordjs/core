@@ -49,9 +49,9 @@ define [
     constructor: (WidgetClass) ->
       @widget = new WidgetClass(compileMode: true)
 
-      @_ownerUid = @registerWidget(@widget).uid
       @_widgets = {}
       @_widgetsByName = {}
+      @_ownerUid = @registerWidget(@widget).uid
 
       # Preventing loading of partials during widget compilation
       dust.onLoad = dustPartialsPreventionCallback
