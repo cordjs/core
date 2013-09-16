@@ -363,12 +363,14 @@ define [
       else
         #refresh paging info first
         @getPagingInfo(currentId, true).done (paging) =>
-          startPage = if paging.selectedPage > 0 then paging.selectedPage else 1
-          #refresh pages, starting from current, and then go 1 up, 1 down, etc
-          @_topPage = @_bottomPage = startPage
-          @_refreshReachedTop = false
-          @_refreshReachedBottom = false
-          @_refreshPage startPage, paging, 'down'
+          #Don't refresh collection if currentId does not belong to it
+          if !currentId || paging.selectedPage > 0
+            startPage = if paging.selectedPage > 0 then paging.selectedPage else 1
+            #refresh pages, starting from current, and then go 1 up, 1 down, etc
+            @_topPage = @_bottomPage = startPage
+            @_refreshReachedTop = false
+            @_refreshReachedBottom = false
+            @_refreshPage startPage, paging, 'down'
 
 
     _refreshPage: (page, paging, direction) ->

@@ -70,9 +70,10 @@ define [
       @_alwaysCallbacks = []
       @_name = name
 
-      setTimeout =>
-        _console.log 'Future uncompleted', @_name if @state() == 'pending'
-      , 30 * 1000
+      if @_name
+        setTimeout =>
+          _console.log 'Future uncompleted', @_name if @state() == 'pending'
+        , 30 * 1000
 
 
     clearDoneCallbacks: ->
@@ -86,7 +87,7 @@ define [
     clearAllCallbacks: ->
       @_doneCallbacks = []
       @_failCallbacks = []
-    
+
 
     fork: ->
       ###
