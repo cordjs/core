@@ -439,7 +439,14 @@ define [
         @_models.unshift(model)
       @_reorderModelsLocal()
       @_byId[model.id] = model
-      @emit 'change'
+
+      #calculate model's page
+      modelPage = 0
+      if !isNaN(parseInt(@_pageSize)) && @_pageSize > 0
+        modelIndex = _.indexOf @_models, model
+        modelPage = Math.ceil(modelIndex + 1/ @_pageSize)
+
+      @emit 'change', {firstPage: modelPage, lastPage: modelPage}
 
 
     _fillModelList: (models, start, end) ->
@@ -505,6 +512,9 @@ define [
         loadingEnd = newList.length - 1
         @_models = []
 
+      firstChangedIndex = oldListCount
+      lastChangedIndex = 0
+
       changed = false
 
       targetIndex = loadingStart - 1
@@ -514,10 +524,16 @@ define [
         model.setCollection(this)
         if @_byId[model.id]? and @_compareModels(model, @_byId[model.id])
           changed = true
+          firstChangedIndex = i if i < firstChangedIndex
+          lastChangedIndex  = i if i > lastChangedIndex
           @emit "model.#{ model.id }.change", model
           @emitModelChangeExcept(model) # todo: think about 'sync' event here
         targetIndex = loadingStart + i
-        changed = true if not oldList[targetIndex]? or model.id != oldList[targetIndex].id
+        if not oldList[targetIndex]? or model.id != oldList[targetIndex].id
+          changed = true
+          firstChangedIndex = i if i < firstChangedIndex
+          lastChangedIndex  = i if i > lastChangedIndex
+
         @_models[targetIndex] = model
 
       if targetIndex < loadingEnd
@@ -533,9 +549,18 @@ define [
       @_initialized = true
 
       # in situation when newList is empty, we must emit change event
-      changed = true if newList.length == 0 and oldListCount != 0
+      if newList.length == 0 and oldListCount != 0
+        changed = true
+        firstChangedIndex = 0
+        lastChangedIndex  = oldListCount
 
-      @emit 'change' if changed
+      firstPage = 0
+      lastPage  = 0
+      if !isNaN(parseInt(@_pageSize)) && @_pageSize > 0
+        firstPage = Math.ceil((firstChangedIndex + 1) / @_pageSize)
+        lastPage = Math.ceil((lastChangedIndex + 1) / @_pageSize)
+
+      @emit 'change', {firstPage: firstPage, lastPage: lastPage} if changed
 
       if not (start? and end?)
         @_totalCount = newList.length
