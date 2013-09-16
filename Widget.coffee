@@ -29,9 +29,6 @@ define [
     @include Monologue.prototype
 
 
-    # Enable special mode for building structure tree of widget
-    compileMode: false
-
     # widget repository
     widgetRepo = null
 
@@ -209,6 +206,7 @@ define [
       @_modelBindings = {}
       @_subscibedPushBindings = {}
       @_eventCursors = {}
+      compileMode = false
       if params?
         if params.context?
           if params.context instanceof Context
@@ -218,7 +216,7 @@ define [
             @ctx.owner(@)
         @setRepo params.repo if params.repo?
         @setServiceContainer params.serviceContainer if params.serviceContainer?
-        @compileMode = params.compileMode if params.compileMode?
+        compileMode = params.compileMode if params.compileMode?
         @_isExtended = params.extended if params.extended?
         if params.modelBindings?
           @_modelBindings = params.modelBindings
@@ -234,7 +232,7 @@ define [
         @_shownPromise = Future.single()
 
       if not @ctx?
-        if @compileMode
+        if compileMode
           id = 'rwdt-' + _.uniqueId()
         else
           id = (if isBrowser then 'b' else 'n') + 'wdt-' + _.uniqueId()
@@ -512,27 +510,6 @@ define [
       @_sentenced?
 
 
-    compileTemplate: (callback) ->
-      if not @compileMode
-        callback 'not in compile mode', ''
-      else
-        @inlineCounter = 0 # for generating inline block IDs
-        tmplPath = @getPath()
-        tmplFullPath = "./#{ pathUtils.getPublicPrefix() }/bundles/#{ @getTemplatePath() }"
-        require ['fs'], (fs) =>
-          fs.readFile tmplFullPath, (err, data) =>
-            throw err if err
-            @compiledSource = dust.compile(data.toString(), tmplPath)
-            fs.writeFile "#{ tmplFullPath }.js", @compiledSource, (err) ->
-              throw err if err
-              console.log "Template saved: #{ tmplFullPath }.js"
-            if @getPath() != '/cord/core//Switcher'
-              dust.loadSource @compiledSource
-              dust.render tmplPath, @getBaseContext().push(@ctx), callback
-            else
-              callback(null, '')
-
-
     getStructTemplate: ->
       ###
       Loads (if neccessary) and returns in Future structure teamplate of the widget or :empty if it has no one.
@@ -542,7 +519,7 @@ define [
         Future.resolved(@_structTemplate)
       else
         result = Future.single()
-        tmplStructureFile = "bundles/#{ @getTemplatePath() }.structure.json"
+        tmplStructureFile = "bundles/#{ @getTemplatePath() }.struct.json"
         returnCallback = =>
           struct = dust.cache[tmplStructureFile]
           if struct.widgets? and Object.keys(struct.widgets).length > 1
@@ -1427,10 +1404,6 @@ define [
     # should not be used directly, use getBaseContext() for lazy loading
     _baseContext: null
 
-    getBaseContext: ->
-      @_baseContext ? (@_baseContext = @_buildBaseContext())
-
-
     subscribeValueChange: (params, name, value, callback) ->
       subscription = postal.subscribe
         topic: "widget.#{ @ctx.id }.change.#{ value }"
@@ -1453,14 +1426,11 @@ define [
       @addTmpSubscription subscription
 
 
+    getBaseContext: ->
+      @_baseContext ? (@_baseContext = @_buildBaseContext())
+
+
     _buildBaseContext: ->
-      if @compileMode
-        @_buildCompileBaseContext()
-      else
-        @_buildNormalBaseContext()
-
-
-    _buildNormalBaseContext: ->
       dust.makeBase
 
         widget: (chunk, context, bodies, params) =>
@@ -1546,143 +1516,3 @@ define [
                 chunk.end @widgetRepo.getTemplateCss()
                 subscription.unsubscribe()
             @addTmpSubscription subscription
-
-
-    #
-    # Dust plugins for compilation mode
-    #
-    _buildCompileBaseContext: ->
-      dust.makeBase
-
-        extend: (chunk, context, bodies, params) =>
-          ###
-          Extend another widget (probably layout-widget).
-
-          This section should be used as a root element of the template and all contents should be inside it's body
-          block. All contents outside this section will be ignored. Example:
-
-              {#extend type="//RootLayout" someParam="foo"}
-                {#widget type="//MainMenu" selectedItem=activeItem placeholder="default"/}
-              {/extend}
-
-          This section accepts the same params as the "widget" section, except of placeholder which logically cannot
-          be used with extend.
-
-          todo: add check of (un)existance of other root sections in the template
-          ###
-
-          chunk.map (chunk) =>
-
-            if not params.type? or !params.type
-              throw "Extend must have 'type' param defined!"
-
-            if params.placeholder?
-              _console.warn "WARNING: 'placeholder' param is useless for 'extend' section"
-
-            require [
-              "cord-w!#{ params.type }@#{ @getBundle() }"
-              "cord!widgetCompiler"
-            ], (WidgetClass, widgetCompiler) =>
-
-              widget = new WidgetClass
-                compileMode: true
-
-              widgetCompiler.addExtendCall widget, params
-
-              if bodies.block?
-                ctx = @getBaseContext().push(@ctx)
-                ctx.surroundingWidget = widget
-
-                tmpName = "tmp#{ _.uniqueId() }"
-                dust.register tmpName, bodies.block
-                dust.render tmpName, ctx, (err, out) =>
-                  if err then throw err
-                  chunk.end ""
-              else
-                _console.warn "WARNING: Extending widget #{ params.type } with nothing!"
-                chunk.end ""
-
-        #
-        # Widget-block (compile mode)
-        #
-        widget: (chunk, context, bodies, params) =>
-          chunk.map (chunk) =>
-            require [
-              "cord-w!#{ params.type }@#{ @getBundle() }"
-              'cord!widgetCompiler'
-            ], (WidgetClass, widgetCompiler) =>
-
-              widget = new WidgetClass
-                compileMode: true
-
-              emptyBodyRe = /^function body_[0-9]+\(chk,ctx\)\{return chk;\}$/ # todo: move to static
-              if context.surroundingWidget?
-                ph = params.placeholder ? 'default'
-                sw = context.surroundingWidget
-
-                timeoutTemplateName = null
-                if bodies.timeout?
-                  @_timeoutBlockCounter ?= 0
-
-                  timeoutTemplateName = "__timeout_#{ @_timeoutBlockCounter++ }.html.js"
-                  tmplPath = "#{ @getDir() }/#{ timeoutTemplateName }"
-                  widgetCompiler.saveBodyTemplate(bodies.timeout, @compiledSource, tmplPath)
-
-                widgetCompiler.addPlaceholderContent sw, ph, widget, params, timeoutTemplateName
-
-              else if bodies.block? && not emptyBodyRe.test(bodies.block.toString())
-                throw "Name must be explicitly defined for the inline-widget with body placeholders (#{ @constructor.name } -> #{ widget.constructor.name })!" if not params.name? or params.name == ''
-                widgetCompiler.registerWidget widget, params.name
-
-              else
-                # ???
-
-              if bodies.block? && not emptyBodyRe.test(bodies.block.toString())
-                ctx = @getBaseContext().push(@ctx)
-                ctx.surroundingWidget = widget
-
-                tmpName = "tmp#{ _.uniqueId() }"
-                dust.register tmpName, bodies.block
-                dust.render tmpName, ctx, (err, out) =>
-                  if err then throw err
-                  chunk.end ""
-              else
-                chunk.end ""
-
-        #
-        # Inline - block of sub-template to place into surrounding widget's placeholder (compiler only)
-        #
-        inline: (chunk, context, bodies, params) =>
-          chunk.map (chunk) =>
-            require [
-              'cord!widgetCompiler'
-            ], (widgetCompiler) =>
-              if bodies.block?
-                # todo: check other params and output warning
-                params ?= {}
-                name = params.name ? 'inline' + (@inlineCounter++)
-                tag = params.tag ? 'div'
-                cls = params.class ? ''
-                if context.surroundingWidget?
-                  ph = params?.placeholder ? 'default'
-                  sw = context.surroundingWidget
-
-                  templateName = "__inline_#{ name }.html.js"
-                  tmplPath = "#{ @getDir() }/#{ templateName }"
-                  widgetCompiler.saveBodyTemplate(bodies.block, @compiledSource, tmplPath)
-
-                  widgetCompiler.addPlaceholderInline sw, ph, this, templateName, name, tag, cls
-
-                  ctx = @getBaseContext().push(@ctx)
-
-                  tmpName = "tmp#{ _.uniqueId() }"
-                  dust.register tmpName, bodies.block
-
-                  dust.render tmpName, ctx, (err, out) =>
-                    if err then throw err
-                    chunk.end ""
-
-                else
-                  throw "inlines are not allowed outside surrounding widget [#{ @constructor.name }(#{ @ctx.id })]"
-              else
-                _console.warn "Warning: empty inline in widget #{ @constructor.name }(#{ @ctx.id })"
