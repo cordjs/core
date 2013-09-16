@@ -48,8 +48,6 @@ define [
     # helper value for event propagation optimization
     _selfEmittedChangeModelId: null
 
-    @_collectionVersion: '0.08'
-
     @generateName: (options) ->
       ###
       Generates and returns unique "checksum" name of a collection depending only of the given options.
@@ -76,7 +74,9 @@ define [
       id = options.id ? 0
       pageSize = if options.pageSize then options.pageSize else ''
 
-      (@_collectionVersion + '|' + clazz + '|' + fields.sort().join(',') + '|' + calc.sort().join(',') + '|' \
+      collectionVersion = global.config.static.collection
+
+      (collectionVersion + '|' + clazz + '|' + fields.sort().join(',') + '|' + calc.sort().join(',') + '|' \
       + filterId + '|' + filter + '|' + orderBy + '|' + id + '|' + requestOptions + '|' + pageSize).replace(/\:/g, '')
 
 

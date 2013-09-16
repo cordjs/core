@@ -53,7 +53,8 @@ require [
     'cord!ServiceContainer'
     'cord!WidgetRepo'
     'cord!PageTransition'
-  ], (AppConfigLoader, _console, cssManager, clientSideRouter, ServiceContainer, WidgetRepo, PageTransition) ->
+    'cord!cache/localStorage'
+  ], (AppConfigLoader, _console, cssManager, clientSideRouter, ServiceContainer, WidgetRepo, PageTransition, localStorage) ->
 
     class ClientFallback
 
@@ -97,6 +98,12 @@ require [
     requirejs.onError = (error) ->
       _console.warn error.toString()
 
+    #Clear localStorage in case of changing collections' release number
+    localVersion = localStorage.getItem 'collectionsVersion'
+    currentVersion = window.global.config.static.collection
+    if  currentVersion != localVersion
+      localStorage.clear();
+      localStorage.setItem 'collectionsVersion', currentVersion
 
     widgetRepo = new WidgetRepo
 
