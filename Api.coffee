@@ -46,11 +46,12 @@ define [
       @serviceContainer.eval 'cookie', (cookie) =>
         #Protection from late callback from closed connections.
         #TODO, refactor OAuth module, so dead callback will be deleted
-        success = cookie.set 'accessToken', @accessToken
+        success = cookie.set 'accessToken', @accessToken,
+          expires: 15
         success &= cookie.set 'refreshToken', @refreshToken,
-          expires: 14
+          expires: 15
         success &= cookie.set 'oauthScope', @getScope(),
-          expires: 14
+          expires: 15
 
         _console.log "Store tokens: #{accessToken}, #{refreshToken}"
 

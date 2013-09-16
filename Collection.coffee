@@ -48,8 +48,6 @@ define [
     # helper value for event propagation optimization
     _selfEmittedChangeModelId: null
 
-    @_collectionVersion: '0.07'
-
     @generateName: (options) ->
       ###
       Generates and returns unique "checksum" name of a collection depending only of the given options.
@@ -76,7 +74,9 @@ define [
       id = options.id ? 0
       pageSize = if options.pageSize then options.pageSize else ''
 
-      (@_collectionVersion + '|' + clazz + '|' + fields.sort().join(',') + '|' + calc.sort().join(',') + '|' \
+      collectionVersion = global.config.static.collection
+
+      (collectionVersion + '|' + clazz + '|' + fields.sort().join(',') + '|' + calc.sort().join(',') + '|' \
       + filterId + '|' + filter + '|' + orderBy + '|' + id + '|' + requestOptions + '|' + pageSize).replace(/\:/g, '')
 
 
@@ -363,12 +363,14 @@ define [
       else
         #refresh paging info first
         @getPagingInfo(currentId, true).done (paging) =>
-          startPage = if paging.selectedPage > 0 then paging.selectedPage else 1
-          #refresh pages, starting from current, and then go 1 up, 1 down, etc
-          @_topPage = @_bottomPage = startPage
-          @_refreshReachedTop = false
-          @_refreshReachedBottom = false
-          @_refreshPage startPage, paging, 'down'
+          #Don't refresh collection if currentId does not belong to it
+          if !currentId || paging.selectedPage > 0
+            startPage = if paging.selectedPage > 0 then paging.selectedPage else 1
+            #refresh pages, starting from current, and then go 1 up, 1 down, etc
+            @_topPage = @_bottomPage = startPage
+            @_refreshReachedTop = false
+            @_refreshReachedBottom = false
+            @_refreshPage startPage, paging, 'down'
 
 
     _refreshPage: (page, paging, direction) ->
@@ -439,7 +441,14 @@ define [
         @_models.unshift(model)
       @_reorderModelsLocal()
       @_byId[model.id] = model
-      @emit 'change'
+
+      #calculate model's page
+      modelPage = 0
+      if !isNaN(parseInt(@_pageSize)) && @_pageSize > 0
+        modelIndex = _.indexOf @_models, model
+        modelPage = Math.ceil(modelIndex + 1/ @_pageSize)
+
+      @emit 'change', {firstPage: modelPage, lastPage: modelPage}
 
 
     _fillModelList: (models, start, end) ->
@@ -505,6 +514,9 @@ define [
         loadingEnd = newList.length - 1
         @_models = []
 
+      firstChangedIndex = oldListCount
+      lastChangedIndex = 0
+
       changed = false
 
       targetIndex = loadingStart - 1
@@ -514,10 +526,16 @@ define [
         model.setCollection(this)
         if @_byId[model.id]? and @_compareModels(model, @_byId[model.id])
           changed = true
+          firstChangedIndex = i if i < firstChangedIndex
+          lastChangedIndex  = i if i > lastChangedIndex
           @emit "model.#{ model.id }.change", model
           @emitModelChangeExcept(model) # todo: think about 'sync' event here
         targetIndex = loadingStart + i
-        changed = true if not oldList[targetIndex]? or model.id != oldList[targetIndex].id
+        if not oldList[targetIndex]? or model.id != oldList[targetIndex].id
+          changed = true
+          firstChangedIndex = i if i < firstChangedIndex
+          lastChangedIndex  = i if i > lastChangedIndex
+
         @_models[targetIndex] = model
 
       if targetIndex < loadingEnd
@@ -533,9 +551,18 @@ define [
       @_initialized = true
 
       # in situation when newList is empty, we must emit change event
-      changed = true if newList.length == 0 and oldListCount != 0
+      if newList.length == 0 and oldListCount != 0
+        changed = true
+        firstChangedIndex = 0
+        lastChangedIndex  = oldListCount
 
-      @emit 'change' if changed
+      firstPage = 0
+      lastPage  = 0
+      if !isNaN(parseInt(@_pageSize)) && @_pageSize > 0
+        firstPage = Math.ceil((firstChangedIndex + 1) / @_pageSize)
+        lastPage = Math.ceil((lastChangedIndex + 1) / @_pageSize)
+
+      @emit 'change', {firstPage: firstPage, lastPage: lastPage} if changed
 
       if not (start? and end?)
         @_totalCount = newList.length
@@ -751,7 +778,7 @@ define [
       promise = Future.single()
 
       #sometimes collection could be toren apart, check for this case
-      if @_loadedStart <= start and (@_loadedEnd >= end || @_totalCount == @_loadedEnd + 1) and @isConsistent((sliced = slice())) == -1
+      if @_loadedStart <= start and (@_loadedEnd >= end || @_totalCount == @_loadedEnd + 1) and @isConsistent((sliced = slice())) == true
         promise.resolve(sliced)
       else
         @sync ':async', start, end, =>
@@ -963,7 +990,7 @@ define [
       @param Int lodedEnd cached range end
       @return [Int, Int] tuple of adjusted start and end position
       ###
-      base = targetStart - targetEnd + 1
+      base = targetEnd - targetStart + 1
       before = Math.floor((targetStart - loadedStart) / base)
       after = Math.floor((loadedEnd - targetEnd) / base)
       if before + after > 6
