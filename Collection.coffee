@@ -362,15 +362,26 @@ define [
           @_refreshInProgress = false
       else
         #refresh paging info first
+
+        #Find current model page
+        if currentId && @_byId[currentId]
+          modelIndex = _.indexOf @_models, @_byId[currentId]
+          modelPage = Math.ceil(modelIndex + 1/ @_pageSize)
+
         @getPagingInfo(currentId, true).done (paging) =>
           #Don't refresh collection if currentId does not belong to it
           if !currentId || paging.selectedPage > 0
             startPage = if paging.selectedPage > 0 then paging.selectedPage else 1
             #refresh pages, starting from current, and then go 1 up, 1 down, etc
+            #if modelPage didn't change refresh only page, containing the model
+            direction = 'down'
+            if currentId && modelPage && modelPage == paging.selectedPage
+              direction = 'stop'
+
             @_topPage = @_bottomPage = startPage
             @_refreshReachedTop = false
             @_refreshReachedBottom = false
-            @_refreshPage startPage, paging, 'down'
+            @_refreshPage startPage, paging, direction
 
 
     _refreshPage: (page, paging, direction) ->
@@ -382,6 +393,11 @@ define [
         start = (page - 1) * @_pageSize
         end = page * @_pageSize - 1
         @_enqueueQuery(start, end, true).done =>
+
+          if direction == 'stop'
+            @_refreshInProgress = false
+            return
+
           if !@_refreshReachedTop
             @_refreshReachedTop = page == 1
 
