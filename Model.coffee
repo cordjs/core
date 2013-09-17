@@ -77,7 +77,7 @@ define [
 
     propagateFieldChange: (fieldName, newValue) ->
       @collection.repo.propagateFieldChange @id, fieldName, newValue
-      
+
 
     emitLocalCalcChange: (path, val) ->
       ###
@@ -121,12 +121,13 @@ define [
       @param Function(data) callback callback function
       @return MonologueSubscription
       ###
-      if topic == 'change'
-        # 'change'-event is conveniently proxy-triggered by the collection @see Collection::_handleModelChange
-        @collection.on "model.#{ @id }.#{ topic }", callback
-      else
-        @collection.repo.on topic, (changed) =>
-          callback(changed) if changed.id == @id
+      if @collection?
+        if topic == 'change'
+          # 'change'-event is conveniently proxy-triggered by the collection @see Collection::_handleModelChange
+          @collection.on "model.#{ @id }.#{ topic }", callback
+        else
+          @collection.repo.on topic, (changed) =>
+            callback(changed) if changed.id == @id
 
 
     # serialization related
