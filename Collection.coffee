@@ -130,7 +130,9 @@ define [
         if @_loadedStart > @_loadedEnd and @_models.length > 0
           return false
 
-        for i in [@_loadedStart..@_loadedEnd]
+        lastIndex = if @_models.length < @_loadedEnd then @_models.length else @_loadedEnd
+
+        for i in [@_loadedStart..lastIndex]
           if @_models[i] == undefined
             return false
       else
