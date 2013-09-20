@@ -72,7 +72,7 @@ define [
 
       if @_name
         setTimeout =>
-          _console.log 'Future uncompleted', @_name if @state() == 'pending'
+          _console.debug 'Future uncompleted', @_name if @state() == 'pending'
         , 30 * 1000
 
 

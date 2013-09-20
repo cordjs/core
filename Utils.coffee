@@ -1,7 +1,8 @@
 define [
   'moment'
   'cord!isBrowser'
-], (moment, isBrowser) ->
+  'underscore'
+], (moment, isBrowser, _) ->
 
   if isBrowser
     momentru = require ['moment-ru'], (ru) =>
@@ -29,6 +30,11 @@ define [
       map
 
     @morphology = (number, n0, n1, n2) ->
+      if _.isArray(n0)
+        n1 = n0[1]
+        n2 = n0[2]
+        n0 = n0[0]
+
       number = number % 100
       number = number % 10 if number > 19
 
