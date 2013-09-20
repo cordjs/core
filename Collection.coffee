@@ -546,20 +546,21 @@ define [
       # appending/replacing new models to the collection according to the paging options
       for model, i in newList
         model.setCollection(this)
+        targetIndex = loadingStart + i
         if @_byId[model.id]? and @_compareModels(model, @_byId[model.id])
           changed = true
-          firstChangedIndex = i if i < firstChangedIndex
-          lastChangedIndex  = i if i > lastChangedIndex
+          firstChangedIndex = targetIndex if targetIndex < firstChangedIndex
+          lastChangedIndex  = targetIndex if targetIndex > lastChangedIndex
           changedModels[model.id] = model
           @emit "model.#{ model.id }.change", model
           @emitModelChangeExcept(model) # todo: think about 'sync' event here
-        targetIndex = loadingStart + i
+
 
         if not oldList[targetIndex]? or model.id != oldList[targetIndex].id
           changed = true
           changedModels[model.id] = model
-          firstChangedIndex = i if i < firstChangedIndex
-          lastChangedIndex  = i if i > lastChangedIndex
+          firstChangedIndex = targetIndex if targetIndex < firstChangedIndex
+          lastChangedIndex  = targetIndex if targetIndex > lastChangedIndex
 
         @_models[targetIndex] = model
 
