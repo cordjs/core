@@ -37,14 +37,6 @@ define [
       return
 
 
-    @debug: ->
-      config = @getConfig()
-
-      console.warn.apply console, arguments if config?.debug.core
-
-      return
-
-
     @clear: ->
       console.clear?()
 
