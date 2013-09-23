@@ -130,7 +130,9 @@ define [
         if @_loadedStart > @_loadedEnd and @_models.length > 0
           return false
 
-        for i in [@_loadedStart..@_loadedEnd]
+        lastIndex = (if @_models.length < @_loadedEnd then @_models.length else @_loadedEnd) - 1
+
+        for i in [@_loadedStart..lastIndex]
           if @_models[i] == undefined
             return false
       else
@@ -362,15 +364,26 @@ define [
           @_refreshInProgress = false
       else
         #refresh paging info first
+
+        #Find current model page
+        if currentId && @_byId[currentId]
+          modelIndex = _.indexOf @_models, @_byId[currentId]
+          modelPage = Math.ceil(modelIndex + 1/ @_pageSize)
+
         @getPagingInfo(currentId, true).done (paging) =>
           #Don't refresh collection if currentId does not belong to it
           if !currentId || paging.selectedPage > 0
             startPage = if paging.selectedPage > 0 then paging.selectedPage else 1
             #refresh pages, starting from current, and then go 1 up, 1 down, etc
+            #if modelPage didn't change refresh only page, containing the model
+            direction = 'down'
+            if currentId && modelPage && modelPage == paging.selectedPage
+              direction = 'stop'
+
             @_topPage = @_bottomPage = startPage
             @_refreshReachedTop = false
             @_refreshReachedBottom = false
-            @_refreshPage startPage, paging, 'down'
+            @_refreshPage startPage, paging, direction
 
 
     _refreshPage: (page, paging, direction) ->
@@ -382,6 +395,11 @@ define [
         start = (page - 1) * @_pageSize
         end = page * @_pageSize - 1
         @_enqueueQuery(start, end, true).done =>
+
+          if direction == 'stop'
+            @_refreshInProgress = false
+            return
+
           if !@_refreshReachedTop
             @_refreshReachedTop = page == 1
 
@@ -528,20 +546,21 @@ define [
       # appending/replacing new models to the collection according to the paging options
       for model, i in newList
         model.setCollection(this)
+        targetIndex = loadingStart + i
         if @_byId[model.id]? and @_compareModels(model, @_byId[model.id])
           changed = true
-          firstChangedIndex = i if i < firstChangedIndex
-          lastChangedIndex  = i if i > lastChangedIndex
+          firstChangedIndex = targetIndex if targetIndex < firstChangedIndex
+          lastChangedIndex  = targetIndex if targetIndex > lastChangedIndex
           changedModels[model.id] = model
           @emit "model.#{ model.id }.change", model
           @emitModelChangeExcept(model) # todo: think about 'sync' event here
-        targetIndex = loadingStart + i
+
 
         if not oldList[targetIndex]? or model.id != oldList[targetIndex].id
           changed = true
           changedModels[model.id] = model
-          firstChangedIndex = i if i < firstChangedIndex
-          lastChangedIndex  = i if i > lastChangedIndex
+          firstChangedIndex = targetIndex if targetIndex < firstChangedIndex
+          lastChangedIndex  = targetIndex if targetIndex > lastChangedIndex
 
         @_models[targetIndex] = model
 

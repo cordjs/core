@@ -1313,7 +1313,7 @@ define [
           promise.resolve()
         , (err) =>
           console.error "#{ @debug 'initBehaviour' } --> error occurred while loading behaviour:", err
-          postal.publish 'error.notify.publish', {link:'', message: 'Ошибка загрузки виджета. Попробуйте перезагрузить страницу.', details: String(err) ,error:true, timeOut: 30000 }
+          postal.publish 'error.notify.publish', {link:'', message: "Ошибка загрузки виджета #{ behaviourClass }. Попробуйте перезагрузить страницу.", details: String(err) ,error:true, timeOut: 30000 }
           #throw err
       else
         promise.resolve()

@@ -71,9 +71,12 @@ define [
       @_name = name
 
       if @_name
-        setTimeout =>
-          _console.log 'Future uncompleted', @_name if @state() == 'pending'
-        , 30 * 1000
+        debugCore = global.config?.debug.core
+
+        if debugCore
+          setTimeout =>
+            _console.warn 'Future uncompleted', @_name if @state() == 'pending'
+          , 30 * 1000
 
 
     clearDoneCallbacks: ->
