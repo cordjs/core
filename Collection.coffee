@@ -384,6 +384,8 @@ define [
             @_refreshReachedTop = false
             @_refreshReachedBottom = false
             @_refreshPage startPage, paging, direction
+          else
+            @_refreshInProgress = false
 
 
     _refreshPage: (page, paging, direction) ->
@@ -869,6 +871,9 @@ define [
             @_totalCount = if response then response.total else response
             #special case: collections with zero amount of model will be never initialized otherwize
             if @_totalCount == 0
+              #mark this collection as initialized, if it's empty
+              @_loadedStart = 0
+              @_loadedEnd = @_pageSize - 1
               @_initialized = true
             if response
               result.resolve(response)
