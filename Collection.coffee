@@ -372,7 +372,7 @@ define [
 
         @getPagingInfo(currentId, true).done (paging) =>
           #Don't refresh collection if currentId does not belong to it
-          if !currentId || paging.selectedPage > 0
+          if !currentId || paging.selectedPage > 0 || modelIndex > -1
             startPage = if paging.selectedPage > 0 then paging.selectedPage else 1
             #refresh pages, starting from current, and then go 1 up, 1 down, etc
             #if modelPage didn't change refresh only page, containing the model
@@ -738,6 +738,10 @@ define [
 
 
     _recursiveCompare: (src, dst) ->
+      ###
+      Does the same as _recursiveCompareAndChange, but without actual changing the values
+      Also _recursiveCompareAndChange uses this function itself.
+      ###
       result = false
       for key, val of src
         if dst[key] != undefined
