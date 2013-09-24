@@ -500,7 +500,9 @@ define [
           api.get @restResource + '/' + id, apiParams, (result, error) ->
             promise.resolve result
       else
-        promise.resolve newValue
+        changeset = {}
+        changeset[fieldName] = newValue
+        promise.resolve changeset
 
       #Propagate new value
       promise.done (result) =>
