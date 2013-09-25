@@ -214,6 +214,11 @@ define [
         if found == scannedFields.length then true else false
 
 
+    sizeOfAllCollections: ->
+      _.reduce @_collections, (memo, value, index) ->
+        memo + value._models.length
+      , 0
+
 
     scanLoadedModels: (scannedFields, searchedText, limit) ->
       ###
