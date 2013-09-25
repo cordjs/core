@@ -447,7 +447,10 @@ define [
       @return Object key-value params for the ModelRepo::query() method
       ###
       if @_id
-        result = id: @_id
+        result =
+          id: @_id
+          fields: @_fields
+          requestParams: @_reqiestParams
       else
         result =
           orderBy: @_orderBy
