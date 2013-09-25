@@ -77,7 +77,7 @@ define [
 
         movedIds = {}
         for newItem in newList
-          if oldIndex < oldLength
+          if oldIndex <= oldLength
             newId = id(newItem)
             # if models at current position of the lists doesn't match
             # current position of oldList is not moving forward in this case
