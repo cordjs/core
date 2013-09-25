@@ -18,6 +18,7 @@ define [
 
     _filterType: ':none' # :none | :local | :backend
     _filterId: null
+    _filterParams: null # params for filter
     _filterFunction: null
 
     _orderBy: null
@@ -57,6 +58,8 @@ define [
       ###
       orderBy = options.orderBy ? ''
       filterId = options.filterId ? ''
+      filterParams = options.filterParams ? ''
+      filterParams = filterParams.join(',') if _.isArray(filterParams)
       filter = _.reduce options.filter , (memo, value, index) ->
         memo + index + '_' + value
       , ''
@@ -76,8 +79,19 @@ define [
 
       collectionVersion = global.config.static.collection
 
-      (collectionVersion + '|' + clazz + '|' + fields.sort().join(',') + '|' + calc.sort().join(',') + '|' \
-      + filterId + '|' + filter + '|' + orderBy + '|' + id + '|' + requestOptions + '|' + pageSize).replace(/\:/g, '')
+      [
+        collectionVersion
+        clazz
+        fields.sort().join(',')
+        calc.sort().join(',')
+        filterId
+        filterParams
+        filter
+        orderBy
+        id
+        requestOptions
+        pageSize
+      ].join('|').replace(/\:/g, '')
 
 
     constructor: (@repo, @name, options) ->
@@ -96,11 +110,13 @@ define [
         @_fillModelList [options.model]
         @_orderBy = null
         @_filterId = null
+        @_filterParams = null
         @_id = options.model.id
         @_filter = {}
       else
         @_orderBy = options.orderBy ? null
         @_filterId = options.filterId ? null
+        @_filterParams = options.filterParams ? null
         @_id = options.id ? 0
         @_filter = options.filter ? {}
         @_pageSize = options.pageSize ? 0
@@ -438,7 +454,9 @@ define [
           fields: @_fields
           filter: @_filter
           requestParams: @_reqiestParams
-        result.filterId = @_filterId if @_filterType == ':backend'
+        if @_filterType == ':backend'
+          result.filterId = @_filterId
+          result.filterParams = @_filterParams
         if @_hasLimits
           result.start = @_loadedStart
           result.end = @_loadedEnd
@@ -868,7 +886,10 @@ define [
             pageSize: @_pageSize
             orderBy: @_orderBy
           params.selectedId = selectedId if selectedId
-          params.filterId = @_filterId if @_filterType == ':backend'
+          if @_filterType == ':backend'
+            params.filterId = @_filterId
+            params.filterParams = @_filterParams if @_filterParams
+
           params.filter = @_filter if @_filter
 
           @repo.paging(params).done (response) =>
@@ -974,7 +995,10 @@ define [
             queryParams.id = @_id
           else
             queryParams.orderBy = @_orderBy
-            queryParams.filterId = @_filterId if @_filterType == ':backend'
+            if @_filterType == ':backend'
+              queryParams.filterId = @_filterId
+              queryParams.filterParams = @_filterParams if @_filterParams
+
             queryParams.filter = @_filter if @_filter
             queryParams.start = start if start?
             queryParams.end = end  if end?
@@ -1117,6 +1141,7 @@ define [
       id: @_id
       filterType: @_filterType
       filterId: @_filterId
+      filterParams: @_filterParams
       orderBy: @_orderBy
       fields: @_fields
       start: @_loadedStart
@@ -1142,6 +1167,7 @@ define [
       collection._models = models
       collection._id = obj.id
       collection._filterType = obj.filterType
+      collection._filterParams = obj.filterParams
       collection._filterId = obj.filterId
       collection._orderBy = obj.orderBy
       collection._fields = obj.fields

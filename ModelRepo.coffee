@@ -355,6 +355,7 @@ define [
       urlParams = []
       if not params.id?
         urlParams.push("_filter=#{ params.filterId }") if params.filterId?
+        urlParams.push("_filterParams=#{ params.filterParams }") if params.filterParams?
         urlParams.push("_sortby=#{ params.orderBy }") if params.orderBy?
         urlParams.push("_page=#{ params.page }") if params.page?
         urlParams.push("_pagesize=#{ params.pageSize }") if params.pageSize?
@@ -444,6 +445,7 @@ define [
           apiParams._sortby = params.orderBy if params.orderBy?
           apiParams._selectedId = params.selectedId if params.selectedId?
           apiParams._filter = params.filterId if params.filterId?
+          apiParams._filterParams = params.filterParams if params.filterParams?
           if params.filter
             for filterField of params.filter
               apiParams[filterField]=params.filter[filterField]
@@ -462,6 +464,17 @@ define [
       else
         changeInfo = model
       @emit 'change', changeInfo
+
+
+    propagateModelChange: (model) ->
+      ###
+      Model changed and needs to be updated in all collections
+      @param id Model - model
+      ###
+      changeInfo = model.getChangedFields()
+      changeInfo.id = model.id
+      @emit 'change', changeInfo
+      @_suggestNewModelToCollections(model)
 
 
     propagateFieldChange: (id, fieldName, newValue) ->
