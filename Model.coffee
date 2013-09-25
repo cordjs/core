@@ -79,6 +79,13 @@ define [
       @collection.repo.propagateFieldChange @id, fieldName, newValue
 
 
+    propagateModelChange: ->
+      ###
+      Propagate changed model in all collecion
+      ###
+      @collection.repo.propagateModelChange @
+
+
     emitLocalCalcChange: (path, val) ->
       ###
       Triggers correctly formed event about changing of some locally ad-hoc calculated field values of the model.
