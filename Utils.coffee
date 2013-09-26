@@ -136,3 +136,9 @@ define [
     @getIconColorById = (id) ->
       colors = ['#A6E8C7', '#FFDE8F', '#A9E1F2', '#F1B8C9', '#C7C9FA', '#C3EDAE']
       return colors[id % colors.length];
+
+
+    @fixFirefoxEventOffset = (event) ->
+      event.offsetX = if event.offsetX then event.offsetX else event.originalEvent.layerX
+      event.offsetY = if event.offsetY then event.offsetY else event.originalEvent.layerY
+      return event

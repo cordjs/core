@@ -118,7 +118,7 @@ define [
 
     createSingleModel: (id, fields, extraOptions = {}) ->
       ###
-      Creates single-model collection by id and field list. In callback returns resulting model.
+      Creates single-model collection by id and field list.
       Method returns single-model collection.
 
       @param Integer id
@@ -138,8 +138,8 @@ define [
 
     buildSingleModel: (id, fields, syncMode) ->
       ###
-      Creates and syncs single-model collection by id and field list. In callback returns resulting model.
-       Method returns single-model collection.
+      Creates and syncs single-model collection by id and field list.
+      Method returns single-model collection.
 
       :now sync mode is not available here since we need to return the resulting model.
 
@@ -205,6 +205,7 @@ define [
 
       null
 
+
     scanCollections: (scannedFields) ->
       _.filter @_collections, (collection, key) ->
         found = 0
@@ -212,7 +213,6 @@ define [
           if _.indexOf(collection._fields, field) > -1 || field == 'id'
             found += 1
         if found == scannedFields.length then true else false
-
 
     sizeOfAllCollections: ->
       _.reduce @_collections, (memo, value, index) ->
