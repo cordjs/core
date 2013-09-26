@@ -22,6 +22,13 @@ define [], () ->
           userAgent.calculate()
           done null, userAgent
 
+    dateUtils:
+      deps: ['container']
+      factory: (get, done) ->
+        require ['cord!/cord/core/utils/DateUtils'], (DateUtils) =>
+          dateUtils = new DateUtils(this)
+          done null, dateUtils
+
     ':server':
       request: (get, done) ->
         require ['cord!/cord/core/request/ServerRequest'], (Request) =>

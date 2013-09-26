@@ -7,8 +7,10 @@ define [
   if isBrowser
     momentru = require ['moment-ru'], (ru) =>
       moment.lang 'ru'
+    timezoneOffset = (new Date()).getTimezoneOffset()
   else
     moment.lang 'ru'
+
 
   class Utils
 
@@ -42,90 +44,11 @@ define [
       return n1 if number == 1
       return n0
 
-    @monthFormat = (month) ->
-      months =
-        0:  'января'
-        1:  'февраля'
-        2:  'марта'
-        3:  'апреля'
-        4:  'мая'
-        5:  'июня'
-        6:  'июля'
-        7:  'августа'
-        8:  'сентября'
-        9:  'октября'
-        10: 'ноября'
-        11: 'декабря'
-      months[month]
-
-    @dateFormat = (text, format = 'simple') ->
-      return '' if !text
-
-      now = moment()
-
-      if text == 'now'
-        date = now
-      else
-        date = moment(text, 'YYYY-MM-DD HH:mm:ss')
-
-      # в идеале написать date.calendar()
-      # дока http://momentjs.com/docs/
-
-      daysDiff = (date.sod().toDate() - now.sod().toDate()) / 86400000
-
-      date = date.toDate()
-      now = now.toDate()
-
-      detailed = format == 'detailed'
-      minutes = date.getMinutes()
-      hours = date.getHours()
-      time = (if hours < 10 then '0' else '') + hours + ':' + (if minutes < 10 then '0' else '') + minutes
-      
-      ## Сегодня
-      if date.getDate() == now.getDate() and date.getMonth() == now.getMonth() and date.getYear() == now.getYear()
-          return 'сегодня' + (if detailed then (' в ' + time) else '')
-      ## Вчера
-      else if daysDiff == -1
-        return 'вчера' + (if detailed then (' в ' + time) else '')
-      ## Завтра
-      else if daysDiff == 1
-        return 'завтра' + (if detailed then (' в ' + time) else '')
-      else
-        ## но в этом году
-        if date.getYear() == now.getYear()
-          if detailed
-            return date.getDate() + ' ' + Utils.monthFormat(date.getMonth()) + ' в ' + time
-          else
-            return date.getDate() + ' ' + Utils.monthFormat(date.getMonth())
-        else
-          if detailed
-            return date.getDate() + ' ' + Utils.monthFormat(date.getMonth()) + ' ' + date.getFullYear() + ' в ' + time
-          else
-            return date.getDate() + ' ' + Utils.monthFormat(date.getMonth()) + ' ' + date.getFullYear()
-
-
-    @dateDiffInDays = (date) ->
-      today = new Date()
-      date = new Date date
-
-      seconds = ( date - today ) / 1000
-      seconds / ( 60 * 60 * 24 )
-
-
-    @getAgeByBirthday = (date) ->
-      today = new Date()
-      birthDate = new Date(date)
-      years = today.getFullYear() - birthDate.getFullYear()
-      months = today.getMonth() - birthDate.getMonth()
-      if (months < 0) or (months == 0 and today.getDate() < birthDate.getDate())
-        years--
-      years
-
 
     @phoneNumberFormat = (number) ->
       if not number
         return ''
-        
+
       if number.length == 7
         number = [
           number.substr(0,3)
