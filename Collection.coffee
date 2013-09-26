@@ -18,6 +18,7 @@ define [
 
     _filterType: ':none' # :none | :local | :backend
     _filterId: null
+    _filterParams: null # params for filter
     _filterFunction: null
 
     _orderBy: null
@@ -57,6 +58,8 @@ define [
       ###
       orderBy = options.orderBy ? ''
       filterId = options.filterId ? ''
+      filterParams = options.filterParams ? ''
+      filterParams = filterParams.join(',') if _.isArray(filterParams)
       filter = _.reduce options.filter , (memo, value, index) ->
         memo + index + '_' + value
       , ''
@@ -76,8 +79,19 @@ define [
 
       collectionVersion = global.config.static.collection
 
-      (collectionVersion + '|' + clazz + '|' + fields.sort().join(',') + '|' + calc.sort().join(',') + '|' \
-      + filterId + '|' + filter + '|' + orderBy + '|' + id + '|' + requestOptions + '|' + pageSize).replace(/\:/g, '')
+      [
+        collectionVersion
+        clazz
+        fields.sort().join(',')
+        calc.sort().join(',')
+        filterId
+        filterParams
+        filter
+        orderBy
+        id
+        requestOptions
+        pageSize
+      ].join('|').replace(/\:/g, '')
 
 
     constructor: (@repo, @name, options) ->
@@ -96,11 +110,13 @@ define [
         @_fillModelList [options.model]
         @_orderBy = null
         @_filterId = null
+        @_filterParams = null
         @_id = options.model.id
         @_filter = {}
       else
         @_orderBy = options.orderBy ? null
         @_filterId = options.filterId ? null
+        @_filterParams = options.filterParams ? null
         @_id = options.id ? 0
         @_filter = options.filter ? {}
         @_pageSize = options.pageSize ? 0
@@ -372,7 +388,7 @@ define [
 
         @getPagingInfo(currentId, true).done (paging) =>
           #Don't refresh collection if currentId does not belong to it
-          if !currentId || paging.selectedPage > 0
+          if !currentId || paging.selectedPage > 0 || modelIndex > -1
             startPage = if paging.selectedPage > 0 then paging.selectedPage else 1
             #refresh pages, starting from current, and then go 1 up, 1 down, etc
             #if modelPage didn't change refresh only page, containing the model
@@ -384,6 +400,8 @@ define [
             @_refreshReachedTop = false
             @_refreshReachedBottom = false
             @_refreshPage startPage, paging, direction
+          else
+            @_refreshInProgress = false
 
 
     _refreshPage: (page, paging, direction) ->
@@ -429,14 +447,19 @@ define [
       @return Object key-value params for the ModelRepo::query() method
       ###
       if @_id
-        result = id: @_id
+        result =
+          id: @_id
+          fields: @_fields
+          requestParams: @_reqiestParams
       else
         result =
           orderBy: @_orderBy
           fields: @_fields
           filter: @_filter
           requestParams: @_reqiestParams
-        result.filterId = @_filterId if @_filterType == ':backend'
+        if @_filterType == ':backend'
+          result.filterId = @_filterId
+          result.filterParams = @_filterParams
         if @_hasLimits
           result.start = @_loadedStart
           result.end = @_loadedEnd
@@ -736,6 +759,10 @@ define [
 
 
     _recursiveCompare: (src, dst) ->
+      ###
+      Does the same as _recursiveCompareAndChange, but without actual changing the values
+      Also _recursiveCompareAndChange uses this function itself.
+      ###
       result = false
       for key, val of src
         if dst[key] != undefined
@@ -862,13 +889,19 @@ define [
             pageSize: @_pageSize
             orderBy: @_orderBy
           params.selectedId = selectedId if selectedId
-          params.filterId = @_filterId if @_filterType == ':backend'
+          if @_filterType == ':backend'
+            params.filterId = @_filterId
+            params.filterParams = @_filterParams if @_filterParams
+
           params.filter = @_filter if @_filter
 
           @repo.paging(params).done (response) =>
             @_totalCount = if response then response.total else response
             #special case: collections with zero amount of model will be never initialized otherwize
             if @_totalCount == 0
+              #mark this collection as initialized, if it's empty
+              @_loadedStart = 0
+              @_loadedEnd = @_pageSize - 1
               @_initialized = true
             if response
               result.resolve(response)
@@ -965,7 +998,10 @@ define [
             queryParams.id = @_id
           else
             queryParams.orderBy = @_orderBy
-            queryParams.filterId = @_filterId if @_filterType == ':backend'
+            if @_filterType == ':backend'
+              queryParams.filterId = @_filterId
+              queryParams.filterParams = @_filterParams if @_filterParams
+
             queryParams.filter = @_filter if @_filter
             queryParams.start = start if start?
             queryParams.end = end  if end?
@@ -1108,6 +1144,7 @@ define [
       id: @_id
       filterType: @_filterType
       filterId: @_filterId
+      filterParams: @_filterParams
       orderBy: @_orderBy
       fields: @_fields
       start: @_loadedStart
@@ -1133,6 +1170,7 @@ define [
       collection._models = models
       collection._id = obj.id
       collection._filterType = obj.filterType
+      collection._filterParams = obj.filterParams
       collection._filterId = obj.filterId
       collection._orderBy = obj.orderBy
       collection._fields = obj.fields
