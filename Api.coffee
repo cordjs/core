@@ -12,6 +12,7 @@ define [
     accessToken: false
     refreshToken: false
 
+
     constructor: (serviceContainer, options) ->
       ### Дефолтные настройки ###
       defaultOptions =
@@ -32,6 +33,7 @@ define [
         return @scope
       @scope = Math.round(Math.random()*10000000)
       return @scope
+
 
     storeTokens: (accessToken, refreshToken, callback) ->
       # Кеширование токенов
