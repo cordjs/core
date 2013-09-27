@@ -22,7 +22,9 @@ define [
 
     send: (method, url, params, callback) ->
       method = method.toLowerCase()
-      _console.log('Unknown method:'+method) if method not in @METHODS
+
+      _console.warn('Unknown method:' + method) if method not in @METHODS
+
       method = 'del' if method is 'delete'
 
       argssss = Utils.parseArguments arguments,
@@ -50,29 +52,24 @@ define [
           json: argssss.params
           form: argssss.params.form
 
-      _console.log "BrowserRequest: #{method} #{argssss.url}" if global.config.debug.request != "simple"
       startRequest = new Date() if global.config.debug.request
-      window.curly[method] argssss.url, options, (error, response, body) =>
-        if global.config.debug.request
-          stopRequest = new Date()
-          seconds = (stopRequest - startRequest) / 1000
 
-          if global.config.debug.request == "simple"
-            url = argssss.url.replace('http://127.0.0.1:1337/XDR/', '')
-            url = url.replace(/(&|\?)?access_token=[^&]+/, '')
-            _console.log "BrowserRequest ( #{ seconds } s): #{method} #{url}"
-            if method isnt 'get'
-              _console.log body
-          else
-            _console.log "========================================================================( #{ seconds } s)"
-            _console.log "BrowserRequest: #{method} #{argssss.url}"
-            _console.log argssss.params
-            _console.log body if global.config.debug.request == "full"
-            _console.log "========================================================================"
+      window.curly[method] argssss.url, options, (error, response, body) =>
+        stopRequest = new Date()
+        seconds = (stopRequest - startRequest) / 1000
+
+        indexXDR = argssss.url.indexOf '/XDR/'
+        url = argssss.url.slice(indexXDR + 5)
+        url = url.replace(/(&|\?)?access_token=[^&]+/, '')
+
+        if global.config.debug.request
+          postal.publish 'logger.log', { tags: ['request'], params: {method: method, url: url, seconds: seconds} }
 
         if not error? and response.statusCode != 200
           error =
             statusCode: response.statusCode
             statusText: response.body._message
+
+          postal.publish 'logger.log', { tags: ['request', 'error'], params: {method: method, url: url, seconds: seconds, errorCode: response.statusCode, errorText: response.body._message, requestParams: argssss.params} }
 
         argssss.callback body, error if typeof argssss.callback == 'function'

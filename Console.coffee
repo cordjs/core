@@ -26,6 +26,8 @@ define [
 
       console.warn.apply console, arguments if config?.console.warn or not config
 
+      postal.publish 'logger.log', { tags: ['warning'], params: {warning: arguments} }
+
       return
 
 
@@ -33,6 +35,8 @@ define [
       config = @getConfig()
 
       console.error.apply console, arguments if config?.console.error or not config
+
+      postal.publish 'logger.log', { tags: ['error'], params: {error: arguments} }
 
       return
 

@@ -2,7 +2,8 @@ define [
   'curly'
   'cord!Utils'
   'underscore'
-], (curly, Utils, _) ->
+  'postal'
+], (curly, Utils, _, postal) ->
 
   class ServerRequest
 
@@ -23,7 +24,9 @@ define [
     send: (method, url, params, callback) ->
 
       method = method.toLowerCase()
-      _console.log('Unknown method:'+method) if method not in @METHODS
+
+      _console.warn('Unknown method:' + method) if method not in @METHODS
+
       method = 'del' if method is 'delete'
 
       argssss = Utils.parseArguments arguments,
@@ -43,14 +46,16 @@ define [
           json: argssss.params
 
       startRequest = new Date() if global.config.debug.request
+
       curly[method] argssss.url, options, (error, response, body) =>
         if global.config.debug.request
           stopRequest = new Date()
           seconds = (stopRequest - startRequest) / 1000
-          _console.log "ServerRequest (#{ seconds } s): #{method} #{argssss.url}"
+
+          if response
+            postal.publish 'logger.log', { tags: ['request'], params: {method: method, url: argssss.url, seconds: seconds} }
+
           if error
-            _console.error error
-          if body and body.error or global.config.debug.request == "full"
-            _console.log body
+            postal.publish 'logger.log', { tags: ['request', 'error'], params: {method: method, url: argssss.url, seconds: seconds, errorCode: response.statusCode, errorText: response.body._message, requestParams: argssss.params} }
 
         argssss.callback body, error if typeof argssss.callback == 'function'
