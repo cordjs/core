@@ -2,7 +2,8 @@ define [
   'the-box'
   'cord!utils/Future'
   'underscore'
-], (Container, Future, _) ->
+  'cord!isBrowser'
+], (Container, Future, _, isBrowser) ->
 
   Container::injectServices = (target) ->
     ###
@@ -31,7 +32,7 @@ define [
               servicePromise.resolve()
               injectPromise.resolve()
           catch e
-            _console.error e.message
+            _console.error e.message if isBrowser
             target[serviceName] = undefined
             injectPromise.resolve()
 
