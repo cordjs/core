@@ -177,7 +177,7 @@ define [
       syncMode = ':async' if syncMode == ':cache-async'
       collection = @createSingleModel(id, fields)
 
-      collection.sync syncMode, ->
+      collection.sync syncMode, 0, 0, ->
         try
           promise.resolve(collection.get(id))
         catch error
