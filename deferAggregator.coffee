@@ -37,8 +37,12 @@ define [
           df.promise.resolve()
 
         df.promise.done =>
-          if not widget.isSentenced()
-            widget.setParams(df.params)
+          try
+            if not widget.isSentenced()
+              widget.setParams(df.params)
+          catch error
+            _console.error error
+
           delete @defers[id]
 
 
