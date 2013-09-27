@@ -63,13 +63,13 @@ define [
         url = url.replace(/(&|\?)?access_token=[^&]+/, '')
 
         if global.config.debug.request
-          postal.publish 'logger.log', { tags: ['request'], params: {method: method, url: url, seconds: seconds} }
+          postal.publish 'logger.log.publish', { tags: ['request'], params: {method: method, url: url, seconds: seconds} }
 
         if not error? and response.statusCode != 200
           error =
             statusCode: response.statusCode
             statusText: response.body._message
 
-          postal.publish 'logger.log', { tags: ['request', 'error'], params: {method: method, url: url, seconds: seconds, errorCode: response.statusCode, errorText: response.body._message, requestParams: argssss.params} }
+          postal.publish 'logger.log.publish', { tags: ['request', 'error'], params: {method: method, url: url, seconds: seconds, errorCode: response.statusCode, errorText: response.body._message, requestParams: argssss.params} }
 
         argssss.callback body, error if typeof argssss.callback == 'function'

@@ -186,6 +186,7 @@ define [
 
               if (response && response.code)
                 message = 'Ошибка ' + response.code + ': ' + response._message
+
                 postal.publish 'error.notify.publish', {link:'', message: message, details: response?.message timeOut: 30000 }
 
               if (error && (error.statusCode || error.message))
@@ -195,11 +196,15 @@ define [
                 #Post could make duplicates
                 if method != 'post' && requestParams.reconnect != false && (!error.statusCode || error.statusCode == 500) && requestParams.deepCounter < 10
                   requestParams.deepCounter = if ! requestParams.deepCounter then 1 else requestParams.deepCounter + 1
+
                   _console.log requestParams.deepCounter + " Repeat request in 0.5s", requestUrl
+
                   setTimeout doRequest, 500
                 else
                   message = 'Ошибка ' + (if error.statusCode != undefined then (' ' + error.statusCode)) + ': ' + message
+
                   postal.publish 'error.notify.publish', {link:'', message: message, error:true, timeOut: 30000 }
+
                   args.callback response, error if args.callback
               else
                 args.callback response, error if args.callback

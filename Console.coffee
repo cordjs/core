@@ -26,7 +26,7 @@ define [
 
       console.warn.apply console, arguments if config?.console.warn or not config
 
-      postal.publish 'logger.log', { tags: ['warning'], params: {warning: arguments} }
+      postal.publish 'logger.log.publish', { tags: ['warning'], params: {warning: arguments} }
 
       return
 
@@ -36,7 +36,7 @@ define [
 
       console.error.apply console, arguments if config?.console.error or not config
 
-      postal.publish 'logger.log', { tags: ['error'], params: {error: arguments} }
+      postal.publish 'logger.log.publish', { tags: ['error'], params: {error: arguments} }
 
       return
 
