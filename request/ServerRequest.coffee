@@ -50,7 +50,7 @@ define [
           _console.log "ServerRequest (#{ seconds } s): #{method} #{argssss.url}"
           if error
             _console.error error
-          if body && body.error
+          if body and body.error or global.config.debug.request == "full"
             _console.log body
 
         argssss.callback body, error if typeof argssss.callback == 'function'
