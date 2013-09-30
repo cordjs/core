@@ -66,10 +66,9 @@ define [
 
           if error
             loggerTags.push 'error'
-            loggerParams = _.extend loggerParams,
-              requestParams: argssss.params
-              errorCode: response.statusCode
-              errorText: response.body._message
+            errorParams = requestParams: argssss.params
+            errorParams['errorCode'] = response.statusCode if response?.statusCode
+            errorParams['errorText'] = response.body._message if response?.body?._message
 
           postal.publish 'logger.log.publish',
             tags: loggerTags
