@@ -52,10 +52,27 @@ define [
           stopRequest = new Date()
           seconds = (stopRequest - startRequest) / 1000
 
-          if response
-            postal.publish 'logger.log.publish', { tags: ['request'], params: {method: method, url: argssss.url, seconds: seconds} }
+          loggerParams =
+            method: method
+            url: argssss.url
+            seconds: seconds
+
+          loggerTags = ['request']
+
+          if global.config.debug.request == 'full'
+            loggerParams = _.extend loggerParams,
+              requestParams: argssss.params
+              response: response.body
 
           if error
-            postal.publish 'logger.log.publish', { tags: ['request', 'error'], params: {method: method, url: argssss.url, seconds: seconds, errorCode: response?.statusCode, errorText: response?.body?._message, requestParams: argssss.params} }
+            loggerTags.push 'error'
+            loggerParams = _.extend loggerParams,
+              requestParams: argssss.params
+              errorCode: response.statusCode
+              errorText: response.body._message
+
+          postal.publish 'logger.log.publish',
+            tags: loggerTags
+            params: loggerParams
 
         argssss.callback body, error if typeof argssss.callback == 'function'

@@ -125,7 +125,7 @@ define [
         delete @widgets[@_reverseIndex[widget.ctx.id]]
         delete @_reverseIndex[widget.ctx.id]
       else
-        _console.log "WARNING: trying to unassign unknown widget #{ widget.debug() }"
+        _console.warn "WARNING: trying to unassign unknown widget #{ widget.debug() }"
 
 
     replacePlaceholders: (widgetRefUid, currentPlaceholders, transition, callback) ->

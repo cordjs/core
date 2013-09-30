@@ -24,4 +24,3 @@ define [], ->
 
     complete: ->
       @_active = false
-      _console.warn "!!! transition from #{ @oldPath } to #{ @newPath } complete !!!"

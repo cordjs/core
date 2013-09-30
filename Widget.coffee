@@ -591,7 +591,7 @@ define [
       @widgetRepo.registerNewExtendWidget this
 
       @setParams params, =>
-        _console.log "#{ @debug 'injectAction' } processes context:", @ctx
+        _console.log "#{ @debug 'injectAction' } processes context:", @ctx if global.config.debug.widget
         @_handleOnShow =>
           @getStructTemplate().done (tmpl) =>
             @_injectRender tmpl, transition, callback
