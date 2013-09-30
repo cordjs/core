@@ -156,7 +156,7 @@ define [
       if syncMode == ':cache' || syncMode == ':cache-async'
         model = @probeCollectionsForModel(id, fields)
         if model
-          _console.log 'debug: buildSingleModel found in an existing collection'
+          _console.log 'debug: buildSingleModel found in an existing collection' if global.config.debug.model
           options =
              fields: fields
              id: model.id
@@ -168,11 +168,11 @@ define [
             promise.resolve(collection.get(id))
           catch error
             if error.name == 'ModelNotExists'
-              promise.fail(error)
+              promise.reject(error)
 
           return promise
         else
-          _console.log 'debug: buildSingleModel missed in existing collections :('
+          _console.log 'debug: buildSingleModel missed in existing collections :(' if global.config.debug.model
 
       syncMode = ':async' if syncMode == ':cache-async'
       collection = @createSingleModel(id, fields)
