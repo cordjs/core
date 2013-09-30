@@ -2,7 +2,8 @@ define [
   'curly'
   'cord!Utils'
   'underscore'
-], (curly, Utils, _) ->
+  'postal'
+], (curly, Utils, _, postal) ->
 
   class BrowserRequest
 
@@ -55,21 +56,41 @@ define [
       startRequest = new Date() if global.config.debug.request
 
       window.curly[method] argssss.url, options, (error, response, body) =>
-        stopRequest = new Date()
-        seconds = (stopRequest - startRequest) / 1000
-
-        indexXDR = argssss.url.indexOf '/XDR/'
-        url = argssss.url.slice(indexXDR + 5)
-        url = url.replace(/(&|\?)?access_token=[^&]+/, '')
-
-        if global.config.debug.request
-          postal.publish 'logger.log.publish', { tags: ['request'], params: {method: method, url: url, seconds: seconds} }
 
         if not error? and response.statusCode != 200
           error =
             statusCode: response.statusCode
             statusText: response.body._message
 
-          postal.publish 'logger.log.publish', { tags: ['request', 'error'], params: {method: method, url: url, seconds: seconds, errorCode: response.statusCode, errorText: response.body._message, requestParams: argssss.params} }
+        if global.config.debug.request
+          stopRequest = new Date()
+          seconds = (stopRequest - startRequest) / 1000
+
+          indexXDR = argssss.url.indexOf '/XDR/'
+          url = argssss.url.slice(indexXDR + 5)
+          url = url.replace(/(&|\?)?access_token=[^&]+/, '')
+
+          loggerParams =
+            method: method
+            url: argssss.url
+            seconds: seconds
+
+          loggerTags = ['request']
+
+          if global.config.debug.request == 'full'
+            loggerParams = _.extend loggerParams,
+              requestParams: argssss.params
+              response: response.body
+
+          if error
+            loggerTags.push 'error'
+            loggerParams = _.extend loggerParams,
+              requestParams: argssss.params
+              errorCode: response.statusCode
+              errorText: response.body._message
+
+          postal.publish 'logger.log.publish',
+            tags: loggerTags
+            params: loggerParams
 
         argssss.callback body, error if typeof argssss.callback == 'function'
