@@ -56,6 +56,6 @@ define [
             postal.publish 'logger.log.publish', { tags: ['request'], params: {method: method, url: argssss.url, seconds: seconds} }
 
           if error
-            postal.publish 'logger.log.publish', { tags: ['request', 'error'], params: {method: method, url: argssss.url, seconds: seconds, errorCode: response.statusCode, errorText: response.body._message, requestParams: argssss.params} }
+            postal.publish 'logger.log.publish', { tags: ['request', 'error'], params: {method: method, url: argssss.url, seconds: seconds, errorCode: response?.statusCode, errorText: response?.body?._message, requestParams: argssss.params} }
 
         argssss.callback body, error if typeof argssss.callback == 'function'
