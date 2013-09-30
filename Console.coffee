@@ -36,6 +36,7 @@ define [
 
       console.error.apply console, arguments if config?.console.error or not config
 
+      postal.publish 'error.notify.publish', { message: 'Произошла ошибка', link: '', details: arguments }
       postal.publish 'logger.log.publish', { tags: ['error'], params: {error: arguments} }
 
       return
