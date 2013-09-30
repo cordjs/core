@@ -183,7 +183,7 @@ define [
       ###
       Defines callback function to be called when future is rejected.
       If all waiting values are already resolved then callback is fired immedialtely.
-      If done method is called several times than all passed functions will be called.
+      If fail method is called several times than all passed functions will be called.
       ###
       throw new Error("Invalid argument for Future.fail(): #{ callback }") if not _.isFunction(callback)
       @_failCallbacks.push(callback)
@@ -305,6 +305,40 @@ define [
       @always (args...) ->
         callback.apply(null, args)
         result.complete.apply(result, args)
+      result
+
+
+    mapFail: (callback) ->
+      ###
+      Returns new future which completes with the result of this future if it's successful or with the result
+       of the given callback if this future is failed. Error of the fail result is passed to the callback.
+      This method is helpful when it's necessary to convert error of this future to the meaningful successful result.
+      @param Function(err -> A) callback
+      @return Future[A]
+      ###
+      result = Future.single()
+      @done (args...) -> result.resolve.apply(result, args)
+      @fail (err) ->
+        mapRes = callback.call(null, err)
+        if _.isArray(mapRes)
+          result.resolve.apply(result, mapRes)
+        else
+          result.resolve(mapRes)
+      result
+
+
+    flatMapFail: (callback) ->
+      ###
+      Returns new future which completes with the result of this future if it's successful or with the future-result
+       of the given callback if this future is failed. Error of the fail result is passed to the callback.
+      Callback must return a Future, and resulting Future is completed when the callback-returned future is completed.
+      This method is helpful when it's necessary to convert error of this future to the meaningful successful result.
+      @param Function(err -> Future(A)) callback
+      @return Future[A]
+      ###
+      result = Future.single()
+      @done (args...) -> result.resolve.apply(result, args)
+      @fail (err)     -> result.when(callback.call(null, err))
       result
 
 
