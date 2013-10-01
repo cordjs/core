@@ -26,7 +26,11 @@ define [
 
       console.warn.apply console, arguments if config?.console.warn or not config
 
-      postal.publish 'logger.log.publish', { tags: ['warning'], params: {warning: arguments} }
+      message = ''
+      for arg in arguments
+        message += arg + '. '
+
+      postal.publish 'logger.log.publish', { tags: ['warning'], params: {warning: message} }
 
       return
 
@@ -36,8 +40,12 @@ define [
 
       console.error.apply console, arguments if config?.console.error or not config
 
-      postal.publish 'error.notify.publish', { message: 'Произошла ошибка', link: '', details: arguments }
-      postal.publish 'logger.log.publish', { tags: ['error'], params: {error: arguments} }
+      message = ''
+      for arg in arguments
+        message += arg + '. '
+
+      postal.publish 'error.notify.publish', { message: 'Произошла ошибка', link: '', details: message }
+      postal.publish 'logger.log.publish', { tags: ['error'], params: {error: message} }
 
       return
 
