@@ -60,9 +60,9 @@ define [
           loggerTags = ['request']
 
           if global.config.debug.request == 'full'
-            loggerParams = _.extend loggerParams,
-              requestParams: argssss.params
-              response: response.body
+            fullParams = requestParams: argssss.params
+            fullParams['response'] = response.body if response?.body
+            loggerParams = _.extend loggerParams, fullParams
 
           if error
             loggerTags.push 'error'
