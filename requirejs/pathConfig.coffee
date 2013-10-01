@@ -10,6 +10,7 @@ define [], ->
 
   bundles:     bundlesDir
   pathUtils:   pluginsDir + 'pathUtils'
+
   #plugins
   'text':      'vendor/requirejs/plugins/text'
   'cord':      pluginsDir + 'cord'
