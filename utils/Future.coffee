@@ -71,12 +71,10 @@ define [
       @_name = name
 
       if @_name
-        debugCore = global.config?.debug.core
-
-        if debugCore
+        if global.config?.debug.core
           setTimeout =>
-            _console.warn 'Future uncompleted', @_name if @state() == 'pending'
-          , 30 * 1000
+            _console.warn 'Future uncompleted', @_name if @state() == 'pending' and @_counter > 0
+          , 10 * 1000
 
 
     clearDoneCallbacks: ->
@@ -117,6 +115,8 @@ define [
         if @_state != 'rejected'
           @_callbackArgs = [args] if args.length > 0
           if @_counter == 0
+            # For the cases when there is no done function
+            @_state = 'resolved'
             @_runDoneCallbacks() if @_doneCallbacks.length > 0
             @_runAlwaysCallbacks() if @_alwaysCallbacks.length > 0
           # not changing state to 'resolved' here because it is possible to call fork() again if done hasn't called yet

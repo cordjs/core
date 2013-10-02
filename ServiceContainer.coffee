@@ -24,15 +24,20 @@ define [
       for serviceName in services
         injectPromise.fork()
         do (serviceName) =>
+          servicePromise = Future.single("Container::injectServices -> eval(#{ serviceName }) for target #{ target.constructor.name }")
           try
-            servicePromise = new Future('Container::injectServices -> eval(' + serviceName + ')')
-            servicePromise.fork()
             @eval serviceName, (service) ->
+              if global.config?.debug.service
+                _console.log "Container::injectServices -> eval(#{ serviceName }) for target #{ target.constructor.name } finished success"
+
               target[serviceName] = service
               servicePromise.resolve()
               injectPromise.resolve()
           catch e
-            _console.error e.message if isBrowser
+            if global.config?.debug.service
+              _console.error "Container::injectServices -> eval(#{ serviceName }) for target #{ target.constructor.name } fail: #{ e.message }"
+
+            servicePromise.reject()
             target[serviceName] = undefined
             injectPromise.resolve()
 
