@@ -54,14 +54,14 @@ define [
 
         clear = =>
           if serviceContainer?
-            serviceContainer.eval 'oauth2', (oauth2) =>
-              oauth2.clear()
+            for serviceName in serviceContainer.getNames()
+              if serviceContainer.isReady(serviceName)
+                serviceContainer.eval serviceName, (service) ->
+                  service.clear?()
 
           serviceContainer.set 'router', null
           serviceContainer = null
           widgetRepo = null
-          rootWidget = null
-
 
         config = global.config
         config.api.authenticateUserCallback = ->
