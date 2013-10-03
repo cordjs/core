@@ -21,9 +21,7 @@ define [
       @_fieldNames = []
       @_changed = {}
       if (attrs instanceof Model)
-        attrs  = _.clone attrs
-        delete attrs._fieldNames if attrs._fieldNames
-        delete attrs._changed if attrs._changed
+        attrs  = _.clone(attrs).toJSON()
 
       @_load(attrs) if attrs
 
@@ -61,6 +59,7 @@ define [
 
     set: (key, val) ->
       if _.isObject(key)
+        key = key.toJSON() if key instanceof Model
         attrs = key
       else
         (attrs = {})[key] = val
