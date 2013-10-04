@@ -352,6 +352,11 @@ define [
 
 
     _buildApiRequestUrl: (params) ->
+      ###
+      Build URL for api request
+      @param Object params paging and collection params
+      @return String
+      ###
       urlParams = []
       if not params.id?
         urlParams.push("_filter=#{ params.filterId }") if params.filterId?
@@ -440,21 +445,29 @@ define [
       result = Future.single()
       if @container
         @container.eval 'api', (api) =>
-          apiParams = {}
-          apiParams._pagesize = params.pageSize if params.pageSize?
-          apiParams._sortby = params.orderBy if params.orderBy?
-          apiParams._selectedId = params.selectedId if params.selectedId?
-          apiParams._filter = params.filterId if params.filterId?
-          apiParams._filterParams = params.filterParams if params.filterParams?
-          if params.filter
-            for filterField of params.filter
-              apiParams[filterField]=params.filter[filterField]
-
-          api.get @restResource + '/paging/', apiParams, (response) =>
+          api.get @restResource + '/paging/', @_buildPagingRequestParams(params), (response) =>
             result.resolve(response)
       else
         result.reject('Cleaned up')
       result
+
+
+    _buildPagingRequestParams: (params) ->
+      ###
+      Build api params for paging request
+      @param Object params paging and collection params
+      @return Object
+      ###
+      apiParams = {}
+      apiParams._pagesize = params.pageSize if params.pageSize?
+      apiParams._sortby = params.orderBy if params.orderBy?
+      apiParams._selectedId = params.selectedId if params.selectedId?
+      apiParams._filter = params.filterId if params.filterId?
+      apiParams._filterParams = params.filterParams if params.filterParams?
+      if params.filter
+        for filterField of params.filter
+          apiParams[filterField]=params.filter[filterField]
+      apiParams
 
 
     emitModelChange: (model) ->
@@ -558,6 +571,19 @@ define [
       @return Model
       ###
       result = new @model(attrs)
+      @_injectActionMethods(result) if attrs?.id
+      result
+
+
+    buildNewModel: (attrs) ->
+      ###
+      Model factory.
+      Unlike buildModel() set input attributes in changed fields. It is important for future saving
+      @param Object attrs key-value fields for the model, including the id (if exists)
+      @return Model
+      ###
+      result = new @model()
+      result.set attrs
       @_injectActionMethods(result) if attrs?.id
       result
 
