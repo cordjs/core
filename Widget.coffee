@@ -293,10 +293,13 @@ define [
       @_callbacks.push safeCallback
       safeCallback
 
+
     clearCallbacks: ->
+      ###
+      Clear registered callbacks
+      ###
       callback.cleared = true for callback in @_callbacks
       @_callbacks = []
-
 
 
     createPromise: (initialCounter = 0, name = '') ->
