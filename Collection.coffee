@@ -142,6 +142,7 @@ define [
       ###
         Return true if collection or array has no gaps
       ###
+
       if !array
         if @_loadedStart > @_loadedEnd and @_models.length > 0
           return false
@@ -149,9 +150,10 @@ define [
         modelsEnd = @_models.length - 1
         lastIndex = if modelsEnd < @_loadedEnd then modelsEnd else @_loadedEnd
 
-        for i in [@_loadedStart..lastIndex]
-          if @_models[i] == undefined
-            return false
+        if lastIndex >= 0
+          for i in [@_loadedStart..lastIndex]
+            if @_models[i] == undefined
+              return false
       else
         for model in array
           if model == undefined

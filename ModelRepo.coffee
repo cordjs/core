@@ -55,6 +55,7 @@ define [
       @param Object options
       @return Collection
       ###
+
       if options.collectionClass
         throw new Error("Extended collections should be created using ModelRepo::createExtendedCollection() method!")
       name = Collection.generateName(options)
