@@ -603,10 +603,10 @@ define [
       @_initialized = true
 
       # in situation when newList is empty, we must emit change event
-      if newList.length == 0 and oldListCount != 0
+      if newList.length < oldListCount
         changed = true
-        firstChangedIndex = 0
-        lastChangedIndex  = oldListCount
+        firstChangedIndex = newList.length if newList.length < firstChangedIndex
+        lastChangedIndex  = oldListCount if oldListCount > lastChangedIndex
 
       firstPage = 0
       lastPage  = 0

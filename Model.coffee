@@ -114,10 +114,24 @@ define [
       @collection.repo.emit 'change', changeVal
 
 
-    # syntax sugar
-
     save: ->
-      @collection.repo.save(this)
+      ###
+      Save model via collection repo
+      ###
+      if @collection?.repo?
+        @collection.repo.save(this)
+      else
+        throw new Error('Can not save model without collection')
+
+
+    delete: ->
+      ###
+      Delete model via collection repo
+      ###
+      if @collection?.repo?
+        @collection.repo.delete(this)
+      else
+        throw new Error('Can not delete model without collection')
 
 
     on: (topic, callback) ->

@@ -393,6 +393,30 @@ define [
       @restResource + (if params.id? then ('/' + params.id) else '') + '/?' + urlParams.join('&')
 
 
+    delete: (model) ->
+      ###
+      Remove given model on the backend
+      @param Model model model to save
+      @return Future(response, error)
+      ###
+      promise = Future.single('Delete model promise')
+      if @container
+        @container.eval 'api', (api) =>
+          if model.id
+            api.del @restResource + '/' + model.id, (response, error) =>
+              if error
+                @emit 'error', error
+                promise.reject(error)
+              else
+                @_suggestNewModelToCollections(model)
+                promise.resolve(response)
+          else
+            promise.reject('Unsave model')
+      else
+        promise.reject('Cleaned up')
+      promise
+
+
     save: (model) ->
       ###
       Persists list of given models to the backend
