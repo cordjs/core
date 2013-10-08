@@ -1295,8 +1295,11 @@ define [
           throw new Error("Trying to subscribe for event '#{ topic }' of unexistent child with name '#{ childName }'")
 
 
-    #Special selector for children ':any' - subscribes on all child widgets
     bindChildEvents: ->
+      ###
+      Bind specific events for child
+      Special selector for children ':any' - subscribes on all child widgets
+      ###
       if @constructor.childEvents?
         for eventDef, callback of @constructor.childEvents
           eventDef = eventDef.split ' '

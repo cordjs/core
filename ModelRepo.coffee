@@ -162,7 +162,7 @@ define [
              fields: fields
              id: model.id
 
-          options.model = new @model(model)
+          options.model = @buildModel(model)
 
           collection = @createCollection(options)
           try
@@ -615,9 +615,10 @@ define [
       model
 
 
-    # local caching related
-
     getTtl: ->
+      ###
+      local caching related
+      ###
       600
 
 
