@@ -7,11 +7,18 @@ define [
   'underscore'
 ], (isBrowser, Module, Defer, Future, Monologue, _) ->
 
+  class ModelNotExists extends Error
+
+    constructor: (@message) ->
+      @name = 'ModelNotExists'
+
+
   class Collection extends Module
     @include Monologue.prototype
 
     _filterType: ':none' # :none | :local | :backend
     _filterId: null
+    _filterParams: null # params for filter
     _filterFunction: null
 
     _orderBy: null
@@ -42,8 +49,6 @@ define [
     # helper value for event propagation optimization
     _selfEmittedChangeModelId: null
 
-    @_collectionVersion: '0.07'
-
     @generateName: (options) ->
       ###
       Generates and returns unique "checksum" name of a collection depending only of the given options.
@@ -53,6 +58,8 @@ define [
       ###
       orderBy = options.orderBy ? ''
       filterId = options.filterId ? ''
+      filterParams = options.filterParams ? ''
+      filterParams = filterParams.join(',') if _.isArray(filterParams)
       filter = _.reduce options.filter , (memo, value, index) ->
         memo + index + '_' + value
       , ''
@@ -70,8 +77,21 @@ define [
       id = options.id ? 0
       pageSize = if options.pageSize then options.pageSize else ''
 
-      (@_collectionVersion + '|' + clazz + '|' + fields.sort().join(',') + '|' + calc.sort().join(',') + '|' \
-      + filterId + '|' + filter + '|' + orderBy + '|' + id + '|' + requestOptions + '|' + pageSize).replace(/\:/g, '')
+      collectionVersion = global.config.static.collection
+
+      [
+        collectionVersion
+        clazz
+        fields.sort().join(',')
+        calc.sort().join(',')
+        filterId
+        filterParams
+        filter
+        orderBy
+        id
+        requestOptions
+        pageSize
+      ].join('|').replace(/\:/g, '')
 
 
     constructor: (@repo, @name, options) ->
@@ -90,11 +110,13 @@ define [
         @_fillModelList [options.model]
         @_orderBy = null
         @_filterId = null
+        @_filterParams = null
         @_id = options.model.id
         @_filter = {}
       else
         @_orderBy = options.orderBy ? null
         @_filterId = options.filterId ? null
+        @_filterParams = options.filterParams ? null
         @_id = options.id ? 0
         @_filter = options.filter ? {}
         @_pageSize = options.pageSize ? 0
@@ -114,6 +136,30 @@ define [
 
       # subscribe for model changes to smart-proxy them to the collections model instances
       @repo.on('change', @_handleModelChange).withContext(this)
+
+
+    isConsistent: (array) ->
+      ###
+        Return true if collection or array has no gaps
+      ###
+
+      if !array
+        if @_loadedStart > @_loadedEnd and @_models.length > 0
+          return false
+
+        modelsEnd = @_models.length - 1
+        lastIndex = if modelsEnd < @_loadedEnd then modelsEnd else @_loadedEnd
+
+        if lastIndex >= 0
+          for i in [@_loadedStart..lastIndex]
+            if @_models[i] == undefined
+              return false
+      else
+        for model in array
+          if model == undefined
+            return false
+
+      return true
 
 
     sync: (returnMode, start, end, callback) ->
@@ -253,7 +299,7 @@ define [
       if @_byId[id]?
         @_byId[id]
       else
-        throw new Error("There is no model with id = #{ id } in collection [#{ @debug() }]!")
+        throw new ModelNotExists("There is no model with id = #{ id } in collection [#{ @debug() }]!")
 
 
     toArray: ->
@@ -337,13 +383,28 @@ define [
           @_refreshInProgress = false
       else
         #refresh paging info first
+
+        #Find current model page
+        if currentId && @_byId[currentId]
+          modelIndex = _.indexOf @_models, @_byId[currentId]
+          modelPage = Math.ceil(modelIndex + 1/ @_pageSize)
+
         @getPagingInfo(currentId, true).done (paging) =>
-          startPage = if paging.selectedPage > 0 then paging.selectedPage else 1
-          #refresh pages, starting from current, and then go 1 up, 1 down, etc
-          @_topPage = @_bottomPage = startPage
-          @_refreshReachedTop = false
-          @_refreshReachedBottom = false
-          @_refreshPage startPage, paging, 'down'
+          #Don't refresh collection if currentId does not belong to it
+          if !currentId || paging.selectedPage > 0 || modelIndex > -1
+            startPage = if paging.selectedPage > 0 then paging.selectedPage else 1
+            #refresh pages, starting from current, and then go 1 up, 1 down, etc
+            #if modelPage didn't change refresh only page, containing the model
+            direction = 'down'
+            if currentId && modelPage && modelPage == paging.selectedPage
+              direction = 'stop'
+
+            @_topPage = @_bottomPage = startPage
+            @_refreshReachedTop = false
+            @_refreshReachedBottom = false
+            @_refreshPage startPage, paging, direction
+          else
+            @_refreshInProgress = false
 
 
     _refreshPage: (page, paging, direction) ->
@@ -355,6 +416,11 @@ define [
         start = (page - 1) * @_pageSize
         end = page * @_pageSize - 1
         @_enqueueQuery(start, end, true).done =>
+
+          if direction == 'stop'
+            @_refreshInProgress = false
+            return
+
           if !@_refreshReachedTop
             @_refreshReachedTop = page == 1
 
@@ -384,14 +450,19 @@ define [
       @return Object key-value params for the ModelRepo::query() method
       ###
       if @_id
-        result = id: @_id
+        result =
+          id: @_id
+          fields: @_fields
+          requestParams: @_reqiestParams
       else
         result =
           orderBy: @_orderBy
           fields: @_fields
           filter: @_filter
           requestParams: @_reqiestParams
-        result.filterId = @_filterId if @_filterType == ':backend'
+        if @_filterType == ':backend'
+          result.filterId = @_filterId
+          result.filterParams = @_filterParams
         if @_hasLimits
           result.start = @_loadedStart
           result.end = @_loadedEnd
@@ -414,7 +485,17 @@ define [
         @_models.unshift(model)
       @_reorderModelsLocal()
       @_byId[model.id] = model
-      @emit 'change'
+
+      #calculate model's page
+      modelPage = 0
+      if !isNaN(parseInt(@_pageSize)) && @_pageSize > 0
+        modelIndex = _.indexOf @_models, model
+        modelPage = Math.ceil(modelIndex + 1/ @_pageSize)
+
+      changedModels = {}
+      changedModels[model.id] = model
+
+      @emit 'change', {firstPage: modelPage, lastPage: modelPage, models: changedModels}
 
 
     _fillModelList: (models, start, end) ->
@@ -426,14 +507,11 @@ define [
       @param (optional)Int start starting index of the loading range
       @param (optional)Int end ending index of the loading range
       ###
-      changed = false
       if start? and end?
         # appending new models to the collection according to the paging options
         for model, i in models
           if model
             model.setCollection(this)
-            if @_models[start + i]? and @_compareModels(model, @_models[start + i])
-              changed = true
             @_models[start + i] = model
 
         @_loadedStart = start if start < @_loadedStart
@@ -450,11 +528,6 @@ define [
         model.setCollection(this) for model in @_models
 
       @_reindexModels()
-
-      #Emit change event in case of filling previously empty collection
-      if @_initialized == true && changed
-        @emit 'change'
-
       @_initialized = true
 
 
@@ -467,10 +540,12 @@ define [
       @param (optional)Int end index of last item to replace
       ###
 
+      # This means that previously collection was empty and something new has arrived
+
       oldListCount = @_models.length
       oldList = _.clone(@_models)
 
-      if start? and end?
+      if (start? and end?) and (start < end)
         ###
         #in case of refreshing, we'll just replace the list
         if start == @_loadedStart && end == @_loadedEnd
@@ -486,34 +561,60 @@ define [
         loadingEnd = newList.length - 1
         @_models = []
 
+      firstChangedIndex = oldListCount
+      lastChangedIndex = 0
+
       changed = false
 
       targetIndex = loadingStart - 1
+      changedModels = {}
 
       # appending/replacing new models to the collection according to the paging options
       for model, i in newList
         model.setCollection(this)
+        targetIndex = loadingStart + i
         if @_byId[model.id]? and @_compareModels(model, @_byId[model.id])
           changed = true
+          firstChangedIndex = targetIndex if targetIndex < firstChangedIndex
+          lastChangedIndex  = targetIndex if targetIndex > lastChangedIndex
+          changedModels[model.id] = model
           @emit "model.#{ model.id }.change", model
           @emitModelChangeExcept(model) # todo: think about 'sync' event here
-        targetIndex = loadingStart + i
-        changed = true if not oldList[targetIndex]? or model.id != oldList[targetIndex].id
+
+
+        if not oldList[targetIndex]? or model.id != oldList[targetIndex].id
+          changed = true
+          changedModels[model.id] = model
+          firstChangedIndex = targetIndex if targetIndex < firstChangedIndex
+          lastChangedIndex  = targetIndex if targetIndex > lastChangedIndex
+
         @_models[targetIndex] = model
 
       if targetIndex < loadingEnd
         @_models.splice(targetIndex + 1, loadingEnd - targetIndex)
 
       @_loadedStart = loadingStart if loadingStart < @_loadedStart
-      @_loadedEnd = loadingEnd if loadingEnd > @_loadedEnd
+      if loadingEnd > @_loadedEnd
+        @_loadedEnd = loadingEnd
+      else if loadingEnd =-1 and @_loadedEnd == -1
+        @_loadedEnd = 0
 
       @_reindexModels()
       @_initialized = true
 
       # in situation when newList is empty, we must emit change event
-      changed = true if newList.length == 0 and oldListCount != 0
+      if newList.length == 0 and oldListCount != 0
+        changed = true
+        firstChangedIndex = 0
+        lastChangedIndex  = oldListCount
 
-      @emit 'change' if changed
+      firstPage = 0
+      lastPage  = 0
+      if !isNaN(parseInt(@_pageSize)) && @_pageSize > 0
+        firstPage = Math.ceil((firstChangedIndex + 1) / @_pageSize)
+        lastPage = Math.ceil((lastChangedIndex + 1) / @_pageSize)
+
+      @emit 'change', {firstPage: firstPage, lastPage: lastPage, models: changedModels} if changed
 
       if not (start? and end?)
         @_totalCount = newList.length
@@ -637,18 +738,57 @@ define [
         if dst[key] != undefined
           if _.isArray(val)
             if val.length == 0
+              #If dst was an array longer than 0
+              result = (!_.isArray(dst[key])) || dst[key].length > 0
               dst[key] = []
-              result = true
-            else if _.isArray(val[0]) or not _.isObject(val[0]) or not val[0].id?
-              dst[key] = _.clone(val)
-              result = true
+            else
+              if _.isArray dst[key]
+                for newVal,newKey in val
+                  result |= dst[key][newKey] == undefined || @_recursiveCompare(newVal, dst[key][newKey])
+                  if result
+                    dst[key] = _.clone(val)
+                    break
+              else
+                dst[key] = _.clone(val)
+                result = true
             # todo: can be more smart here, but very difficult
           else if not _.isObject(val)
             if not _.isEqual(val, dst[key])
               dst[key] = _.clone(val)
               result = true
+          else if dst[key] and @_recursiveCompareAndChange(val, dst[key])
+            result = true
+      result
+
+
+    _recursiveCompare: (src, dst) ->
+      ###
+      Does the same as _recursiveCompareAndChange, but without actual changing the values
+      Also _recursiveCompareAndChange uses this function itself.
+      ###
+      result = false
+      for key, val of src
+        if dst[key] != undefined
+          if _.isArray(val)
+            if val.length == 0
+              #If dst was an array longer than 0
+              result = (!_.isArray(dst[key])) || dst[key].length > 0
+            else
+              if _.isArray dst[key]
+                for newVal,newKey in val
+                  result |= @_recursiveCompare(newVal, dst[key][newKey])
+                  if result
+                    break
+              else
+                result = true
+            # todo: can be more smart here, but very difficult
+          else if not _.isObject(val)
+            if not _.isEqual(val, dst[key])
+              result = true
           else if @_recursiveCompareAndChange(val, dst[key])
             result = true
+        if result
+          break
       result
 
 
@@ -692,8 +832,10 @@ define [
           @toArray()
 
       promise = Future.single()
-      if @_loadedStart <= start and (@_loadedEnd >= end || @_totalCount == @_loadedEnd + 1)
-        promise.resolve(slice())
+
+      #sometimes collection could be toren apart, check for this case
+      if @_loadedStart <= start and (@_loadedEnd >= end || @_totalCount == @_loadedEnd + 1) and @isConsistent((sliced = slice())) == true
+        promise.resolve(sliced)
       else
         @sync ':async', start, end, =>
           promise.resolve(slice())
@@ -750,15 +892,24 @@ define [
             pageSize: @_pageSize
             orderBy: @_orderBy
           params.selectedId = selectedId if selectedId
-          params.filterId = @_filterId if @_filterType == ':backend'
+          if @_filterType == ':backend'
+            params.filterId = @_filterId
+            params.filterParams = @_filterParams if @_filterParams
+
           params.filter = @_filter if @_filter
 
           @repo.paging(params).done (response) =>
-            @_totalCount = response.total
+            @_totalCount = if response then response.total else response
             #special case: collections with zero amount of model will be never initialized otherwize
             if @_totalCount == 0
+              #mark this collection as initialized, if it's empty
+              @_loadedStart = 0
+              @_loadedEnd = @_pageSize - 1
               @_initialized = true
-            result.resolve(response)
+            if response
+              result.resolve(response)
+            else
+              result.resolve({})
 
       result
 
@@ -800,7 +951,7 @@ define [
           @_queryQueue.loadingStart = start = undefined
           @_queryQueue.loadingEnd = end = undefined
 
-      if ( not end || (end - start > 50) ) && not @_id && not @repo._debugCanDoUnlimit
+      if ( not end? || (end - start > 50) ) && not @_id && not @repo._debugCanDoUnlimit
         _console.error 'ACHTUNG!!! Me bumped into unlimited query: end =', end, 'start =', start, @repo.restResource
 
       # detecting if there are queries in the queue which already cover required range
@@ -850,7 +1001,10 @@ define [
             queryParams.id = @_id
           else
             queryParams.orderBy = @_orderBy
-            queryParams.filterId = @_filterId if @_filterType == ':backend'
+            if @_filterType == ':backend'
+              queryParams.filterId = @_filterId
+              queryParams.filterParams = @_filterParams if @_filterParams
+
             queryParams.filter = @_filter if @_filter
             queryParams.start = start if start?
             queryParams.end = end  if end?
@@ -901,7 +1055,7 @@ define [
       @param Int lodedEnd cached range end
       @return [Int, Int] tuple of adjusted start and end position
       ###
-      base = targetStart - targetEnd + 1
+      base = targetEnd - targetStart + 1
       before = Math.floor((targetStart - loadedStart) / base)
       after = Math.floor((loadedEnd - targetEnd) / base)
       if before + after > 6
@@ -993,6 +1147,7 @@ define [
       id: @_id
       filterType: @_filterType
       filterId: @_filterId
+      filterParams: @_filterParams
       orderBy: @_orderBy
       fields: @_fields
       start: @_loadedStart
@@ -1018,6 +1173,7 @@ define [
       collection._models = models
       collection._id = obj.id
       collection._filterType = obj.filterType
+      collection._filterParams = obj.filterParams
       collection._filterId = obj.filterId
       collection._orderBy = obj.orderBy
       collection._fields = obj.fields

@@ -58,7 +58,8 @@ define [
 
       @init()
       if @show?
-        @widget.shown().done => @show()
+        @widget.shown().done @getCallback =>
+          @show()
 
 
     init: ->
@@ -97,7 +98,7 @@ define [
         @ctx.set 'apiResult', result
       ###
       makeSafeCallback = (callback) ->
-        result = () ->
+        result = ->
           if !result.cleared
             callback.apply(this, arguments)
         result.cleared = false

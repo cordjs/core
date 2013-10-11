@@ -6,7 +6,7 @@ requirejs     = require 'requirejs'
 
 http          = require 'http'
 serverStatic  = require 'node-static'
-
+EventEmitter  = require('events').EventEmitter
 
 pathDir = fs.realpathSync('.')
 
@@ -37,6 +37,8 @@ exports.init = (baseUrl = 'public', configName = 'default', serverPort = 1337) -
     'underscore'
   ], (pathUtils, AppConfigLoader, _console, Rest, xdrProxy, statCollector, router, _) ->
     pathUtils.setPublicPrefix(baseUrl)
+
+    router.EventEmitter = EventEmitter
     services.router = router
     services.fileServer = new serverStatic.Server(baseUrl)
     services.xdrProxy = xdrProxy
@@ -74,6 +76,7 @@ exports.init = (baseUrl = 'public', configName = 'default', serverPort = 1337) -
 
     AppConfigLoader.ready().done (appConfig) ->
       router.addRoutes(appConfig.routes)
+      router.addFallbackRoutes(appConfig.fallbackRoutes) if appConfig.fallbackRoutes?
 
       startServer ->
         timeLog "Server running at http://#{ Rest.host }:#{ Rest.port }/"

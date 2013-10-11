@@ -120,12 +120,11 @@ define [
       @_reverseIndex[newWidget.ctx.id] = refUid
 
     unassignWidget: (widget) ->
-#      _console.log "StructureTemplate::unassignWidget(#{ widget.debug() })"
       if @_reverseIndex[widget.ctx.id]?
         delete @widgets[@_reverseIndex[widget.ctx.id]]
         delete @_reverseIndex[widget.ctx.id]
       else
-        _console.log "WARNING: trying to unassign unknown widget #{ widget.debug() }"
+        # This is normal then widget template has not body blocks
 
 
     replacePlaceholders: (widgetRefUid, currentPlaceholders, transition, callback) ->

@@ -87,7 +87,7 @@ define [
 
           else
             _console.log 'Cannot refresh token (('
-            setTimeout () =>
+            setTimeout =>
               _console.log 'Recall refresh token'
               @grantAccessTokenByRefreshToken refreshToken
             , 500

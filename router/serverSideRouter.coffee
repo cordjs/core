@@ -8,9 +8,21 @@ define [
   'url'
 ], (AppConfigLoader, Router, ServiceContainer, WidgetRepo, DomInfo, _, url) ->
 
+  class ServerSideFallback
+
+    constructor: (@eventEmitter) ->
+
+    fallback: (widgetPath, params) ->
+      #TODO: find better way to change root widget
+      @eventEmitter.emit 'fallback',
+        widgetPath:widgetPath,
+        params:params
+
+
+
   class ServerSideRouter extends Router
 
-    process: (req, res) ->
+    process: (req, res, fallback = false) ->
       path = url.parse(req.url, true)
 
       @currentPath = req.url
@@ -30,6 +42,7 @@ define [
 
         serviceContainer.set 'serverRequest', req
         serviceContainer.set 'serverResponse', res
+        serviceContainer.set 'router', this
 
         ###
           Конфиги
@@ -41,9 +54,12 @@ define [
 
         clear = =>
           if serviceContainer?
-            serviceContainer.eval 'oauth2', (oauth2) =>
-              oauth2.clear()
+            for serviceName in serviceContainer.getNames()
+              if serviceContainer.isReady(serviceName)
+                serviceContainer.eval serviceName, (service) ->
+                  service.clear?()
 
+          serviceContainer.set 'router', null
           serviceContainer = null
           widgetRepo = null
 
@@ -72,23 +88,47 @@ define [
         widgetRepo.setRequest(req)
         widgetRepo.setResponse(res)
 
+        eventEmitter = new   @EventEmitter()
+        fallback = new ServerSideFallback(eventEmitter)
+
+        serviceContainer.set 'fallback', fallback
+
         AppConfigLoader.ready().done (appConfig) ->
           for serviceName, info of appConfig.services
             do (info) ->
               serviceContainer.def serviceName, info.deps, (get, done) ->
                 info.factory.call(serviceContainer, get, done)
 
-          if rootWidgetPath?
+          previousProcess = {}
+
+          processWidget = (rootWidgetPath, params) =>
             widgetRepo.createWidget rootWidgetPath, (rootWidget) ->
               rootWidget._isExtended = true
               widgetRepo.setRootWidget(rootWidget)
-              rootWidget.show(params, DomInfo.fake()).failAloud().done (out) ->
+              previousProcess.showPromise = rootWidget.show(params, DomInfo.fake())
+              previousProcess.showPromise.failAloud().done (out) ->
+                eventEmitter.removeAllListeners('fallback')
                 #prevent browser to use the same connection
                 res.shouldKeepAlive = false
                 res.writeHead 200, 'Content-Type': 'text/html'
                 res.end(out)
                 # todo: may be need some cleanup before?
                 clear()
+
+          eventEmitter.once 'fallback', (args) =>
+            if previousProcess.showPromise
+              previousProcess.showPromise.clearAllCallbacks()
+
+            # Clear previous root widget
+            if widgetRepo.getRootWidget()
+              widgetRepo.dropWidget widgetRepo.getRootWidget().ctx.id
+
+            processWidget args.widgetPath, args.params
+
+          if rootWidgetPath?
+            processWidget rootWidgetPath, params
+
+
           else if routeCallback?
             routeCallback
               serviceContainer: serviceContainer
@@ -104,7 +144,5 @@ define [
         true
       else
         false
-
-
 
   new ServerSideRouter

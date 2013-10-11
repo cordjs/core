@@ -71,6 +71,25 @@ define [
       @_alwaysCallbacks = []
       @_name = name
 
+      if @_name
+        if global.config?.debug.core
+          setTimeout =>
+            _console.warn 'Future uncompleted', @_name if @state() == 'pending' and @_counter > 0
+          , 10 * 1000
+
+
+    clearDoneCallbacks: ->
+      @_doneCallbacks = []
+
+
+    clearFailCallbacks: ->
+      @_failCallbacks = []
+
+
+    clearAllCallbacks: ->
+      @_doneCallbacks = []
+      @_failCallbacks = []
+
 
     fork: ->
       ###
@@ -97,6 +116,8 @@ define [
         if @_state != 'rejected'
           @_callbackArgs = [args] if args.length > 0
           if @_counter == 0
+            # For the cases when there is no done function
+            @_state = 'resolved'
             @_runDoneCallbacks() if @_doneCallbacks.length > 0
             @_runAlwaysCallbacks() if @_alwaysCallbacks.length > 0
           # not changing state to 'resolved' here because it is possible to call fork() again if done hasn't called yet
@@ -459,7 +480,7 @@ define [
 
     # syntax-sugar constructors
 
-    @single: (name = '')->
+    @single: (name = '') ->
       ###
       Returns the future, which can not be forked and must be resolved by only single call of resolve().
       @return Future

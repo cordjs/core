@@ -52,7 +52,17 @@ require [
     'cord!router/clientSideRouter'
     'cord!ServiceContainer'
     'cord!WidgetRepo'
-  ], (AppConfigLoader, _console, cssManager, clientSideRouter, ServiceContainer, WidgetRepo) ->
+    'cord!PageTransition'
+    'cord!cache/localStorage'
+  ], (AppConfigLoader, _console, cssManager, clientSideRouter, ServiceContainer, WidgetRepo, PageTransition, localStorage) ->
+
+    class ClientFallback
+
+      constructor: (@router) ->
+
+      fallback: (newWidgetPath, params) ->
+        @router.widgetRepo.transitPage(newWidgetPath, params, new PageTransition(@router.currentPath, @router.currentPath))
+
 
     serviceContainer = new ServiceContainer
     serviceContainer.set 'container', serviceContainer
@@ -61,6 +71,7 @@ require [
 
     AppConfigLoader.ready().done (appConfig) ->
       clientSideRouter.addRoutes(appConfig.routes)
+      clientSideRouter.addFallbackRoutes(appConfig.fallbackRoutes)
       for serviceName, info of appConfig.services
         do (info) ->
           serviceContainer.def serviceName, info.deps, (get, done) ->
@@ -85,17 +96,21 @@ require [
 
     #Global errors handling
     requirejs.onError = (error) ->
-      requirejs ['postal'], (postal) ->
-        message = 'Ой! Кажется, нет связи, подождите, может восстановится.'
-        postal.publish 'notify.addMessage',
-          link: ''
-          message: message
-          details: error.toString()
-          error:true
-          timeOut: 50000
+      _console.warn error.toString()
 
+    #Clear localStorage in case of changing collections' release number
+    localVersion = localStorage.getItem 'collectionsVersion'
+    currentVersion = window.global.config.static.collection
+    if  currentVersion != localVersion
+      localStorage.clear();
+      localStorage.setItem 'collectionsVersion', currentVersion
 
     widgetRepo = new WidgetRepo
+
+    fallback = new ClientFallback(clientSideRouter)
+
+    serviceContainer.set 'fallback', fallback
+    serviceContainer.set 'router', clientSideRouter
 
     serviceContainer.set('widgetRepo', widgetRepo)
     widgetRepo.setServiceContainer(serviceContainer)

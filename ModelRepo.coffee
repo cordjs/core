@@ -33,7 +33,10 @@ define [
       throw new Error("'model' property should be set for the repository!") if not @model?
       @_collections = {}
       @_initPredefinedCollections()
+      @init()
 
+    init: ->
+      #User init
 
     _initPredefinedCollections: ->
       ###
@@ -52,12 +55,14 @@ define [
       @param Object options
       @return Collection
       ###
+
       if options.collectionClass
         throw new Error("Extended collections should be created using ModelRepo::createExtendedCollection() method!")
       name = Collection.generateName(options)
-      if @_collections[name]?
+      if @_collections[name]? and @_collections[name].isConsistent()
         collection = @_collections[name]
       else
+        @_collections[name] = null
         collection = new Collection(this, name, options)
         @_registerCollection(name, collection)
       collection
@@ -114,8 +119,8 @@ define [
 
     createSingleModel: (id, fields, extraOptions = {}) ->
       ###
-      Creates and syncs single-model collection by id and field list. In callback returns resulting model.
-       Method returns single-model collection.
+      Creates single-model collection by id and field list.
+      Method returns single-model collection.
 
       @param Integer id
       @param Array[String] fields list of fields names for the collection
@@ -132,10 +137,10 @@ define [
       @createCollection(options)
 
 
-    buildSingleModel: (id, fields, syncMode, callback) ->
+    buildSingleModel: (id, fields, syncMode) ->
       ###
-      Creates and syncs single-model collection by id and field list. In callback returns resulting model.
-       Method returns single-model collection.
+      Creates and syncs single-model collection by id and field list.
+      Method returns single-model collection.
 
       :now sync mode is not available here since we need to return the resulting model.
 
@@ -145,30 +150,42 @@ define [
              special sync mode :cache-async, tries to find model in existing collections,
              if not found, calls sync in async mode to refresh model
       @param Function(Model) callback
-      @return Collection|null
+      @return promise
       ###
+      promise = new Future(1)
+
       if syncMode == ':cache' || syncMode == ':cache-async'
         model = @probeCollectionsForModel(id, fields)
         if model
-          _console.log 'debug: buildSingleModel found in an existing collection'
+          _console.log 'debug: buildSingleModel found in an existing collection' if global.config.debug.model
           options =
              fields: fields
              id: model.id
 
-          options.model = new @model(model)
+          options.model = @buildModel(model)
 
           collection = @createCollection(options)
-          callback(collection.get(id))
-          return collection
+          try
+            promise.resolve(collection.get(id))
+          catch error
+            if error.name == 'ModelNotExists'
+              promise.reject(error)
+
+          return promise
         else
-          _console.log 'debug: buildSingleModel missed in existing collections :('
+          _console.log 'debug: buildSingleModel missed in existing collections :(' if global.config.debug.model
 
       syncMode = ':async' if syncMode == ':cache-async'
       collection = @createSingleModel(id, fields)
 
-      collection.sync syncMode, ->
-        callback(collection.get(id))
-      collection
+      collection.sync syncMode, 0, 0, ->
+        try
+          promise.resolve(collection.get(id))
+        catch error
+          if error.name == 'ModelNotExists'
+            promise.reject(error)
+
+      promise
 
 
     probeCollectionsForModel: (id, fields) ->
@@ -189,6 +206,7 @@ define [
 
       null
 
+
     scanCollections: (scannedFields) ->
       _.filter @_collections, (collection, key) ->
         found = 0
@@ -197,6 +215,10 @@ define [
             found += 1
         if found == scannedFields.length then true else false
 
+    sizeOfAllCollections: ->
+      _.reduce @_collections, (memo, value, index) ->
+        memo + value._models.length
+      , 0
 
 
     scanLoadedModels: (scannedFields, searchedText, limit) ->
@@ -331,9 +353,15 @@ define [
 
 
     _buildApiRequestUrl: (params) ->
+      ###
+      Build URL for api request
+      @param Object params paging and collection params
+      @return String
+      ###
       urlParams = []
       if not params.id?
         urlParams.push("_filter=#{ params.filterId }") if params.filterId?
+        urlParams.push("_filterParams=#{ params.filterParams }") if params.filterParams?
         urlParams.push("_sortby=#{ params.orderBy }") if params.orderBy?
         urlParams.push("_page=#{ params.page }") if params.page?
         urlParams.push("_pagesize=#{ params.pageSize }") if params.pageSize?
@@ -386,6 +414,7 @@ define [
                 @cacheCollection(model.collection) if model.collection?
                 model.resetChangedFields()
                 @emit 'sync', model
+                @_suggestNewModelToCollections(model)
                 promise.resolve(response)
           else
             api.post @restResource, model.getChangedFields(), (response, error) =>
@@ -417,20 +446,29 @@ define [
       result = Future.single()
       if @container
         @container.eval 'api', (api) =>
-          apiParams = {}
-          apiParams._pagesize = params.pageSize if params.pageSize?
-          apiParams._sortby = params.orderBy if params.orderBy?
-          apiParams._selectedId = params.selectedId if params.selectedId?
-          apiParams._filter = params.filterId if params.filterId?
-          if params.filter
-            for filterField of params.filter
-              apiParams[filterField]=params.filter[filterField]
-
-          api.get @restResource + '/paging/', apiParams, (response) =>
+          api.get @restResource + '/paging/', @_buildPagingRequestParams(params), (response) =>
             result.resolve(response)
       else
         result.reject('Cleaned up')
       result
+
+
+    _buildPagingRequestParams: (params) ->
+      ###
+      Build api params for paging request
+      @param Object params paging and collection params
+      @return Object
+      ###
+      apiParams = {}
+      apiParams._pagesize = params.pageSize if params.pageSize?
+      apiParams._sortby = params.orderBy if params.orderBy?
+      apiParams._selectedId = params.selectedId if params.selectedId?
+      apiParams._filter = params.filterId if params.filterId?
+      apiParams._filterParams = params.filterParams if params.filterParams?
+      if params.filter
+        for filterField of params.filter
+          apiParams[filterField]=params.filter[filterField]
+      apiParams
 
 
     emitModelChange: (model) ->
@@ -440,6 +478,70 @@ define [
       else
         changeInfo = model
       @emit 'change', changeInfo
+
+
+    propagateModelChange: (model) ->
+      ###
+      Model changed and needs to be updated in all collections
+      @param id Model - model
+      ###
+      changeInfo = model.getChangedFields()
+      changeInfo.id = model.id
+      @emit 'change', changeInfo
+      @_suggestNewModelToCollections(model)
+
+
+    propagateFieldChange: (id, fieldName, newValue) ->
+      ###
+      Fixes that particular field has been changed and needs to be updated in all collections
+      @param id Int - model id
+      @param fieldName String - changed field name
+      @param newValue mixed - new value for the object
+      ###
+
+      #Collect field definition in all collections
+      fieldDefinitions = []
+      nameLength = fieldName.length
+      for key,collection of @_collections
+        fieldDefinitions = _.union fieldDefinitions, _.filter(collection._fields, (item) ->
+          item.substr(0, nameLength) == fieldName
+        )
+
+      if fieldDefinitions.length == 0
+        return
+
+      # Check if we need to make a request
+      needRequest = false
+      for fieldDefinition in fieldDefinitions
+        subFields = fieldDefinition.split '.'
+        currentValue = newValue
+        for i in [1..subFields.length]
+          if currentValue == undefined
+            needRequest = true
+            break
+          currentValue = currentValue[subFields[i]]
+        if needRequest == true
+          break
+
+      #Do request, or not
+      promise = new Future(1)
+      if needRequest
+        @container.eval 'api', (api) =>
+          apiParams =
+            _fields: fieldDefinitions.join ','
+          api.get @restResource + '/' + id, apiParams, (result, error) ->
+            promise.resolve result
+      else
+        changeset = {}
+        changeset[fieldName] = newValue
+        promise.resolve changeset
+
+      #Propagate new value
+      promise.done (result) =>
+        changeset = _.clone result
+        changeset.id = id
+        for key,collection of @_collections
+          collection._handleModelChange changeset
 
 
     callModelAction: (id, method, action, params) ->
@@ -474,6 +576,19 @@ define [
       result
 
 
+    buildNewModel: (attrs) ->
+      ###
+      Model factory.
+      Unlike buildModel() set input attributes in changed fields. It is important for future saving
+      @param Object attrs key-value fields for the model, including the id (if exists)
+      @return Model
+      ###
+      result = new @model()
+      result.set attrs
+      @_injectActionMethods(result) if attrs?.id
+      result
+
+
     _suggestNewModelToCollections: (model) ->
       ###
       Notifies all available collections to check if they need to refresh with the new model
@@ -500,9 +615,10 @@ define [
       model
 
 
-    # local caching related
-
     getTtl: ->
+      ###
+      local caching related
+      ###
       600
 
 

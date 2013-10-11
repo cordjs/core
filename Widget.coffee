@@ -60,6 +60,8 @@ define [
 
     _subscribeOnAnyChild: null
 
+    _placeholdersClasses: {}
+
     # promise to load widget completely (with all styles and behaviours, including children)
     _widgetReadyPromise: null
     # indicates that browserInit was already called. Initially should be true
@@ -151,7 +153,7 @@ define [
        browser.
       @browser-only
       ###
-      @_cssPromise = new Future
+      @_cssPromise = new Future(0, '_cssPromise')
       if not restoreMode
         @_cssPromise.fork()
         require ['cord!css/browserManager'], (cssManager) =>
@@ -240,6 +242,7 @@ define [
         @ctx.owner(@)
 
       @_callbacks = []
+      @_promises = []
 
 
     clean: ->
@@ -266,6 +269,7 @@ define [
       @clearCallbacks()
       #clean monologue subscriptions
       @off()
+      @clearPromises()
 
 
     getCallback: (callback) =>
@@ -276,7 +280,7 @@ define [
         @ctx.set 'apiResult', result
       ###
       makeSafeCallback = (callback) ->
-        result = () ->
+        result = ->
           if !result.cleared
             callback.apply(this, arguments)
         result.cleared = false
@@ -287,9 +291,27 @@ define [
       @_callbacks.push safeCallback
       safeCallback
 
+
     clearCallbacks: ->
+      ###
+      Clear registered callbacks
+      ###
       callback.cleared = true for callback in @_callbacks
       @_callbacks = []
+
+
+    createPromise: (initialCounter = 0, name = '') ->
+      promise = new Future initialCounter = 0, name = ''
+      @_promises.push promise
+
+
+    addPromise: (promise) ->
+      @_promises.push promise
+
+
+    clearPromises: ->
+      promise.clearAllCallbacks() for promise in @_promises
+      @_promises = []
 
 
     addSubscription: (subscription, callback = null) ->
@@ -549,7 +571,7 @@ define [
       @widgetRepo.registerNewExtendWidget this
 
       @setParams params, =>
-        _console.log "#{ @debug 'injectAction' } processes context:", @ctx
+        _console.log "#{ @debug 'injectAction' } processes context:", @ctx if global.config.debug.widget
         @_handleOnShow =>
           @getStructTemplate().done (tmpl) =>
             @_injectRender tmpl, transition, callback
@@ -788,7 +810,11 @@ define [
       @param String content html-contents of the placeholder
       @return String
       ###
-      "<div id=\"#{ @_getPlaceholderDomId(name) }\">#{ content }</div>"
+      classParam = ""
+      if @_placeholdersClasses[name]
+        classParam = "class=\"#{ @_placeholdersClasses[name] }\""
+
+      "<div id=\"#{ @_getPlaceholderDomId(name) }\"  #{ classParam }>#{ content }</div>"
 
 
     renderInlineTag: (name, content) ->
@@ -1213,35 +1239,50 @@ define [
         @behaviourClass
 
 
-    #Special selector for children ':any' - subscribes on all child widgets
+    bindChildEvent: (childName, topic, callback) ->
+      ###
+      Bind specific event for child
+      @param String childName - child widget name
+      @param String event - child event name
+      @param callback
+      ###
+      if _.isString callback
+        if @[callback]
+          name = callback
+          callback =  @[callback]
+          if not _.isFunction callback
+            throw new Error("Callback #{ name } is not a function")
+        else
+          throw new Error("Callback #{ callback } doesn't exist")
+      else if not _.isFunction callback
+        throw new Error("Invalid child widget callback definition: [#{ childName }, #{ topic }]")
+
+      if childName == ':any'
+        @_subscribeOnAnyChild = [] unless @_subscribeOnAnyChild
+        @_subscribeOnAnyChild.push
+          topic: topic,
+          callback:callback
+
+        for child of @childById
+          @childById[child].on(topic, callback).withContext(this)
+      else
+        if @childByName[childName]?
+          @childByName[childName].on(topic, callback).withContext(this)
+        else
+          throw new Error("Trying to subscribe for event '#{ topic }' of unexistent child with name '#{ childName }'")
+
+
     bindChildEvents: ->
+      ###
+      Bind specific events for child
+      Special selector for children ':any' - subscribes on all child widgets
+      ###
       if @constructor.childEvents?
         for eventDef, callback of @constructor.childEvents
           eventDef = eventDef.split ' '
           childName = eventDef[0]
           topic = eventDef[1]
-          if _.isString callback
-            if @[callback]
-              name = callback
-              callback =  @[callback]
-              if not _.isFunction callback
-                throw new Error("Callback #{ name } is not a function")
-            else
-              throw new Error("Callback #{ callback } doesn't exist")
-          else if not _.isFunction callback
-            throw new Error("Invalid child widget callback definition: [#{ childName }, #{ topic }]")
-
-          if childName == ':any'
-            @_subscribeOnAnyChild = [] if !@_subscribeOnAnyChild
-            @_subscribeOnAnyChild.push {topic: topic, callback:callback}
-
-            for child of @childById
-              @childById[child].on(topic, callback).withContext(this)
-          else
-            if @childByName[childName]?
-              @childByName[childName].on(topic, callback).withContext(this)
-            else
-              throw new Error("Trying to subscribe for event '#{ topic }' of unexistent child with name '#{ childName }'")
+          @bindChildEvent childName, topic, callback
 
 
     initBehaviour: ($domRoot) ->
@@ -1266,8 +1307,10 @@ define [
               _console.error 'WRONG BEHAVIOUR CLASS:', behaviourClass
           promise.resolve()
         , (err) =>
-          console.error "#{ @debug 'initBehaviour' } --> error occurred while loading behaviour:", err
-          throw err
+          _console.error "#{ @debug 'initBehaviour' } --> error occurred while loading behaviour:", err
+          postal.publish 'error.notify.publish', {link:'', message: "Ошибка загрузки виджета #{ behaviourClass }. Попробуйте перезагрузить страницу.", details: String(err) ,error:true, timeOut: 30000 }
+
+          #throw err
       else
         promise.resolve()
 
@@ -1488,6 +1531,9 @@ define [
           @childWidgetAdd()
           chunk.map (chunk) =>
             name = params?.name ? 'default'
+            if params and params.class
+              @_placeholdersClasses[name] = params.class
+
             @_renderPlaceholder(name, @_domInfo).done (out) =>
               @childWidgetComplete()
               chunk.end @renderPlaceholderTag(name, out)

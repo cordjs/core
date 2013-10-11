@@ -21,9 +21,7 @@ define [
       @_fieldNames = []
       @_changed = {}
       if (attrs instanceof Model)
-        attrs  = _.clone attrs
-        delete attrs._fieldNames if attrs._fieldNames
-        delete attrs._changed if attrs._changed
+        attrs  = _.clone(attrs).toJSON()
 
       @_load(attrs) if attrs
 
@@ -61,6 +59,7 @@ define [
 
     set: (key, val) ->
       if _.isObject(key)
+        key = key.toJSON() if key instanceof Model
         attrs = key
       else
         (attrs = {})[key] = val
@@ -72,6 +71,18 @@ define [
           @_fieldNames.push(key) if @_fieldNames.indexOf(key) == -1
 
       this
+
+
+
+    propagateFieldChange: (fieldName, newValue) ->
+      @collection.repo.propagateFieldChange @id, fieldName, newValue
+
+
+    propagateModelChange: ->
+      ###
+      Propagate changed model in all collecion
+      ###
+      @collection.repo.propagateModelChange @
 
 
     emitLocalCalcChange: (path, val) ->
@@ -116,12 +127,13 @@ define [
       @param Function(data) callback callback function
       @return MonologueSubscription
       ###
-      if topic == 'change'
-        # 'change'-event is conveniently proxy-triggered by the collection @see Collection::_handleModelChange
-        @collection.on "model.#{ @id }.#{ topic }", callback
-      else
-        @collection.repo.on topic, (changed) =>
-          callback(changed) if changed.id == @id
+      if @collection?
+        if topic == 'change'
+          # 'change'-event is conveniently proxy-triggered by the collection @see Collection::_handleModelChange
+          @collection.on "model.#{ @id }.#{ topic }", callback
+        else
+          @collection.repo.on topic, (changed) =>
+            callback(changed) if changed.id == @id
 
 
     # serialization related

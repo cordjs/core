@@ -7,7 +7,7 @@ define ['underscore'], (_) ->
 
     constructor: ->
       @routes = []
-
+      @fallbackRoutes = []
 
     addRoutes: (routes) ->
       ###
@@ -16,6 +16,14 @@ define ['underscore'], (_) ->
       ###
       for path, definition of routes
         @routes.push(new Route(path, definition))
+
+    addFallbackRoutes: (routes) ->
+      ###
+      Registers array of fallback routes if no other routes found.
+      @param Map[path -> definition] routes map of route definitions
+      ###
+      for path, definition of routes
+        @fallbackRoutes.push(new Route(path, definition, true))
 
 
     matchRoute: (path) ->
@@ -32,6 +40,25 @@ define ['underscore'], (_) ->
             route: route
             params: params
           }
+
+      # if no normal route found, try to match any of fallback route
+      @matchFallbackRoute path
+
+
+    matchFallbackRoute: (path) ->
+      ###
+      Finds the first matching route for the given path between registered fallback routes.
+      @param String path
+      @return Object|boolean found route and extracted params
+                             false if route is not found
+      ###
+      for route in @fallbackRoutes
+        if (params = route.match(path))
+          return {
+            route: route
+            params: params
+          }
+
       false
 
 
@@ -47,7 +74,7 @@ define ['underscore'], (_) ->
     Individual route definition.
     ###
 
-    constructor: (@path, definition) ->
+    constructor: (@path, definition, fallback = false) ->
       throw new Error("Required 'widget' or 'callback' options is not set in route '#{ path }' definition!") if definition.widget? and definition.callback?
       @widget = definition.widget
       @callback = definition.callback if definition.callback?
@@ -71,7 +98,11 @@ define ['underscore'], (_) ->
                    .replace(namedParam, '([^\/]*)')
                    .replace(splatParam, '(.*?)')
 
-        @route = new RegExp('^' + path + '$')
+
+        if path.charAt(path.length - 1) == '/'
+          path += '?'
+
+        @route = new RegExp('^' + path + if not fallback then '$' else '')
       else
         @route = path
 

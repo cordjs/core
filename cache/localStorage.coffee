@@ -118,7 +118,6 @@ define [
       If needLength argument is given, than it tries to free just enought space, if not - all expired items are removed.
       @param (optional) needLength amount of memory needed
       ###
-      _console.warn "localStorage::GC !"
       ttlInfo = JSON.parse(@storage.getItem('models:ttl-info'))
       if needLength
         needLength = parseInt(needLength) * 2

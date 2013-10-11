@@ -12,6 +12,7 @@ define [
     accessToken: false
     refreshToken: false
 
+
     constructor: (serviceContainer, options) ->
       ### Дефолтные настройки ###
       defaultOptions =
@@ -33,6 +34,7 @@ define [
       @scope = Math.round(Math.random()*10000000)
       return @scope
 
+
     storeTokens: (accessToken, refreshToken, callback) ->
       # Кеширование токенов
 
@@ -46,11 +48,12 @@ define [
       @serviceContainer.eval 'cookie', (cookie) =>
         #Protection from late callback from closed connections.
         #TODO, refactor OAuth module, so dead callback will be deleted
-        success = cookie.set 'accessToken', @accessToken
+        success = cookie.set 'accessToken', @accessToken,
+          expires: 15
         success &= cookie.set 'refreshToken', @refreshToken,
-          expires: 14
+          expires: 15
         success &= cookie.set 'oauthScope', @getScope(),
-          expires: 14
+          expires: 15
 
         _console.log "Store tokens: #{accessToken}, #{refreshToken}"
 
@@ -122,7 +125,9 @@ define [
             @storeTokens grantedAccessToken, grantedRefreshToken, callback
             return true #continue processing other deferred callbacks in oauth
           else
-            @authenticateUser().done(callback).fail -> callback('', '')
+            #in case of fail dont call callback - it wont be able to solve the problem,
+            #but might run into everlasting loop
+            @authenticateUser()
             return false #stop processing other deferred callbacks in oauth
 
 
@@ -131,7 +136,9 @@ define [
         if refreshToken
           @getTokensByRefreshToken refreshToken, callback
         else
-          @authenticateUser().done(callback).fail -> callback('', '')
+          #in case of fail dont call callback - it wont be able to solve the problem,
+          #but might run into everlasting loop
+          @authenticateUser()
       else
         callback accessToken, refreshToken
 
@@ -164,40 +171,54 @@ define [
         params: 'object'
         callback: 'function'
 
+      noAuthTokens = args.params and args.params.noAuthTokens == true
+
       processRequest = (accessToken, refreshToken) =>
-        @getTokensByAllMeans accessToken, refreshToken, (accessToken, refreshToken) =>
-          requestUrl = "#{@options.protocol}://#{@options.host}/#{@options.urlPrefix}#{args.url}"
-          requestUrl += ( if requestUrl.lastIndexOf("?") == -1 then "?" else "&" ) + "access_token=#{accessToken}"
-          defaultParams = _.clone @options.params
-          requestParams = _.extend defaultParams, args.params
-          requestParams.access_token = accessToken
+        requestUrl = "#{@options.protocol}://#{@options.host}/#{@options.urlPrefix}#{args.url}"
+        defaultParams = _.clone @options.params
+        requestParams = _.extend defaultParams, args.params
 
-          @serviceContainer.eval 'request', (request) =>
-            doRequest = =>
-              request[method] requestUrl, requestParams, (response, error) =>
-                if response?.error == 'invalid_grant'
-                  return processRequest null, refreshToken
+        @serviceContainer.eval 'request', (request) =>
+          doRequest = =>
+            request[method] requestUrl, requestParams, (response, error) =>
+              if response?.error == 'invalid_grant' || response?.error == 'invalid_request'
+                return processRequest null, refreshToken
 
-                if (response && response.code)
-                  message = 'Ошибка ' + response.code + ': ' + response._message
-                  postal.publish 'notify.addMessage', {link:'', message: message, details: response?.message, error: true, timeOut: 30000 }
+              if (response && response.code)
+                message = 'Ошибка ' + response.code + ': ' + response._message
 
-                if (error && (error.statusCode || error.message))
-                  message = error.message if error.message
-                  message = error.statusText if error.statusText
+                postal.publish 'error.notify.publish', {link:'', message: message, details: response?.message timeOut: 30000 }
 
-                  #Post could make duplicates
-                  if method != 'post' && requestParams.reconnect != false && (!error.statusCode || error.statusCode == 500) && requestParams.deepCounter < 10
-                    requestParams.deepCounter = if ! requestParams.deepCounter then 1 else requestParams.deepCounter + 1
-                    _console.log requestParams.deepCounter + " Repeat request in 0.5s", requestUrl
-                    setTimeout doRequest, 500
-                  else
-                    message = 'Ошибка' + (if error.statusCode != undefined then (' ' + error.statusCode)) + ': ' + message
-                    postal.publish 'notify.addMessage', {link:'', message: message, error:true, timeOut: 30000 }
-                    args.callback response, error if args.callback
+              if (error && (error.statusCode || error.message))
+                message = error.message if error.message
+                message = error.statusText if error.statusText
+
+                #Post could make duplicates
+                if method != 'post' && requestParams.reconnect != false && (!error.statusCode || error.statusCode == 500) && requestParams.deepCounter < 10
+                  requestParams.deepCounter = if ! requestParams.deepCounter then 1 else requestParams.deepCounter + 1
+
+                  _console.log requestParams.deepCounter + " Repeat request in 0.5s", requestUrl
+
+                  setTimeout doRequest, 500
                 else
+                  message = 'Ошибка ' + (if error.statusCode != undefined then (' ' + error.statusCode)) + ': ' + message
+
+                  postal.publish 'error.notify.publish', {link:'', message: message, error:true, timeOut: 30000 }
+
                   args.callback response, error if args.callback
+              else
+                args.callback response, error if args.callback
 
+          if noAuthTokens
             doRequest()
+          else
+            @getTokensByAllMeans accessToken, refreshToken, (accessToken, refreshToken) =>
+              requestUrl += ( if requestUrl.lastIndexOf("?") == -1 then "?" else "&" ) + "access_token=#{accessToken}"
+              requestParams.access_token = accessToken
 
-      @restoreTokens processRequest
+              doRequest()
+
+      if noAuthTokens
+        processRequest()
+      else
+        @restoreTokens processRequest

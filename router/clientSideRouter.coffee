@@ -40,13 +40,13 @@ define [
       @widgetRepo = widgetRepo
 
 
-    process: (newPath) ->
+    process: (newPath, fallback = false) ->
       ###
       Initiates client-side page transition to the given new path.
       @param String newPath path and query-string part of the new url
       @return Boolean true if there was a matching route and the path was actually processed
       ###
-      if (routeInfo = @matchRoute(newPath))
+      if (routeInfo = if not fallback then @matchRoute(newPath) else @matchFallbackRoute(newPath))
         postal.publish('router.process', routeInfo)
 
         if routeInfo.route.widget?
@@ -66,13 +66,9 @@ define [
       @param (optional)Boolean|Object options if last argument is boolean, than it's treated as options.trigger
                                               if last argument is Object, than it's treated as options
       ###
-      _console.clear()
-      options = {}
-      lastArg = args[args.length - 1]
-      if typeof lastArg is 'object'
-        options = args.pop()
-      else if typeof lastArg is 'boolean'
-        options.trigger = args.pop()
+      _console.clear() if not window?.noClearConsole
+
+      options = @_processNavigateArgs args
 
       newPath = args.join('/')
       if newPath.substr(0, 1) isnt '/'
@@ -87,6 +83,17 @@ define [
         history.pushState({}, document.title, @currentPath) if not options.shim
       else
         window.location.href = newPath
+
+
+    _processNavigateArgs: (args) ->
+      options = {}
+      lastArg = args[args.length - 1]
+      if typeof lastArg is 'object'
+        options = args.pop()
+      else if typeof lastArg is 'boolean'
+        options.trigger = args.pop()
+
+      options
 
 
     _initHistoryNavigate: ->

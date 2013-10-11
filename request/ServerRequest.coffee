@@ -2,7 +2,8 @@ define [
   'curly'
   'cord!Utils'
   'underscore'
-], (curly, Utils, _) ->
+  'postal'
+], (curly, Utils, _, postal) ->
 
   class ServerRequest
 
@@ -23,7 +24,9 @@ define [
     send: (method, url, params, callback) ->
 
       method = method.toLowerCase()
-      _console.log('Unknown method:'+method) if method not in @METHODS
+
+      _console.warn('Unknown method:' + method) if method not in @METHODS
+
       method = 'del' if method is 'delete'
 
       argssss = Utils.parseArguments arguments,
@@ -43,14 +46,33 @@ define [
           json: argssss.params
 
       startRequest = new Date() if global.config.debug.request
+
       curly[method] argssss.url, options, (error, response, body) =>
         if global.config.debug.request
           stopRequest = new Date()
           seconds = (stopRequest - startRequest) / 1000
-          _console.log "ServerRequest (#{ seconds } s): #{method} #{argssss.url}"
+
+          loggerParams =
+            method: method
+            url: argssss.url
+            seconds: seconds
+
+          loggerTags = ['request']
+
+          if global.config.debug.request == 'full'
+            fullParams = requestParams: argssss.params
+            fullParams['response'] = response.body if response?.body
+            loggerParams = _.extend loggerParams, fullParams
+
           if error
-            _console.error error
-          if body && body.error
-            _console.log body
+            loggerTags.push 'error'
+            errorParams = requestParams: argssss.params
+            errorParams['errorCode'] = response.statusCode if response?.statusCode
+            errorParams['errorText'] = response.body._message if response?.body?._message
+            loggerParams = _.extend loggerParams, errorParams
+
+          postal.publish 'logger.log.publish',
+            tags: loggerTags
+            params: loggerParams
 
         argssss.callback body, error if typeof argssss.callback == 'function'
