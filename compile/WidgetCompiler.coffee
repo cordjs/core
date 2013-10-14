@@ -75,7 +75,7 @@ define [
             Future.call(dust.render, tmplPath, @getBaseContext().push(@widget.ctx)).flatMap =>
               Future.call(fs.writeFile, "#{ tmplFullPath }.struct.json", @getStructureCode(false))
           else
-            Future.resolved()
+            Future.call(fs.writeFile, "#{ tmplFullPath }.struct.json", '{}')
 
         tmplFuture.zip(structFuture)
 

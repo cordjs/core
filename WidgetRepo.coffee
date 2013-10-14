@@ -223,7 +223,7 @@ define [
       ###
       configPromise = Future.single()
       require ['cord!AppConfigLoader'], (AppConfigLoader) -> configPromise.when(AppConfigLoader.ready())
-      @_initPromise.zip(configPromise).done (appConfig) =>
+      @_initPromise.zip(configPromise).done (any, appConfig) =>
         # start services registered with autostart option
         for serviceName, info of appConfig.services
           @serviceContainer.eval(serviceName) if info.autoStart

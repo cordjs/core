@@ -93,11 +93,12 @@ exports.startServer = startServer = (callback) ->
       req.addListener 'end', (err) ->
         services.fileServer.serve req, res, (err) ->
           if err
-            if err.status is 404  or err.status is 500
+            res.writeHead err.status, err.headers
+            if err.status is 404 or err.status is 500
               res.end "Error #{ err.status }"
             else
-              res.writeHead err.status, err.headers;
               res.end()
+      .resume()
   .listen(global.config.server.port)
   callback?()
 
