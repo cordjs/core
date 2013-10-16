@@ -72,7 +72,7 @@ define [
 
           loggerParams =
             method: method
-            url: argssss.url
+            url: url
             seconds: seconds
 
           loggerTags = ['request']
