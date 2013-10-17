@@ -72,10 +72,10 @@ define [
 
           loggerParams =
             method: method
-            url: argssss.url
+            url: url
             seconds: seconds
 
-          loggerTags = ['request']
+          loggerTags = ['request', method]
 
           if global.config.debug.request == 'full'
             fullParams = requestParams: argssss.params

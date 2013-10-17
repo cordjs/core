@@ -171,7 +171,7 @@ define [
         params: 'object'
         callback: 'function'
 
-      noAuthTokens = args.params and args.params.noAuthTokens == true
+      noAuthTokens = (args.params and args.params.noAuthTokens == true)
 
       processRequest = (accessToken, refreshToken) =>
         requestUrl = "#{@options.protocol}://#{@options.host}/#{@options.urlPrefix}#{args.url}"
