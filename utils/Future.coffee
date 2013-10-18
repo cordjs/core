@@ -117,7 +117,7 @@ define [
           @_callbackArgs = [args] if args.length > 0
           if @_counter == 0
             # For the cases when there is no done function
-            @_state = 'resolved'
+            @_state = 'resolved' if @_locked
             @_runDoneCallbacks() if @_doneCallbacks.length > 0
             @_runAlwaysCallbacks() if @_alwaysCallbacks.length > 0
           # not changing state to 'resolved' here because it is possible to call fork() again if done hasn't called yet
@@ -289,11 +289,14 @@ define [
       ###
       result = Future.single()
       @done (args...) ->
-        mapRes = callback.apply(null, args)
-        if _.isArray(mapRes)
-          result.resolve.apply(result, mapRes)
-        else
-          result.resolve(mapRes)
+        try
+          mapRes = callback.apply(null, args)
+          if _.isArray(mapRes)
+            result.resolve.apply(result, mapRes)
+          else
+            result.resolve(mapRes)
+        catch err
+          result.reject(err)
       @fail (err) -> result.reject(err)
       result
 
@@ -308,8 +311,12 @@ define [
       @return Future(A)
       ###
       result = Future.single()
-      @done (args...) -> result.when(callback.apply(null, args))
-      @fail (err)     -> result.reject(err)
+      @done (args...) ->
+        try
+          result.when(callback.apply(null, args))
+        catch err
+          result.reject(err)
+      @fail (err) -> result.reject(err)
       result
 
 
@@ -529,10 +536,13 @@ define [
       result = @single()
       args.push (callbackArgs...) ->
         result.complete.apply(result, callbackArgs)
-      if _.isArray(fn)
-        fn[0][fn[1]].apply(fn[0], args)
-      else
-        fn.apply(null, args)
+      try
+        if _.isArray(fn)
+          fn[0][fn[1]].apply(fn[0], args)
+        else
+          fn.apply(null, args)
+      catch err
+        result.reject(err)
       result
 
 
