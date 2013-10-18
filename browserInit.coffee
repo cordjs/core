@@ -96,7 +96,7 @@ require [
 
     #Global errors handling
     requirejs.onError = (error) ->
-      _console.error error.toString()
+      _console.warn 'Error from requirejs: ', error.toString(), 'Error: ', error
 
     #Clear localStorage in case of changing collections' release number
     localVersion = localStorage.getItem 'collectionsVersion'
