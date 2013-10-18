@@ -42,7 +42,7 @@ define [
       else
         options = {}
 
-      if (method == 'get')
+      if method == 'get'
         _.extend options,
           query: argssss.params
           json: true
