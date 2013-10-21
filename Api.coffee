@@ -4,13 +4,17 @@ define [
   'underscore'
   'postal'
   'cord!isBrowser'
-], (Utils, Future, _, postal, isBrowser) ->
+  'cord!AppConfigLoader'
+], (Utils, Future, _, postal, isBrowser, AppConfigLoader) ->
 
 
   class Api
 
     accessToken: false
     refreshToken: false
+
+    fallbackErrors: {}
+    blockRequests: false
 
 
     constructor: (serviceContainer, options) ->
@@ -22,6 +26,10 @@ define [
         params: {}
         authenticateUserCallback: -> false # @see authenticateUser() method
       @options = _.extend defaultOptions, options
+
+      # заберем настройки для fallbackErrors
+      AppConfigLoader.ready().done (appConfig) =>
+        @fallbackErrors = appConfig.fallbackApiErrors
 
       @serviceContainer = serviceContainer
       @accessToken = ''
@@ -155,14 +163,18 @@ define [
         else
           callback?(response, error)
 
+
     post: (url, params, callback) ->
       @send 'post', url, params, callback
+
 
     put: (url, params, callback) ->
       @send 'put', url, params, callback
 
+
     del: (url, params, callback) ->
       @send 'del', url, params, callback
+
 
     send: ->
       method = arguments[0]
@@ -180,34 +192,43 @@ define [
 
         @serviceContainer.eval 'request', (request) =>
           doRequest = =>
-            request[method] requestUrl, requestParams, (response, error) =>
-              if response?.error == 'invalid_grant' || response?.error == 'invalid_request'
-                return processRequest null, refreshToken
+            if not @blockRequests
+              request[method] requestUrl, requestParams, (response, error) =>
+                if response?.error == 'invalid_grant' || response?.error == 'invalid_request'
+                  return processRequest null, refreshToken
 
-              if (response && response.code)
-                message = 'Ошибка ' + response.code + ': ' + response._message
+                if (error && (error.statusCode || error.message))
+                  message = error.message if error.message
+                  message = error.statusText if error.statusText
 
-                postal.publish 'error.notify.publish', {link:'', message: message, details: response?.message timeOut: 30000 }
+                  # Post could make duplicates
+                  if method != 'post' && requestParams.reconnect != false && (!error.statusCode || error.statusCode == 500) && requestParams.deepCounter < 10
+                    requestParams.deepCounter = if ! requestParams.deepCounter then 1 else requestParams.deepCounter + 1
 
-              if (error && (error.statusCode || error.message))
-                message = error.message if error.message
-                message = error.statusText if error.statusText
+                    _console.log requestParams.deepCounter + " Repeat request in 0.5s", requestUrl
 
-                #Post could make duplicates
-                if method != 'post' && requestParams.reconnect != false && (!error.statusCode || error.statusCode == 500) && requestParams.deepCounter < 10
-                  requestParams.deepCounter = if ! requestParams.deepCounter then 1 else requestParams.deepCounter + 1
+                    setTimeout doRequest, 500
+                  else
+                    message = 'Ошибка ' + (if error.statusCode != undefined then (' ' + error.statusCode)) + ': ' + message
 
-                  _console.log requestParams.deepCounter + " Repeat request in 0.5s", requestUrl
+                    postal.publish 'error.notify.publish', {link:'', message: message, error:true, timeOut: 30000 }
 
-                  setTimeout doRequest, 500
+                    args.callback response, error if args.callback and not @blockRequests
+
+                  # надо посмотреть в конфигах как реагировать на ту или иную ошибку
+                  errorCode = response?._code
+                  if errorCode != undefined and @fallbackErrors != undefined
+                    if @fallbackErrors[errorCode] != undefined
+                      # блочим запросы
+                      @blockRequests = true
+                      # если есть доппараметры у ошибки - добавим их
+                      if response._params?
+                        @fallbackErrors[errorCode].params.contentParams = {} if @fallbackErrors[errorCode].params.contentParams == undefined
+                        @fallbackErrors[errorCode].params.contentParams['params'] = response._params
+                      @serviceContainer.get('fallback').fallback @fallbackErrors[errorCode].widget, @fallbackErrors[errorCode].params
+
                 else
-                  message = 'Ошибка ' + (if error.statusCode != undefined then (' ' + error.statusCode)) + ': ' + message
-
-                  postal.publish 'error.notify.publish', {link:'', message: message, error:true, timeOut: 30000 }
-
-                  args.callback response, error if args.callback
-              else
-                args.callback response, error if args.callback
+                  args.callback response, error if args.callback and not @blockRequests
 
           if noAuthTokens
             doRequest()
