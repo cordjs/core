@@ -62,10 +62,10 @@ define [
                     _console.log "Container::injectServices -> eval(#{ serviceName }) for target #{ target.constructor.name } finished success"
 
                   target[serviceName] = service
+                  injectPromise.resolve()
               catch e
                 _console.error "Container::injectServices -> eval(#{ serviceName }) for target #{ target.constructor.name } fail: #{ e.message }"
                 target[serviceName] = undefined
-              finally
                 injectPromise.resolve()
             else
               if global.config?.debug.service
