@@ -216,7 +216,7 @@ define [
                     args.callback response, error if args.callback and not @blockRequests
 
                   # надо посмотреть в конфигах как реагировать на ту или иную ошибку
-                  errorCode = response._code
+                  errorCode = response?._code
                   if errorCode != undefined and @fallbackErrors != undefined
                     if @fallbackErrors[errorCode] != undefined
                       # блочим запросы
