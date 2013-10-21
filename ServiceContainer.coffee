@@ -56,19 +56,16 @@ define [
           do (serviceName) =>
             if @isDefined serviceName
               injectPromise.fork()
-              servicePromise = Future.single("Container::injectServices -> eval(#{ serviceName }) for target #{ target.constructor.name }")
               try
                 @eval serviceName, (service) ->
                   if global.config?.debug.service
                     _console.log "Container::injectServices -> eval(#{ serviceName }) for target #{ target.constructor.name } finished success"
 
                   target[serviceName] = service
-                  servicePromise.resolve()
-                  injectPromise.resolve()
               catch e
                 _console.error "Container::injectServices -> eval(#{ serviceName }) for target #{ target.constructor.name } fail: #{ e.message }"
-                servicePromise.reject()
                 target[serviceName] = undefined
+              finally
                 injectPromise.resolve()
             else
               if global.config?.debug.service
