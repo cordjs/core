@@ -1255,6 +1255,10 @@ define [
     getBehaviourClass: ->
       if not @behaviourClass?
         @behaviourClass = "#{ @constructor.name }Behaviour"
+# Fix for IE 10
+#        if not @constructor.name
+#          @constructor.name = @constructor.toString().match(/^function\s(.+)\(/)[1]
+#        @behaviourClass = "#{ @constructor.name }Behaviour"
 
       if @behaviourClass == false
         null
