@@ -564,10 +564,20 @@ define [
       firstChangedIndex = oldListCount
       lastChangedIndex = 0
 
-      changed = false
+      deleted = false
+      deletedModels = {}
+      newListIds = {}
+      for item in newList
+        newListIds[item.id] = item
 
-      targetIndex = loadingStart - 1
+      for model in oldList
+        if not newListIds[model.id]
+          deletedModels[model.id] = model
+          deleted = true
+
+      changed = false
       changedModels = {}
+      targetIndex = loadingStart - 1
 
       # appending/replacing new models to the collection according to the paging options
       for model, i in newList
@@ -580,7 +590,6 @@ define [
           changedModels[model.id] = model
           @emit "model.#{ model.id }.change", model
           @emitModelChangeExcept(model) # todo: think about 'sync' event here
-
 
         if not oldList[targetIndex]? or model.id != oldList[targetIndex].id
           changed = true
@@ -615,6 +624,7 @@ define [
         lastPage = Math.ceil((lastChangedIndex + 1) / @_pageSize)
 
       @emit 'change', {firstPage: firstPage, lastPage: lastPage, models: changedModels} if changed
+      @emit 'delete', {models: deletedModels} if deleted
 
       if not (start? and end?)
         @_totalCount = newList.length
