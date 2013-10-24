@@ -566,6 +566,9 @@ define [
 
       deleted = false
       deletedModels = {}
+      changed = false
+      changedModels = {}
+
       newListIds = {}
       for item in newList
         newListIds[item.id] = item
@@ -574,9 +577,8 @@ define [
         if not newListIds[model.id]
           deletedModels[model.id] = model
           deleted = true
+          changed = true
 
-      changed = false
-      changedModels = {}
       targetIndex = loadingStart - 1
 
       # appending/replacing new models to the collection according to the paging options
