@@ -202,7 +202,7 @@ define [
                   message = error.statusText if error.statusText
 
                   # Post could make duplicates
-                  if method != 'post' && requestParams.reconnect != false && (!error.statusCode || error.statusCode == 500) && requestParams.deepCounter < 10
+                  if method == 'get' && requestParams.reconnect != false && (!error.statusCode || error.statusCode == 500) && requestParams.deepCounter < 10
                     requestParams.deepCounter = if ! requestParams.deepCounter then 1 else requestParams.deepCounter + 1
 
                     _console.log requestParams.deepCounter + " Repeat request in 0.5s", requestUrl
