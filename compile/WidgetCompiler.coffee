@@ -67,15 +67,16 @@ define [
       tmplFullPath = "./#{ pathUtils.getPublicPrefix() }/bundles/#{ @widget.getTemplatePath() }"
       Future.call(fs.readFile, tmplSourcePath, 'utf8').flatMap (htmlString) =>
         @compiledSource = dust.compile(htmlString, tmplPath)
-        tmplFuture = Future.call(fs.writeFile, "#{ tmplFullPath }.js", @compiledSource)
+        amdSource = "define(['dustjs-helpers'], function(dust){#{ @compiledSource }});"
+        tmplFuture = Future.call(fs.writeFile, "#{ tmplFullPath }.js", amdSource)
 
         structFuture =
           if @widget.getPath() != '/cord/core//Switcher'
             dust.loadSource(@compiledSource)
             Future.call(dust.render, tmplPath, @getBaseContext().push(@widget.ctx)).flatMap =>
-              Future.call(fs.writeFile, "#{ tmplFullPath }.struct.json", @getStructureCode(false))
+              Future.call(fs.writeFile, "#{ tmplFullPath }.struct.js", @getStructureCode(false, true))
           else
-            Future.call(fs.writeFile, "#{ tmplFullPath }.struct.json", '{}')
+            Future.call(fs.writeFile, "#{ tmplFullPath }.struct.js", 'define([],function(){return {};});')
 
         tmplFuture.zip(structFuture)
 
@@ -153,7 +154,7 @@ define [
         class: cls
 
 
-    getStructureCode: (compact = true) ->
+    getStructureCode: (compact = true, amd = false) ->
       if @_widgets? and Object.keys(@_widgets).length > 1
         res =
           ownerWidget: @_ownerUid
@@ -162,10 +163,14 @@ define [
           widgetsByName: @_widgetsByName
       else
         res = {}
-      if compact
+      json = if compact
         JSON.stringify(res)
       else
         JSON.stringify(res, null, 2)
+      if amd
+        "define([],function(){return #{json};});"
+      else
+        json
 
 
     printStructure: ->
@@ -206,16 +211,17 @@ define [
         bodies
 
       # todo: detect bundles or vendor dir correctly
-      tmplFullPath = "./#{ pathUtils.getPublicPrefix() }/bundles/#{ tmplPath }"
+      tmplFullPath = "./#{ pathUtils.getPublicPrefix() }/bundles/#{ tmplPath }.js"
 
-      bodyFnName = bodyFn.name # todo: ie10 incompatible
-      bodyStringList = @extractBodiesAsStringList compiledSource
+      bodyFnName = bodyFn.name # todo: ie10 incompatible, but this is compiler and it will run only on node
+      bodyStringList = @extractBodiesAsStringList(compiledSource)
       bodyList = collectBodies bodyFnName, bodyFn.toString()
 
       tmplString = "(function(){dust.register(\"#{ tmplPath }\", #{ bodyFnName }); " \
                  + "#{ _.values(bodyList).join '' }; return #{ bodyFnName };})();"
 
-      Future.call(fs.writeFile, tmplFullPath, tmplString).failAloud()
+      amdTmplString = "define(['dustjs-helpers'], function(dust){#{ tmplString }});"
+      Future.call(fs.writeFile, tmplFullPath, amdTmplString).failAloud()
 
 
     getBaseContext: ->
@@ -291,7 +297,7 @@ define [
 
                 timeoutTemplateName = null
                 if bodies.timeout?
-                  timeoutTemplateName = "__timeout_#{ @_timeoutBlockCounter++ }.html.js"
+                  timeoutTemplateName = "__timeout_#{ @_timeoutBlockCounter++ }.html"
                   tmplPath = "#{ @widget.getDir() }/#{ timeoutTemplateName }"
                   timeoutTemplateFuture = @_saveBodyTemplate(bodies.timeout, @compiledSource, tmplPath)
 
@@ -334,7 +340,7 @@ define [
                 ph = params?.placeholder ? 'default'
                 sw = context.surroundingWidget
 
-                templateName = "__inline_#{ name }.html.js"
+                templateName = "__inline_#{ name }.html"
                 tmplPath = "#{ @widget.getDir() }/#{ templateName }"
                 templateSaveFuture = @_saveBodyTemplate(bodies.block, @compiledSource, tmplPath)
 

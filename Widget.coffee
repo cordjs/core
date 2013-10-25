@@ -540,23 +540,13 @@ define [
       if @_structTemplate?
         Future.resolved(@_structTemplate)
       else
-        result = Future.single()
-        tmplStructureFile = "bundles/#{ @getTemplatePath() }.struct.json"
-        returnCallback = =>
-          struct = dust.cache[tmplStructureFile]
+        tmplStructureFile = "bundles/#{ @getTemplatePath() }.struct"
+        Future.require(tmplStructureFile).map (struct) =>
           if struct.widgets? and Object.keys(struct.widgets).length > 1
             @_structTemplate = new StructureTemplate(struct, this)
           else
             @_structTemplate = ':empty'
-          result.resolve(@_structTemplate)
-
-        if dust.cache[tmplStructureFile]?
-          returnCallback()
-        else
-          require ["text!#{ tmplStructureFile }"], (jsonString) =>
-            dust.register tmplStructureFile, JSON.parse(jsonString)
-            returnCallback()
-        result
+          @_structTemplate
 
 
     injectAction: (params, transition, callback) ->
@@ -682,18 +672,16 @@ define [
       ###
       _console.log @debug('_renderSelfTemplate') if global.config.debug.widget
 
-      result = Future.single()
       tmplPath = @getPath()
 
-      templateLoader.loadWidgetTemplate(tmplPath).done =>
+      templateLoader.loadWidgetTemplate(tmplPath).flatMap =>
         @markRenderStarted()
         @cleanChildren()
         @_saveContextVersionForBehaviourSubscriptions()
         @_domInfo = domInfo
-        dust.render tmplPath, @getBaseContext().push(@ctx), (err, out) -> result.complete(err, out)
+        result = Future.call(dust.render, tmplPath, @getBaseContext().push(@ctx))
         @markRenderFinished()
-
-      result
+        result
 
 
     resolveParamRefs: (widget, params, callback) ->
@@ -781,13 +769,11 @@ define [
       _console.log "#{ @constructor.name }::renderInline(#{ inlineName })" if global.config.debug.widget
 
       if @ctx[':inlines'][inlineName]?
-        result = Future.single()
-        tmplPath = "/#{ @getDir() }/#{ @ctx[':inlines'][inlineName].template }"
-        templateLoader.loadToDust(tmplPath).done =>
+        tmplPath = "#{ @getDir() }/#{ @ctx[':inlines'][inlineName].template }"
+        templateLoader.loadToDust(tmplPath).failAloud().flatMap =>
           @_saveContextVersionForBehaviourSubscriptions()
           @_domInfo = domInfo
-          dust.render tmplPath, @getBaseContext().push(@ctx), (err, out) -> result.complete(err, out)
-        result
+          Future.call(dust.render, tmplPath, @getBaseContext().push(@ctx))
       else
         throw new Error("Trying to render unknown inline (name = #{ inlineName })!")
 
@@ -904,9 +890,9 @@ define [
             ###
             Renders timeout template
             ###
-            tmplPath = "/#{ timeoutTemplateOwner.getDir() }/#{ info.timeoutTemplate }"
+            tmplPath = "#{ timeoutTemplateOwner.getDir() }/#{ info.timeoutTemplate }"
 
-            templateLoader.loadToDust(tmplPath).done ->
+            templateLoader.loadToDust(tmplPath).failAloud().done ->
               dust.render tmplPath, timeoutTemplateOwner.getBaseContext().push(timeoutTemplateOwner.ctx), (err, out) ->
                 if err then throw err
                 placeholderOut[placeholderOrder[widgetId]] = widget.renderRootTag(out)
