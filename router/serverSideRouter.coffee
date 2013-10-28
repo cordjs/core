@@ -15,8 +15,8 @@ define [
     fallback: (widgetPath, params) ->
       #TODO: find better way to change root widget
       @eventEmitter.emit 'fallback',
-        widgetPath:widgetPath,
-        params:params
+        widgetPath: widgetPath,
+        params: params
 
 
 
@@ -88,7 +88,7 @@ define [
         widgetRepo.setRequest(req)
         widgetRepo.setResponse(res)
 
-        eventEmitter = new   @EventEmitter()
+        eventEmitter = new @EventEmitter()
         fallback = new ServerSideFallback(eventEmitter)
 
         serviceContainer.set 'fallback', fallback
@@ -108,7 +108,7 @@ define [
               previousProcess.showPromise = rootWidget.show(params, DomInfo.fake())
               previousProcess.showPromise.failAloud().done (out) ->
                 eventEmitter.removeAllListeners('fallback')
-                #prevent browser to use the same connection
+                # prevent browser to use the same connection
                 res.shouldKeepAlive = false
                 res.writeHead 200, 'Content-Type': 'text/html'
                 res.end(out)

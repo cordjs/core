@@ -48,6 +48,11 @@ define [
       startRequest = new Date() if global.config.debug.request
 
       curly[method] argssss.url, options, (error, response, body) =>
+        if not error? and response.statusCode != 200
+          error =
+            statusCode: response.statusCode
+            statusText: response.body._message
+
         if global.config.debug.request
           stopRequest = new Date()
           seconds = (stopRequest - startRequest) / 1000

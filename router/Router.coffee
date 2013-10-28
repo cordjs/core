@@ -9,6 +9,7 @@ define ['underscore'], (_) ->
       @routes = []
       @fallbackRoutes = []
 
+
     addRoutes: (routes) ->
       ###
       Registers array of routes.
@@ -16,6 +17,7 @@ define ['underscore'], (_) ->
       ###
       for path, definition of routes
         @routes.push(new Route(path, definition))
+
 
     addFallbackRoutes: (routes) ->
       ###

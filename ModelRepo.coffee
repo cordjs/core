@@ -28,15 +28,17 @@ define [
     # @var Object[String -> String]
     actions: null
 
+    @inject: []
+
 
     constructor: (@container) ->
       throw new Error("'model' property should be set for the repository!") if not @model?
       @_collections = {}
       @_initPredefinedCollections()
-      @init()
+
 
     init: ->
-      #User init
+
 
     _initPredefinedCollections: ->
       ###

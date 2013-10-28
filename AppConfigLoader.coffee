@@ -39,6 +39,7 @@ define [
         routes = {}
         services = {}
         fallbackRoutes = {}
+        fallbackApiErrors = {}
 
         processRoutes = (source, destination) ->
             for route, params of source
@@ -50,15 +51,13 @@ define [
             _.extend(destination, source)
 
         for config, i in args
-
-
           if config.fallbackRoutes?
             processRoutes config.fallbackRoutes, fallbackRoutes
 
           if config.routes?
             processRoutes config.routes, routes
 
-          if config.services
+          if config.services?
             # flatten services configuration (excluding server-only or browser-only configuration)
             srv = _.clone(config.services)
             flatSrv = {}
@@ -80,10 +79,15 @@ define [
                   factory: def.factory
                   autoStart: def.autoStart
 
+          if config.fallbackApiErrors?
+            for error, fallback of config.fallbackApiErrors
+              fallbackApiErrors[error] = fallback
+
         AppConfigLoader._promise.resolve
           routes: routes
           services: services
           fallbackRoutes: fallbackRoutes
+          fallbackApiErrors: fallbackApiErrors
 
     # start loading immediately on class loading
     @_load()

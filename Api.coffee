@@ -4,13 +4,16 @@ define [
   'underscore'
   'postal'
   'cord!isBrowser'
-], (Utils, Future, _, postal, isBrowser) ->
+  'cord!AppConfigLoader'
+], (Utils, Future, _, postal, isBrowser, AppConfigLoader) ->
 
 
   class Api
 
     accessToken: false
     refreshToken: false
+
+    fallbackErrors: {}
 
 
     constructor: (serviceContainer, options) ->
@@ -22,6 +25,10 @@ define [
         params: {}
         authenticateUserCallback: -> false # @see authenticateUser() method
       @options = _.extend defaultOptions, options
+
+      # заберем настройки для fallbackErrors
+      AppConfigLoader.ready().done (appConfig) =>
+        @fallbackErrors = appConfig.fallbackApiErrors
 
       @serviceContainer = serviceContainer
       @accessToken = ''
@@ -155,14 +162,18 @@ define [
         else
           callback?(response, error)
 
+
     post: (url, params, callback) ->
       @send 'post', url, params, callback
+
 
     put: (url, params, callback) ->
       @send 'put', url, params, callback
 
+
     del: (url, params, callback) ->
       @send 'del', url, params, callback
+
 
     send: ->
       method = arguments[0]
@@ -184,17 +195,12 @@ define [
               if response?.error == 'invalid_grant' || response?.error == 'invalid_request'
                 return processRequest null, refreshToken
 
-              if (response && response.code)
-                message = 'Ошибка ' + response.code + ': ' + response._message
-
-                postal.publish 'error.notify.publish', {link:'', message: message, details: response?.message timeOut: 30000 }
-
               if (error && (error.statusCode || error.message))
                 message = error.message if error.message
                 message = error.statusText if error.statusText
 
-                #Post could make duplicates
-                if method != 'post' && requestParams.reconnect != false && (!error.statusCode || error.statusCode == 500) && requestParams.deepCounter < 10
+                # Post could make duplicates
+                if method == 'get' && requestParams.reconnect != false && (!error.statusCode || error.statusCode == 500) && requestParams.deepCounter < 10
                   requestParams.deepCounter = if ! requestParams.deepCounter then 1 else requestParams.deepCounter + 1
 
                   _console.log requestParams.deepCounter + " Repeat request in 0.5s", requestUrl
@@ -206,6 +212,18 @@ define [
                   postal.publish 'error.notify.publish', {link:'', message: message, error:true, timeOut: 30000 }
 
                   args.callback response, error if args.callback
+
+                # надо посмотреть в конфигах как реагировать на ту или иную ошибку
+                errorCode = response?._code
+                errorCode = error.statusCode if errorCode == undefined
+                if errorCode != undefined and @fallbackErrors != undefined
+                  if @fallbackErrors[errorCode] != undefined
+                    # если есть доппараметры у ошибки - добавим их
+                    if response._params?
+                      @fallbackErrors[errorCode].params.contentParams = {} if @fallbackErrors[errorCode].params.contentParams == undefined
+                      @fallbackErrors[errorCode].params.contentParams['params'] = response._params
+                    @serviceContainer.get('fallback').fallback @fallbackErrors[errorCode].widget, @fallbackErrors[errorCode].params
+
               else
                 args.callback response, error if args.callback
 
