@@ -66,7 +66,7 @@ define [
       @param (optional)Boolean|Object options if last argument is boolean, than it's treated as options.trigger
                                               if last argument is Object, than it's treated as options
       ###
-      _console.clear() if not window?.noClearConsole
+      _console.clear() if global.config.console.clear
 
       options = @_processNavigateArgs args
 
