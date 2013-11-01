@@ -20,7 +20,7 @@ exports.services = services =
 `_console = console`
 
 
-exports.init = (baseUrl = 'public', configName = 'default', serverPort = 1337) ->
+exports.init = (baseUrl = 'public', configName = 'default', serverPort) ->
   requirejs.config
     paths: require('./requirejs/pathConfig')
     baseUrl: baseUrl
@@ -63,6 +63,7 @@ exports.init = (baseUrl = 'public', configName = 'default', serverPort = 1337) -
 
     # Redefine server port if port defined in command line parameter
     services.config.node.server.port = serverPort if serverPort
+    services.config.node.server.port = 18180 if not services.config.node.server.port
 
     # Remove defaul configuration
     delete services.config.common
