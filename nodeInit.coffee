@@ -46,11 +46,13 @@ exports.init = (baseUrl = 'public', configName = 'default', serverPort = 1337) -
 
     # Loading configuration
     try
-      services.config = require pathDir + '/conf/' + configName
-      timeLog "Loaded config from " + pathDir + '/conf/' + configName + '.js'
+      if configName.charAt(0) != '/'
+        configName = pathDir + '/conf/' + configName + '.js'
+      services.config = require configName
+      timeLog "Loaded config from " + configName
     catch e
       services.config = {}
-      timeLog "Fail loading config from " + pathDir + '/conf/' + configName + ".js with error " + e
+      timeLog "Fail loading config from " + configName + " with error " + e
 
     # Merge node and browser configuration with common (defaults)
     common = _.clone services.config.common
