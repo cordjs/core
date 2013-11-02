@@ -195,7 +195,7 @@ define [
           config: #{ JSON.stringify(global.appConfig.browser) }
         };
       </script>
-      <script data-main="/bundles/cord/core/browserInit.js?rel=#{ Math.random() }" src="/vendor/requirejs/require.js?rel=#{ Math.random() }"></script>
+      <script data-main="/bundles/cord/core/init/browser-init.js?rel=#{ Math.random() }" src="/vendor/requirejs/require.js?rel=#{ Math.random() }"></script>
       <script>
           function cordcorewidgetinitializerbrowser(wi) {
             requirejs(['cord!utils/Future'], function(Future) {
