@@ -1,7 +1,7 @@
 define [
   'jquery.cookie'
   'underscore'
-], (cookie, _) ->
+], ($, _) ->
 
   class BrowserCookie
 
