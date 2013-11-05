@@ -14,10 +14,7 @@ define [
       Future.resolved()
     else
       info = cord.getFullInfo(path)
-      Future.require("text!#{ pathConfig.bundles }/#{ info.relativeDirPath }/#{ info.dirName }.html.js")
-        .andThen (err, tmplString) ->
-          throw err if err
-          dust.loadSource tmplString, path
+      Future.require("#{ pathConfig.bundles }/#{ info.relativeDirPath }/#{ info.dirName }.html")
 
 
   loadTemplate: (path, callback) ->
@@ -34,5 +31,4 @@ define [
     if dust.cache[path]?
       Future.resolved()
     else
-      Future.require("text!#{ pathConfig.bundles }#{ path }").map (tmplString) ->
-        dust.register(path, dust.loadSource(tmplString))
+      Future.require("#{ pathConfig.bundles }/#{ path }")

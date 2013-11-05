@@ -17,10 +17,10 @@ define [], () ->
       deps: ['container']
       factory: (get, done) ->
         require ['cord!/cord/core/UserAgent'], (UserAgent) =>
-          userAgent = new UserAgent()
-          get('container').injectServices userAgent
-          userAgent.calculate()
-          done null, userAgent
+          userAgent = new UserAgent
+          get('container').injectServices(userAgent).done ->
+            userAgent.calculate()
+            done null, userAgent
 
     dateUtils:
       deps: ['container']
@@ -58,3 +58,7 @@ define [], () ->
       localStorage: (get, done) ->
         require ['cord!cache/localStorage'], (LocalStorage) ->
           done null, LocalStorage
+
+  routes:
+    '/REQUIRESTAT/optimizer':
+      widget: '//Optimizer'

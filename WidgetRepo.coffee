@@ -195,7 +195,7 @@ define [
           config: #{ JSON.stringify(global.appConfig.browser) }
         };
       </script>
-      <script data-main="/bundles/cord/core/browserInit" src="/vendor/requirejs/require.js"></script>
+      <script data-main="/bundles/cord/core/browserInit.js?rel=#{ Math.random() }" src="/vendor/requirejs/require.js?rel=#{ Math.random() }"></script>
       <script>
           function cordcorewidgetinitializerbrowser(wi) {
             requirejs(['cord!utils/Future'], function(Future) {
@@ -223,7 +223,7 @@ define [
       ###
       configPromise = Future.single()
       require ['cord!AppConfigLoader'], (AppConfigLoader) -> configPromise.when(AppConfigLoader.ready())
-      @_initPromise.zip(configPromise).done (appConfig) =>
+      @_initPromise.zip(configPromise).done (any, appConfig) =>
         # start services registered with autostart option
         for serviceName, info of appConfig.services
           @serviceContainer.eval(serviceName) if info.autoStart
@@ -297,7 +297,8 @@ define [
         if widget._isExtended
           @_currentExtendList.push(widget)
       # initializing DOM bindings of widgets in reverse order (leafs of widget tree - first)
-      @bind(id) for id in @_widgetOrder.reverse()
+      futures = (@bind(id) for id in @_widgetOrder.reverse())
+
       @_widgetOrder = null
 
 
@@ -305,7 +306,7 @@ define [
       if @widgets[widgetId]?
         w = @widgets[widgetId].widget
         w.bindChildEvents()
-        w.initBehaviour().done ->
+        w.initBehaviour().andThen ->
           w.markShown(ignoreChildren = true)
       else
         throw "Try to use uninitialized widget with id = #{ widgetId }"

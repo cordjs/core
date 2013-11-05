@@ -16,11 +16,12 @@ define [
       promise = new Future
       result = []
       for i in [1..10]
-        promise.fork()
-        setTimeout ->
-          result.push(i)
-          promise.resolve()
-        , 1000
+        do (i) =>
+          promise.fork()
+          setTimeout ->
+            result.push(i)
+            promise.resolve()
+          , 1000
       promise.done ->
         _console.log result.join(', ')
 
@@ -116,7 +117,7 @@ define [
           @_callbackArgs = [args] if args.length > 0
           if @_counter == 0
             # For the cases when there is no done function
-            @_state = 'resolved'
+            @_state = 'resolved' if @_locked
             @_runDoneCallbacks() if @_doneCallbacks.length > 0
             @_runAlwaysCallbacks() if @_alwaysCallbacks.length > 0
           # not changing state to 'resolved' here because it is possible to call fork() again if done hasn't called yet
@@ -176,6 +177,18 @@ define [
       this
 
 
+    link: (anotherPromise) ->
+      ###
+      Inversion of `when` method. Tells that the given future will complete when this future will complete.
+      Just syntax sugar to convert anotherFuture.when(future) to future.link(anotherFuture).
+      In some cases using link instead of when leads to more elegant code.
+      @param Future anotherFuture
+      @return Future self
+      ###
+      anotherPromise.when(this)
+      this
+
+
     done: (callback) ->
       ###
       Defines callback function to be called when future is resolved.
@@ -191,7 +204,7 @@ define [
       ###
       Defines callback function to be called when future is rejected.
       If all waiting values are already resolved then callback is fired immedialtely.
-      If done method is called several times than all passed functions will be called.
+      If fail method is called several times than all passed functions will be called.
       ###
       throw new Error("Invalid argument for Future.fail(): #{ callback }") if not _.isFunction(callback)
       @_failCallbacks.push(callback)
@@ -276,11 +289,14 @@ define [
       ###
       result = Future.single()
       @done (args...) ->
-        mapRes = callback.apply(null, args)
-        if _.isArray(mapRes)
-          result.resolve.apply(result, mapRes)
-        else
-          result.resolve(mapRes)
+        try
+          mapRes = callback.apply(null, args)
+          if _.isArray(mapRes)
+            result.resolve.apply(result, mapRes)
+          else
+            result.resolve(mapRes)
+        catch err
+          result.reject(err)
       @fail (err) -> result.reject(err)
       result
 
@@ -295,8 +311,12 @@ define [
       @return Future(A)
       ###
       result = Future.single()
-      @done (args...) -> result.when(callback.apply(null, args))
-      @fail (err)     -> result.reject(err)
+      @done (args...) ->
+        try
+          result.when(callback.apply(null, args))
+        catch err
+          result.reject(err)
+      @fail (err) -> result.reject(err)
       result
 
 
@@ -316,15 +336,48 @@ define [
       result
 
 
+    mapFail: (callback) ->
+      ###
+      Returns new future which completes with the result of this future if it's successful or with the result
+       of the given callback if this future is failed. Error of the fail result is passed to the callback.
+      This method is helpful when it's necessary to convert error of this future to the meaningful successful result.
+      @param Function(err -> A) callback
+      @return Future[A]
+      ###
+      result = Future.single()
+      @done (args...) -> result.resolve.apply(result, args)
+      @fail (err) ->
+        mapRes = callback.call(null, err)
+        if _.isArray(mapRes)
+          result.resolve.apply(result, mapRes)
+        else
+          result.resolve(mapRes)
+      result
+
+
+    flatMapFail: (callback) ->
+      ###
+      Returns new future which completes with the result of this future if it's successful or with the future-result
+       of the given callback if this future is failed. Error of the fail result is passed to the callback.
+      Callback must return a Future, and resulting Future is completed when the callback-returned future is completed.
+      This method is helpful when it's necessary to convert error of this future to the meaningful successful result.
+      @param Function(err -> Future(A)) callback
+      @return Future[A]
+      ###
+      result = Future.single()
+      @done (args...) -> result.resolve.apply(result, args)
+      @fail (err)     -> result.when(callback.call(null, err))
+      result
+
+
     zip: (those...) ->
       ###
       Zips the values of this and that future, and creates a new future holding the tuple of their results.
       @param Future those another futures
       @return Future
       ###
-      result = new Future
-      those.push(this)
-      result.when.apply(result, those)
+      those.unshift(this)
+      Future.sequence(those).map (result) -> result
 
 
     @sequence: (futureList) ->
@@ -339,7 +392,34 @@ define [
           f.done (res) ->
             result[i] = res
             promise.resolve()
-      promise.map -> result
+          .fail (e) ->
+            promise.reject(e)
+      promise.map -> [result]
+
+
+    @select: (futureList) ->
+      ###
+      Returns new future which completes successfully when one of the given futures completes successfully (which comes
+       first). Resulting future resolves with that first-completed future's result. All subsequent completing
+       futures are ignored.
+      Result completes with failure if all of the given futures fails.
+      @param Array[Future[X]] futureList
+      @return Future[X]
+      ###
+      result = @single()
+      ready = false
+      failCounter = futureList.length
+      for f in futureList
+        do (f) ->
+          f.done ->
+            if not ready
+              result.when(f)
+              ready = true
+          .fail ->
+            failCounter--
+            if failCounter == 0
+              result.reject("All selecting futures have failed!")
+      result
 
 
     _runDoneCallbacks: ->
@@ -433,6 +513,36 @@ define [
       ###
       result = @single()
       result.reject(error)
+      result
+
+
+    @call: (fn, args...) ->
+      ###
+      Converts node-style function call with last-agrument-callback result to pretty composable future-result call.
+      Node-style callback mean Function[err, A] - first argument if not-null means error and converts to
+       Future.reject(), all subsequent arguments are treated as a successful result and passed to Future.resolve().
+      Example:
+        Traditional style:
+          fs.readFile '/tmp/file', (err, data) ->
+            throw err if err
+            // do something with data
+        Future-style:
+          Future.call(fs.readFile, '/tmp/file').failAloud().done (data) ->
+            // do something with data
+      @param Function|Tuple[Object, String] fn callback-style function to be called (e.g. fs.readFile)
+      @param Any args* arguments of that function without last callback-result argument.
+      @return Future[A]
+      ###
+      result = @single()
+      args.push (callbackArgs...) ->
+        result.complete.apply(result, callbackArgs)
+      try
+        if _.isArray(fn)
+          fn[0][fn[1]].apply(fn[0], args)
+        else
+          fn.apply(null, args)
+      catch err
+        result.reject(err)
       result
 
 

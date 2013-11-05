@@ -28,8 +28,8 @@ define ['pathUtils'], (pathUtils) ->
     info = @getFullInfo name
     req ["#{ config.paths.bundles }/#{ info.relativeFilePath }"], (WidgetClass) ->
       if !WidgetClass
-        throw 'Cannot determine WidgetClass: ' + name
-        return
+        throw new Error("Cannot determine WidgetClass: #{name}! Required url: " +
+          "#{ config.paths.bundles }/#{ info.relativeFilePath }")
       WidgetClass.path = info.canonicalPath
       WidgetClass.bundle = info.bundle
       WidgetClass.relativeDirPath = info.relativeDirPath

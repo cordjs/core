@@ -55,14 +55,18 @@ define [],  ->
         else
           canonicalDelimiter = '/'
           if path.substr(0, 7) == '/assets'
-            throw "Bundle specification should be explicitly given when using \"/assets\" prefix!" if not bundleSpec?
+            if not bundleSpec?
+              throw new Error("Bundle specification should be explicitly given when using \"/assets\" prefix!")
             relativePath = path.substr(1)
           else if path.substr(0, 1) == '/'
             if bundleSpec?
-              throw "Bundle specification doesn't match: [#{ path.substr(0, bundleSpec.length) } != #{ bundleSpec }]!" if path.substr(0, bundleSpec.length) != bundleSpec
+              if path.substr(0, bundleSpec.length) != bundleSpec
+                throw new Error("Bundle specification doesn't match: " +
+                  "[#{ path.substr(0, bundleSpec.length) } != #{ bundleSpec }]!")
               relativePath = path.substr(bundleSpec.length + 1)
             else
-              throw "Unsupported case: [#{ path }]! Need to implement considering list of enabled bundles from application!"
+              throw new Error("Unsupported case: [#{ path }]! Need to implement considering " +
+                'list of enabled bundles from application!')
           else
             bundleSpec = '/cord/core' if not bundleSpec?
             relativePath = path

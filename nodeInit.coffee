@@ -20,7 +20,7 @@ exports.services = services =
 `_console = console`
 
 
-exports.init = (baseUrl = 'public', configName = 'default', serverPort = 1337) ->
+exports.init = (baseUrl = 'public', configName = 'default', serverPort) ->
   requirejs.config
     paths: require('./requirejs/pathConfig')
     baseUrl: baseUrl
@@ -32,23 +32,27 @@ exports.init = (baseUrl = 'public', configName = 'default', serverPort = 1337) -
     'cord!Console'
     'cord!Rest'
     'cord!request/xdrProxy'
+    'cord!requirejs/statCollector'
     'cord!router/serverSideRouter'
     'underscore'
-  ], (pathUtils, AppConfigLoader, _console, Rest, xdrProxy, router, _) ->
+  ], (pathUtils, AppConfigLoader, _console, Rest, xdrProxy, statCollector, router, _) ->
     pathUtils.setPublicPrefix(baseUrl)
 
     router.EventEmitter = EventEmitter
     services.router = router
     services.fileServer = new serverStatic.Server(baseUrl)
     services.xdrProxy = xdrProxy
+    services.statCollector = statCollector
 
     # Loading configuration
     try
-      services.config = require pathDir + '/conf/' + configName
-      timeLog "Loaded config from " + pathDir + '/conf/' + configName + '.js'
+      if configName.charAt(0) != '/'
+        configName = pathDir + '/conf/' + configName + '.js'
+      services.config = require configName
+      timeLog "Loaded config from " + configName
     catch e
       services.config = {}
-      timeLog "Fail loading config from " + pathDir + '/conf/' + configName + ".js with error " + e
+      timeLog "Fail loading config from " + configName + " with error " + e
 
     # Merge node and browser configuration with common (defaults)
     common = _.clone services.config.common
@@ -59,6 +63,7 @@ exports.init = (baseUrl = 'public', configName = 'default', serverPort = 1337) -
 
     # Redefine server port if port defined in command line parameter
     services.config.node.server.port = serverPort if serverPort
+    services.config.node.server.port = 18180 if not services.config.node.server.port
 
     # Remove defaul configuration
     delete services.config.common
@@ -85,15 +90,18 @@ exports.startServer = startServer = (callback) ->
   services.nodeServer = http.createServer (req, res) ->
     if (pos = req.url.indexOf('/XDR/')) != -1 # cross-domain request proxy
       services.xdrProxy(req.url.substr(pos + 5), req, res)
+    else if req.url.indexOf('/REQUIRESTAT/collect') == 0
+      services.statCollector(req, res)
     else if not services.router.process(req, res)
       req.addListener 'end', (err) ->
         services.fileServer.serve req, res, (err) ->
           if err
-            if err.status is 404  or err.status is 500
+            res.writeHead err.status, err.headers
+            if err.status is 404 or err.status is 500
               res.end "Error #{ err.status }"
             else
-              res.writeHead err.status, err.headers;
               res.end()
+      .resume()
   .listen(global.config.server.port)
   callback?()
 
