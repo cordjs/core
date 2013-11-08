@@ -36,7 +36,7 @@ require.config
     'underscore':
       exports: '_'
     'jquery.ui.selectionMenu':
-      deps: ['jquery.ui']
+      deps: ['jquery.ui', 'jquery.wheel']
 
 
 require [
