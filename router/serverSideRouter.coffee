@@ -59,8 +59,8 @@ define [
                 serviceContainer.eval serviceName, (service) ->
                   service.clear?()
 
-          serviceContainer.set 'router', null
-          serviceContainer = null
+            serviceContainer.set 'router', null
+            serviceContainer = null
           widgetRepo = null
 
         config = global.config
