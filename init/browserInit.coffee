@@ -28,7 +28,7 @@ define [
 
     window._console = _console
 
-    AppConfigLoader.ready().done (appConfig) ->
+    configInitFuture = AppConfigLoader.ready().map (appConfig) ->
       clientSideRouter.addRoutes(appConfig.routes)
       clientSideRouter.addFallbackRoutes(appConfig.fallbackRoutes)
       for serviceName, info of appConfig.services
@@ -77,4 +77,4 @@ define [
     clientSideRouter.setWidgetRepo(widgetRepo)
     $ ->
       cssManager.registerLoadedCssFiles()
-      AppConfigLoader.ready().done -> cordcorewidgetinitializerbrowser?(widgetRepo)
+      configInitFuture.done -> cordcorewidgetinitializerbrowser?(widgetRepo)
