@@ -10,11 +10,11 @@ require.config
 require [
   'bundles/cord/core/requirejs/pathConfig'
   'app/application'
-], (pathConfig, application) ->
+], (pathConfig, bundles) ->
   require.config(paths: pathConfig)
 
-  application.unshift('cord/core') # core is always enabled
-  configs = ("cord!/#{ bundle }/config" for bundle in application)
+  bundles.unshift('cord/core') # core is always enabled
+  configs = ("cord!/#{ bundle }/config" for bundle in bundles)
 
   require configs, (args...) ->
     require.config(config.requirejs) for config in args when config.requirejs
