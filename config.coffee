@@ -77,6 +77,9 @@ define [], () ->
       'the-box':                 'vendor/the-box/app'
       'underscore':              'vendor/underscore/underscore'
     shim:
+      'curly':
+        deps: ['underscore']
+        exports: 'curly'
       'dustjs-linkedin':
         exports: 'dust'
       'dustjs-helpers':
@@ -87,3 +90,6 @@ define [], () ->
         exports: 'jQuery'
       'underscore':
         exports: '_'
+      'moment-ru':
+        deps: ['moment']
+        exports: 'null'
