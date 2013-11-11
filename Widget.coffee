@@ -1335,7 +1335,7 @@ define [
       ###
       _console.log "#{ @debug 'browserInit' }" if global.config.debug.widget
       if @_sentenced
-        _console.log "browserInit called for dead #{ @ctx.id }"
+        _console.warn "browserInit called for dead #{ @ctx.id }"
         return @_widgetReadyPromise
 
       if not @_browserInitialized and not @_delayedRender
