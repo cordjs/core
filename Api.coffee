@@ -113,7 +113,7 @@ define [
        of page refresh and callback is not applicable.
       @return Future(String, String) - eventually completed with access- and refresh-tokens.
       ###
-      result = Future.single()
+      result = Future.single('Api::authenticateUser')
       if @options.authenticateUserCallback()
         subscription = postal.subscribe
           topic: 'auth.tokens.ready'

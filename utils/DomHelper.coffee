@@ -42,7 +42,7 @@ define [
       @param jQuery $new inserting node
       @return Future completed when new node is actually inserted into the DOM
       ###
-      result = Future.single()
+      result = Future.single('DomHelper::replaceNode')
       newNode = $new[0]
       enableObserve = false
       if @hasMutationObserver

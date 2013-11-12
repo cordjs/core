@@ -230,8 +230,8 @@ define [
 
       if isBrowser
         @_browserInitialized = true
-        @_widgetReadyPromise = new Future
-        @_shownPromise = Future.single()
+        @_widgetReadyPromise = new Future('Widget::_widgetReadyPromise')
+        @_shownPromise = Future.single('Widget::_shownPromise')
 
       if not @ctx?
         if compileMode
@@ -486,7 +486,7 @@ define [
       @final
       @return Future(String)
       ###
-      result = Future.single()
+      result = Future.single('Widget::show')
       @setParams params, =>
         _console.log "#{ @debug 'show' } -> params:", params, " context:", @ctx if global.config.debug.widget
         @_handleOnShow =>
@@ -584,7 +584,7 @@ define [
       if extendWidgetInfo?
         extendWidget = @widgetRepo.findAndCutMatchingExtendWidget(tmpl.struct.widgets[extendWidgetInfo.widget].path)
         if extendWidget?
-          readyPromise = new Future(1)
+          readyPromise = new Future(1, 'Widget::_injectRender readyPromise')
           @_inlinesRuntimeInfo = []
 
           @registerChild extendWidget
@@ -595,7 +595,7 @@ define [
 
           tmpl.assignWidget extendWidgetInfo.widget, extendWidget
 
-          cb = new Future
+          cb = new Future('Widget::_injectRender cb')
           require ['jquery'], cb.callback()
           tmpl.replacePlaceholders extendWidgetInfo.widget, extendWidget.ctx[':placeholders'], transition, cb.callback()
 
@@ -748,7 +748,7 @@ define [
       @param DomInfo domInfo DOM creating and inserting promise container
       @return Future(String)
       ###
-      result = Future.single()
+      result = Future.single('Widget::_renderExtendedTemplate')
       extendWidgetInfo = tmpl.struct.extend
 
       tmpl.getWidget extendWidgetInfo.widget, (extendWidget) =>
@@ -868,7 +868,7 @@ define [
       ###
       placeholderOut = []
       renderInfo = []
-      promise = new Future
+      promise = new Future('Widget::_renderPlaceholder')
 
       i = 0
       placeholderOrder = {}
@@ -1016,7 +1016,7 @@ define [
       @param Function() callback callback which should be called when replacement is done (async)
       ###
       require ['cord!utils/DomHelper', 'jquery'], (DomHelper, $) =>
-        readyPromise = new Future
+        readyPromise = new Future('Widget::replacePlaceholders readyPromise')
 
         ph = {}
         @ctx[':placeholders'] ?= []
@@ -1043,7 +1043,7 @@ define [
               @_renderPlaceholder(name, domInfo).done (out, renderInfo) =>
                 $el = $(@renderPlaceholderTag(name, out))
                 domInfo.setDomRoot($el)
-                aggregatePromise = new Future # full placeholders members initialization promise
+                aggregatePromise = new Future('Widget::replacePlaceholders aggregatePromise') # full placeholders members initialization promise
                 for info in renderInfo
                   switch info.type
                     when 'inline' then info.widget.addInlineDomRoot($el)
@@ -1153,9 +1153,9 @@ define [
       Resets widget's browser-side initialization state to be able to correctly run browserInit()
       ###
       if isBrowser
-        @_widgetReadyPromise = new Future(1)
+        @_widgetReadyPromise = new Future(1, 'Widget::_widgetReadyPromise')
         @_browserInitialized = false
-        @_shownPromise = Future.single()
+        @_shownPromise = Future.single('Widget::_shownPromise')
         @_shown = false
 
 
@@ -1281,7 +1281,7 @@ define [
       @browser-only
       @param jQuery $domRoot injected DOM root for the widget
       ###
-      promise = Future.single()
+      promise = Future.single('Widget::initBehaviour')
       if @behaviour?
         @behaviour.clean()
         @behaviour = null
@@ -1493,7 +1493,7 @@ define [
 
           # there are deferred params, handling block async...
           if needToWait.length > 0
-            promise = new Future
+            promise = new Future('Widget::deferred')
             for name in needToWait
               do (name) =>
                 promise.fork()

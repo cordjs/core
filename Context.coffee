@@ -153,7 +153,7 @@ define [
       @param Any value param value
       @return Future
       ###
-      callbackPromise = new Future
+      callbackPromise = new Future('Context::setWithFeedback')
       @setSingle(name, value, callbackPromise)
       callbackPromise
 
@@ -199,7 +199,7 @@ define [
 
 
     @fromJSON: (obj, ioc, callback) ->
-      promise = new Future
+      promise = new Future('Context::fromJSON')
       for key, value of obj
         do (key, value) ->
           if Collection.isSerializedLink(value)

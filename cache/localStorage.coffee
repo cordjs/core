@@ -70,7 +70,7 @@ define [
       Key-value set proxy for the local storage with serialization and garbage collection fired when not enough space.
       Garbage collection is base on the TTL params, passed when saving values.
       ###
-      result = Future.single()
+      result = Future.single('localStorage::_set')
       strValue = JSON.stringify(value)
       try
         @storage.setItem(key, strValue)

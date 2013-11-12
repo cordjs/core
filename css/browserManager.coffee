@@ -71,7 +71,7 @@ define [
       @param String url css-file url to load
       @param Future promise future to resolve when the CSS is loaded
       ###
-      promise = Future.single()
+      promise = Future.single('browserManager::_loadLink')
       link = @_createLink(url);
 
       link.onload = ->

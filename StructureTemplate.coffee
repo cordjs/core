@@ -83,7 +83,7 @@ define [
                     setTimeout =>
                       if not complete
                         complete = true
-                        timeoutPromise = new Future(1)
+                        timeoutPromise = new Future(1, 'StructureTemplate::resolvePlaceholders')
                         resolvedPlaceholders[name].push
                           type: 'timeouted-widget'
                           widget: widget.ctx.id

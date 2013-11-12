@@ -19,7 +19,7 @@ define [
     ```
     ###
 
-    @_promise: Future.single()
+    @_promise: Future.single('AppConfigLoader')
 
 
     @ready: ->

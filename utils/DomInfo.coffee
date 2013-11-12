@@ -14,8 +14,8 @@ define [
 
 
     constructor: ->
-      @_domRootPromise = Future.single()
-      @_showPromise = Future.single()
+      @_domRootPromise = Future.single('DomInfo::_domRootPromise')
+      @_showPromise = Future.single('DomInfo::_showPromise')
 
 
     setDomRoot: (el) ->

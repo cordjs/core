@@ -78,7 +78,7 @@ define [
       @param Object options common collection options
       @return Future(Collection)
       ###
-      result = Future.single()
+      result = Future.single('ModelRepo::createExtendedCollection')
       options.collectionClass = collectionClass
       name = Collection.generateName(options)
 
@@ -154,7 +154,7 @@ define [
       @param Function(Model) callback
       @return promise
       ###
-      promise = new Future(1)
+      promise = new Future(1, 'ModelRepo::buildSingleModel')
 
       if syncMode == ':cache' || syncMode == ':cache-async'
         model = @probeCollectionsForModel(id, fields)
@@ -311,10 +311,10 @@ define [
                                       as a value
       @browser-only
       ###
-      result = new Future
+      result = new Future('ModelRepo::setCollections result')
       @_collections = {}
       for name, info of collections
-        promise = Future.single()
+        promise = Future.single('ModelRepo::setCollections promise')
         result.fork()
         do (promise, info, name) =>
           if info.canonicalPath?
@@ -334,7 +334,7 @@ define [
     # REST related
 
     query: (params, callback) ->
-      resultPromise = Future.single()
+      resultPromise = Future.single('ModelRepo::query')
       if @container
         @container.eval 'api', (api) =>
           apiParams = {}
@@ -425,7 +425,7 @@ define [
       @param Model model model to save
       @return Future(response, error)
       ###
-      promise = new Future(1)
+      promise = new Future(1, 'ModelRepo::save')
       if @container
         @container.eval 'api', (api) =>
           if model.id
@@ -469,7 +469,7 @@ define [
                 selected: Int (0-based index/position of the selected model)
                 selectedPage: Int (1-based number of the page that contains the selected model)
       ###
-      result = Future.single()
+      result = Future.single('ModelRepo::paging')
       if @container
         @container.eval 'api', (api) =>
           api.get @restResource + '/paging/', @_buildPagingRequestParams(params), (response) =>
@@ -550,7 +550,7 @@ define [
           break
 
       #Do request, or not
-      promise = new Future(1)
+      promise = new Future(1, 'ModelRepo::propagateFieldChange promise')
       if needRequest
         @container.eval 'api', (api) =>
           apiParams =
@@ -578,7 +578,7 @@ define [
       @param Object params additional key-value params for the action request (will be sent by POST)
       @return Future(response|error)
       ###
-      result = new Future(1)
+      result = new Future(1, 'ModelRepo::callModelAction result')
       if @container
         @container.eval 'api', (api) =>
           api[method] "#{ @restResource }/#{ id }/#{ action }", params, (response, error) ->
@@ -650,7 +650,7 @@ define [
 
     cacheCollection: (collection) ->
       name = collection.name
-      result = new Future(1)
+      result = new Future(1, 'ModelRepo::cacheCollection')
       if isBrowser
         require ['cord!cache/localStorage'], (storage) =>
           f = storage.saveCollectionInfo @constructor.name, name, collection.getTtl(),
@@ -674,7 +674,7 @@ define [
 
     cutCachedCollection: (collection, loadedStart, loadedEnd) ->
       if isBrowser
-        result = Future.single()
+        result = Future.single('ModelRepo::cutCachedCollection')
         require ['cord!cache/localStorage'], (storage) =>
           f = storage.saveCollectionInfo @constructor.name, collection.name, null,
             totalCount: collection._totalCount
@@ -687,7 +687,7 @@ define [
 
     getCachedCollectionInfo: (name) ->
       if isBrowser
-        result = Future.single()
+        result = Future.single('ModelRepo::getCachedCollectionInfo')
         require ['cord!cache/localStorage'], (storage) =>
           result.when storage.getCollectionInfo(@constructor.name, name)
         result
@@ -697,7 +697,7 @@ define [
 
     getCachedCollectionModels: (name, fields) ->
       if isBrowser
-        resultPromise = Future.single()
+        resultPromise = Future.single('ModelRepo::getCachedCollectionModels')
         require ['cord!cache/localStorage'], (storage) =>
           storage.getCollection(@constructor.name, name).done (models) =>
             result = []
