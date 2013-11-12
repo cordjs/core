@@ -144,7 +144,8 @@ define [
           @_runFailCallbacks() if @_failCallbacks.length > 0
           @_runAlwaysCallbacks() if @_alwaysCallbacks.length > 0
       else
-        throw new Error("Future::reject is called more times than Future::fork!")
+        nameStr = if @_name then " (name = #{ @_name})" else ''
+        throw new Error("Future::reject is called more times than Future::fork!#{ nameStr }")
 
       this
 
