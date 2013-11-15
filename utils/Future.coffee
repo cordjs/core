@@ -297,7 +297,11 @@ define [
           else
             result.resolve(mapRes)
         catch err
-          result.reject(err)
+          if result.completed()
+            throw err
+          else
+            #console.error "Error in Future.map", err, err.stack
+            result.reject(err)
       @fail (err) -> result.reject(err)
       result
 
@@ -316,7 +320,11 @@ define [
         try
           result.when(callback.apply(null, args))
         catch err
-          result.reject(err)
+          if result.completed()
+            throw err
+          else
+            #console.error "Error in Future.flatMap", err, err.stack
+            result.reject(err)
       @fail (err) -> result.reject(err)
       result
 
