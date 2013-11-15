@@ -298,9 +298,9 @@ define [
         domInfo.setDomRoot($newInlineRoot)
         id = @widget.ctx[':inlines'][name].id
         $oldInlineRoot = $('#'+id)
-        DomHelper.replaceNode($oldInlineRoot, $newInlineRoot).done ->
+        DomHelper.replaceNode($oldInlineRoot, $newInlineRoot).done =>
           domInfo.markShown()
-#          @widget.browserInit()
+          @widget.browserInit()
 
 
     renderNewWidget: (widget, params, callback) ->
