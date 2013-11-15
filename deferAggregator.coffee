@@ -24,7 +24,7 @@ define [
       else
         df =
           params: params
-          promise: (new Future).fork()
+          promise: (new Future('deferAgregator')).fork()
           deferredParams: {}
         @defers[id] = df
 

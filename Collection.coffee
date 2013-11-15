@@ -196,17 +196,17 @@ define [
 
       #Special case - fixed collection
       if @_fixed
-        resultPromise = Future.single()
+        resultPromise = Future.single('Collection::sync resultPromise')
         resultPromise.resolve(this)
         callback?(this)
         return resultPromise
 
       # this future is resolved by cache results or server results - which come first
-      firstResultPromise = Future.single()
+      firstResultPromise = Future.single('Collection::sync firstResultPromise')
       # we should wait for range information from the local cache before staring remote sync query
-      rangeAdjustPromise = Future.single()
+      rangeAdjustPromise = Future.single('Collection::sync rangeAdjustPromise')
       # special promise for cache mode to avoid running remote sync if unnecessary
-      activateSyncPromise = Future.single()
+      activateSyncPromise = Future.single('Collection::sync activateSyncPromise')
       activateSyncPromise.resolve() if not cacheMode
 
       if not @_initialized
@@ -237,7 +237,7 @@ define [
               activateSyncPromise.resolve()
 
       # sync with backend
-      syncPromise = Future.single() # special promise for :sync mode completion
+      syncPromise = Future.single('Collection::sync syncPromise') # special promise for :sync mode completion
       activateSyncPromise.done => # pass :cache mode
         rangeAdjustPromise.done (syncStart, syncEnd) => # wait for range adjustment from the local cache
           #@_enqueueQuery(syncStart, syncEnd).done => # avoid repeated refresh-query
@@ -249,7 +249,7 @@ define [
             syncPromise.reject()
 
       # handling different behaviours of return modes
-      resultPromise = Future.single()
+      resultPromise = Future.single('Collection::sync resultPromise')
       switch returnMode
         when ':sync' then resultPromise.when(syncPromise)
         when ':async'
@@ -843,7 +843,7 @@ define [
         else
           @toArray()
 
-      promise = Future.single()
+      promise = Future.single('Collection::getPage')
 
       #sometimes collection could be toren apart, check for this case
       if @_loadedStart <= start and (@_loadedEnd >= end || @_totalCount == @_loadedEnd + 1) and @isConsistent((sliced = slice())) == true
@@ -867,9 +867,9 @@ define [
                 selected: Int (0-based index/position of the selected model)
                 selectedPage: Int (1-based number of the page that contains the selected model)
       ###
-      result = Future.single()
+      result = Future.single('Collection::getPagingInfo')
 
-      cachePromise = Future.single()
+      cachePromise = Future.single('Collection::getPagingInfo cachePromise')
       if !@isInitialized() || @_cacheLoaded || not isBrowser || refresh
         cachePromise.resolve()
       else
@@ -989,7 +989,7 @@ define [
 
       # if not covered by the already queued queries, adding a new query to the queue
       if not waitForQuery?
-        queryPromise = Future.single()
+        queryPromise = Future.single('Collection::_enqueueQuery queryPromise')
         waitForQuery =
           start: start
           end: end
@@ -1000,7 +1000,7 @@ define [
         if (lastQuery = _.last(queryList))?
           prevQueryPromise = lastQuery.promise
         else
-          prevQueryPromise = new Future
+          prevQueryPromise = new Future('Collection::_enqueueQuery prevQueryPromise')
 
         queryList.push(waitForQuery)
 
@@ -1095,7 +1095,7 @@ define [
       ###
       # avoiding repeated cache request (in case of async cache backend)
       if not @_firstGetModelsFromCachePromise
-        @_firstGetModelsFromCachePromise = Future.single()
+        @_firstGetModelsFromCachePromise = Future.single('Collection::_getModelsFromLocalCache')
         @_firstRangeAdjustPromise = rangeAdjustPromise
         # getting cached range information at first
         @repo.getCachedCollectionInfo(@name).done (info) =>
@@ -1139,7 +1139,7 @@ define [
         @_firstGetModelsFromCachePromise
 
       else
-        resultPromise = Future.single()
+        resultPromise = Future.single('Collection::_getModelsFromLocalCache')
         @_firstRangeAdjustPromise.done (syncStart, syncEnd) =>
           # in case of repeated async cache request we can use result of the first cache request only if it's range
           #  complies with the second requested range

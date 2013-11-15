@@ -40,7 +40,7 @@ define [
       @_currentExtendList = []
       @_newExtendList = []
       if isBrowser
-        @_initPromise = new Future
+        @_initPromise = new Future('WidgetRepo::_initPromise')
         @_parentPromises = {}
 
 
@@ -143,7 +143,7 @@ define [
       @param Object serializedBindings
       @param Function(Object) callback "result" callback with the converted map
       ###
-      promise = new Future
+      promise = new Future('WidgetRepo::_unserializeModelBindings')
       result = {}
       for key, value of serializedBindings
         if Collection.isSerializedLink(value)
@@ -204,7 +204,7 @@ define [
       <script>
           function cordcorewidgetinitializerbrowser(wi) {
             requirejs(['cord!utils/Future'], function(Future) {
-              p = new Future();
+              p = new Future('WidgetRepo::templateCode');
               #{ @getModelsInitCode() }
               p.done(function() {
                 #{ @rootWidget.getInitCode() }
@@ -226,7 +226,7 @@ define [
       Performs final initialization of the transferred from the server-side objects on the browser-side.
       This method is called when all data from the server is loaded.
       ###
-      configPromise = Future.single()
+      configPromise = Future.single('WidgetRepo::endInit')
       require ['cord!AppConfigLoader'], (AppConfigLoader) -> configPromise.when(AppConfigLoader.ready())
       @_initPromise.zip(configPromise).done (any, appConfig) =>
         # start services registered with autostart option
@@ -255,9 +255,9 @@ define [
           @_pushBindings[widgetId][ctxName] = paramName
 
       @_initPromise.fork()
-      @_parentPromises[ctx.id] = (new Future).fork()
+      @_parentPromises[ctx.id] = (new Future('WidgetRepo::init parentPromises')).fork()
 
-      callbackPromise = new Future
+      callbackPromise = new Future('WidgetRepo::init callbackPromise')
       require ["cord-w!#{ widgetPath }"],       callbackPromise.callback()
       Context.fromJSON ctx, @serviceContainer,  callbackPromise.callback()
       @_unserializeModelBindings modelBindings, callbackPromise.callback()
