@@ -303,15 +303,16 @@ define [
           @_currentExtendList.push(widget)
       # initializing DOM bindings of widgets in reverse order (leafs of widget tree - first)
       futures = (@bind(id) for id in @_widgetOrder.reverse())
-      Future.sequence(futures).done =>
-        Future.require('jquery').zip(Future.timeout(3000)).done ($) =>
-          keys = Object.keys(require.s.contexts._.defined)
-          re = /^cord(-\w)?!/
-          keys = _.filter keys, (name) ->
-            not re.test(name)
-          console.warn "rootWidget = ", @getRootWidget().getPath()
-          $.post('/REQUIRESTAT/collect', { root: @getRootWidget().getPath(), definedModules: keys }).done (resp) ->
-            console.log "/REQUIRESTAT/collect response", resp
+      if false
+        Future.sequence(futures).done =>
+          Future.require('jquery').zip(Future.timeout(3000)).done ($) =>
+            keys = Object.keys(require.s.contexts._.defined)
+            re = /^cord(-\w)?!/
+            keys = _.filter keys, (name) ->
+              not re.test(name)
+            console.warn "rootWidget = ", @getRootWidget().getPath()
+            $.post('/REQUIRESTAT/collect', { root: @getRootWidget().getPath(), definedModules: keys }).done (resp) ->
+              console.log "/REQUIRESTAT/collect response", resp
 
       @_widgetOrder = null
 
