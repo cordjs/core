@@ -189,13 +189,18 @@ define [
 
 
     getTemplateCode: ->
+      initUrl = if global.config.browserInitScriptId
+        "/assets/z/#{global.config.browserInitScriptId}.js"
+      else
+        "/bundles/cord/core/init/browser-init.js?rel=1"
+
       """
       <script>
         var global = {
           config: #{ JSON.stringify(global.appConfig.browser) }
         };
       </script>
-      <script data-main="/bundles/cord/core/browserInit.js?rel=#{ Math.random() }" src="/vendor/requirejs/require.js?rel=#{ Math.random() }"></script>
+      <script data-main="#{initUrl}" src="/vendor/requirejs/require.js?rel=1"></script>
       <script>
           function cordcorewidgetinitializerbrowser(wi) {
             requirejs(['cord!utils/Future'], function(Future) {
@@ -298,6 +303,15 @@ define [
           @_currentExtendList.push(widget)
       # initializing DOM bindings of widgets in reverse order (leafs of widget tree - first)
       futures = (@bind(id) for id in @_widgetOrder.reverse())
+      Future.sequence(futures).done =>
+        Future.require('jquery').zip(Future.timeout(3000)).done ($) =>
+          keys = Object.keys(require.s.contexts._.defined)
+          re = /^cord(-\w)?!/
+          keys = _.filter keys, (name) ->
+            not re.test(name)
+          console.warn "rootWidget = ", @getRootWidget().getPath()
+          $.post('/REQUIRESTAT/collect', { root: @getRootWidget().getPath(), definedModules: keys }).done (resp) ->
+            console.log "/REQUIRESTAT/collect response", resp
 
       @_widgetOrder = null
 

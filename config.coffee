@@ -62,3 +62,34 @@ define [], () ->
   routes:
     '/REQUIRESTAT/optimizer':
       widget: '//Optimizer'
+
+  requirejs:
+    paths:
+      'curly':                   'vendor/curly/browser'
+      'dustjs-linkedin':         'vendor/dustjs/dustjs-full'
+      'dustjs-helpers':          'vendor/dustjs/dustjs-helpers'
+      'jquery':                  'vendor/jquery/jquery'
+      'jquery.cookie':           'vendor/jquery/plugins/jquery.cookie'
+      'moment':                  'vendor/moment/moment'
+      'moment-ru':               'vendor/moment/lang/ru'
+      'monologue':               'vendor/postal/monologue'
+      'postal':                  'vendor/postal/postal_lite'
+      'the-box':                 'vendor/the-box/app'
+      'underscore':              'vendor/underscore/underscore'
+    shim:
+      'curly':
+        deps: ['underscore']
+        exports: 'curly'
+      'dustjs-linkedin':
+        exports: 'dust'
+      'dustjs-helpers':
+        deps: ['dustjs-linkedin']
+        exports: 'dust'
+      'jquery.cookie':
+        deps: ['jquery']
+        exports: 'jQuery'
+      'underscore':
+        exports: '_'
+      'moment-ru':
+        deps: ['moment']
+        exports: 'null'

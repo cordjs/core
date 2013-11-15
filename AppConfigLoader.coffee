@@ -41,21 +41,21 @@ define [
         fallbackRoutes = {}
         fallbackApiErrors = {}
 
-        processRoutes = (source, destination) ->
-            for route, params of source
-              # expanding widget path to fully-qualified canonical name if short path is given
-              if params.widget and params.widget.substr(0, 2) is '//'
-                params.widget = "/#{ application[i] }#{ params.widget }"
-            # eliminating duplicate routes here
-            # todo: may be it should be reported when there are duplicate routes?
-            _.extend(destination, source)
+        processRoutes = (source, destination, bundle) ->
+          for route, params of source
+            # expanding widget path to fully-qualified canonical name if short path is given
+            if params.widget and params.widget.substr(0, 2) is '//'
+              params.widget = "/#{ bundle }#{ params.widget }"
+          # eliminating duplicate routes here
+          # todo: may be it should be reported when there are duplicate routes?
+          _.extend(destination, source)
 
         for config, i in args
           if config.fallbackRoutes?
-            processRoutes config.fallbackRoutes, fallbackRoutes
+            processRoutes config.fallbackRoutes, fallbackRoutes, application[i]
 
           if config.routes?
-            processRoutes config.routes, routes
+            processRoutes config.routes, routes, application[i]
 
           if config.services?
             # flatten services configuration (excluding server-only or browser-only configuration)

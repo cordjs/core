@@ -297,7 +297,11 @@ define [
           else
             result.resolve(mapRes)
         catch err
-          result.reject(err)
+          if result.completed()
+            throw err
+          else
+            #console.error "Error in Future.map", err, err.stack
+            result.reject(err)
       @fail (err) -> result.reject(err)
       result
 
@@ -316,7 +320,11 @@ define [
         try
           result.when(callback.apply(null, args))
         catch err
-          result.reject(err)
+          if result.completed()
+            throw err
+          else
+            #console.error "Error in Future.flatMap", err, err.stack
+            result.reject(err)
       @fail (err) -> result.reject(err)
       result
 
@@ -458,7 +466,8 @@ define [
         # for successfully completed future we must add null-error first argument.
         args.push(null)
         if @_callbackArgs?
-          for i in [0..@_order-1]
+          len = if @_order > 0 then @_order else @_callbackArgs.length
+          for i in [0..len-1]
             args = args.concat(@_callbackArgs[i])
       else
         # for rejected future there is no need to flatten argument as there is only one error.
@@ -477,7 +486,8 @@ define [
       if @_callbackArgs?
         args = []
         if flattenArgs
-          for i in [0..@_order-1]
+          len = if @_order > 0 then @_order else @_callbackArgs.length
+          for i in [0..len-1]
             args = args.concat(@_callbackArgs[i])
         else
           args = @_callbackArgs
@@ -566,6 +576,7 @@ define [
       @param String* paths list of modules requirejs-format paths
       @return Future(modules...)
       ###
+      paths = paths[0] if paths.length == 1 and _.isArray(paths[0])
       result = @single()
       require paths, (modules...) ->
         result.resolve.apply(result, modules)

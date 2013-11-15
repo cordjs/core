@@ -34,8 +34,9 @@ exports.init = (baseUrl = 'public', configName = 'default', serverPort) ->
     'cord!request/xdrProxy'
     'cord!requirejs/statCollector'
     'cord!router/serverSideRouter'
+    'cord!utils/Future'
     'underscore'
-  ], (pathUtils, AppConfigLoader, _console, Rest, xdrProxy, statCollector, router, _) ->
+  ], (pathUtils, AppConfigLoader, _console, Rest, xdrProxy, statCollector, router, Future, _) ->
     pathUtils.setPublicPrefix(baseUrl)
 
     router.EventEmitter = EventEmitter
@@ -77,7 +78,12 @@ exports.init = (baseUrl = 'public', configName = 'default', serverPort) ->
     Rest.host = global.config.server.host
     Rest.port = global.config.server.port
 
-    AppConfigLoader.ready().done (appConfig) ->
+    biFuture = Future.call(fs.readFile, path.join(baseUrl, 'assets/z/browser-init.id'), 'utf8').map (id) ->
+      global.config.browserInitScriptId = id
+    .mapFail ->
+      true
+
+    AppConfigLoader.ready().zip(biFuture).done (appConfig) ->
       router.addRoutes(appConfig.routes)
       router.addFallbackRoutes(appConfig.fallbackRoutes) if appConfig.fallbackRoutes?
 

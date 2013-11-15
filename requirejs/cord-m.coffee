@@ -14,7 +14,7 @@ define ['pathUtils'], (pathUtils) ->
       throw new Error("Model(repo) class name should start with CAP letter: #{ className }!")
 
     relativeDir = nameParts.join('/')
-    relativeDirPath = "#{ bundleSpec.substr(1) }/models/#{ relativeDir }"
+    relativeDirPath = "#{ bundleSpec.substr(1) }/models#{ if relativeDir.length > 0 then '/' + relativeDir else '' }"
 
     bundle: bundleSpec
     className: className
