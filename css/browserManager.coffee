@@ -35,11 +35,13 @@ define [
     ###
 
     _loadedFiles: null
+    _loadingOrder: null
     _nativeLoad: null
     _nativeLoadPromise: null
 
     constructor: ->
       @_loadedFiles = {}
+      @_loadingOrder = []
 
     load: (cssPath) ->
       ###
@@ -49,6 +51,7 @@ define [
       normPath = normalizePath(cssPath)
       if not @_loadedFiles[normPath]?
         @_loadedFiles[normPath] = @_loadLink(cssPath)
+        @_loadingOrder.push(normPath)
       else if @_loadedFiles[normPath] == true
         @_loadedFiles[normPath] = Future.resolved()
       @_loadedFiles[normPath]
@@ -61,8 +64,10 @@ define [
       ###
       tmpLoaded = @_loadedFiles
       $("head > link[rel='stylesheet']").each ->
+        normPath = normalizePath($(this).attr('href'))
         # 'true' is optimization, the completed future will be lazy-created in load() method if needed
-        tmpLoaded[normalizePath($(this).attr('href'))] = true
+        tmpLoaded[normPath] = true
+        @_loadingOrder.push(normPath)
 
 
     _loadLink: (url) ->

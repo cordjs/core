@@ -313,7 +313,7 @@ define [
             $.post '/REQUIRESTAT/collect',
               root: @getRootWidget().getPath()
               definedModules: keys
-              css: Object.keys(cssManager._loadedFiles)
+              css: cssManager._loadingOrder
             .done (resp) ->
               console.warn "/REQUIRESTAT/collect response", resp
 

@@ -21,7 +21,7 @@ define [
           throw err if err
       fs.readFile cssStatFile, (err, data) ->
         stat = if err then {} else JSON.parse(data)
-        stat[post.root] = post['css[]'].sort()
+        stat[post.root] = post['css[]']
         fs.writeFile cssStatFile, JSON.stringify(stat, null, 2), (err)->
           throw err if err
 
