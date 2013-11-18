@@ -305,14 +305,17 @@ define [
       futures = (@bind(id) for id in @_widgetOrder.reverse())
       if false
         Future.sequence(futures).done =>
-          Future.require('jquery').zip(Future.timeout(3000)).done ($) =>
+          Future.require('jquery', 'cord!css/browserManager').zip(Future.timeout(3000)).done ($, cssManager) =>
             keys = Object.keys(require.s.contexts._.defined)
             re = /^cord(-\w)?!/
             keys = _.filter keys, (name) ->
               not re.test(name)
-            console.warn "rootWidget = ", @getRootWidget().getPath()
-            $.post('/REQUIRESTAT/collect', { root: @getRootWidget().getPath(), definedModules: keys }).done (resp) ->
-              console.log "/REQUIRESTAT/collect response", resp
+            $.post '/REQUIRESTAT/collect',
+              root: @getRootWidget().getPath()
+              definedModules: keys
+              css: Object.keys(cssManager._loadedFiles)
+            .done (resp) ->
+              console.warn "/REQUIRESTAT/collect response", resp
 
       @_widgetOrder = null
 
