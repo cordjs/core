@@ -1,6 +1,5 @@
 define [
   'cord!Collection'
-  'pathUtils'
   'cord!Context'
   'cord!css/helper'
   'cord!isBrowser'
@@ -16,7 +15,7 @@ define [
   'monologue' + (if document? then '' else '.js')
   'postal'
   'underscore'
-], (Collection, pathUtils, Context, cssHelper, isBrowser, Model, Module,StructureTemplate,
+], (Collection, Context, cssHelper, isBrowser, Model, Module, StructureTemplate,
     templateLoader, DomInfo, Future,
     dust, Monologue, postal, _) ->
 
@@ -55,6 +54,9 @@ define [
 
     _structTemplate: null
     _isExtended: false
+
+    # should not be used directly, use getBaseContext() for lazy loading
+    _baseContext: null
 
     _modelBindings: null
 
@@ -267,8 +269,7 @@ define [
       @_modelBindings = {}
       @_subscibedPushBindings = {}
       @clearCallbacks()
-      #clean monologue subscriptions
-      @off()
+      @off() #clean monologue subscriptions
       @clearPromises()
 
 
@@ -1433,9 +1434,6 @@ define [
       if @_childWidgetCounter == 0 and not @_renderInProgress
         postal.publish "widget.#{ @ctx.id }.render.children.complete", {}
 
-
-    # should not be used directly, use getBaseContext() for lazy loading
-    _baseContext: null
 
     subscribeValueChange: (params, name, value, callback) ->
       subscription = postal.subscribe
