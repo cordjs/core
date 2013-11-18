@@ -382,11 +382,13 @@ define [
     zip: (those...) ->
       ###
       Zips the values of this and that future, and creates a new future holding the tuple of their results.
+      If some of the futures have several results that they are "flattened".
+      No result represented as undefined value.
       @param Future those another futures
       @return Future
       ###
       those.unshift(this)
-      Future.sequence(those).map (result) -> result
+      Future.sequence(those).map (result) -> _.flatten(result, true)
 
 
     @sequence: (futureList) ->
@@ -398,8 +400,11 @@ define [
       for f, i in futureList
         do (i) ->
           promise.fork()
-          f.done (res) ->
-            result[i] = res
+          f.done (res...) ->
+            result[i] = switch res.length
+              when 1 then res[0]
+              when 0 then undefined
+              else res
             promise.resolve()
           .fail (e) ->
             promise.reject(e)
