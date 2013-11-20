@@ -132,7 +132,7 @@ define [
       options =
         id: id
         fields: fields
-        reconnect: true
+        reconnect: false
 
       options = _.extend extraOptions, options
 
@@ -338,8 +338,8 @@ define [
       if @container
         @container.eval 'api', (api) =>
           apiParams = {}
-          if params.reconnect == true
-            apiParams.reconnect = true
+          apiParams.reconnect = true if params.reconnect == true
+
           api.get @_buildApiRequestUrl(params), apiParams, (response, error) =>
             result = []
             if _.isArray(response)
