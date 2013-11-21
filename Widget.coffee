@@ -271,6 +271,7 @@ define [
       @clearCallbacks()
       @off() #clean monologue subscriptions
       @clearPromises()
+      @_shownPromise.clear() if @_shownPromise?
 
 
     getCallback: (callback) =>
@@ -1156,6 +1157,7 @@ define [
       if isBrowser
         @_widgetReadyPromise = new Future(1, 'Widget::_widgetReadyPromise')
         @_browserInitialized = false
+        @_shownPromise.clear() if @_shownPromise?
         @_shownPromise = Future.single('Widget::_shownPromise')
         @_shown = false
 
