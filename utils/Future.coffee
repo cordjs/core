@@ -56,6 +56,9 @@ define [
     # helpful to identify the future during debugging
     _name: ''
 
+    # timeout for uncompleted futures
+    _incompleteTimeout: null
+
 
     constructor: (initialCounter = 0, name = '') ->
       ###
@@ -73,8 +76,8 @@ define [
 
       if @_name
         if global.config?.debug.core
-          setTimeout =>
-            _console.warn 'Future uncompleted', @_name if @state() == 'pending' and @_counter > 0
+          @_incompleteTimeout = setTimeout =>
+            _console.warn 'Future incompleted', @_name if @state() == 'pending' and @_counter > 0
           , 10 * 1000
 
 
@@ -120,6 +123,10 @@ define [
             @_state = 'resolved' if @_locked
             @_runDoneCallbacks() if @_doneCallbacks.length > 0
             @_runAlwaysCallbacks() if @_alwaysCallbacks.length > 0
+            # Clean debug timeout
+            if @_incompleteTimeout?
+              clearTimeout @_incompleteTimeout
+              @_incompleteTimeout = null
           # not changing state to 'resolved' here because it is possible to call fork() again if done hasn't called yet
       else
         nameStr = if @_name then " (name = #{ @_name})" else ''
@@ -583,6 +590,13 @@ define [
       , (err) ->
         result.reject(err)
       result
+
+
+    clear: ->
+      if @_incompleteTimeout?
+        clearTimeout @_incompleteTimeout
+        @_incompleteTimeout = null
+
 
     # debugging
 
