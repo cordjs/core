@@ -934,7 +934,7 @@ define [
             else
               require ['cord!utils/DomHelper', 'jquery'], (DomHelper, $) ->
                 $newRoot = $(widget.renderRootTag(out))
-                widget.browserInit($newRoot).zip(domInfo.domRootCreated()).done ($contextRoot) ->
+                widget.browserInit($newRoot).zip(domInfo.domRootCreated()).done (any, $contextRoot) ->
                   DomHelper.replaceNode($('#'+widgetId, $contextRoot), $newRoot).zip(domInfo.domInserted()).done ->
                     widget.markShown()
 
