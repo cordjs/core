@@ -35,13 +35,18 @@ define [
     ###
 
     _loadedFiles: null
-    _loadingOrder: null
+    _loadingOrder: null # used by the optimizer to preserve ordering when groupping
     _nativeLoad: null
     _nativeLoadPromise: null
+
+    _groupToCss: null
+    _cssToGroup: null
+
 
     constructor: ->
       @_loadedFiles = {}
       @_loadingOrder = []
+
 
     load: (cssPath) ->
       ###
@@ -50,8 +55,13 @@ define [
       ###
       normPath = normalizePath(cssPath)
       if not @_loadedFiles[normPath]?
-        @_loadedFiles[normPath] = @_loadLink(cssPath)
-        @_loadingOrder.push(normPath)
+        if not @_cssToGroup[normPath]
+          @_loadedFiles[normPath] = @_loadLink("#{ cssPath }?uid=#{ global.config.static.release }")
+          @_loadingOrder.push(normPath)
+        else
+          groupId = @_cssToGroup[normPath]
+          loadFuture = @_loadLink("/assets/z/#{groupId}.css")
+          @_loadedFiles[css] = loadFuture for css in @_groupToCss[groupId]
       else if @_loadedFiles[normPath] == true
         @_loadedFiles[normPath] = Future.resolved()
       @_loadedFiles[normPath]
@@ -62,12 +72,28 @@ define [
       Scans page's link tags and registers already loaded css files in manager.
       This is needed to prevent double loading of the files when css files are on demand by client-side code.
       ###
-      tmpLoaded = @_loadedFiles
-      $("head > link[rel='stylesheet']").each ->
+      that = this
+      $("head > link[rel='stylesheet']").each -> # cannot use fat-arrow here!!
         normPath = normalizePath($(this).attr('href'))
-        # 'true' is optimization, the completed future will be lazy-created in load() method if needed
-        tmpLoaded[normPath] = true
-        @_loadingOrder.push(normPath)
+        if result = normPath.match /\/assets\/z\/([^\.]+)\.css$/
+          groupId = result[1]
+          that._loadedFiles[css] = true for css in that._groupToCss[groupId]
+        else
+          # 'true' is optimization, the completed future will be lazy-created in load() method if needed
+          that._loadedFiles[normPath] = true
+          that._loadingOrder.push(normPath)
+
+
+    setGroupLoadingMap: (groupMap) ->
+      ###
+      Used in optimized browser-init script to setup css-group optimization rules on the browser-side.
+      @param Map[String, Array[String]] groupMap
+      ###
+      @_groupToCss = groupMap
+      @_cssToGroup = {}
+      for groupId, urls of groupMap
+        for css in urls
+          @_cssToGroup[css] = groupId
 
 
     _loadLink: (url) ->

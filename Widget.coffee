@@ -1098,20 +1098,23 @@ define [
       """
 
 
-    getInitCss: (alreadyAdded) ->
+    getDeepCssList: ->
       ###
-      Generates html head fragment with css-link tags that should be included for server-side generated page
-      @param (optional)Object alreadyAdded hash with list of already included css-files to avoid duplicate link-tags
-      @return String
+      Returns list of css-files required by this widget and all it's children
+      @return Array[String]
       ###
-      alreadyAdded ?= {}
-      addCss = []
-      for css in @getCssFiles()
-        if not alreadyAdded[css]
-          addCss.push css
-          alreadyAdded[css] = true
-      html = (cssHelper.getHtmlLink(css) for css in addCss).join ''
-      "#{ (widget.getInitCss(alreadyAdded) for widget in @children).join '' }#{ html }"
+      result = []
+      @collectDeepCssListRec(result)
+      _.unique(result)
+
+
+    collectDeepCssListRec: (result) ->
+      ###
+      Recursively scans tree of widgets and collects list of required css-files.
+      @param Array[String] result accumulating result array
+      ###
+      result.push(css) for css in @getCssFiles()
+      child.collectDeepCssListRec(result) for child in @children
 
 
     getCssFiles: ->
@@ -1542,11 +1545,12 @@ define [
               @addSubscription subscription
 
         # css include
-        css: (chunk, context, bodies, params) =>
+        css: (chunk) =>
           chunk.map (chunk) =>
             subscription = postal.subscribe
               topic: "widget.#{ @ctx.id }.render.children.complete"
               callback: =>
-                chunk.end @widgetRepo.getTemplateCss()
+                @widgetRepo.getTemplateCss().done (html) ->
+                  chunk.end(html)
                 subscription.unsubscribe()
             @addTmpSubscription subscription

@@ -2,6 +2,7 @@ define [
   'cord!Api'
   'cord!Collection'
   'cord!Context'
+  'cord!css/helper'
   'cord!deferAggregator'
   'cord!isBrowser'
   'cord!Model'
@@ -9,7 +10,7 @@ define [
   'cord!utils/Future'
   'postal'
   'underscore'
-], (Api, Collection, Context, deferAggregator, isBrowser, Model, ModelRepo, Future, postal, _) ->
+], (Api, Collection, Context, cssHelper, deferAggregator, isBrowser, Model, ModelRepo, Future, postal, _) ->
 
   class WidgetRepo
     widgets: null
@@ -215,10 +216,9 @@ define [
       </script>
       """
 
+
     getTemplateCss: ->
-      """
-        #{ @rootWidget.getInitCss() }
-      """
+      cssHelper.getInitCssCode(@rootWidget.getDeepCssList())
 
 
     endInit: ->

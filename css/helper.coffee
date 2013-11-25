@@ -1,18 +1,54 @@
 define [
   'cord-w'
+  'cord!utils/Future'
   'pathUtils'
-], (cordWidgetHelper, pathUtils) ->
+  'underscore'
+], (cordWidgetHelper, Future, pathUtils, _) ->
 
   class Helper
     ###
     Helper functions for the css-file management
     ###
 
+    _cssToGroupFuture: null
+
+    _getCssToGroup: ->
+      ###
+      Loads map with group-id for each css-file from the preliminarily saved file.
+      @return Future[Map[String, String]
+      ###
+      if not @_cssToGroupFuture
+        @_cssToGroupFuture =
+          if global.config.browserInitScriptId
+            Future.require('../conf/css-to-group-generated').failAloud()
+          else
+            Future.resolved({})
+      @_cssToGroupFuture
+
+
     getHtmlLink: (path) ->
       ###
       Returns link-tag html for the given css file
       ###
       "<link href=\"#{ path }\" rel=\"stylesheet\" />"
+
+
+    getInitCssCode: (cssList) ->
+      ###
+      Generates html head fragment with css-link tags that should be included for server-side generated page.
+      Uses group optimization to map the files.
+      @param Array[String] cssList list of required css-files for the page.
+      @return Future[String]
+      ###
+      @_getCssToGroup().map (cssToGroup) =>
+        optimized =
+          for css in cssList
+            if cssToGroup[css]
+              "/assets/z/#{cssToGroup[css]}.css"
+            else
+              # anti-cache suffix is needed only for direct-links, not for the optimized groups
+              "#{css}?uid=#{ global.config.static.release }"
+        _.map(_.uniq(optimized), @getHtmlLink).join('')
 
 
     expandPath: (shortPath, contextWidget) ->
@@ -46,7 +82,7 @@ define [
             relativePath += '.css' if relativePath.substr(-4) != '.css'
 
           result = "/bundles#{ info.bundle }/widgets/#{ relativePath }"
-      "#{ result }?uid=#{ global.config.static.release }"
+      result
 
 
   new Helper
