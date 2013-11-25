@@ -16,11 +16,23 @@ define [
       ###
       Loads map with group-id for each css-file from the preliminarily saved file.
       @return Future[Map[String, String]
+      @server-only
       ###
       if not @_cssToGroupFuture
         @_cssToGroupFuture =
           if global.config.browserInitScriptId
-            Future.require('../conf/css-to-group-generated').failAloud()
+            Future.require('fs').flatMap (fs) ->
+              r = Future.single()
+              fs.exists 'conf/css-to-group-generated.js', (exists) ->
+                r.resolve(exists)
+              r
+            .flatMap (exists) ->
+              if exists
+                Future.require('../conf/css-to-group-generated')
+              else
+                # if the generated file doesn't exists, just disabling CSS group loading
+                Future.resolved({})
+            .failAloud()
           else
             Future.resolved({})
       @_cssToGroupFuture
