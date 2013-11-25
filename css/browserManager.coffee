@@ -40,7 +40,7 @@ define [
     _nativeLoadPromise: null
 
     _groupToCss: null
-    _cssToGroup: null
+    _cssToGroup: {}
 
 
     constructor: ->
