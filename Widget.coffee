@@ -271,6 +271,7 @@ define [
       @clearCallbacks()
       @off() #clean monologue subscriptions
       @clearPromises()
+      @_shownPromise.clear() if @_shownPromise?
 
 
     getCallback: (callback) =>
@@ -933,7 +934,7 @@ define [
             else
               require ['cord!utils/DomHelper', 'jquery'], (DomHelper, $) ->
                 $newRoot = $(widget.renderRootTag(out))
-                widget.browserInit($newRoot).zip(domInfo.domRootCreated()).done ($contextRoot) ->
+                widget.browserInit($newRoot).zip(domInfo.domRootCreated()).done (any, $contextRoot) ->
                   DomHelper.replaceNode($('#'+widgetId, $contextRoot), $newRoot).zip(domInfo.domInserted()).done ->
                     widget.markShown()
 
@@ -942,13 +943,6 @@ define [
             placeholderOrder[widgetId] = i
 
             complete = false
-            widget.show(info.params, domInfo).failAloud().done (out) ->
-              if not complete
-                complete = true
-                processWidget(out)
-                promise.resolve()
-              else
-                replaceTimeoutStub(out)
 
             if isBrowser and info.timeout? and info.timeout >= 0
               setTimeout ->
@@ -957,6 +951,14 @@ define [
                   complete = true
                   processTimeoutStub()
               , info.timeout
+
+            widget.show(info.params, domInfo).failAloud().done (out) ->
+              if not complete
+                complete = true
+                processWidget(out)
+                promise.resolve()
+              else
+                replaceTimeoutStub(out)
 
           else if info.type == 'timeouted-widget'
             placeholderOrder[widgetId] = i
@@ -1159,6 +1161,7 @@ define [
       if isBrowser
         @_widgetReadyPromise = new Future(1, 'Widget::_widgetReadyPromise')
         @_browserInitialized = false
+        @_shownPromise.clear() if @_shownPromise?
         @_shownPromise = Future.single('Widget::_shownPromise')
         @_shown = false
 
