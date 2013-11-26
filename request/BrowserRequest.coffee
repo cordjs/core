@@ -52,6 +52,7 @@ define [
           query: ''
           json: argssss.params
           form: argssss.params.form
+          bust: false
 
       startRequest = new Date() if global.config.debug.request
 
