@@ -430,18 +430,20 @@ define [
         @container.eval 'api', (api) =>
           if model.id
             changeInfo = model.getChangedFields()
-            changeInfo.id = model.id
-            @emit 'change', changeInfo
-            api.put @restResource + '/' + model.id, model.getChangedFields(), (response, error) =>
-              if error
-                @emit 'error', error
-                promise.reject(error)
-              else
-                @cacheCollection(model.collection) if model.collection?
-                model.resetChangedFields()
-                @emit 'sync', model
-                @_suggestNewModelToCollections(model)
-                promise.resolve(response)
+            # Don't do api request if model isn't change
+            if Object.keys(changeInfo).length
+              changeInfo.id = model.id
+              @emit 'change', changeInfo
+              api.put @restResource + '/' + model.id, model.getChangedFields(), (response, error) =>
+                if error
+                  @emit 'error', error
+                  promise.reject(error)
+                else
+                  @cacheCollection(model.collection) if model.collection?
+                  model.resetChangedFields()
+                  @emit 'sync', model
+                  @_suggestNewModelToCollections(model)
+                  promise.resolve(response)
           else
             api.post @restResource, model.getChangedFields(), (response, error) =>
               if error
