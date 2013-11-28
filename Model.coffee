@@ -73,7 +73,6 @@ define [
       this
 
 
-
     propagateFieldChange: (fieldName, newValue) ->
       @collection.repo.propagateFieldChange @id, fieldName, newValue
 

@@ -514,9 +514,11 @@ define [
       @param id Model - model
       ###
       changeInfo = model.getChangedFields()
-      changeInfo.id = model.id
-      @emit 'change', changeInfo
-      @_suggestNewModelToCollections(model)
+
+      if Object.keys changeInfo
+        changeInfo.id = model.id
+        @emit 'change', changeInfo
+        @_suggestNewModelToCollections(model)
 
 
     propagateFieldChange: (id, fieldName, newValue) ->
