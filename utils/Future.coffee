@@ -389,13 +389,13 @@ define [
     zip: (those...) ->
       ###
       Zips the values of this and that future, and creates a new future holding the tuple of their results.
-      If some of the futures have several results that they are "flattened".
+      If some of the futures have several results that they are represented as array, not "flattened".
       No result represented as undefined value.
       @param Future those another futures
       @return Future
       ###
       those.unshift(this)
-      Future.sequence(those).map (result) -> _.flatten(result, true)
+      Future.sequence(those).map (result) -> result
 
 
     @sequence: (futureList) ->
