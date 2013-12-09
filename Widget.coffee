@@ -768,7 +768,7 @@ define [
       @param DomInfo domInfo DOM creating and inserting promise container
       @return Future(String)
       ###
-      _console.log "#{ @constructor.name }::renderInline(#{ inlineName })" if global.config.debug.widget
+      _console.log "#{ @constructor.__name }::renderInline(#{ inlineName })" if global.config.debug.widget
 
       if @ctx[':inlines'][inlineName]?
         tmplPath = "#{ @getDir() }/#{ @ctx[':inlines'][inlineName].template }"
@@ -1196,7 +1196,8 @@ define [
             delete @childByName[name]
             break
       else
-        throw "Trying to remove unexistent child of widget #{ @constructor.name }(#{ @ctx.id }), child: #{ child.constructor.name }(#{ child.ctx.id })"
+        throw new Error("Trying to remove unexistent child of widget #{ @constructor.__name }(#{ @ctx.id }), " +
+                        "child: #{ child.constructor.__name }(#{ child.ctx.id })")
 
 
     dropChild: (childId) ->
@@ -1223,13 +1224,7 @@ define [
 
 
     getBehaviourClass: ->
-      if not @behaviourClass?
-        @behaviourClass = "#{ @constructor.name }Behaviour"
-# Fix for IE 10
-#        if not @constructor.name
-#          @constructor.name = @constructor.toString().match(/^function\s(.+)\(/)[1]
-#        @behaviourClass = "#{ @constructor.name }Behaviour"
-
+      @behaviourClass = "#{ @constructor.__name }Behaviour" if not @behaviourClass?
       if @behaviourClass == false
         null
       else

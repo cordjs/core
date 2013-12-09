@@ -37,7 +37,7 @@ define [
       if @struct.widgetsByName[name]?
         @getWidget @struct.widgetsByName[name], callback
       else
-        throw "There is no widget with name '#{ name }' registered for template of #{ @ownerWidget.constructor.name }!"
+        throw "There is no widget with name '#{ name }' registered for template of #{ @ownerWidget.constructor.__name }!"
 
 
     resolvePlaceholders: (targetWidget, newPlaceholders, callback) ->

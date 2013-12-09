@@ -287,7 +287,7 @@ define [
       Validates and registers the given collection
       ###
       if @_collections[name]?
-        throw new Error("Collection with name '#{ name }' is already registered in #{ @constructor.name }!")
+        throw new Error("Collection with name '#{ name }' is already registered in #{ @constructor.__name }!")
       if not (collection instanceof Collection)
         throw new Error("Collection should be inherited from the base Collection class!")
 
@@ -653,14 +653,14 @@ define [
       result = new Future(1, 'ModelRepo::cacheCollection')
       if isBrowser
         require ['cord!cache/localStorage'], (storage) =>
-          f = storage.saveCollectionInfo @constructor.name, name, collection.getTtl(),
+          f = storage.saveCollectionInfo @constructor.__name, name, collection.getTtl(),
             totalCount: collection._totalCount
             start: collection._loadedStart
             end: collection._loadedEnd
             hasLimits: collection._hasLimits
           result.when(f)
 
-          result.when storage.saveCollection(@constructor.name, name, collection.toArray())
+          result.when storage.saveCollection(@constructor.__name, name, collection.toArray())
 
           result.resolve()
 
@@ -676,7 +676,7 @@ define [
       if isBrowser
         result = Future.single('ModelRepo::cutCachedCollection')
         require ['cord!cache/localStorage'], (storage) =>
-          f = storage.saveCollectionInfo @constructor.name, collection.name, null,
+          f = storage.saveCollectionInfo @constructor.__name, collection.name, null,
             totalCount: collection._totalCount
             start: loadedStart
             end: loadedEnd
@@ -689,7 +689,7 @@ define [
       if isBrowser
         result = Future.single('ModelRepo::getCachedCollectionInfo')
         require ['cord!cache/localStorage'], (storage) =>
-          result.when storage.getCollectionInfo(@constructor.name, name)
+          result.when storage.getCollectionInfo(@constructor.__name, name)
         result
       else
         Future.rejected("ModelRepo::getCachedCollectionInfo is not applicable on server-side!")
@@ -699,7 +699,7 @@ define [
       if isBrowser
         resultPromise = Future.single('ModelRepo::getCachedCollectionModels')
         require ['cord!cache/localStorage'], (storage) =>
-          storage.getCollection(@constructor.name, name).done (models) =>
+          storage.getCollection(@constructor.__name, name).done (models) =>
             result = []
             for m,index in models
               if m
@@ -771,4 +771,4 @@ define [
       @return String
       ###
       methodStr = if method? then "::#{ method }" else ''
-      "#{ @constructor.name }#{ methodStr }"
+      "#{ @constructor.__name }#{ methodStr }"

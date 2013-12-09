@@ -79,7 +79,8 @@ define [
           if triggerChange
             time = new Date()
             deferTime = (time - (if @deferredTimes[name] then @deferredTimes[name] else @deferredTime) ) / 1000
-            _console.log '!!! Deferred time', name, @id, @_owner?.constructor.name, 'was', deferTime, 'secs' if deferTime > 0.1 and global.config.debug.core
+            if deferTime > 0.1 and global.config.debug.core
+              _console.log '!!! Deferred time', name, @id, @_owner?.constructor.__name, 'was', deferTime, 'secs'
         else
           oldValue = @[name]
           if oldValue == null
@@ -224,6 +225,6 @@ define [
 
       if @[name] == ':deferred' and debugCore
         setTimeout =>
-          _console.warn '### Deferred timeout', name, @id, @_owner?.constructor.name  if @[name] == ':deferred'
+          _console.warn '### Deferred timeout', name, @id, @_owner?.constructor.__name  if @[name] == ':deferred'
         , 10000
 
