@@ -20,7 +20,11 @@ define [
 
       for arg in args
         if arg instanceof Object
-          result += JSON.stringify(arg) + ', '
+          try
+            # TypeError: Converting circular structure to JSON
+            result += JSON.stringify(arg) + ', '
+          catch
+            result += arg + ', '
         else
           result += arg + ', '
 
