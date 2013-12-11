@@ -1360,7 +1360,7 @@ define [
 
           @_widgetReadyPromise.when(@constructor._cssPromise)
 
-          childWidgetReadyPromise = new Future
+          childWidgetReadyPromise = new Future('browserInit::childWidgetReadyPromise')
           childWidgetReadyPromise.fork()
 
           for childWidget in @children
