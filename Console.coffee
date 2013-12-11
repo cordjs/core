@@ -40,7 +40,7 @@ define [
 
       console.warn.apply console, arguments if config?.console.warn or not config
 
-      message = Console.stringify args
+      message = Console.stringify arguments
       postal.publish 'logger.log.publish', { tags: ['warning'], params: {warning: message} }
 
       return
