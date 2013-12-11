@@ -1342,7 +1342,7 @@ define [
       ###
       _console.log "#{ @debug 'browserInit' }" if global.config.debug.widget
       if @_sentenced
-        _console.warn "browserInit called for dead #{ @ctx.id }"
+        _console.warn "browserInit called for dead #{ @ctx.id } #{ @getPath() }"
         return @_widgetReadyPromise
 
       if not @_browserInitialized and not @_delayedRender
@@ -1359,15 +1359,24 @@ define [
             @childById[widgetId].setSubscribedPushBinding(bindingMap)
 
           @_widgetReadyPromise.when(@constructor._cssPromise)
+
+          childWidgetReadyPromise = new Future
+          childWidgetReadyPromise.fork()
+
           for childWidget in @children
             # we should not wait for readiness of the child widget if it is going to render later (with timeout-stub)
             @_widgetReadyPromise.when(childWidget.ready()) if not childWidget._delayedRender
+            childWidgetReadyPromise.when(childWidget.ready()) if not childWidget._delayedRender
             if not childWidget.behaviour?
               childWidget.browserInit(stopPropagateWidget, $domRoot)
 
+          childWidgetReadyPromise.resolve()
+
+          selfInitBehaviout = false
           @initBehaviour($domRoot).done =>
             @ctx.replayStashedEvents()
             @_widgetReadyPromise.resolve()
+            selfInitBehaviout = true
 
           @_widgetReadyPromise.done =>
             @emit 'render.complete'
@@ -1375,8 +1384,9 @@ define [
           # This code is for debugging puroses: it clarifies if there are some bad situations
           # when widget doesn't become ready at all even after 5 seconds. Likely that points to some errors in logic.
           savedPromiseForTimeoutCheck = @_widgetReadyPromise
+          savedConstructorCssPromise = @constructor._cssPromise
           setTimeout =>
-            _console.error "#{ @debug 'incompleteBrowserInit!' }" if not savedPromiseForTimeoutCheck.completed()
+            _console.error "#{ @debug 'incompleteBrowserInit!' } css:#{ savedConstructorCssPromise.completed() } child:#{ childWidgetReadyPromise.completed() } selfInit:#{ selfInitBehaviout }" if not savedPromiseForTimeoutCheck.completed()
           , 5000
 #      else
 #        _console.warn "#{ @debug 'browserInit::duplicate!!' }" if not @_delayedRender
