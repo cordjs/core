@@ -17,8 +17,7 @@ exports.services = services =
 
 # Defaulting to standard console.
 # Using javascript here to change global variable.
-`_console = console`
-
+global._console = console
 
 exports.init = (baseUrl = 'public', configName = 'default', serverPort) ->
   requirejs.config
@@ -36,7 +35,7 @@ exports.init = (baseUrl = 'public', configName = 'default', serverPort) ->
     'cord!router/serverSideRouter'
     'cord!utils/Future'
     'underscore'
-  ], (pathUtils, AppConfigLoader, _console, Rest, xdrProxy, statCollector, router, Future, _) ->
+  ], (pathUtils, AppConfigLoader, Console, Rest, xdrProxy, statCollector, router, Future, _) ->
     pathUtils.setPublicPrefix(baseUrl)
 
     router.EventEmitter = EventEmitter
@@ -73,7 +72,7 @@ exports.init = (baseUrl = 'public', configName = 'default', serverPort) ->
     global.config = services.config.node
 
     # Using javascript here to change global variable.
-    `_console = _console`
+    global._console = Console
 
     Rest.host = global.config.server.host
     Rest.port = global.config.server.port

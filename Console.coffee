@@ -14,6 +14,19 @@ define [
 
       return @config
 
+
+    @stringify: (args) ->
+      result = ''
+
+      for arg in args
+        if arg instanceof Object
+          result += JSON.stringify(arg) + ', '
+        else
+          result += arg + ', '
+
+      return result
+
+
     @log: ->
       config = @getConfig()
 
@@ -27,26 +40,24 @@ define [
 
       console.warn.apply console, arguments if config?.console.warn or not config
 
-      message = ''
-      for arg in arguments
-        message += arg + '. '
-
+      message = Console.stringify args
       postal.publish 'logger.log.publish', { tags: ['warning'], params: {warning: message} }
 
       return
 
 
     @error: ->
+      Console.taggedError ['error'], arguments
+
+
+    @taggedError: (tags, args...) ->
       config = @getConfig()
 
       console.error.apply console, arguments if config?.console.error or not config
 
-      message = ''
-      for arg in arguments
-        message += arg + '. '
-
+      message = Console.stringify args
       postal.publish 'error.notify.publish', { message: 'Произошла ошибка', link: '', details: message }
-      postal.publish 'logger.log.publish', { tags: ['error'], params: {error: message} }
+      postal.publish 'logger.log.publish', { tags: tags, params: {error: message} }
 
       return
 
