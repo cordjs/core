@@ -1372,11 +1372,11 @@ define [
 
           childWidgetReadyPromise.resolve()
 
-          selfInitBehaviout = false
+          selfInitBehaviour = false
           @initBehaviour($domRoot).done =>
             @ctx.replayStashedEvents()
             @_widgetReadyPromise.resolve()
-            selfInitBehaviout = true
+            selfInitBehaviour = true
 
           @_widgetReadyPromise.done =>
             @emit 'render.complete'
@@ -1386,7 +1386,7 @@ define [
           savedPromiseForTimeoutCheck = @_widgetReadyPromise
           savedConstructorCssPromise = @constructor._cssPromise
           setTimeout =>
-            _console.error "#{ @debug 'incompleteBrowserInit!' } css:#{ savedConstructorCssPromise.completed() } child:#{ childWidgetReadyPromise.completed() } selfInit:#{ selfInitBehaviout }" if not savedPromiseForTimeoutCheck.completed()
+            _console.error "#{ @debug 'incompleteBrowserInit!' } css:#{ savedConstructorCssPromise.completed() } child:#{ childWidgetReadyPromise.completed() } selfInit:#{ selfInitBehaviour }" if not savedPromiseForTimeoutCheck.completed()
           , 5000
 #      else
 #        _console.warn "#{ @debug 'browserInit::duplicate!!' }" if not @_delayedRender
