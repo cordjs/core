@@ -62,6 +62,8 @@ define [
 
     _subscribeOnAnyChild: null
 
+    _stashedChildEvents: []
+
     _placeholdersClasses: {}
 
     # promise to load widget completely (with all styles and behaviours, including children)
@@ -1178,6 +1180,7 @@ define [
       @childById[child.ctx.id] = child
       @childByName[name] = child if name?
       @widgetRepo.registerParent child, this
+      @bindChildStashedEvents child, name
 
 
     unbindChild: (child) ->
@@ -1266,7 +1269,11 @@ define [
         if @childByName[childName]?
           @childByName[childName].on(topic, callback).withContext(this)
         else
-          throw new Error("Trying to subscribe for event '#{ topic }' of unexistent child with name '#{ childName }'")
+          if childName?
+            @_stashedChildEvents[childName] = {} if @_stashedChildEvents[childName] == undefined
+            @_stashedChildEvents[childName][topic] = callback
+          else
+            throw new Error("Trying to subscribe for event '#{ topic }' of unexistent child with name '#{ childName }'")
 
 
     bindChildEvents: ->
@@ -1280,6 +1287,17 @@ define [
           childName = eventDef[0]
           topic = eventDef[1]
           @bindChildEvent childName, topic, callback
+
+
+    bindChildStashedEvents: (child, name) ->
+      ###
+      Bind specific stashed events for child
+      ###
+      if name? and @_stashedChildEvents[name]
+        for childTopic, childCallback of @_stashedChildEvents[name]
+          child.on(childTopic, childCallback).withContext(this)
+
+        delete @_stashedChildEvents[name]
 
 
     initBehaviour: ($domRoot) ->
@@ -1327,9 +1345,11 @@ define [
 
       @widgetRepo.createWidget type, @getBundle(), (child) =>
         @registerChild(child, name)
+
         if @_subscribeOnAnyChild
           for option in @_subscribeOnAnyChild
             child.on(option.topic, option.callback).withContext(this)
+
         callback(child)
 
 
@@ -1437,13 +1457,16 @@ define [
     markRenderStarted: ->
       @_renderInProgress = true
 
+
     markRenderFinished: ->
       @_renderInProgress = false
       if @_childWidgetCounter == 0
         postal.publish "widget.#{ @ctx.id }.render.children.complete", {}
 
+
     childWidgetAdd: ->
       @_childWidgetCounter++
+
 
     childWidgetComplete: ->
       @_childWidgetCounter--
