@@ -1207,7 +1207,7 @@ define [
       Returns serialized link (address) of this collection
       @return String
       ###
-      ":collection:#{ @repo.constructor.name }:#{ @name }"
+      ":collection:#{ @repo.constructor.__name }:#{ @name }"
 
 
     @isSerializedLink: (serialized) ->
@@ -1247,4 +1247,4 @@ define [
       @return String
       ###
       methodStr = if method? then "::#{ method }" else ''
-      "(#{ (new Date).getTime() }) #{ @repo.constructor.name }::#{ @constructor.name }#{ methodStr }"
+      "(#{ (new Date).getTime() }) #{ @repo.constructor.__name }::#{ @constructor.name }#{ methodStr }"
