@@ -309,7 +309,7 @@ define [
       futures = (@bind(id) for id in @_widgetOrder.reverse())
       if false
         Future.sequence(futures).done =>
-          Future.require('jquery', 'cord!css/browserManager').zip(Future.timeout(3000)).done ($, cssManager) =>
+          Future.require('jquery', 'cord!css/browserManager').zip(Future.timeout(3000)).done ([$, cssManager]) =>
             keys = Object.keys(require.s.contexts._.defined)
             re = /^cord(-\w)?!/
             keys = _.filter keys, (name) ->
