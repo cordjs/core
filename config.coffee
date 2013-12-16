@@ -29,6 +29,14 @@ define [], () ->
           dateUtils = new DateUtils(this)
           done null, dateUtils
 
+    modelProxy:
+      deps: ['container']
+      factory: (get, done) ->
+        require ['cord!/cord/core/ModelProxy'], (ModelProxy) =>
+          modelProxy = new ModelProxy
+          get('container').injectServices(modelProxy).done ->
+            done null, modelProxy
+
     ':server':
       request: (get, done) ->
         require ['cord!/cord/core/request/ServerRequest'], (Request) =>

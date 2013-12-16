@@ -24,7 +24,7 @@ define [
     Initializes cordsjs core on browser-side
     ###
     serviceContainer = new ServiceContainer
-    serviceContainer.set 'container', serviceContainer
+    serviceContainer.def 'container', -> serviceContainer
 
     window._console = _console
 

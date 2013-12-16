@@ -154,7 +154,16 @@ define [
     toJSON: ->
       result = {}
       for key in @_fieldNames
-        result[key] = @[key]
+        value = @[key]
+        result[key] = value
+
+        if value instanceof Collection
+          result[key] = value.serializeLink()
+        else if value instanceof Model
+          result[key] = value.serializeLink()
+        else if _.isArray(value) and value[0] instanceof Model
+          result[key] = (m.serializeLink() for m in value)
+
       result.id = @id
       result
 

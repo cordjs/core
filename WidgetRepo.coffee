@@ -207,9 +207,13 @@ define [
             requirejs(['cord!utils/Future'], function(Future) {
               p = new Future('WidgetRepo::templateCode');
               #{ @getModelsInitCode() }
-              p.done(function() {
-                #{ @rootWidget.getInitCode() }
-                wi.endInit();
+              wi.getServiceContainer().eval('modelProxy', function(modelProxy) {
+                p.done(function() {
+                  modelProxy.restoreLinks().done(function() {
+                    #{ @rootWidget.getInitCode() }
+                    wi.endInit();
+                  });
+                });
               });
             });
           };

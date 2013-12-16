@@ -196,6 +196,8 @@ define [
           result[key] = value.serializeLink()
         else if value instanceof Model
           result[key] = value.serializeLink()
+        else if _.isArray(value) and value[0] instanceof Model
+          result[key] = (m.serializeLink() for m in value)
         else if key != ':internal'
           result[key] = value
       result
@@ -215,6 +217,13 @@ define [
             Model.unserializeLink value, ioc, (model) ->
               obj[key] = model
               promise.resolve()
+          else if _.isArray(value) and Model.isSerializedLink(value[0])
+            obj[key] = []
+            for link in value
+              promise.fork()
+              Model.unserializeLink link, ioc, (model) ->
+                obj[key].push(model)
+                promise.resolve()
           else
             obj[key] = value
 

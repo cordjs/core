@@ -28,7 +28,7 @@ define [
     # @var Object[String -> String]
     actions: null
 
-    @inject: []
+    @inject: ['modelProxy']
 
 
     constructor: (@container) ->
@@ -602,6 +602,16 @@ define [
       @return Model
       ###
       result = new @model(attrs)
+
+      if @modelProxy
+        for key, value of attrs
+          if Collection.isSerializedLink(value)
+            @modelProxy.addCollectionLink result, key
+          else if Model.isSerializedLink(value)
+            @modelProxy.addModelLink result, key
+          else if _.isArray(value) and Model.isSerializedLink(value[0])
+            @modelProxy.addArrayLink result, key
+
       @_injectActionMethods(result) if attrs?.id
       result
 
