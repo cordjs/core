@@ -14,17 +14,14 @@ define [
 
 
     addModelLink: (object, field) ->
-      console.log 'addModelLink: (object, field) ->', object, field
       @_modelLinks.push object: object, field: field
 
 
     addCollectionLink: (object, field) ->
-      console.log 'addCollectionLink: (object, field) ->', object, field
       @_collectionLinks.push object: object, field: field
 
 
     addArrayLink: (object, field) ->
-      console.log 'addArrayLink: (object, field) ->', object, field
       @_arrayLinks.push object: object, field: field
 
 
