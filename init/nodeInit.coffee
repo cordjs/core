@@ -21,7 +21,7 @@ global._console = console
 
 exports.init = (baseUrl = 'public', configName = 'default', serverPort) ->
   requirejs.config
-    paths: require('./requirejs/pathConfig')
+    paths: require('../requirejs/pathConfig')
     baseUrl: baseUrl
     nodeRequire: require
 
