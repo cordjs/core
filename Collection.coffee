@@ -16,6 +16,8 @@ define [
   class Collection extends Module
     @include Monologue.prototype
 
+    @__name: 'Collection' # obfuscation support
+
     _filterType: ':none' # :none | :local | :backend
     _filterId: null
     _filterParams: null # params for filter
@@ -71,7 +73,7 @@ define [
       else
         requestOptions = '';
 
-      clazz = if options.collectionClass? then options.collectionClass.name else ''
+      clazz = if options.collectionClass? then options.collectionClass.__name else ''
       fields = options.fields ? []
       calc = options.calc ? []
       id = options.id ? 0
@@ -1247,4 +1249,4 @@ define [
       @return String
       ###
       methodStr = if method? then "::#{ method }" else ''
-      "(#{ (new Date).getTime() }) #{ @repo.constructor.__name }::#{ @constructor.name }#{ methodStr }"
+      "(#{ (new Date).getTime() }) #{ @repo.constructor.__name }::#{ @constructor.__name }#{ methodStr }"
