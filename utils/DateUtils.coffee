@@ -93,11 +93,11 @@ define [
             return date.getDate() + ' ' + @monthFormat(date.getMonth()) + ' ' + date.getFullYear()
 
 
-    dateDiffInDays: (date) ->
-      today = new Date()
-      date = new Date date
+    dateDiffInDays: (date1, date2 = new Date()) ->
+      date1 = new Date date1
+      date2 = new Date date2
 
-      seconds = ( date - today ) / 1000
+      seconds = ( date1 - date2 ) / 1000
       seconds / ( 60 * 60 * 24 )
 
 
