@@ -24,7 +24,6 @@ define [
     _filterFunction: null
 
     _orderBy: null
-
     _fields: null
 
     # correctly ordered list of models of the collection
@@ -45,7 +44,7 @@ define [
     _loadedEnd: -1
 
     _hasLimits: null
-
+    _requestParams: null
     _queryQueue: null
 
     # helper value for event propagation optimization
@@ -462,13 +461,15 @@ define [
         result =
           id: @_id
           fields: @_fields
-          requestParams: @_reqiestParams
+          requestParams: @_requestParams
+          accessPoint: @_accessPoint
       else
         result =
           orderBy: @_orderBy
           fields: @_fields
           filter: @_filter
-          requestParams: @_reqiestParams
+          requestParams: @_requestParams
+          accessPoint: @_accessPoint
         if @_filterType == ':backend'
           result.filterId = @_filterId
           result.filterParams = @_filterParams
@@ -1181,6 +1182,7 @@ define [
       pageSize: @_pageSize
       canonicalPath: @constructor.path ? null
       initialized: @_initialized
+      _accessPoint: @_accessPoint
 
 
     @fromJSON: (repo, name, obj) ->
@@ -1205,6 +1207,7 @@ define [
       collection._filter = obj.filter
       collection._requestParams = obj._requestParams
       collection._pageSize = obj.pageSize
+      collection._accessPoint = obj._accessPoint
 
       collection._reindexModels()
       collection._initialized = obj.initialized || (collection._models.length > 0)
