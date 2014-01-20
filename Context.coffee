@@ -87,10 +87,10 @@ define [
             # null needs special check because null == null in javascript isn't true
             triggerChange = (newValue != null)
           else
-            if _.isObject(oldValue) and _.isObject(newValue)
-              triggerChange = not _.isEqual(newValue, oldValue)
-            else
-              triggerChange = (newValue != oldValue)
+#            if _.isObject(oldValue) and _.isObject(newValue)
+#              triggerChange = not _.isEqual(newValue, oldValue)
+#            else
+            triggerChange = (newValue != oldValue)
       else
         triggerChange = false
 
