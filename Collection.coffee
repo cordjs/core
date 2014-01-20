@@ -51,6 +51,9 @@ define [
     # helper value for event propagation optimization
     _selfEmittedChangeModelId: null
 
+    # custom rest access point
+    _accessPoint: null
+
     @generateName: (options) ->
       ###
       Generates and returns unique "checksum" name of a collection depending only of the given options.
@@ -58,6 +61,7 @@ define [
       @param Object options same options, that will be passed to the collection constructor
       @return String
       ###
+      accessPoint = options.accessPoint ? ''
       orderBy = options.orderBy ? ''
       filterId = options.filterId ? ''
       filterParams = options.filterParams ? ''
@@ -84,6 +88,7 @@ define [
       [
         collectionVersion
         clazz
+        accessPoint
         fields.sort().join(',')
         calc.sort().join(',')
         filterId
@@ -135,6 +140,8 @@ define [
         loadingStart: @_loadedStart
         loadingEnd: @_loadedEnd
         list: []
+
+      @_accessPoint = options.accessPoint ? null
 
       # subscribe for model changes to smart-proxy them to the collections model instances
       @repo.on('change', @_handleModelChange).withContext(this)
@@ -1024,6 +1031,7 @@ define [
             queryParams.end = end  if end?
 
           queryParams.requestParams = @_requestParams if @_requestParams
+          queryParams.accessPoint = @_accessPoint if @_accessPoint
 
           @repo.query(queryParams).done (models) =>
             # invalidating cached totalCount
