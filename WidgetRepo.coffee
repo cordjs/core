@@ -69,30 +69,18 @@ define [
       @response
 
 
-    createWidget: ->
+    createWidget: (path, contextBundle) ->
       ###
       Main widget factory.
       All widgets should be created through this call.
 
       @param String path canonical path of the widget
       @param (optional)String contextBundle calling context bundle to expand relative widget paths
-      @param Callback(Widget) callback callback in which resulting widget will be passed as argument
+      @return Future[Widget]
       ###
-
-      # normalizing arguments
-      path = arguments[0]
-      if _.isFunction arguments[1]
-        callback = arguments[1]
-        contextBundle = null
-      else if _.isFunction arguments[2]
-        callback = arguments[2]
-        contextBundle = arguments[1]
-      else
-        throw "Callback should be passed to the widget factory!"
-
       bundleSpec = if contextBundle then "@#{ contextBundle }" else ''
 
-      require ["cord-w!#{ path }#{ bundleSpec }"], (WidgetClass) =>
+      Future.require("cord-w!#{ path }#{ bundleSpec }").flatMap (WidgetClass) =>
         widget = new WidgetClass
           repo: this
           serviceContainer: @serviceContainer
@@ -103,7 +91,7 @@ define [
         @widgets[widget.ctx.id] =
           widget: widget
 
-        @serviceContainer.injectServices(widget).done -> callback(widget)
+        @serviceContainer.injectServices(widget).map -> widget
 
 
     dropWidget: (id) ->
@@ -430,7 +418,7 @@ define [
         # if the new root widget doesn't exists in the current page structure, than we need to create it,
         # inject to the top of the page structure and recursively find the common widget from the extend list
         # down to the base widget (containing <html> tag)
-        @createWidget newRootWidgetPath, (widget) =>
+        @createWidget(newRootWidgetPath).done (widget) =>
           @setRootWidget widget
           widget.injectAction params, transition, (commonBaseWidget) =>
             @dropWidget _oldRootWidget.ctx.id if _oldRootWidget && commonBaseWidget != _oldRootWidget

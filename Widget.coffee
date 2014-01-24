@@ -466,7 +466,7 @@ define [
                   else
                     throw new Error("Invalid param rule type: '#{ rule.type }'")
           else if specialParams.indexOf(name) == -1
-            throw "Widget #{ @getPath() } is not accepting param with name #{ name }!"
+            throw new Error("Widget #{ @getPath() } is not accepting param with name #{ name }!")
       else
         for key in params
           _console.warn "#{ @debug() } doesn't accept any params, '#{ key }' given!"
@@ -515,8 +515,8 @@ define [
 
     cleanChildren: ->
       if @children.length
-        if @_structTemplate? and @_structTemplate != ':empty'
-          @_structTemplate.unassignWidget widget for widget in @children
+        if @_structTemplate? and not @_structTemplate.isEmpty()
+          @_structTemplate.unassignWidget(widget) for widget in @children
         widget.drop() for widget in @children
         @resetChildren()
 
@@ -549,7 +549,7 @@ define [
           if struct.widgets? and Object.keys(struct.widgets).length > 1
             @_structTemplate = new StructureTemplate(struct, this)
           else
-            @_structTemplate = ':empty'
+            @_structTemplate = StructureTemplate.emptyTemplate()
           @_structTemplate
 
 
@@ -584,7 +584,7 @@ define [
       @_behaviourContextBorderVersion = null
       @_placeholdersRenderInfo = []
 
-      extendWidgetInfo = if tmpl != ':empty' then tmpl.struct.extend else null
+      extendWidgetInfo = if not tmpl.isEmpty() then tmpl.struct.extend else null
       if extendWidgetInfo?
         extendWidget = @widgetRepo.findAndCutMatchingExtendWidget(tmpl.struct.widgets[extendWidgetInfo.widget].path)
         if extendWidget?
@@ -622,7 +622,7 @@ define [
 
         # if not extendsWidget? (if it's a new widget in extend tree)
         else
-          tmpl.getWidget extendWidgetInfo.widget, (extendWidget) =>
+          tmpl.getWidget(extendWidgetInfo.widget).done (extendWidget) =>
             @registerChild extendWidget
             @resolveParamRefs extendWidget, extendWidgetInfo.params, (params) =>
               extendWidget.injectAction params, transition, (args...) =>
@@ -662,7 +662,7 @@ define [
       @_placeholdersRenderInfo = []
 
       @getStructTemplate().flatMap (tmpl) =>
-        if tmpl != ':empty' and tmpl.struct.extend?
+        if tmpl.isExtended()
           @_renderExtendedTemplate(tmpl, domInfo)
         else
           @_renderSelfTemplate(domInfo)
@@ -755,7 +755,7 @@ define [
       result = Future.single('Widget::_renderExtendedTemplate')
       extendWidgetInfo = tmpl.struct.extend
 
-      tmpl.getWidget extendWidgetInfo.widget, (extendWidget) =>
+      tmpl.getWidget(extendWidgetInfo.widget).done (extendWidget) =>
         extendWidget._isExtended = true if @_isExtended
         @registerChild extendWidget, extendWidgetInfo.name
         @resolveParamRefs extendWidget, extendWidgetInfo.params, (params) ->
@@ -1338,7 +1338,7 @@ define [
         callback = name
         name = null
 
-      @widgetRepo.createWidget type, @getBundle(), (child) =>
+      @widgetRepo.createWidget(type, @getBundle()).done (child) =>
         @registerChild(child, name)
 
         if @_subscribeOnAnyChild
@@ -1354,6 +1354,7 @@ define [
       @browser-only
       @param (optional)Widget stopPropageteWidget widget for which method should stop pass browserInit to child widgets
       @param (optional)jQuery domRoot injected DOM root for the widget or it's children
+      @return Future()
       ###
       _console.log "#{ @debug 'browserInit' }" if global.config.debug.widget
       if @_sentenced
@@ -1504,19 +1505,18 @@ define [
           ###
           @childWidgetAdd()
           chunk.map (chunk) =>
-            callbackRender = (widget) =>
+            @getStructTemplate().flatMap (tmpl) =>
+              if tmpl.isEmpty()
+                @widgetRepo.createWidget(params.type, @getBundle())
+              else
+                tmpl.getWidgetByName(params.name)
+            .done (widget) =>
               @registerChild widget, params.name
               @resolveParamRefs widget, params, (resolvedParams) =>
                 widget.setModifierClass(params.class)
                 widget.show(resolvedParams, @_domInfo).failAloud().done (out) =>
                   @childWidgetComplete()
                   chunk.end widget.renderRootTag(out)
-
-            if bodies.block?
-              @getStructTemplate().done (tmpl) ->
-                tmpl.getWidgetByName params.name, callbackRender
-            else
-              @widgetRepo.createWidget params.type, @getBundle(), callbackRender
 
 
         deferred: (chunk, context, bodies, params) =>
