@@ -97,8 +97,9 @@ define [
       api.get Url, Params, @getCallback (result) =>
         @ctx.set 'apiResult', result
       ###
+      that = this
       makeSafeCallback = (callback) ->
-        result = -> callback.apply(this, arguments) if not result.cleared
+        result = -> callback.apply(null, arguments) if not result.cleared and not that.widget.isSentenced()
         result.cleared = false
         result
 
