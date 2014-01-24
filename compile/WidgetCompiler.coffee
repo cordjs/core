@@ -81,7 +81,7 @@ define [
         tmplFuture.zip(structFuture)
 
 
-    registerWidget: (widget, name) ->
+    registerWidget: (widget, name, timeout, timeoutTemplateName) ->
       if not @_widgets[widget.ctx.id]?
         wdt =
           uid: widget.ctx.id
@@ -90,6 +90,9 @@ define [
         if name?
           wdt.name = name
           @_widgetsByName[name] = wdt.uid
+        if timeout?
+          wdt.timeout = parseInt(timeout)
+          wdt.timeoutTemplate = timeoutTemplateName if timeoutTemplateName?
         @_widgets[widget.ctx.id] = wdt
       @_widgets[widget.ctx.id]
 
@@ -289,28 +292,30 @@ define [
             require ["cord-w!#{ params.type }@#{ @widget.getBundle() }"], (WidgetClass) =>
               widget = new WidgetClass(compileMode: true)
 
-              timeoutTemplateFuture = Future.resolved()
+              if bodies.timeout? and params.timeout? and params.timeout >= 0
+                timeoutTemplateName = "__timeout_#{ @_timeoutBlockCounter++ }.html"
+                tmplPath = "#{ @widget.getDir() }/#{ timeoutTemplateName }"
+                timeoutTemplateFuture = @_saveBodyTemplate(bodies.timeout, @compiledSource, tmplPath)
+              else
+                timeoutTemplateFuture = Future.resolved()
+                timeoutTemplateName = null
+
 
               if context.surroundingWidget?
                 ph = params.placeholder ? 'default'
                 sw = context.surroundingWidget
 
-                timeoutTemplateName = null
-                if bodies.timeout?
-                  timeoutTemplateName = "__timeout_#{ @_timeoutBlockCounter++ }.html"
-                  tmplPath = "#{ @widget.getDir() }/#{ timeoutTemplateName }"
-                  timeoutTemplateFuture = @_saveBodyTemplate(bodies.timeout, @compiledSource, tmplPath)
-
                 @addPlaceholderContent sw, ph, widget, params, timeoutTemplateName
 
-              else if bodies.block? && not emptyBodyRe.test(bodies.block.toString())
-                if not params.name? or params.name == ''
-                  throw "Name must be explicitly defined for the inline-widget with body placeholders " +
-                    "(#{ @constructor.name } -> #{ widget.constructor.name })!"
-                @registerWidget widget, params.name
+              else if (bodies.block? && not emptyBodyRe.test(bodies.block.toString())) or
+                      (bodies.timeout? and params.timeout? and params.timeout >= 0)
+                if not params.name? or params.name.trim() == ''
+                  throw new Error(
+                    'Name must be explicitly defined for the inline-widget with body placeholders or timeout block ' +
+                    "(#{ @widget.constructor.name } -> #{ widget.constructor.name })!"
+                  )
+                @registerWidget widget, params.name.trim(), params.timeout, timeoutTemplateName
 
-              else
-                # ???
 
               if bodies.block? && not emptyBodyRe.test(bodies.block.toString())
                 ctx = @getBaseContext().push(@widget.ctx)
