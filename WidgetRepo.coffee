@@ -135,16 +135,17 @@ define [
       promise = new Future('WidgetRepo::_unserializeModelBindings')
       result = {}
       for key, value of serializedBindings
-        if Collection.isSerializedLink(value)
-          promise.fork()
-          Collection.unserializeLink value, @serviceContainer, (collection) ->
-            result[key] = model: collection
-            promise.resolve()
-        else if Model.isSerializedLink(value)
-          promise.fork()
-          Model.unserializeLink value, @serviceContainer, (model) ->
-            result[key] = model: model
-            promise.resolve()
+        do (key) =>
+          if Collection.isSerializedLink(value)
+            promise.fork()
+            Collection.unserializeLink value, @serviceContainer, (collection) ->
+              result[key] = model: collection
+              promise.resolve()
+          else if Model.isSerializedLink(value)
+            promise.fork()
+            Model.unserializeLink value, @serviceContainer, (model) ->
+              result[key] = model: model
+              promise.resolve()
 
       promise.done ->
         callback(result)
