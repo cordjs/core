@@ -352,7 +352,7 @@ define [
       result
 
 
-    mapFail: (callback) ->
+    recover: (callback) ->
       ###
       Returns new future which completes with the result of this future if it's successful or with the result
        of the given callback if this future is failed. Error of the fail result is passed to the callback.
@@ -360,7 +360,7 @@ define [
       @param Function(err -> A) callback
       @return Future[A]
       ###
-      result = Future.single('Future::mapFail')
+      result = Future.single('Future::recover')
       @done (args...) -> result.resolve.apply(result, args)
       @fail (err) ->
         mapRes = callback.call(null, err)
@@ -370,8 +370,15 @@ define [
           result.resolve(mapRes)
       result
 
+    mapFail: (callback) ->
+      ###
+      Old alias for `recover`
+      @deprecated
+      ###
+      @recover(callback)
 
-    flatMapFail: (callback) ->
+
+    recoverWith: (callback) ->
       ###
       Returns new future which completes with the result of this future if it's successful or with the future-result
        of the given callback if this future is failed. Error of the fail result is passed to the callback.
@@ -380,10 +387,17 @@ define [
       @param Function(err -> Future(A)) callback
       @return Future[A]
       ###
-      result = Future.single('Future::flatMapFail')
+      result = Future.single('Future::recoverWith')
       @done (args...) -> result.resolve.apply(result, args)
       @fail (err)     -> result.when(callback.call(null, err))
       result
+
+    flatMapFail: (callback) ->
+      ###
+      Old alias for `recoverWith`
+      @deprecated
+      ###
+      @recoverWith(callback)
 
 
     zip: (those...) ->
