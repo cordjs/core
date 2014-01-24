@@ -490,7 +490,7 @@ define [
       @final
       @return Future(String)
       ###
-      result = Future.single('Widget::show')
+      result = Future.single("#{ @debug('show') }")
       @setParams params, =>
         _console.log "#{ @debug 'show' } -> params:", params, " context:", @ctx if global.config.debug.widget
         @_handleOnShow =>
@@ -752,7 +752,7 @@ define [
       @param DomInfo domInfo DOM creating and inserting promise container
       @return Future(String)
       ###
-      result = Future.single('Widget::_renderExtendedTemplate')
+      result = Future.single("#{ @debug('_renderExtendedTemplate') }")
       extendWidgetInfo = tmpl.struct.extend
 
       tmpl.getWidget(extendWidgetInfo.widget).done (extendWidget) =>
@@ -872,7 +872,7 @@ define [
       ###
       placeholderOut = []
       renderInfo = []
-      promise = new Future('Widget::_renderPlaceholder')
+      promise = new Future("#{ @debug('_renderPlaceholder') }")
 
       i = 0
       placeholderOrder = {}
@@ -1506,11 +1506,12 @@ define [
           @childWidgetAdd()
           chunk.map (chunk) =>
             @getStructTemplate().flatMap (tmpl) =>
-              if tmpl.isEmpty()
+              if tmpl.isEmpty() or not params.name
                 @widgetRepo.createWidget(params.type, @getBundle())
-              else
-                tmpl.getWidgetByName(params.name)
-            .done (widget) =>
+              else if params.name?
+                tmpl.getWidgetByName(params.name.trim()).recoverWith =>
+                  @widgetRepo.createWidget(params.type, @getBundle())
+            .failAloud().done (widget) =>
               @registerChild widget, params.name
               @resolveParamRefs widget, params, (resolvedParams) =>
                 widget.setModifierClass(params.class)
