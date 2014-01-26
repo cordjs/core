@@ -157,11 +157,10 @@ define [
        browser.
       @browser-only
       ###
-      @_cssPromise = new Future(0, '_cssPromise')
+      @_cssPromise = new Future(0, "#{@__name}::_cssPromise")
       if not restoreMode
         @_cssPromise.fork()
         require ['cord!css/browserManager'], (cssManager) =>
-          #cssManager.load cssFile for cssFile in @getCssFiles()
           @_cssPromise.when(cssManager.load(cssFile)) for cssFile in @::getCssFiles()
           @_cssPromise.resolve()
 
@@ -188,7 +187,7 @@ define [
       if @params? or @initialCtx? # may be initialCtx is not necessary here
         @_initParamRules()
       @_initCss(restoreMode) if isBrowser
-      @_initialized = true
+      @_initialized = @__name
 
 
     constructor: (params) ->
@@ -207,7 +206,7 @@ define [
       @param (optional)Object params custom params, accepted by widget
       ###
 
-      @constructor._init(params.restoreMode) if not @constructor._initialized
+      @constructor._init(params.restoreMode) if @constructor._initialized != @constructor.__name
 
       @_modelBindings = {}
       @_subscibedPushBindings = {}
@@ -219,7 +218,7 @@ define [
             @ctx = params.context
           else
             @ctx = new Context(params.context)
-            @ctx.owner(@)
+            @ctx.owner(this)
         @setRepo params.repo if params.repo?
         @setServiceContainer params.serviceContainer if params.serviceContainer?
         compileMode = params.compileMode if params.compileMode?
