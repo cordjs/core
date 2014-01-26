@@ -70,6 +70,13 @@ define [
         ))
 
 
+    getWidgetInfoByName: (name) ->
+      if @struct? and @struct.widgetsByName[name]? and @struct.widgets[@struct.widgetsByName[name]]?
+        @struct.widgets[@struct.widgetsByName[name]]
+      else
+        null
+
+
     resolvePlaceholders: (targetWidget, newPlaceholders, callback) ->
       waitCounter = 0
       waitCounterFinish = false

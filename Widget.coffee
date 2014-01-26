@@ -697,6 +697,7 @@ define [
       delete params.type
       delete params.class
       delete params.name
+      delete params.timeout
 
       waitCounter = 0
       waitCounterFinish = false
@@ -1505,19 +1506,71 @@ define [
           ###
           @childWidgetAdd()
           chunk.map (chunk) =>
+            normalizedName = if params.name then params.name.trim() else undefined
+            normalizedName = undefined if not normalizedName
+
+            normalizedTimeout = if params.timeout? then parseInt(params.timeout) else -1
+
             @getStructTemplate().flatMap (tmpl) =>
-              if tmpl.isEmpty() or not params.name
+              (if tmpl.isEmpty() or not normalizedName
                 @widgetRepo.createWidget(params.type, @getBundle())
-              else if params.name?
-                tmpl.getWidgetByName(params.name.trim()).recoverWith =>
+              else if normalizedName
+                tmpl.getWidgetByName(normalizedName).map (widget) ->
+                  [widget, tmpl.getWidgetInfoByName(normalizedName).timeoutTemplate]
+                .recoverWith =>
                   @widgetRepo.createWidget(params.type, @getBundle())
-            .failAloud().done (widget) =>
-              @registerChild widget, params.name
+              ).map (widget, timeoutTemplate) ->
+                [widget, { timeout: normalizedTimeout, template: timeoutTemplate }]
+            .failAloud().done (widget, timeoutInfo) =>
+              timeout = if timeoutInfo.timeout? then timeoutInfo.timeout else -1
+              timeoutTemplate = if timeoutInfo.timeoutTemplate
+                timeoutInfo.timeoutTemplate
+              else
+                undefined
+
+              renderTimeoutTemplate = =>
+                tmplPath = "#{ @getDir() }/#{ timeoutTemplate }"
+                templateLoader.loadToDust(tmplPath).flatMap =>
+                  Future.call(dust.render, tmplPath, @getBaseContext().push(@ctx))
+
+              processTimeoutStub = ->
+                widget._delayedRender = true
+                if timeoutTemplate?
+                  renderTimeoutTemplate()
+                else
+                  Future.resolved('<b>Hardcode Stub Text!!</b>')
+
+              replaceTimeoutStub = (out) =>
+                widget._delayedRender = false
+                require ['cord!utils/DomHelper', 'jquery'], (DomHelper, $) =>
+                  $newRoot = $(widget.renderRootTag(out))
+                  widget.browserInit($newRoot).zip(@_domInfo.domRootCreated()).done (any, $contextRoot) =>
+                    DomHelper.replaceNode($('#'+widget.ctx.id, $contextRoot), $newRoot)
+                      .zip(@_domInfo.domInserted()).done ->
+                        widget.markShown()
+
+              complete = false
+
+              @registerChild widget, normalizedName
               @resolveParamRefs widget, params, (resolvedParams) =>
                 widget.setModifierClass(params.class)
                 widget.show(resolvedParams, @_domInfo).failAloud().done (out) =>
-                  @childWidgetComplete()
-                  chunk.end widget.renderRootTag(out)
+                  if not complete
+                    complete = true
+                    @childWidgetComplete()
+                    chunk.end widget.renderRootTag(out)
+                  else
+                    replaceTimeoutStub(out)
+
+              if isBrowser and timeout >= 0
+                setTimeout =>
+                  # if the widget has not been rendered within given timeout, render stub template from the {:timeout} block
+                  if not complete
+                    complete = true
+                    processTimeoutStub().failAloud().done (out) =>
+                      @childWidgetComplete()
+                      chunk.end widget.renderRootTag(out)
+                , timeout
 
 
         deferred: (chunk, context, bodies, params) =>
@@ -1526,7 +1579,7 @@ define [
 
           # there are deferred params, handling block async...
           if needToWait.length > 0
-            promise = new Future('Widget::deferred')
+            promise = new Future(@debug('deferred'))
             for name in needToWait
               do (name) =>
                 promise.fork()
