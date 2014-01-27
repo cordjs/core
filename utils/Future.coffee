@@ -60,7 +60,7 @@ define [
     _incompleteTimeout: null
 
 
-    constructor: (initialCounter = 0, name = '') ->
+    constructor: (initialCounter = 0, name = ':noname:') ->
       ###
       @param (optional)Int initialCounter initial state of counter, syntax sugar to avoid (new Future).fork().fork()
       @param (optional)String name individual name of the future to separate it from others during debugging
@@ -77,7 +77,7 @@ define [
       if @_name
         if global.config?.debug.core
           @_incompleteTimeout = setTimeout =>
-            _console.warn 'Future incompleted', @_name if @state() == 'pending' and @_counter > 0
+            _console.warn "Future timeouted [#{@_name}] (10 seconds)" if @state() == 'pending' and @_counter > 0
           , 10 * 1000
 
 
@@ -100,8 +100,9 @@ define [
       Should be paired with following resolve() call.
       @return Future(self)
       ###
-      throw Error("Trying to use the completed promise!") if @_completed and not (@_state == 'rejected' and @_counter > 0)
-      throw Error("Trying to fork locked promise!") if @_locked
+      if @_completed and not (@_state == 'rejected' and @_counter > 0)
+        throw Error("Trying to use the completed future [#{@_name}]!")
+      throw Error("Trying to fork locked future [#{@_name}]!") if @_locked
       @_counter++
       this
 
@@ -151,8 +152,7 @@ define [
           @_runFailCallbacks() if @_failCallbacks.length > 0
           @_runAlwaysCallbacks() if @_alwaysCallbacks.length > 0
       else
-        nameStr = if @_name then " (name = #{ @_name})" else ''
-        throw new Error("Future::reject is called more times than Future::fork!#{ nameStr }")
+        throw new Error("Future::reject is called more times than Future::fork! [#{@_name}]")
 
       this
 
@@ -214,7 +214,7 @@ define [
       If all waiting values are already resolved then callback is fired immedialtely.
       If fail method is called several times than all passed functions will be called.
       ###
-      throw new Error("Invalid argument for Future.fail(): #{ callback }") if not _.isFunction(callback)
+      throw new Error("Invalid argument for Future.fail(): #{ callback }. [#{@_name}]") if not _.isFunction(callback)
       @_failCallbacks.push(callback)
       @_runFailCallbacks() if @_state == 'rejected'
       this
@@ -295,7 +295,7 @@ define [
        array than callback must return an Array with single item containing the resulting Array (Array in Array).
       If this Future is rejected than the resulting Future will contain the same error.
       ###
-      result = Future.single('Future::map')
+      result = Future.single("#{@_name} -> map")
       @done (args...) ->
         try
           mapRes = callback.apply(null, args)
@@ -322,7 +322,7 @@ define [
       @param Function(this.result -> Future(A)) callback
       @return Future(A)
       ###
-      result = Future.single('Future::flatMap')
+      result = Future.single("#{@_name} -> flatMap")
       @done (args...) ->
         try
           result.when(callback.apply(null, args))
@@ -345,7 +345,7 @@ define [
       @param Function(err, results...) callback
       @return Future(this.result)
       ###
-      result = Future.single('Future::andThen')
+      result = Future.single("#{@_name} -> andThen")
       @always (args...) ->
         callback.apply(null, args)
         result.complete.apply(result, args)
@@ -360,7 +360,7 @@ define [
       @param Function(err -> A) callback
       @return Future[A]
       ###
-      result = Future.single('Future::recover')
+      result = Future.single("#{@_name} -> recover")
       @done (args...) -> result.resolve.apply(result, args)
       @fail (err) ->
         mapRes = callback.call(null, err)
@@ -387,7 +387,7 @@ define [
       @param Function(err -> Future(A)) callback
       @return Future[A]
       ###
-      result = Future.single('Future::recoverWith')
+      result = Future.single("#{@_name} -> recoverWith")
       @done (args...) -> result.resolve.apply(result, args)
       @fail (err)     -> result.when(callback.call(null, err))
       result
@@ -409,14 +409,14 @@ define [
       @return Future
       ###
       those.unshift(this)
-      Future.sequence(those).map (result) -> result
+      Future.sequence(those, "#{@_name} -> zip").map (result) -> result
 
 
-    @sequence: (futureList) ->
+    @sequence: (futureList, name = ':sequence:') ->
       ###
       Converts Array[Future[X]] to Future[Array[X]]
       ###
-      promise = new Future('Future::sequence')
+      promise = new Future(name)
       result = []
       for f, i in futureList
         do (i) ->
@@ -441,7 +441,7 @@ define [
       @param Array[Future[X]] futureList
       @return Future[X]
       ###
-      result = @single()
+      result = @single(':select:')
       ready = false
       failCounter = futureList.length
       for f in futureList
@@ -524,7 +524,7 @@ define [
 
     # syntax-sugar constructors
 
-    @single: (name = '') ->
+    @single: (name = ':single:') ->
       ###
       Returns the future, which can not be forked and must be resolved by only single call of resolve().
       @return Future
@@ -537,7 +537,7 @@ define [
       Returns the future already resolved with the given arguments.
       @return Future
       ###
-      result = @single()
+      result = @single(':resolved:')
       result.resolve.apply(result, args)
       result
 
@@ -548,7 +548,7 @@ define [
       @param Any error
       @return Future
       ###
-      result = @single()
+      result = @single(':rejected:')
       result.reject(error)
       result
 
@@ -570,7 +570,7 @@ define [
       @param Any args* arguments of that function without last callback-result argument.
       @return Future[A]
       ###
-      result = @single()
+      result = @single(":call:(#{fn.name})")
       args.push (callbackArgs...) ->
         result.complete.apply(result, callbackArgs)
       try
@@ -589,7 +589,7 @@ define [
       @param Int millisec number of millis before resolving the future
       @return Future
       ###
-      result = @single()
+      result = @single(":timeout:(#{millisec})")
       setTimeout ->
         result.resolve()
       , millisec
@@ -603,7 +603,7 @@ define [
       @return Future(modules...)
       ###
       paths = paths[0] if paths.length == 1 and _.isArray(paths[0])
-      result = @single()
+      result = @single(':require:')
       require paths, (modules...) ->
         result.resolve.apply(result, modules)
       , (err) ->
