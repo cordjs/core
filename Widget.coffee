@@ -2,6 +2,7 @@ define [
   'cord!Collection'
   'cord!Context'
   'cord!css/helper'
+  'cord!helpers/TimeoutStubHelper'
   'cord!isBrowser'
   'cord!Model'
   'cord!Module'
@@ -15,7 +16,7 @@ define [
   'monologue' + (if document? then '' else '.js')
   'postal'
   'underscore'
-], (Collection, Context, cssHelper, isBrowser, Model, Module, StructureTemplate,
+], (Collection, Context, cssHelper, TimeoutStubHelper, isBrowser, Model, Module, StructureTemplate,
     templateLoader, DomInfo, Future,
     dust, Monologue, postal, _) ->
 
@@ -890,19 +891,6 @@ define [
           timeoutTemplateOwner = info.timeoutTemplateOwner
           delete info.timeoutTemplateOwner
 
-          renderTimeoutTemplate = ->
-            ###
-            Renders timeout template
-            ###
-            tmplPath = "#{ timeoutTemplateOwner.getDir() }/#{ info.timeoutTemplate }"
-
-            templateLoader.loadToDust(tmplPath).failAloud().done ->
-              dust.render tmplPath, timeoutTemplateOwner.getBaseContext().push(timeoutTemplateOwner.ctx), (err, out) ->
-                if err then throw err
-                placeholderOut[placeholderOrder[widgetId]] = widget.renderRootTag(out)
-                renderInfo.push(type: 'timeout-stub', widget: widget)
-                promise.resolve()
-
           processWidget = (out) ->
             ###
             DRY for regular widget result fixing
@@ -913,15 +901,9 @@ define [
             # TODO: may be we can clean placeholders render info here to free some memory
 
           processTimeoutStub = ->
-            ###
-            DRY for timeout stub processing
-            ###
             widget._delayedRender = true
-            if info.timeoutTemplate?
-              renderTimeoutTemplate()
-            else
-              placeholderOut[placeholderOrder[widgetId]] =
-                widget.renderRootTag('<b>Hardcode Stub Text!!</b>')
+            TimeoutStubHelper.getTimeoutHtml(timeoutTemplateOwner, info.timeoutTemplate).failAloud().done (out) ->
+              placeholderOut[placeholderOrder[widgetId]] = widget.renderRootTag(out)
               renderInfo.push(type: 'timeout-stub', widget: widget)
               promise.resolve()
 
@@ -934,11 +916,7 @@ define [
             if not promise.completed()
               processWidget(out)
             else
-              require ['cord!utils/DomHelper', 'jquery'], (DomHelper, $) ->
-                $newRoot = $(widget.renderRootTag(out))
-                widget.browserInit($newRoot).zip(domInfo.domRootCreated()).done (any, $contextRoot) ->
-                  DomHelper.replaceNode($('#'+widgetId, $contextRoot), $newRoot).zip(domInfo.domInserted()).done ->
-                    widget.markShown()
+              TimeoutStubHelper.replaceStub(out, widget, domInfo)
 
 
           if info.type == 'widget'
@@ -1508,49 +1486,24 @@ define [
             normalizedName = if params.name then params.name.trim() else undefined
             normalizedName = undefined if not normalizedName
 
-            normalizedTimeout = if params.timeout? then parseInt(params.timeout) else -1
+            timeout = if params.timeout? then parseInt(params.timeout) else -1
 
             @getStructTemplate().flatMap (tmpl) =>
-              (if tmpl.isEmpty() or not normalizedName
+              # creating widget from the structured template or not depending on it's existence and name
+              # btw getting and pushing futher timeout template name from the structure template if there is one
+              if tmpl.isEmpty() or not normalizedName
                 @widgetRepo.createWidget(params.type, @getBundle())
               else if normalizedName
                 tmpl.getWidgetByName(normalizedName).map (widget) ->
                   [widget, tmpl.getWidgetInfoByName(normalizedName).timeoutTemplate]
                 .recoverWith =>
                   @widgetRepo.createWidget(params.type, @getBundle())
-              ).map (widget, timeoutTemplate) ->
-                [widget, { timeout: normalizedTimeout, template: timeoutTemplate }]
-            .failAloud().done (widget, timeoutInfo) =>
-              timeout = if timeoutInfo.timeout? then timeoutInfo.timeout else -1
-              timeoutTemplate = if timeoutInfo.timeoutTemplate
-                timeoutInfo.timeoutTemplate
-              else
-                undefined
+              # else impossible
 
-              renderTimeoutTemplate = =>
-                tmplPath = "#{ @getDir() }/#{ timeoutTemplate }"
-                templateLoader.loadToDust(tmplPath).flatMap =>
-                  Future.call(dust.render, tmplPath, @getBaseContext().push(@ctx))
-
-              processTimeoutStub = ->
-                widget._delayedRender = true
-                if timeoutTemplate?
-                  renderTimeoutTemplate()
-                else
-                  Future.resolved('<b>Hardcode Stub Text!!</b>')
-
-              replaceTimeoutStub = (out) =>
-                widget._delayedRender = false
-                require ['cord!utils/DomHelper', 'jquery'], (DomHelper, $) =>
-                  $newRoot = $(widget.renderRootTag(out))
-                  widget.browserInit($newRoot).zip(@_domInfo.domRootCreated()).done (any, $contextRoot) =>
-                    DomHelper.replaceNode($('#'+widget.ctx.id, $contextRoot), $newRoot)
-                      .zip(@_domInfo.domInserted()).done ->
-                        widget.markShown()
-
+            .done (widget, timeoutTemplate) =>
               complete = false
 
-              @registerChild widget, normalizedName
+              @registerChild(widget, normalizedName)
               @resolveParamRefs widget, params, (resolvedParams) =>
                 widget.setModifierClass(params.class)
                 widget.show(resolvedParams, @_domInfo).failAloud().done (out) =>
@@ -1559,17 +1512,20 @@ define [
                     @childWidgetComplete()
                     chunk.end widget.renderRootTag(out)
                   else
-                    replaceTimeoutStub(out)
+                    widget._delayedRender = false
+                    TimeoutStubHelper.replaceStub(out, widget, @_domInfo)
 
               if isBrowser and timeout >= 0
                 setTimeout =>
                   # if the widget has not been rendered within given timeout, render stub template from the {:timeout} block
                   if not complete
                     complete = true
-                    processTimeoutStub().failAloud().done (out) =>
+                    widget._delayedRender = true
+                    TimeoutStubHelper.getTimeoutHtml(this, timeoutTemplate).failAloud().done (out) =>
                       @childWidgetComplete()
                       chunk.end widget.renderRootTag(out)
                 , timeout
+            .failAloud()
 
 
         deferred: (chunk, context, bodies, params) =>
