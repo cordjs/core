@@ -36,6 +36,10 @@ define [
 
 
     getScope: ->
+      ###
+      Generates random scope for every browser (client) to prevent access-token auto-deletion when someone logging in
+       from different computers (browsers) (e.g. at work and at home)
+      ###
       if @scope
         return @scope
       @scope = Math.round(Math.random()*10000000)
