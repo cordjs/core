@@ -117,13 +117,13 @@ define [
         @_orderBy = null
         @_filterId = null
         @_filterParams = null
-        @_id = options.model.id
+        @_id = parseInt options.model.id
         @_filter = {}
       else
         @_orderBy = options.orderBy ? null
         @_filterId = options.filterId ? null
         @_filterParams = options.filterParams ? null
-        @_id = options.id ? 0
+        @_id = parseInt options.id ? 0
         @_filter = options.filter ? {}
         @_pageSize = options.pageSize ? 0
 
@@ -322,13 +322,12 @@ define [
       @_initialized
 
 
-    checkNewModel: (model) ->
+    checkNewModel: (model, emitModelChangeExcept = true) ->
       ###
       Checks if the new model is related to this collection. If it is reloads collection from the backend.
       @param Model model the new model
       ###
-      if not @_id
-        @refresh model.id
+      @refresh(model.id, emitModelChangeExcept) if not @_id or @_id == model.id
 
 
     _reorderModelsLocal: ->
@@ -365,7 +364,7 @@ define [
           @_byId[m.id] = m
 
 
-    refresh: (currentId) ->
+    refresh: (currentId, emitModelChangeExcept = true) ->
       ###
       Reloads currently loaded part of collection from the backend.
       By the way triggers change events for every changed model and for the collection if there are any changes.
@@ -375,11 +374,9 @@ define [
       ###
 
       #Special case - fixed collections, no need to sync or refresh
-      if @_fixed
-        return
+      return if @_fixed
 
-      if @_refreshInProgress == true
-        return
+      return if @_refreshInProgress
 
       @_refreshInProgress = true
 
@@ -387,7 +384,7 @@ define [
       if not @_pageSize
         queryParams = @_buildRefreshQueryParams()
         @repo.query queryParams, (models) =>
-          @_replaceModelList models, queryParams.start, queryParams.end
+          @_replaceModelList models, queryParams.start, queryParams.end, emitModelChangeExcept
           @_refreshInProgress = false
       else
         #refresh paging info first
@@ -541,7 +538,7 @@ define [
       @_initialized = true
 
 
-    _replaceModelList: (newList, start, end) ->
+    _replaceModelList: (newList, start, end, emitModelChangeExcept = true) ->
       ###
       Substitutes part of list of models with the new ones comparing them by the way and triggering according events.
       If start and end arguments are not given, then the whole list is replaced starting from index 0.
@@ -601,7 +598,7 @@ define [
           lastChangedIndex  = targetIndex if targetIndex > lastChangedIndex
           changedModels[model.id] = model
           @emit "model.#{ model.id }.change", model
-          @emitModelChangeExcept(model) # todo: think about 'sync' event here
+          @emitModelChangeExcept(model) if emitModelChangeExcept
 
         if not oldList[targetIndex]? or model.id != oldList[targetIndex].id
           changed = true
@@ -756,30 +753,34 @@ define [
       @return Boolean true if the destination object was changed
       ###
       result = false
+
       for key, val of src
-        if dst[key] != undefined
-          if _.isArray(val)
-            if val.length == 0
-              #If dst was an array longer than 0
-              result = (!_.isArray(dst[key])) || dst[key].length > 0
-              dst[key] = []
+        continue if dst[key] == undefined
+
+        if _.isArray(val) and _.isArray(dst[key])
+          if val.length == 0
+            #If dst was an array longer than 0
+            result = (!_.isArray(dst[key])) || dst[key].length > 0
+            dst[key] = []
+          else
+            if _.isArray dst[key]
+              for newVal,newKey in val
+                result |= dst[key][newKey] == undefined || @_recursiveCompare(newVal, dst[key][newKey])
+                if result
+                  dst[key] = _.clone(val)
+                  break
             else
-              if _.isArray dst[key]
-                for newVal,newKey in val
-                  result |= dst[key][newKey] == undefined || @_recursiveCompare(newVal, dst[key][newKey])
-                  if result
-                    dst[key] = _.clone(val)
-                    break
-              else
-                dst[key] = _.clone(val)
-                result = true
-            # todo: can be more smart here, but very difficult
-          else if not _.isObject(val)
-            if not _.isEqual(val, dst[key])
               dst[key] = _.clone(val)
               result = true
-          else if dst[key] and @_recursiveCompareAndChange(val, dst[key])
-            result = true
+
+        # todo: can be more smart here, but very difficult
+        else if _.isObject(val) and _.isObject(dst[key])
+          result = @_recursiveCompareAndChange(val, dst[key])
+
+        else if not _.isEqual(val, dst[key])
+          dst[key] = _.clone(val)
+          result = true
+
       result
 
 
