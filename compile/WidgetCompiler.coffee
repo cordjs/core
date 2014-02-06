@@ -25,6 +25,7 @@ define [
     _baseContext: null
 
     _timeoutBlockCounter: 0
+    _deferredBlockCounter: 0
 
     _ownerUid: null
     _extend: null
@@ -227,6 +228,31 @@ define [
       Future.call(fs.writeFile, tmplFullPath, amdTmplString).failAloud()
 
 
+    _saveSubTemplate: (bodyFn, fileName) ->
+      ###
+      DRY code to give the sub-template full path and save it
+      @param Function bodyFn dust block function to save
+      @param String fileName basename of the template file without extension
+      @return Future
+      ###
+      tmplPath = "#{ @widget.getDir() }/#{ fileName }.html"
+      @_saveBodyTemplate(bodyFn, @compiledSource, tmplPath)
+
+
+    _renderBodyBlock: (bodyFn, surroundingWidget) ->
+      ###
+      DRY for rendering sub-template body block
+      @param Function bodyFn dust block function to save
+      @param (optional)Widget surroundingWidget optional surrounding widget to inject into context if needed
+      @param Future[String] rendered template string
+      ###
+      tmpName = 'tmp' + _.uniqueId()
+      dust.register(tmpName, bodyFn)
+      ctx = @getBaseContext().push(@widget.ctx)
+      ctx.surroundingWidget = surroundingWidget if surroundingWidget
+      Future.call(dust.render, tmpName, ctx)
+
+
     getBaseContext: ->
       @_baseContext ? (@_baseContext = @_buildBaseContext())
 
@@ -255,32 +281,20 @@ define [
           ###
 
           chunk.map (chunk) =>
+            throw new Error("Extend must have 'type' param defined!") if not params.type
+            console.warn "WARNING: 'placeholder' param is useless for 'extend' section" if params.placeholder?
 
-            if not params.type? or !params.type
-              throw "Extend must have 'type' param defined!"
-
-            if params.placeholder?
-              _console.warn "WARNING: 'placeholder' param is useless for 'extend' section"
-
-            require [
-              "cord-w!#{ params.type }@#{ @widget.getBundle() }"
-            ], (WidgetClass) =>
+            require ["cord-w!#{ params.type }@#{ @widget.getBundle() }"], (WidgetClass) =>
 
               widget = new WidgetClass(compileMode: true)
 
               @addExtendCall(widget, params)
 
               if bodies.block?
-                ctx = @getBaseContext().push(@widget.ctx)
-                ctx.surroundingWidget = widget
-
-                tmpName = "tmp#{ _.uniqueId() }"
-                dust.register tmpName, bodies.block
-                dust.render tmpName, ctx, (err) =>
-                  if err then throw err
+                @_renderBodyBlock(bodies.block, widget).failAloud().done ->
                   chunk.end('')
               else
-                _console.warn "WARNING: Extending widget #{ params.type } with nothing!"
+                console.warn "WARNING: Extending layout #{ params.type } with nothing!"
                 chunk.end('')
 
 
@@ -293,13 +307,13 @@ define [
               widget = new WidgetClass(compileMode: true)
 
               if bodies.timeout? and params.timeout? and params.timeout >= 0
-                timeoutTemplateName = "__timeout_#{ @_timeoutBlockCounter++ }.html"
-                tmplPath = "#{ @widget.getDir() }/#{ timeoutTemplateName }"
-                timeoutTemplateFuture = @_saveBodyTemplate(bodies.timeout, @compiledSource, tmplPath)
+                timeoutTemplateName = "__timeout_#{ @_timeoutBlockCounter++ }"
+                timeoutTemplateFuture = @_saveSubTemplate(bodies.block, timeoutTemplateName)
               else
-                timeoutTemplateFuture = Future.resolved()
                 timeoutTemplateName = null
+                timeoutTemplateFuture = Future.resolved()
 
+              hasNonEmptyBody = (bodies.block and not emptyBodyRe.test(bodies.block.toString()))
 
               if context.surroundingWidget?
                 ph = params.placeholder ? 'default'
@@ -307,7 +321,7 @@ define [
 
                 @addPlaceholderContent sw, ph, widget, params, timeoutTemplateName
 
-              else if (bodies.block? && not emptyBodyRe.test(bodies.block.toString())) or
+              else if hasNonEmptyBody or
                       (bodies.timeout? and params.timeout? and params.timeout >= 0)
                 if not params.name? or params.name.trim() == ''
                   throw new Error(
@@ -317,13 +331,8 @@ define [
                 @registerWidget widget, params.name.trim(), params.timeout, timeoutTemplateName
 
 
-              if bodies.block? && not emptyBodyRe.test(bodies.block.toString())
-                ctx = @getBaseContext().push(@widget.ctx)
-                ctx.surroundingWidget = widget
-
-                tmpName = "tmp#{ _.uniqueId() }"
-                dust.register tmpName, bodies.block
-                Future.call(dust.render, tmpName, ctx).zip(timeoutTemplateFuture).failAloud().done ->
+              if hasNonEmptyBody
+                @_renderBodyBlock(bodies.block, widget).zip(timeoutTemplateFuture).failAloud().done ->
                   chunk.end('')
               else
                 timeoutTemplateFuture.failAloud().done ->
@@ -334,31 +343,46 @@ define [
           ###
           {#inline/} - block of sub-template to place into surrounding widget's placeholder
           ###
-          chunk.map (chunk) =>
-            if bodies.block?
-              # todo: check other params and output warning
+          if bodies.block?
+            # todo: check other params and output warning
+            if context.surroundingWidget?
               params ?= {}
               name = params.name ? 'inline' + (@inlineCounter++)
               tag = params.tag ? 'div'
               cls = params.class ? ''
-              if context.surroundingWidget?
+              chunk.map (chunk) =>
                 ph = params?.placeholder ? 'default'
                 sw = context.surroundingWidget
 
-                templateName = "__inline_#{ name }.html"
-                tmplPath = "#{ @widget.getDir() }/#{ templateName }"
-                templateSaveFuture = @_saveBodyTemplate(bodies.block, @compiledSource, tmplPath)
+                templateName = "__inline_#{ name }"
+                templateSaveFuture = @_saveSubTemplate(bodies.block, templateName)
 
                 @addPlaceholderInline sw, ph, @widget, templateName, name, tag, cls
 
-                tmpName = "tmp#{ _.uniqueId() }"
-                dust.register tmpName, bodies.block
-
-                ctx = @getBaseContext().push(@widget.ctx)
-                Future.call(dust.render, tmpName, ctx).zip(templateSaveFuture).failAloud().done ->
+                @_renderBodyBlock(bodies.block).zip(templateSaveFuture).failAloud().done ->
                   chunk.end('')
 
-              else
-                throw "inlines are not allowed outside surrounding widget [#{ @constructor.name }(#{ @ctx.id })]"
             else
-              _console.warn "Warning: empty inline in widget #{ @constructor.name }(#{ @ctx.id })"
+              throw new Error(
+                "Inlines are not allowed outside surrounding widget [#{ @widget.constructor.name }(#{ @widget.ctx.id })]"
+              )
+          else
+            console.warn "WARNING: empty inline in widget #{ @widget.constructor.name }(#{ @widget.ctx.id })"
+
+
+        deferred: (chunk, context, bodies) =>
+          ###
+          {#deferred/} - block depended on deferred context values, need to be saved in separate sub-template
+          ###
+          if bodies.block?
+            # identification of the template is performed by the order of appearance of the deferred blocks
+            # it's a little bit wonky but have no other good choice
+            deferredId = @_deferredBlockCounter++
+            chunk.map (chunk) =>
+              @_saveSubTemplate(bodies.block, "__deferred_#{ deferredId }")
+                .zip @_renderBodyBlock(bodies.block)
+                .failAloud()
+                .done ->
+                  chunk.end('')
+          else
+            console.warn "WARNING: empty deferred block in widget #{ @widget.constructor.name }(#{ @widget.ctx.id })"

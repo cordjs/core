@@ -583,6 +583,7 @@ define [
       @_resetWidgetReady()
       @_behaviourContextBorderVersion = null
       @_placeholdersRenderInfo = []
+      @_deferredBlockCounter = 0
 
       extendWidgetInfo = if not tmpl.isEmpty() then tmpl.struct.extend else null
       if extendWidgetInfo?
@@ -660,6 +661,7 @@ define [
       @_resetWidgetReady() # allowing to call browserInit() after template re-render is reasonable
       @_behaviourContextBorderVersion = null
       @_placeholdersRenderInfo = []
+      @_deferredBlockCounter = 0
 
       @getStructTemplate().flatMap (tmpl) =>
         if tmpl.isExtended()
@@ -774,7 +776,7 @@ define [
       _console.log "#{ @constructor.__name }::renderInline(#{ inlineName })" if global.config.debug.widget
 
       if @ctx[':inlines'][inlineName]?
-        tmplPath = "#{ @getDir() }/#{ @ctx[':inlines'][inlineName].template }"
+        tmplPath = "#{ @getDir() }/#{ @ctx[':inlines'][inlineName].template }.html"
         templateLoader.loadToDust(tmplPath).failAloud().flatMap =>
           @_saveContextVersionForBehaviourSubscriptions()
           @_domInfo = domInfo
@@ -1529,29 +1531,33 @@ define [
 
 
         deferred: (chunk, context, bodies, params) =>
-          deferredKeys = params.params.split /[, ]/
-          needToWait = (name for name in deferredKeys when @ctx.isDeferred(name))
+          ###
+          {#deferred/} block handling
+          ###
+          if bodies.block?
+            deferredId = @_deferredBlockCounter++
+            deferredKeys = params.params.split /[, ]/
+            needToWait = (name for name in deferredKeys when @ctx.isDeferred(name))
 
-          # there are deferred params, handling block async...
-          if needToWait.length > 0
             promise = new Future(@debug('deferred'))
-            for name in needToWait
-              do (name) =>
-                promise.fork()
-                subscription = postal.subscribe
-                  topic: "widget.#{ @ctx.id }.change.#{ name }"
-                  callback: (data) ->
-                    if data.value != ':deferred'
-                      promise.resolve()
-                      subscription.unsubscribe()
-                @addTmpSubscription subscription
-            chunk.map (chunk) ->
-              promise.done ->
-                chunk.render bodies.block, context
-                chunk.end()
-          # no deffered params, parsing block immedialely
+            if needToWait.length > 0
+              for name in needToWait
+                do (name) =>
+                  promise.fork()
+                  subscription = postal.subscribe
+                    topic: "widget.#{ @ctx.id }.change.#{ name }"
+                    callback: (data) ->
+                      if data.value != ':deferred'
+                        promise.resolve()
+                        subscription.unsubscribe()
+                  @addTmpSubscription subscription
+
+            chunk.map (chunk) =>
+              promise.done =>
+                TimeoutStubHelper.renderTemplateFile(this, "__deferred_#{deferredId}").failAloud().done (out) ->
+                  chunk.end(out)
           else
-            chunk.render bodies.block, context
+            ''
 
 
         placeholder: (chunk, context, bodies, params) =>
@@ -1572,7 +1578,7 @@ define [
         #
         # Widget initialization script generator
         #
-        widgetInitializer: (chunk, context, bodies, params) =>
+        widgetInitializer: (chunk) =>
           if @widgetRepo._initEnd
             ''
           else
@@ -1583,6 +1589,7 @@ define [
                   chunk.end @widgetRepo.getTemplateCode()
                   subscription.unsubscribe()
               @addSubscription subscription
+
 
         # css include
         css: (chunk) =>

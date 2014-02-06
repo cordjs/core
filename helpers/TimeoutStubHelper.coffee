@@ -1,7 +1,8 @@
 define [
   'cord!templateLoader'
   'cord!utils/Future'
-], (templateLoader, Future) ->
+  'dustjs-helpers'
+], (templateLoader, Future, dust) ->
 
   class TimeoutStubHelper
     ###
@@ -28,14 +29,14 @@ define [
       .failAloud()
 
 
-    @_renderTemplateFile: (ownerWidget, fileName) ->
+    @renderTemplateFile: (ownerWidget, fileName) ->
       ###
       Loads and renders the given template file of the given widget
       @param Widget ownerWidget
       @param String fileName file name relative to the widget's directory
       @return Future[String] rendered result
       ###
-      tmplPath = "#{ ownerWidget.getDir() }/#{ fileName }"
+      tmplPath = "#{ ownerWidget.getDir() }/#{ fileName }.html"
       templateLoader.loadToDust(tmplPath).flatMap ->
         Future.call(dust.render, tmplPath, ownerWidget.getBaseContext().push(ownerWidget.ctx))
       .failAloud()
@@ -49,6 +50,6 @@ define [
       @return Future[String]
       ###
       if timeoutTemplate?
-        @_renderTemplateFile(ownerWidget, timeoutTemplate)
+        @renderTemplateFile(ownerWidget, timeoutTemplate)
       else
         Future.resolved('<img src="/bundles/cord/core/assets/pic/loader-transp.gif"/>')
