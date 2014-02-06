@@ -636,7 +636,7 @@ define [
       ###
       Defer.nextTick =>
         for name, collection of @_collections
-          collection.checkNewModel(model)
+          collection.checkNewModel(model, false)
 
 
     _injectActionMethods: (model) ->
