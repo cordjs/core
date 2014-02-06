@@ -117,13 +117,13 @@ define [
         @_orderBy = null
         @_filterId = null
         @_filterParams = null
-        @_id = parseInt options.model.id
+        @_id = options.model.id
         @_filter = {}
       else
         @_orderBy = options.orderBy ? null
         @_filterId = options.filterId ? null
         @_filterParams = options.filterParams ? null
-        @_id = parseInt options.id ? 0
+        @_id = options.id ? 0
         @_filter = options.filter ? {}
         @_pageSize = options.pageSize ? 0
 
@@ -302,6 +302,7 @@ define [
 
     have: (id) ->
       !!@_byId[id]
+
 
     get: (id) ->
       if @_byId[id]?
