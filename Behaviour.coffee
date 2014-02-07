@@ -45,6 +45,8 @@ define [
       @elements     = @constructor.elements unless @elements
       @elements     = @elements() if _.isFunction @elements
 
+      @_elementSelectors = {} if @elements # needed to support '@element'-like selectors for events
+
       @events       = @constructor.events unless @events
       @events       = @events() if _.isFunction @events
 
@@ -131,8 +133,9 @@ define [
             if selector.substr(0, 2) == '##'
               selector = '#' + @widget.ctx.id + '-' + selector.substr(2)
 
-            if selector[0] == '@' and @[selector.substr(1)]
-              selector = @[selector.substr(1)].selector
+            # support for @elementName like selectors
+            if selector[0] == '@' and this[selector.substr(1)]
+              selector = @_elementSelectors[selector.substr(1)]
 
             if eventName == 'scroll'
               # scroll event is not bubbling up, so it have to be bound without event delegation feature
@@ -209,7 +212,8 @@ define [
 
     refreshElements: ->
       for key, value of @elements
-        @[value] = @$(key)
+        this[value] = @$(key)
+        @_elementSelectors[value] = key
 
 
     clean: ->
