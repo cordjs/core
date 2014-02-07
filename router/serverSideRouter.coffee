@@ -102,7 +102,7 @@ define [
           previousProcess = {}
 
           processWidget = (rootWidgetPath, params) =>
-            widgetRepo.createWidget rootWidgetPath, (rootWidget) ->
+            widgetRepo.createWidget(rootWidgetPath).done (rootWidget) ->
               rootWidget._isExtended = true
               widgetRepo.setRootWidget(rootWidget)
               previousProcess.showPromise = rootWidget.show(params, DomInfo.fake())

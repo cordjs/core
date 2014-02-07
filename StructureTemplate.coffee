@@ -5,39 +5,76 @@ define [
 
   class StructureTemplate
 
+    @_empty: new this
+
+    @emptyTemplate: -> @_empty
+
+
     constructor: (struct, ownerWidget) ->
-      @struct = struct
-      @ownerWidget = ownerWidget
+      if struct?
+        @struct = struct
+        @ownerWidget = ownerWidget
 
-      @widgets = {}
-      @_reverseIndex = {}
-      @assignWidget struct.ownerWidget, ownerWidget
+        @widgets = {}
+        @_reverseIndex = {}
+        @assignWidget struct.ownerWidget, ownerWidget
 
 
+    isEmpty: -> not @struct?
 
-    getWidget: (widgetRefId, callback) ->
-#      _console.log "#{ @ownerWidget.debug 'StructureTemplate' }::getWidget(#{ widgetRefId }) -> #{ if @widgets[widgetRefId]? then @widgets[widgetRefId].debug() else 'unexistent' }"
+
+    isExtended: -> @struct? and @struct.extend?
+
+
+    getWidget: (widgetRefId) ->
+      ###
+      Returns widget by it's structured reference id. If the widget has placeholders, they are being attached to it.
+      Every widget initialized only once and cached (lazy).
+      @param String widgetRefId
+      @return Future[Widget]
+      ###
       if @widgets[widgetRefId]?
-        callback @widgets[widgetRefId]
+        Future.resolved(@widgets[widgetRefId])
       else
-        @_initWidget widgetRefId, (widget) =>
+        @_initWidget(widgetRefId).map (widget) =>
           @assignWidget widgetRefId, widget
-          callback widget
+          widget
 
 
-    _initWidget: (widgetRefId, callback) ->
+    _initWidget: (widgetRefId) ->
+      ###
+      Actual widget initialization. Supports lazyness for the `getWidget` method
+      @param String widgetRefId
+      @return Future[Widget]
+      ###
       info = @struct.widgets[widgetRefId]
-      @ownerWidget.widgetRepo.createWidget info.path, @ownerWidget.getBundle(), (widget) =>
+      @ownerWidget.widgetRepo.createWidget(info.path, @ownerWidget.getBundle()).flatMap (widget) =>
+        result = Future.single()
         @resolvePlaceholders widget, info.placeholders, (resolvedPlaceholders) ->
           widget.definePlaceholders resolvedPlaceholders
-          callback widget
+          result.resolve(widget)
+        result
 
 
-    getWidgetByName: (name, callback) ->
+    getWidgetByName: (name) ->
+      ###
+      Initializes and returns widget by it's name property.
+      @param String name
+      @return Future[Widget]
+      ###
       if @struct.widgetsByName[name]?
-        @getWidget @struct.widgetsByName[name], callback
+        @getWidget(@struct.widgetsByName[name])
       else
-        throw "There is no widget with name '#{ name }' registered for template of #{ @ownerWidget.constructor.__name }!"
+        Future.rejected(new Error(
+          "There is no widget with name '#{ name }' registered for template of #{ @ownerWidget.constructor.__name }!"
+        ))
+
+
+    getWidgetInfoByName: (name) ->
+      if @struct? and @struct.widgetsByName[name]? and @struct.widgets[@struct.widgetsByName[name]]?
+        @struct.widgets[@struct.widgetsByName[name]]
+      else
+        null
 
 
     resolvePlaceholders: (targetWidget, newPlaceholders, callback) ->
@@ -56,7 +93,7 @@ define [
             do (item) =>
               waitCounter++
               if item.widget?
-                @getWidget item.widget, (widget) =>
+                @getWidget(item.widget).done (widget) =>
                   @ownerWidget.registerChild widget, item.name
 
                   complete = false
@@ -98,7 +135,7 @@ define [
                     , item.timeout
 
               else
-                @getWidget item.inline, (widget) ->
+                @getWidget(item.inline).done (widget) ->
                   resolvedPlaceholders[name].push
                     type: 'inline'
                     widget: widget.ctx.id

@@ -54,7 +54,7 @@ define [
 
         for serviceName in services
           do (serviceName) =>
-            if @isDefined serviceName
+            if @isDefined(serviceName)
               injectPromise.fork()
               try
                 @eval serviceName, (service) ->
