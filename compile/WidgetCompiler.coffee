@@ -308,7 +308,7 @@ define [
 
               if bodies.timeout? and params.timeout? and params.timeout >= 0
                 timeoutTemplateName = "__timeout_#{ @_timeoutBlockCounter++ }"
-                timeoutTemplateFuture = @_saveSubTemplate(bodies.block, timeoutTemplateName)
+                timeoutTemplateFuture = @_saveSubTemplate(bodies.timeout, timeoutTemplateName)
               else
                 timeoutTemplateName = null
                 timeoutTemplateFuture = Future.resolved()
