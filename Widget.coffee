@@ -427,13 +427,12 @@ define [
           true# stub
 
 
-    setParams: (params, callback) ->
+    setParams: (params) ->
       ###
       Main "reactor" to the widget's API params change from outside.
       Changes widget's context variables according to the rules, defined in "params" static configuration of the widget.
       Rules are applied only to defined input params.
       @param Object params changed params
-      @param (optional)Function callback function to be called after processing.
       ###
       _console.log "#{ @debug 'setParams' } -> ", params if global.config.debug.widget
       if @constructor.params? or @constructor.initialCtx?
@@ -470,7 +469,6 @@ define [
       else
         for key in params
           _console.warn "#{ @debug() } doesn't accept any params, '#{ key }' given!"
-      callback?()
 
 
     _handleOnShow: (callback) ->
@@ -491,18 +489,18 @@ define [
       @return Future(String)
       ###
       result = Future.single("#{ @debug('show') }")
-      @setParams params, =>
-        _console.log "#{ @debug 'show' } -> params:", params, " context:", @ctx if global.config.debug.widget
-        @_handleOnShow =>
-          result.when(@renderTemplate(domInfo))
+      @setParams(params)
+      _console.log "#{ @debug 'show' } -> params:", params, " context:", @ctx if global.config.debug.widget
+      @_handleOnShow =>
+        result.when(@renderTemplate(domInfo))
       result
 
 
     showJson: (params, callback) ->
-      @setParams params, =>
-        _console.log "#{ @debug 'showJson' } -> params:", params, " context:", @ctx if global.config.debug.widget
-        @_handleOnShow =>
-          @renderJson callback
+      @setParams(params)
+      _console.log "#{ @debug 'showJson' } -> params:", params, " context:", @ctx if global.config.debug.widget
+      @_handleOnShow =>
+        @renderJson callback
 
 
     renderJson: (callback) ->
@@ -564,11 +562,11 @@ define [
 
       @widgetRepo.registerNewExtendWidget this
 
-      @setParams params, =>
-        _console.log "#{ @debug 'injectAction' } processes context:", @ctx if global.config.debug.widget
-        @_handleOnShow =>
-          @getStructTemplate().done (tmpl) =>
-            @_injectRender tmpl, transition, callback
+      @setParams(params)
+      _console.log "#{ @debug 'injectAction' } processes context:", @ctx if global.config.debug.widget
+      @_handleOnShow =>
+        @getStructTemplate().done (tmpl) =>
+          @_injectRender tmpl, transition, callback
 
 
     _injectRender: (tmpl, transition, callback) ->
