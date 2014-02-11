@@ -30,7 +30,10 @@ define [
 
       @serviceContainer.eval 'request', (request) =>
         request.get @options.endpoints.accessToken, params, (result) =>
-          callback result.access_token, result.refresh_token
+          if result
+            callback result.access_token, result.refresh_token
+          else
+            callback null, null
 
 
     ## Получение токена по grant_type = extension (например, одноразовый ключ)
@@ -45,7 +48,10 @@ define [
 
       @serviceContainer.eval 'request', (request) =>
         request.get @options.endpoints.accessToken, requestParams, (result) =>
-          callback result.access_token, result.refresh_token
+          if result
+            callback result.access_token, result.refresh_token
+          else
+            callback null, null
 
 
     clear: ->
