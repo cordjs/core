@@ -16,7 +16,7 @@ define [
           accessToken: '/oauth/access_token'
       @options = _.extend  defaultOptions, options
       @serviceContainer = serviceContainer
-
+      
 
     ## Получение токена по grant_type = password (логин и пароль)
     grantAccessTokenByPassword: (user, password, scope, callback) =>

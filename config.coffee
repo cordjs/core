@@ -2,16 +2,16 @@ define [], () ->
 
   services:
     api:
-      deps: ['config']
+      deps: ['config', 'container']
       factory: (get, done) ->
         require ['cord!/cord/core/Api'], (Api) =>
-          done null, new Api(this, get('config').api)
+          done null, new Api(get('container'), get('config').api)
 
     oauth2:
-      deps: ['config']
+      deps: ['config', 'container']
       factory: (get, done) ->
         require ['cord!/cord/core/OAuth2'], (OAuth2) =>
-          done null, new OAuth2(this, get('config').oauth2)
+          done null, new OAuth2(get('container'), get('config').oauth2)
 
     userAgent:
       deps: ['container']
@@ -26,7 +26,7 @@ define [], () ->
       deps: ['container']
       factory: (get, done) ->
         require ['cord!/cord/core/utils/DateUtils'], (DateUtils) =>
-          dateUtils = new DateUtils(this)
+          dateUtils = new DateUtils(get('container'))
           done null, dateUtils
 
     modelProxy:
