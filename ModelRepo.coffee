@@ -208,7 +208,8 @@ define [
 
       null
 
-
+    
+    #Get collections matching fields
     scanCollections: (scannedFields) ->
       _.filter @_collections, (collection, key) ->
         found = 0
@@ -224,16 +225,21 @@ define [
       , 0
 
 
-    scanLoadedModels: (scannedFields, searchedText, limit) ->
+    scanLoadedModels: (scannedFields, searchedText, limit, requiredFields) ->
       ###
       Scans existing collections for models, containing searchedText
       @param Array[String] scannedFields - model fields to be scanned, only collections, having all the fields will be scanned
-      @param String searchedText -
+      @param String searchedText
+      @param limit - max amout of returned models
+      @param Array[String] requiredFields - scan only collections with model, having all required fields
       ###
+      if !requiredFields
+        requiredFields = scannedFields
+        
       options=
-        fields: scannedFields
+        fields: requiredFields
 
-      matchedCollections = @scanCollections(scannedFields)
+      matchedCollections = @scanCollections(requiredFields)
       result = {}
       for collection in matchedCollections
         foundModels = collection.scanModels scannedFields, searchedText, limit
@@ -246,7 +252,7 @@ define [
       options =
         fixed: true
         models: result
-        fields: scannedFields
+        fields: requiredFields
 
       new Collection(this, 'fixed', options)
 
