@@ -387,6 +387,7 @@ define [
         @repo.query queryParams, (models) =>
           @_replaceModelList models, queryParams.start, queryParams.end, emitModelChangeExcept
           @_refreshInProgress = false
+          #TODO: GC unregister single model collection if it became empty. 
       else
         #refresh paging info first
 
