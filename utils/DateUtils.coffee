@@ -60,7 +60,7 @@ define [
       # в идеале написать date.calendar()
       # дока http://momentjs.com/docs/
 
-      daysDiff = (date.startOf('day').toDate() - now.startOf('day').toDate()) / 86400000
+      daysDiff = (moment(date).startOf('day').toDate() - moment(now).startOf('day').toDate()) / 86400000
 
       date = date.toDate()
       now = now.toDate()
