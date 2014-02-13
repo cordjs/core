@@ -26,6 +26,11 @@ define [
         authenticateUserCallback: -> false # @see authenticateUser() method
       @options = _.extend defaultOptions, options
 
+      # если в конфиге у нас заданы параметры автовхода, то надо логиниться по ним
+      if @options.autoLogin != undefined and @options.autoLogin? and @options.autoPassword != undefined and @options.autoPassword?
+        @options.authenticateUserCallback = =>
+          @getTokensByUsernamePassword @options.autoLogin, @options.autoPassword
+
       # заберем настройки для fallbackErrors
       AppConfigLoader.ready().done (appConfig) =>
         @fallbackErrors = appConfig.fallbackApiErrors
@@ -68,7 +73,7 @@ define [
 
         _console.log "Store tokens: #{accessToken}, #{refreshToken}"
 
-        callback @accessToken, @refreshToken if success
+        callback? @accessToken, @refreshToken if success
 
 
     restoreTokens: (callback) ->
