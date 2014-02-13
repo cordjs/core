@@ -349,10 +349,11 @@ define [
 
           api.get @_buildApiRequestUrl(params), apiParams, (response, error) =>
             result = []
-            if _.isArray(response)
-              result.push(@buildModel(item)) for item in response
-            else if response
-              result.push(@buildModel(response))
+            if !(error && response._code) #Bad boy! Quickfix for absence of error handling
+              if _.isArray(response)
+                result.push(@buildModel(item)) for item in response
+              else if response
+                result.push(@buildModel(response))
             callback?(result)
             resultPromise.resolve(result)
       else
@@ -381,9 +382,6 @@ define [
         if params.filter
           for filterField of params.filter
             urlParams.push("#{ filterField }=#{ params.filter[filterField] }")
-      else
-        #We cant use /model/<id> for requests, it migth return 403 or 404 for collection refresh
-        urlParams.push("id=#{ params.id }")
 
       if params.requestParams
         for requestParam of params.requestParams
@@ -402,7 +400,7 @@ define [
         urlParams.push("_fields=id")
       urlParams.push("_calc=#{ calcFields.join(',') }") if calcFields.length > 0
 
-      @restResource + (if params.accessPoint? then ('/' + params.accessPoint) else '') + '/?' + urlParams.join('&')
+      @restResource + (if params.accessPoint? then ('/' + params.accessPoint) else '') + (if params.id then '/' + params.id + '/?'  else '/?') + urlParams.join('&')
 
 
     delete: (model) ->
