@@ -38,13 +38,17 @@ define [], () ->
             done null, modelProxy
 
     ':server':
-      request: (get, done) ->
-        require ['cord!/cord/core/request/ServerRequest'], (Request) =>
-          done null, new Request(this)
+      request:
+        deps: ['container']
+        factory: (get, done) ->
+          require ['cord!/cord/core/request/ServerRequest'], (Request) =>
+            done null, new Request(get('container'))
 
-      cookie: (get, done) ->
-        require ['cord!/cord/core/cookie/ServerCookie'], (Cookie) =>
-          done null, new Cookie(this)
+      cookie:
+        deps: ['container']
+        factory: (get, done) ->
+          require ['cord!/cord/core/cookie/ServerCookie'], (Cookie) =>
+            done null, new Cookie(get('container'))
 
       userAgentText:
         deps: ['serverRequest']
@@ -52,13 +56,17 @@ define [], () ->
           done null, get('serverRequest').headers['user-agent']
 
     ':browser':
-      request: (get, done) ->
-        require ['cord!/cord/core/request/BrowserRequest'], (Request) =>
-          done null, new Request(this)
+      request:
+        deps: ['container']
+        factory: (get, done) ->
+          require ['cord!/cord/core/request/BrowserRequest'], (Request) =>
+            done null, new Request(get('container'))
 
-      cookie: (get, done) ->
-        require ['cord!/cord/core/cookie/BrowserCookie'], (Cookie) =>
-          done null, new Cookie(this)
+      cookie:
+        deps: ['container']
+        factory: (get, done) ->
+          require ['cord!/cord/core/cookie/BrowserCookie'], (Cookie) =>
+            done null, new Cookie(get('container'))
 
       userAgentText: (get, done) ->
         done null, navigator.userAgent
@@ -84,6 +92,7 @@ define [], () ->
       'postal':                  'vendor/postal/postal_lite'
       'the-box':                 'vendor/the-box/app'
       'underscore':              'vendor/underscore/underscore'
+      'accounting':              'vendor/accounting/accounting'
     shim:
       'curly':
         deps: ['underscore']
