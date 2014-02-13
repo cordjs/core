@@ -2,16 +2,16 @@ define [], () ->
 
   services:
     api:
-      deps: ['config']
+      deps: ['config', 'container']
       factory: (get, done) ->
         require ['cord!/cord/core/Api'], (Api) =>
-          done null, new Api(this, get('config').api)
+          done null, new Api(get('container'), get('config').api)
 
     oauth2:
-      deps: ['config']
+      deps: ['config', 'container']
       factory: (get, done) ->
         require ['cord!/cord/core/OAuth2'], (OAuth2) =>
-          done null, new OAuth2(this, get('config').oauth2)
+          done null, new OAuth2(get('container'), get('config').oauth2)
 
     userAgent:
       deps: ['container']
@@ -26,7 +26,7 @@ define [], () ->
       deps: ['container']
       factory: (get, done) ->
         require ['cord!/cord/core/utils/DateUtils'], (DateUtils) =>
-          dateUtils = new DateUtils(this)
+          dateUtils = new DateUtils(get('container'))
           done null, dateUtils
 
     modelProxy:
@@ -38,13 +38,17 @@ define [], () ->
             done null, modelProxy
 
     ':server':
-      request: (get, done) ->
-        require ['cord!/cord/core/request/ServerRequest'], (Request) =>
-          done null, new Request(this)
+      request:
+        deps: ['container']
+        factory: (get, done) ->
+          require ['cord!/cord/core/request/ServerRequest'], (Request) =>
+            done null, new Request(get('container'))
 
-      cookie: (get, done) ->
-        require ['cord!/cord/core/cookie/ServerCookie'], (Cookie) =>
-          done null, new Cookie(this)
+      cookie:
+        deps: ['container']
+        factory: (get, done) ->
+          require ['cord!/cord/core/cookie/ServerCookie'], (Cookie) =>
+            done null, new Cookie(get('container'))
 
       userAgentText:
         deps: ['serverRequest']
@@ -52,13 +56,17 @@ define [], () ->
           done null, get('serverRequest').headers['user-agent']
 
     ':browser':
-      request: (get, done) ->
-        require ['cord!/cord/core/request/BrowserRequest'], (Request) =>
-          done null, new Request(this)
+      request:
+        deps: ['container']
+        factory: (get, done) ->
+          require ['cord!/cord/core/request/BrowserRequest'], (Request) =>
+            done null, new Request(get('container'))
 
-      cookie: (get, done) ->
-        require ['cord!/cord/core/cookie/BrowserCookie'], (Cookie) =>
-          done null, new Cookie(this)
+      cookie:
+        deps: ['container']
+        factory: (get, done) ->
+          require ['cord!/cord/core/cookie/BrowserCookie'], (Cookie) =>
+            done null, new Cookie(get('container'))
 
       userAgentText: (get, done) ->
         done null, navigator.userAgent
