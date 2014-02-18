@@ -55,7 +55,7 @@ define [
       # Кеширование токенов
 
       if @accessToken == accessToken && @refreshToken == refreshToken
-        return callback @accessToken, @refreshToken
+        return callback? @accessToken, @refreshToken
 
       @accessToken = accessToken
       @refreshToken = refreshToken
