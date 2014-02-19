@@ -22,13 +22,6 @@ define [], () ->
             userAgent.calculate()
             done null, userAgent
 
-    dateUtils:
-      deps: ['container']
-      factory: (get, done) ->
-        require ['cord!/cord/core/utils/DateUtils'], (DateUtils) =>
-          dateUtils = new DateUtils(get('container'))
-          done null, dateUtils
-
     modelProxy:
       deps: ['container']
       factory: (get, done) ->
