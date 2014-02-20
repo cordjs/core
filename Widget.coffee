@@ -63,9 +63,9 @@ define [
 
     _subscribeOnAnyChild: null
 
-    _stashedChildEvents: []
+    _stashedChildEvents: null
 
-    _placeholdersClasses: {}
+    _placeholdersClasses: null
 
     # promise to load widget completely (with all styles and behaviours, including children)
     _widgetReadyPromise: null
@@ -230,6 +230,9 @@ define [
 
       @_postalSubscriptions = []
       @_tmpSubscriptions = []
+      @_placeholdersClasses = {}
+      @_stashedChildEvents = []
+
       @resetChildren()
 
       if isBrowser
