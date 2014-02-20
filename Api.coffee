@@ -13,10 +13,12 @@ define [
     accessToken: false
     refreshToken: false
 
-    fallbackErrors: {}
+    fallbackErrors: null
 
 
     constructor: (serviceContainer, options) ->
+      @fallbackErrors = {}
+
       ### Дефолтные настройки ###
       defaultOptions =
         protocol: 'https'

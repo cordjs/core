@@ -40,12 +40,13 @@ define [
     _nativeLoadPromise: null
 
     _groupToCss: null
-    _cssToGroup: {}
+    _cssToGroup: null
 
 
     constructor: ->
       @_loadedFiles = {}
       @_loadingOrder = []
+      @_cssToGroup = {}
 
 
     load: (cssPath) ->
