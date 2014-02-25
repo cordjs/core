@@ -146,6 +146,16 @@ define [
       @repo.on('change', @_handleModelChange).withContext(this)
 
 
+    invalidateCache: ->
+      ###
+      Invalidtes collection's cache. 
+      Call in case of an emergency!
+      Returns promise
+      ###
+      #@_totalCount = null #force getPagingInfo to make request
+      @repo.invalidateCollectionCache(@name)
+      
+
     isConsistent: (array) ->
       ###
         Return true if collection or array has no gaps
@@ -245,7 +255,7 @@ define [
               activateSyncPromise.resolve()
 
       # sync with backend
-      syncPromise = Future.single('Collection::sync syncPromise') # special promise for :sync mode completion
+      syncPromise = Future.single('Collection::sync syncPromise ' + @_accessPoint + ' ' + JSON.stringify(@_filter) + ' ' + @_fields) # special promise for :sync mode completion
       activateSyncPromise.done => # pass :cache mode
         rangeAdjustPromise.done (syncStart, syncEnd) => # wait for range adjustment from the local cache
           #@_enqueueQuery(syncStart, syncEnd).done => # avoid repeated refresh-query
@@ -322,6 +332,14 @@ define [
       ###
       @_initialized
 
+
+    checkExistingModel: (model) ->
+      #Refresh the collection only if it contains suggested model
+      id = if _.isObject(model) then model.id else model
+      
+      if id && @_byId[id]
+        @refresh()
+        
 
     checkNewModel: (model, emitModelChangeExcept = true) ->
       ###

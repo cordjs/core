@@ -17,14 +17,29 @@ define [
         @_registerTtl(key + ':info', ttl)
         @_registerTtl(key, ttl)
       @_set(key + ':info', info)
-
+      
 
     saveCollection: (repoName, collectionName, modelIds) ->
       ###
       Saves list of model ids for the collection.
       ###
       @_set("cl:#{ repoName }:#{ sha1(collectionName) }", modelIds)
+      
 
+    invalidateCollection: (repoName, collectionName) ->
+      ###
+      Removes collection from cache
+      ###
+      key = "cl:#{ repoName }:#{ sha1(collectionName) }"
+      @_removeItem key
+      @_removeItem(key + ':info')
+      
+
+    invalidateAllCollectionsWithField: (repoName, fieldName) ->
+      ###
+      Clear cache for collections of particular repo, which contains the fieldName
+      ###
+      @_invalidateAllCollectionsWithField repoName, fieldName
 
     setItem: (key, value) ->
       ###
@@ -63,6 +78,16 @@ define [
       Clear local storage
       ###
       @storage.clear()
+      
+      
+    _removeItem: (key) ->
+      result = Future.single('localStorage::_remove')
+      try
+        @storage.removeItem key
+        result.resolve()
+      catch e
+          result.reject(e)
+      result
 
 
     _set: (key, value) ->
@@ -147,6 +172,32 @@ define [
 
       @_set('models:ttl-info', ttlInfo)
 
+
+    _invalidateAllCollectionsWithField: (repoName, fieldName) ->
+      result = Future.single('localStorage::_invalidateAllCollectionsWithField')
+      for k,v of @storage
+        if k.slice(-5) == ':info' && k.indexOf(repoName) >= 0 && v
+          if !fieldName
+            @storage.removeItem k
+            @storage.removeItem(k.slice(0, k.length - 5))
+          else
+            infoObject = JSON.parse(v)
+            if !infoObject.fields || (fieldName in infoObject.fields)
+                @storage.removeItem k
+                @storage.removeItem(k.slice(0, k.length - 5))
+          
+      result.resolve()
+      result
+          
+
+    _invalidateAllCollections: (repoName) ->
+      result = Future.single('localStorage::_invalidateAllCollectionsWithField')
+      for k,v of @storage
+        if k.indexOf(repoName) >= 0 && v
+          @storage.removeItem k
+          @storage.removeItem(k.slice(0, k.length - 5))
+      result.resolve()
+      result
 
 
   new LocalStorage

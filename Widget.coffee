@@ -327,11 +327,12 @@ define [
       All such subscritiptions need to be registered to be able to clean them up later (see @cleanChildren())
       ###
       if callback and _.isString subscription
-        @_postalSubscriptions.push postal.subscribe
+        subscription = postal.subscribe
           topic: subscription
           callback: callback
-      else
-        @_postalSubscriptions.push subscription
+          
+      @_postalSubscriptions.push subscription
+      subscription
 
 
     cleanSubscriptions: ->

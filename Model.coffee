@@ -28,9 +28,24 @@ define [
 
     _load: (attrs) ->
       for key, value of attrs
-        @[key] = value
+        @[key] = @_deepClone value
         @_fieldNames.push(key)
 
+
+    _deepClone: (value) ->
+      
+      if _.isArray(value)
+        result = []
+        for val in value
+          result.push @_deepClone(val)
+        return result        
+      else if _.isObject(value)
+        result = {}
+        for key, val of value
+          result[key] = @_deepClone(val)
+        return result              
+      return value
+      
 
     getDefinedFieldNames: ->
       ###
@@ -71,6 +86,13 @@ define [
           @_fieldNames.push(key) if @_fieldNames.indexOf(key) == -1
 
       this
+      
+    
+    refreshOnlyContainingCollections: ->
+      #Make all collections, containing this model refresh
+      #It's cheaper than Collection::checkNewModel and ModelRepo._suggestNewModelToCollections,
+      #because mentioned ones make almost all collections refresh
+      @collection.repo.refreshOnlyContainingCollections @
 
 
     propagateFieldChange: (fieldName, newValue) ->
@@ -113,12 +135,13 @@ define [
       @collection.repo.emit 'change', changeVal
 
 
-    save: ->
+    save: (notRefreshCollections = false)->
       ###
       Save model via collection repo
+      @param notRefreshCollections - if true caller must take care of collections refreshing
       ###
       if @collection?.repo?
-        @collection.repo.save(this)
+        @collection.repo.save(this, notRefreshCollections)
       else
         throw new Error('Can not save model without collection')
 

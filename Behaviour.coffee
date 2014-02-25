@@ -85,11 +85,11 @@ define [
 
     addSubscription: (subscription, callback = null) ->
       if callback and _.isString subscription
-        @_widgetSubscriptions.push postal.subscribe
+        subscription = postal.subscribe
           topic: subscription
           callback: callback
-      else
-        @_widgetSubscriptions.push subscription
+      @_widgetSubscriptions.push subscription
+      subscription
 
 
     getCallback: (callback) =>

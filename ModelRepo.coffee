@@ -427,10 +427,11 @@ define [
       promise
 
 
-    save: (model) ->
+    save: (model, notRefreshCollections = false) ->
       ###
       Persists list of given models to the backend
-      @param Model model model to save
+      @param model model model to save
+      @param notRefreshCollections - if true caller must take care of collections refreshing
       @return Future(response, error)
       ###
       promise = new Future(1, 'ModelRepo::save')
@@ -450,7 +451,7 @@ define [
                   @cacheCollection(model.collection) if model.collection?
                   model.resetChangedFields()
                   @emit 'sync', model
-                  @_suggestNewModelToCollections(model)
+                  @_suggestNewModelToCollections(model) if !notRefreshCollections
                   promise.resolve(response)
           else
             api.post @restResource, model.getChangedFields(), (response, error) =>
@@ -461,7 +462,7 @@ define [
                 model.id = response.id
                 model.resetChangedFields()
                 @emit 'sync', model
-                @_suggestNewModelToCollections(model)
+                @_suggestNewModelToCollections(model) if !notRefreshCollections
                 @_injectActionMethods(model)
                 promise.resolve(response)
       else
@@ -636,6 +637,57 @@ define [
       @_injectActionMethods(result) if attrs?.id
       result
 
+    refreshOnlyContainingCollections: (model)->
+      #Make all collections, containing this model refresh
+      #It's cheaper than Collection::checkNewModel and ModelRepo._suggestNewModelToCollections,
+      #because mentioned ones make almost all collections refresh
+      Defer.nextTick =>
+        for name, collection of @_collections
+          collection.checkExistingModel model
+
+    
+    refreshAll: ->
+      #Force refreshing all collections
+      Defer.nextTick =>
+        for name, collection of @_collections
+          collection.refresh()
+
+
+    invalidateAllCache: ->
+      ###
+      Invalidate cache for all collections
+      ###
+      
+      #clear existing collections
+      result = Future.single('ModelRepo::invalidateAllCache')
+      
+      if isBrowser
+        require ['cord!cache/localStorage'], (storage) =>
+          result.when storage._invalidateAllCollections(@constructor.__name) #Invalidate All
+
+      @_collections = {}
+          
+      return result
+    
+
+    invalidateCacheForCollectionWithField: (fieldName) ->
+      ###
+      Invalidate cache for all collections with the name
+      ###
+      if isBrowser
+        result = Future.single('ModelRepo::invalidateCacheForCollectionWithField')
+        require ['cord!cache/localStorage'], (storage) =>
+          result.when storage.invalidateAllCollectionsWithField(@constructor.__name, fieldName)
+      else
+        Future.rejected("ModelRepo::invalidateCacheForCollectionWithField is not applicable on server-side!")
+      
+      #clear existing collections
+      for key, collection of @_collections
+        if collection._fields.indexOf(fieldName) >= 0
+          delete @_collection[key]
+            
+      result
+
 
     _suggestNewModelToCollections: (model) ->
       ###
@@ -680,6 +732,7 @@ define [
             start: collection._loadedStart
             end: collection._loadedEnd
             hasLimits: collection._hasLimits
+            fields: collection._fields
           result.when(f)
 
           result.when storage.saveCollection(@constructor.__name, name, collection.toArray())
@@ -702,6 +755,7 @@ define [
             totalCount: collection._totalCount
             start: loadedStart
             end: loadedEnd
+            fields: collection._fields
           result.when(f)
       else
         Future.rejected("ModelRepo::cutCachedCollection is not applicable on server-side!")
@@ -731,6 +785,18 @@ define [
       else
         Future.rejected("ModelRepo::getCachedCollectionModels is not applicable on server-side!")
 
+
+    invalidateCollectionCache: (name) ->
+      if isBrowser
+        result = Future.single('ModelRepo::getCachedCollectionModels')
+        require ['cord!cache/localStorage'], (storage) =>
+          result.when storage.invalidateCollection(@constructor.__name, name)
+        result
+      else
+        Future.rejected("ModelRepo::invalidateCollectionCache is not applicable on server-side!")
+        
+      result
+    
 
     _pathToObject: (pathList) ->
       result = {}
