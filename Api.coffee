@@ -13,10 +13,12 @@ define [
     accessToken: false
     refreshToken: false
 
-    fallbackErrors: {}
+    fallbackErrors: null
 
 
     constructor: (serviceContainer, options) ->
+      @fallbackErrors = {}
+
       ### Дефолтные настройки ###
       defaultOptions =
         protocol: 'https'
@@ -55,7 +57,7 @@ define [
       # Кеширование токенов
 
       if @accessToken == accessToken && @refreshToken == refreshToken
-        return callback @accessToken, @refreshToken
+        return callback? @accessToken, @refreshToken
 
       @accessToken = accessToken
       @refreshToken = refreshToken
