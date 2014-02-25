@@ -686,7 +686,7 @@ define [
       #clear existing collections
       for key, collection of @_collections
         if collection._fields.indexOf(fieldName) >= 0
-          delete @_collection[key]
+          delete @_collections[key]
             
       result
 
