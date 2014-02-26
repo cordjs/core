@@ -351,7 +351,7 @@ define [
 
           api.get @_buildApiRequestUrl(params), apiParams, (response, error) =>
             result = []
-            if !(error && response._code) #Bad boy! Quickfix for absence of error handling
+            if error == null && !response._code  #Bad boy! Quickfix for absence of error handling
               if _.isArray(response)
                 result.push(@buildModel(item)) for item in response
               else if response
