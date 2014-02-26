@@ -382,8 +382,12 @@ define [
         #   but in collection end is meant as the last index - "including"
         urlParams.push("_slice=#{ params.start },#{ params.end + 1 }") if params.start? or params.end?
         if params.filter
-          for filterField of params.filter
-            urlParams.push("#{ filterField }=#{ params.filter[filterField] }")
+          for filterField, filterValue of params.filter
+            if _.isArray filterValue
+              for filterValueItem in filterValue
+                urlParams.push("#{ filterField }[]=#{ filterValueItem }")
+            else
+              urlParams.push("#{ filterField }=#{ filterValue }")
 
       if params.requestParams
         for requestParam of params.requestParams
@@ -485,13 +489,42 @@ define [
       result = Future.single('ModelRepo::paging')
       if @container
         @container.eval 'api', (api) =>
-          api.get @restResource + '/paging/', @_buildPagingRequestParams(params), (response) =>
+          api.get @_buildPagingRequestUrl(params), {}, (response) =>
             result.resolve(response)
       else
         result.reject('Cleaned up')
       result
 
 
+    _buildPagingRequestUrl: (params) ->
+      ###
+      Build URL for paging request
+      @param Object params paging and collection params
+      @return String
+      ###
+      urlParams = []
+      urlParams.push("_filter=#{ params.filterId }") if params.filterId?
+      urlParams.push("_filterParams=#{ params.filterParams }") if params.filterParams?
+      urlParams.push("_pagesize=#{ params.pageSize }") if params.pageSize?
+
+      if params.filter
+        for filterField, filterValue of params.filter
+          if _.isArray filterValue
+            for filterValueItem in filterValue
+              urlParams.push("#{ filterField }[]=#{ filterValueItem }")
+          else
+            urlParams.push("#{ filterField }=#{ filterValue }")
+
+      if params.requestParams
+        for requestParam of params.requestParams
+          urlParams.push("#{ requestParam }=#{ params.requestParams[requestParam] }")
+
+      @restResource + '/paging/?' + urlParams.join('&')
+
+
+    ###
+    TODO: От этого метода надо отказаться, после отказа от MixModelList
+    ###
     _buildPagingRequestParams: (params) ->
       ###
       Build api params for paging request
@@ -506,7 +539,7 @@ define [
       apiParams._filterParams = params.filterParams if params.filterParams?
       if params.filter
         for filterField of params.filter
-          apiParams[filterField]=params.filter[filterField]
+          apiParams[filterField] = params.filter[filterField]
       apiParams
 
 
