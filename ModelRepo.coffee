@@ -695,8 +695,8 @@ define [
       for key, collection of @_collections      
         if collection._id == model.id
           promise.fork()
+          delete @_collections[key]
           collection.invalidateCache().done =>
-            delete @_collections[key]
             promise.resolve()
       promise
       
