@@ -258,8 +258,7 @@ define [
       syncPromise = Future.single('Collection::sync syncPromise ' + @_accessPoint + ' ' + JSON.stringify(@_filter) + ' ' + @_fields) # special promise for :sync mode completion
       activateSyncPromise.done => # pass :cache mode
         rangeAdjustPromise.done (syncStart, syncEnd) => # wait for range adjustment from the local cache
-          #@_enqueueQuery(syncStart, syncEnd).done => # avoid repeated refresh-query
-          @_enqueueQuery(start, end).done => # avoid repeated refresh-query
+          @_enqueueQuery(syncStart, syncEnd).done => # avoid repeated refresh-query
             syncPromise.resolve(this)
             if not firstResultPromise.completed()
               firstResultPromise.resolve(this)
