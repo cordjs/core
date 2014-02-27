@@ -209,6 +209,7 @@ define [
       else if _.isFunction(start)
         callback = start
         start = end = undefined
+      returnMode = ':cache' if returnMode == ':cache-async'
       returnMode ?= ':sync'
       cacheMode = (returnMode == ':cache')
 
