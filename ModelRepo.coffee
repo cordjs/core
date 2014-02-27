@@ -420,8 +420,9 @@ define [
                 @emit 'error', error
                 promise.reject(error)
               else
-                @_suggestNewModelToCollections(model)
-                promise.resolve(response)
+                @clearSingleModelCollections(model).done =>
+                  @refreshOnlyContainingCollections(model)
+                  promise.resolve(response)
           else
             promise.reject('Unsave model')
       else
@@ -654,6 +655,18 @@ define [
         for name, collection of @_collections
           collection.refresh()
 
+
+    clearSingleModelCollections: (model) ->
+      #Clear cache and single model collections
+      promise = new Future('ModelRepo::clearSingleModelCollections')
+      for key, collection of @_collections      
+        if collection._id == model.id
+          promise.fork()
+          collection.invalidateCache().done =>
+            delete @_collections[key]
+            promise.resolve()
+      promise
+      
 
     invalidateAllCache: ->
       ###
