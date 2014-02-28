@@ -134,6 +134,8 @@ define [
 
 
     @getIconColorById = (id) ->
+      id = parseInt(id)
+      id = 0 if isNaN(id)
       colors = ['#A6E8C7', '#FFDE8F', '#A9E1F2', '#F1B8C9', '#C7C9FA', '#C3EDAE']
       return colors[id % colors.length];
 
