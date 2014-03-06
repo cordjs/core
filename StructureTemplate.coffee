@@ -134,7 +134,7 @@ define [
                           returnCallback()
                     , item.timeout
 
-              else
+              else if item.inline?
                 @getWidget(item.inline).done (widget) ->
                   resolvedPlaceholders[name].push
                     type: 'inline'
@@ -142,6 +142,17 @@ define [
                     template: item.template
                     name: item.name
                     tag: item.tag
+                    class: item.class
+                  waitCounter--
+                  if waitCounter == 0 and waitCounterFinish
+                    returnCallback()
+
+              else if item.placeholder?
+                @getWidget(item.placeholder).done (widget) ->
+                  resolvedPlaceholders[name].push
+                    type: 'placeholder'
+                    widget: widget.ctx.id
+                    name: item.name
                     class: item.class
                   waitCounter--
                   if waitCounter == 0 and waitCounterFinish

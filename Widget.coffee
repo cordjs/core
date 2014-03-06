@@ -333,7 +333,7 @@ define [
         subscription = postal.subscribe
           topic: subscription
           callback: callback
-          
+
       @_postalSubscriptions.push subscription
       subscription
 
@@ -951,7 +951,7 @@ define [
               widget.show(params, domInfo).failAloud().done (out) ->
                 replaceTimeoutStub(out)
 
-          else
+          else if info.type == 'inline'
             placeholderOrder[info.template] = i
 
             inlineId = "inline-#{ widget.ctx.id }-#{ info.name }"
@@ -965,6 +965,16 @@ define [
               placeholderOut[placeholderOrder[info.template]] = widget.renderInlineTag(info.name, out)
               renderInfo.push(type: 'inline', name: info.name, widget: widget)
               promise.resolve()
+
+          else # if info.type == 'placeholder'
+            orderId = 'placeholder-' + info.name
+            placeholderOrder[orderId] = i
+            widget._renderPlaceholder(info.name, domInfo).done (out, rInfo) ->
+              widget._placeholdersClasses[info.name] = info.class if info.class
+              placeholderOut[placeholderOrder[orderId]] = widget.renderPlaceholderTag(info.name, out)
+#              renderInfo = renderInfo.concat(rInfo)
+              promise.resolve()
+
           i++
 
       promise.map =>
@@ -1060,7 +1070,7 @@ define [
 
         readyPromise.done(callback)
 
-    
+
     getInitCode: (parentId) ->
       parentStr = if parentId? then ",'#{ parentId }'" else ''
 
