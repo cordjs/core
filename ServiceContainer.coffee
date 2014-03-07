@@ -52,23 +52,30 @@ define [
         else
           services = target.constructor.inject
 
-        for serviceName in services
-          do (serviceName) =>
-            if @isDefined(serviceName)
-              injectPromise.fork()
-              try
-                @eval serviceName, (service) ->
-                  if global.config?.debug.service
-                    _console.log "Container::injectServices -> eval(#{ serviceName }) for target #{ target.constructor.name } finished success"
+        injectService (serviceAlias, serviceName) =>
+          if @isDefined(serviceName)
+            injectPromise.fork()
+            try
+              @eval serviceName, (service) ->
+                if global.config?.debug.service
+                  _console.log "Container::injectServices -> eval(#{ serviceName }) for target #{ target.constructor.name } finished success"
 
-                  target[serviceName] = service
-                  injectPromise.resolve()
-              catch e
-                _console.error "Container::injectServices -> eval(#{ serviceName }) for target #{ target.constructor.name } fail: #{ e.message }"
-                target[serviceName] = undefined
+                target[serviceAlias] = service
                 injectPromise.resolve()
-            else
-              if global.config?.debug.service
-                _console.warn "Container::injectServices #{ serviceName } for target #{ target.constructor.name } is not defined"
+            catch e
+              _console.error "Container::injectServices -> eval(#{ serviceName }) for target #{ target.constructor.name } fail: #{ e.message }"
+              target[serviceAlias] = undefined
+              injectPromise.resolve()
+          else
+            if global.config?.debug.service
+              _console.warn "Container::injectServices #{ serviceName } for target #{ target.constructor.name } is not defined"
+
+        if _.isArray services
+          for serviceName in services
+            injectService serviceName,serviceName
+        else
+          for serviceAlias,serviceName of services
+            injectService serviceAlias,serviceName
+          
 
       injectPromise
