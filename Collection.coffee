@@ -53,6 +53,7 @@ define [
     # custom rest access point
     _accessPoint: null
 
+
     @generateName: (options) ->
       ###
       Generates and returns unique "checksum" name of a collection depending only of the given options.
@@ -146,15 +147,22 @@ define [
       @repo.on('change', @_handleModelChange).withContext(this)
 
 
+    cache: ->
+      ###
+      Cache collection
+      ###
+      @repo.cacheCollection @
+
+
     invalidateCache: ->
       ###
-      Invalidtes collection's cache. 
+      Invalidtes collection's cache.
       Call in case of an emergency!
       Returns promise
       ###
       #@_totalCount = null #force getPagingInfo to make request
       @repo.invalidateCollectionCache(@name)
-      
+
 
     isConsistent: (array) ->
       ###
@@ -213,7 +221,7 @@ define [
       returnMode ?= ':sync'
       cacheMode = (returnMode == ':cache')
 
-      #Special case - fixed collection
+      # Special case - fixed collection
       if @_fixed
         resultPromise = Future.single('Collection::sync resultPromise')
         resultPromise.resolve(this)
@@ -336,10 +344,10 @@ define [
     checkExistingModel: (model) ->
       #Refresh the collection only if it contains suggested model
       id = if _.isObject(model) then model.id else model
-      
+
       if id && @_byId[id]
         @refresh()
-        
+
 
     checkNewModel: (model, emitModelChangeExcept = true) ->
       ###
@@ -405,7 +413,7 @@ define [
         @repo.query queryParams, (models) =>
           @_replaceModelList models, queryParams.start, queryParams.end, emitModelChangeExcept
           @_refreshInProgress = false
-          #TODO: GC unregister single model collection if it became empty. 
+          #TODO: GC unregister single model collection if it became empty.
       else
         #refresh paging info first
 
