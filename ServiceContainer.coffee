@@ -52,7 +52,7 @@ define [
         else
           services = target.constructor.inject
 
-        injectService (serviceAlias, serviceName) =>
+        injectService = (serviceAlias, serviceName) =>
           if @isDefined(serviceName)
             injectPromise.fork()
             try
