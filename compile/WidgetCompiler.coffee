@@ -158,6 +158,27 @@ define [
         class: cls
 
 
+    _addPlaceholderPlaceholder: (surroundingWidget, placeholderName, widget, name, cls) ->
+      ###
+      Adds placeholder definition to the structure template
+      @param Widget surroundingWidget widget inside which the #placeholder block occurs
+      @param String placeholderName name of the placeholder of the surroundingWidget which is proxied
+      @param Widget widget owner of the rendering template (owner-widget of this placeholder)
+      @param String name name of the placeholder
+      @param String cls class-string to add to the placeholder root-tag
+      ###
+      @extendPhaseFinished = true
+
+      swRef = @registerWidget(surroundingWidget)
+      widgetRef = @registerWidget(widget)
+
+      swRef.placeholders[placeholderName] ?= []
+      swRef.placeholders[placeholderName].push
+        placeholder: widgetRef.uid
+        name: name
+        class: cls
+
+
     getStructureCode: (compact = true, amd = false) ->
       if @_widgets? and Object.keys(@_widgets).length > 1
         res =
@@ -368,6 +389,28 @@ define [
               )
           else
             console.warn "WARNING: empty inline in widget #{ @widget.constructor.name }(#{ @widget.ctx.id })"
+
+
+        placeholder: (chunk, context, bodies, params) =>
+          ###
+          {#placeholder/} - placeholder inside placeholder (proxy)
+          ###
+          if context.surroundingWidget?
+            params ?= {}
+            if params.bypass?
+              if params.name?
+                throw new Error("'bypass' and 'name' params couldn't be used together for placeholder")
+              if params.placeholder?
+                throw new Error("'bypass' and 'placeholder' params couldn't be used together for placeholder")
+              name = params.bypass
+              ph = params.bypass
+            else
+              name = params.name ? 'default'
+              ph   = params.placeholder ? 'default'
+            cls  = params.class ? ''
+            @_addPlaceholderPlaceholder(context.surroundingWidget, ph, @widget, name, cls)
+          #else
+          # placeholders inside HTML-markup are not interesting here
 
 
         deferred: (chunk, context, bodies) =>
