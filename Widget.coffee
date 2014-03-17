@@ -1394,7 +1394,7 @@ define [
           savedPromiseForTimeoutCheck = @_widgetReadyPromise
           savedConstructorCssPromise = @constructor._cssPromise
           setTimeout =>
-            console.error "#{ @debug 'incompleteBrowserInit!' } css:#{ savedConstructorCssPromise.completed() } child:#{ childWidgetReadyPromise.completed() } selfInit:#{ selfInitBehaviour }" if not savedPromiseForTimeoutCheck.completed()
+            _console.error "#{ @debug 'incompleteBrowserInit!' } css:#{ savedConstructorCssPromise.completed() } child:#{ childWidgetReadyPromise.completed() } selfInit:#{ selfInitBehaviour }" if not savedPromiseForTimeoutCheck.completed()
           , 5000
 #      else
 #        _console.warn "#{ @debug 'browserInit::duplicate!!' }" if not @_delayedRender
