@@ -5,7 +5,7 @@ define [
   throwExceptionCallback = (err) -> throw err
 
   class Future
-    ### 
+    ###
     Simple aggregative future/promise class.
 
     Two scenarios are supported:
@@ -77,7 +77,7 @@ define [
       if @_name
         if global.config?.debug.core
           @_incompleteTimeout = setTimeout =>
-            _console.warn "Future timeouted [#{@_name}] (10 seconds)" if @state() == 'pending' and @_counter > 0
+            console.warn "Future timeouted [#{@_name}] (10 seconds)" if @state() == 'pending' and @_counter > 0
           , 10 * 1000
 
 

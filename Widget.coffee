@@ -237,7 +237,7 @@ define [
 
       if isBrowser
         @_browserInitialized = true
-        @_widgetReadyPromise = new Future('Widget::_widgetReadyPromise')
+        @_widgetReadyPromise = new Future("Widget::_widgetReadyPromise #{@constructor.__name}")
         @_shownPromise = Future.single('Widget::_shownPromise')
 
       if not @ctx?
@@ -1153,7 +1153,7 @@ define [
       Resets widget's browser-side initialization state to be able to correctly run browserInit()
       ###
       if isBrowser
-        @_widgetReadyPromise = new Future(1, 'Widget::_widgetReadyPromise')
+        @_widgetReadyPromise = new Future(1, "Widget::_widgetReadyPromise #{@constructor.__name}")
         @_browserInitialized = false
         @_shownPromise.clear() if @_shownPromise?
         @_shownPromise = Future.single('Widget::_shownPromise')
@@ -1394,8 +1394,8 @@ define [
           savedPromiseForTimeoutCheck = @_widgetReadyPromise
           savedConstructorCssPromise = @constructor._cssPromise
           setTimeout =>
-            _console.error "#{ @debug 'incompleteBrowserInit!' } css:#{ savedConstructorCssPromise.completed() } child:#{ childWidgetReadyPromise.completed() } selfInit:#{ selfInitBehaviour }" if not savedPromiseForTimeoutCheck.completed()
-          , 60000
+            console.error "#{ @debug 'incompleteBrowserInit!' } css:#{ savedConstructorCssPromise.completed() } child:#{ childWidgetReadyPromise.completed() } selfInit:#{ selfInitBehaviour }" if not savedPromiseForTimeoutCheck.completed()
+          , 5000
 #      else
 #        _console.warn "#{ @debug 'browserInit::duplicate!!' }" if not @_delayedRender
       @_widgetReadyPromise
