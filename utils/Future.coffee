@@ -5,7 +5,7 @@ define [
   throwExceptionCallback = (err) -> throw err
 
   class Future
-    ### 
+    ###
     Simple aggregative future/promise class.
 
     Two scenarios are supported:

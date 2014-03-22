@@ -23,6 +23,7 @@ define [
           try
             # TypeError: Converting circular structure to JSON
             result += JSON.stringify(arg) + ', '
+            result += JSON.stringify(arg[3].stack) if arg[3] != undefined and arg[3].stack != ''
           catch
             result += arg + ', '
         else
