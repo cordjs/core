@@ -115,7 +115,7 @@ define [
 
       if options.model
         @_fillModelList [options.model]
-        @_orderBy = null
+        @_orderBy = options.orderBy ? null
         @_filterId = null
         @_filterParams = null
         @_id = options.model.id
@@ -488,6 +488,7 @@ define [
           fields: @_fields
           requestParams: @_requestParams
           accessPoint: @_accessPoint
+          orderBy: @_orderBy
       else
         result =
           orderBy: @_orderBy
@@ -1048,10 +1049,12 @@ define [
           queryParams =
             fields: @_fields
             reconnect: @_reconnect
+          
+          queryParams.orderBy = @_orderBy
+          
           if @_id
             queryParams.id = @_id
           else
-            queryParams.orderBy = @_orderBy
             if @_filterType == ':backend'
               queryParams.filterId = @_filterId
               queryParams.filterParams = @_filterParams if @_filterParams

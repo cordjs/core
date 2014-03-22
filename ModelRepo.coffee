@@ -141,7 +141,7 @@ define [
       @createCollection(options)
 
 
-    buildSingleModel: (id, fields, syncMode) ->
+    buildSingleModel: (id, fields, syncMode, extraOptions = {}) ->
       ###
       Creates and syncs single-model collection by id and field list.
       Method returns single-model collection.
@@ -180,7 +180,7 @@ define [
           _console.log 'debug: buildSingleModel missed in existing collections :(' if global.config.debug.model
 
       syncMode = ':async' if syncMode == ':cache-async'
-      collection = @createSingleModel(id, fields)
+      collection = @createSingleModel(id, fields, extraOptions)
 
       collection.sync syncMode, 0, 0, ->
         try
@@ -371,10 +371,10 @@ define [
       @return String
       ###
       urlParams = []
+      urlParams.push("_sortby=#{ params.orderBy }") if params.orderBy?
       if not params.id?
         urlParams.push("_filter=#{ params.filterId }") if params.filterId?
         urlParams.push("_filterParams=#{ params.filterParams }") if params.filterParams?
-        urlParams.push("_sortby=#{ params.orderBy }") if params.orderBy?
         urlParams.push("_page=#{ params.page }") if params.page?
         urlParams.push("_pagesize=#{ params.pageSize }") if params.pageSize?
         # important! adding 1 to the params.end to compensate semantics:
