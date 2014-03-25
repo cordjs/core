@@ -1394,7 +1394,26 @@ define [
           savedPromiseForTimeoutCheck = @_widgetReadyPromise
           savedConstructorCssPromise = @constructor._cssPromise
           setTimeout =>
-            _console.error "#{ @debug 'incompleteBrowserInit!' } css:#{ savedConstructorCssPromise.completed() } child:#{ childWidgetReadyPromise.completed() } selfInit:#{ selfInitBehaviour }" if not savedPromiseForTimeoutCheck.completed()
+            if not childWidgetReadyPromise.completed()
+              errorInfo =
+                futureCounter: childWidgetReadyPromise._counter
+                childCount: @children.length
+                stuckChildInfo: []
+              i = 0
+              for childWidget in @children
+                if not childWidget.ready().completed()
+                  errorInfo.stuckChildInfo.push
+                    index: i
+                    widget: childWidget.debug()
+                    isSentenced: childWidget.isSentenced()
+                    browserInitialized: childWidget._browserInitialized
+                    delayedRender: childWidget._delayedRender
+                    behaviourPresent: childWidget.behaviour?
+                    futureCounter: childWidget.ready()._counter
+                i++
+              _console.error "#{ @debug 'incompleteBrowserInit:children!' }", errorInfo
+            else
+              _console.error "#{ @debug 'incompleteBrowserInit!' } css:#{ savedConstructorCssPromise.completed() } child:#{ childWidgetReadyPromise.completed() } selfInit:#{ selfInitBehaviour }" if not savedPromiseForTimeoutCheck.completed()
           , 5000
 #      else
 #        _console.warn "#{ @debug 'browserInit::duplicate!!' }" if not @_delayedRender
