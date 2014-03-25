@@ -830,8 +830,7 @@ define [
           storage.getCollection(@constructor.__name, name).done (models) =>
             result = []
             for m,index in models
-              if m
-                result[index] = @buildModel(m)
+              result[index] = @buildModel(m) if m
             resultPromise.resolve(result)
         resultPromise
       else
