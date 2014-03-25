@@ -783,7 +783,11 @@ define [
             fields: collection._fields
           result.when(f)
 
-          result.when storage.saveCollection(@constructor.__name, name, collection.toArray())
+          # prepare models for cache
+          models = []
+          models.push(model.toJSON()) for model in collection.toArray()
+
+          result.when storage.saveCollection(@constructor.__name, name, models)
 
           result.resolve()
 

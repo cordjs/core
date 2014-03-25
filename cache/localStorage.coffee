@@ -101,15 +101,14 @@ define [
       Garbage collection is base on the TTL params, passed when saving values.
       ###
       result = Future.single("localStorage::_set #{key}")
-      strValue = JSON.stringify(value)
       try
-        @storage.setItem key, strValue, ->
+        @storage.setItem key, value, ->
           result.resolve()
       catch e
         if e.code == DOMException.QUOTA_EXCEEDED_ERR or e.name.toLowerCase().indexOf('quota') != -1
-          @_gc(strValue.length)
+          @_gc(value.length)
           try
-            @storage.setItem key, strValue, ->
+            @storage.setItem key, value, ->
               result.resolve()
           catch e
             _console.error "localStorage::_set(#{ key }) failed!", value, e
@@ -126,7 +125,7 @@ define [
       result = Future.single("localStorage::_get #{key}")
       @storage.getItem key, (value) ->
         if value?
-          result.resolve(JSON.parse(value))
+          result.resolve(value)
         else
           result.reject("Key '#{ key }' doesn't exists in the local storage!")
       result
@@ -137,11 +136,7 @@ define [
       Saves TTL for the given key to be able to make right decisions during GC
       ###
       @storage.getItem 'models:ttl-info', (ttlInfo) =>
-        if ttlInfo?
-          ttlInfo = JSON.parse(ttlInfo)
-        else
-          ttlInfo = {}
-
+        ttlInfo = {} if ttlInfo == null
         ttlInfo[key] = (new Date).getTime() + ttl
 
         @_set('models:ttl-info', ttlInfo)
@@ -154,8 +149,6 @@ define [
       @param (optional) needLength amount of memory needed
       ###
       @storage.getItem 'models:ttl-info', (ttlInfo) =>
-        ttlInfo = JSON.parse(ttlInfo)
-
         if needLength
           needLength = parseInt(needLength) * 2
         else
@@ -199,8 +192,7 @@ define [
                 @storage.removeItem(key.slice(0, key.length - 5))
               else
                 @storage.getItem key, (value) =>
-                  infoObject = JSON.parse(value)
-                  if !infoObject.fields || (fieldName in infoObject.fields)
+                  if !value.fields || (fieldName in value.fields)
                     @storage.removeItem key
                     @storage.removeItem(key.slice(0, key.length - 5))
 
