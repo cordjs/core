@@ -1,11 +1,12 @@
 define [
   'cord!utils/Future'
+  'localforage'
   'cord!utils/sha1'
-], (Future, sha1) ->
+], (Future, localForage, sha1) ->
 
   class LocalStorage
 
-    storage: window.localStorage
+    storage: localForage
 
 
     saveCollectionInfo: (repoName, collectionName, ttl, info) ->
@@ -17,14 +18,14 @@ define [
         @_registerTtl(key + ':info', ttl)
         @_registerTtl(key, ttl)
       @_set(key + ':info', info)
-      
+
 
     saveCollection: (repoName, collectionName, modelIds) ->
       ###
       Saves list of model ids for the collection.
       ###
       @_set("cl:#{ repoName }:#{ sha1(collectionName) }", modelIds)
-      
+
 
     invalidateCollection: (repoName, collectionName) ->
       ###
@@ -33,19 +34,13 @@ define [
       key = "cl:#{ repoName }:#{ sha1(collectionName) }"
       @_removeItem key
       @_removeItem(key + ':info')
-      
+
 
     invalidateAllCollectionsWithField: (repoName, fieldName) ->
       ###
       Clear cache for collections of particular repo, which contains the fieldName
       ###
       @_invalidateAllCollectionsWithField repoName, fieldName
-
-    setItem: (key, value) ->
-      ###
-      Set wrapper
-      ###
-      @storage.setItem(key, value)
 
 
     getCollectionInfo: (repoName, collectionName) ->
@@ -64,13 +59,23 @@ define [
 
     getItem: (key) ->
       ###
-      Get wrapper
+      getItem wrapper
       ###
-      @storage.getItem(key)
+      @_get key
+
+
+    setItem: (key, value) ->
+      ###
+      setItem wrapper
+      ###
+      @_set key, value
 
 
     removeItem: (key) ->
-      @storage.removeItem(key)
+      ###
+      removeItem wrapper
+      ###
+      @_removeItem key
 
 
     clear: ->
@@ -78,15 +83,15 @@ define [
       Clear local storage
       ###
       @storage.clear()
-      
-      
+
+
     _removeItem: (key) ->
-      result = Future.single('localStorage::_remove')
+      result = Future.single('localStorage::_removeItem')
       try
-        @storage.removeItem key
-        result.resolve()
+        @storage.removeItem key, ->
+          result.resolve()
       catch e
-          result.reject(e)
+        result.reject(e)
       result
 
 
@@ -95,17 +100,17 @@ define [
       Key-value set proxy for the local storage with serialization and garbage collection fired when not enough space.
       Garbage collection is base on the TTL params, passed when saving values.
       ###
-      result = Future.single('localStorage::_set')
+      result = Future.single("localStorage::_set #{key}")
       strValue = JSON.stringify(value)
       try
-        @storage.setItem(key, strValue)
-        result.resolve()
+        @storage.setItem key, strValue, ->
+          result.resolve()
       catch e
         if e.code == DOMException.QUOTA_EXCEEDED_ERR or e.name.toLowerCase().indexOf('quota') != -1
           @_gc(strValue.length)
           try
-            @storage.setItem(key, strValue)
-            result.resolve()
+            @storage.setItem key, strValue, ->
+              result.resolve()
           catch e
             _console.error "localStorage::_set(#{ key }) failed!", value, e
             result.reject(e)
@@ -118,23 +123,28 @@ define [
       ###
       Future-powered proxy key-value get method.
       ###
-      value = @storage.getItem(key)
-      if value?
-        Future.resolved(JSON.parse(value))
-      else
-        Future.rejected("Key '#{ key }' doesn't exists in the local storage!")
+      result = Future.single("localStorage::_get #{key}")
+      @storage.getItem key, (value) ->
+        if value?
+          result.resolve(JSON.parse(value))
+        else
+          result.reject("Key '#{ key }' doesn't exists in the local storage!")
+      result
 
 
     _registerTtl: (key, ttl) ->
       ###
       Saves TTL for the given key to be able to make right decisions during GC
       ###
-      ttlInfo = JSON.parse(@storage.getItem('models:ttl-info'))
-      ttlInfo ?= {}
+      @storage.getItem 'models:ttl-info', (ttlInfo) =>
+        if ttlInfo?
+          ttlInfo = JSON.parse(ttlInfo)
+        else
+          ttlInfo = {}
 
-      ttlInfo[key] = (new Date).getTime() + ttl
+        ttlInfo[key] = (new Date).getTime() + ttl
 
-      @_set('models:ttl-info', ttlInfo)
+        @_set('models:ttl-info', ttlInfo)
 
 
     _gc: (needLength) ->
@@ -143,61 +153,81 @@ define [
       If needLength argument is given, than it tries to free just enought space, if not - all expired items are removed.
       @param (optional) needLength amount of memory needed
       ###
-      ttlInfo = JSON.parse(@storage.getItem('models:ttl-info'))
-      if needLength
-        needLength = parseInt(needLength) * 2
-      else
-        needLength = 0
-      orderedTtlInfo = []
-      for k, v of ttlInfo
-        orderedTtlInfo.push [k, v]
-      orderedTtlInfo = _.sortBy orderedTtlInfo, (x) -> x[1]
+      @storage.getItem 'models:ttl-info', (ttlInfo) =>
+        ttlInfo = JSON.parse(ttlInfo)
 
-      if needLength
-        while needLength > 0 and orderedTtlInfo.length
-          item = orderedTtlInfo.shift()
-          val = @storage.getItem(item[0])
-          if val?
-            needLength -= val.length
-            @storage.removeItem(item[0])
-          delete ttlInfo[item[0]]
-      else
-        currentTime = (new Date).getTime()
-        for item in orderedTtlInfo
-          if item[1] < currentTime
-            @storage.removeItem(item[0])
-            delete ttlInfo[item[0]]
-          else
-            break
+        if needLength
+          needLength = parseInt(needLength) * 2
+        else
+          needLength = 0
+        orderedTtlInfo = []
+        for k, v of ttlInfo
+          orderedTtlInfo.push [k, v]
+        orderedTtlInfo = _.sortBy orderedTtlInfo, (x) -> x[1]
 
-      @_set('models:ttl-info', ttlInfo)
+        if needLength
+          while needLength > 0 and orderedTtlInfo.length
+            item = orderedTtlInfo.shift()
+            @storage.getItem item[0], (val) ->
+              if val?
+                needLength -= val.length
+                @storage.removeItem(item[0])
+              delete ttlInfo[item[0]]
+        else
+          currentTime = (new Date).getTime()
+          for item in orderedTtlInfo
+            if item[1] < currentTime
+              @storage.removeItem(item[0])
+              delete ttlInfo[item[0]]
+            else
+              break
+
+        @_set('models:ttl-info', ttlInfo)
 
 
     _invalidateAllCollectionsWithField: (repoName, fieldName) ->
-      result = Future.single('localStorage::_invalidateAllCollectionsWithField')
-      for k,v of @storage
-        if k.slice(-5) == ':info' && k.indexOf(repoName) >= 0 && v
-          if !fieldName
-            @storage.removeItem k
-            @storage.removeItem(k.slice(0, k.length - 5))
-          else
-            infoObject = JSON.parse(v)
-            if !infoObject.fields || (fieldName in infoObject.fields)
-                @storage.removeItem k
-                @storage.removeItem(k.slice(0, k.length - 5))
-          
-      result.resolve()
-      result
-          
+      promise = new Future(1, "localStorage::_invalidateAllCollectionsWithField #{repoName} #{fieldName} promise")
+
+      @storage.length (length) =>
+        for index in [1..length-1]
+          promise.fork()
+
+          @storage.key index, (key) =>
+            if key.slice(-5) == ':info' && key.indexOf(repoName) >= 0
+              if !fieldName
+                @storage.removeItem key
+                @storage.removeItem(key.slice(0, key.length - 5))
+              else
+                @storage.getItem key, (value) =>
+                  infoObject = JSON.parse(value)
+                  if !infoObject.fields || (fieldName in infoObject.fields)
+                    @storage.removeItem key
+                    @storage.removeItem(key.slice(0, key.length - 5))
+
+            promise.resolve()
+
+        promise.resolve()
+
+      promise
+
 
     _invalidateAllCollections: (repoName) ->
-      result = Future.single('localStorage::_invalidateAllCollectionsWithField')
-      for k,v of @storage
-        if k.indexOf(repoName) >= 0 && v
-          @storage.removeItem k
-          @storage.removeItem(k.slice(0, k.length - 5))
-      result.resolve()
-      result
+      promise = new Future(1, "localStorage::_invalidateAllCollections #{repoName} promise")
+
+      @storage.length (length) =>
+        for index in [1..length-1]
+          promise.fork()
+
+          @storage.key index, (key) =>
+            if key.indexOf(repoName) >= 0
+              @storage.removeItem key
+              @storage.removeItem(key.slice(0, key.length - 5))
+
+            promise.resolve()
+
+        promise.resolve()
+
+      promise
 
 
   new LocalStorage

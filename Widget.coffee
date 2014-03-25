@@ -1326,6 +1326,7 @@ define [
       @param (optional)String name optional name for the new widget
       @param Function(Widget) callback callback function to pass resulting child widget
       ###
+
       if _.isFunction(name)
         callback = name
         name = null

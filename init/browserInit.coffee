@@ -61,11 +61,14 @@ define [
         _console.error 'Error from requirejs: ', error.toString(), 'Error: ', error
 
     # Clear localStorage in case of changing collections' release number
-    localVersion = localStorage.getItem 'collectionsVersion'
     currentVersion = window.global.config.static.collection
-    if currentVersion != localVersion
-      localStorage.clear()
-      localStorage.setItem 'collectionsVersion', currentVersion
+    localStorage.getItem('collectionsVersion')
+      .done (localVersion) =>
+        if currentVersion != localVersion
+          localStorage.clear()
+          localStorage.setItem 'collectionsVersion', currentVersion
+      .fail =>
+        localStorage.setItem 'collectionsVersion', currentVersion
 
     widgetRepo = new WidgetRepo
 

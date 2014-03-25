@@ -210,7 +210,7 @@ define [
 
       null
 
-    
+
     #Get collections matching fields
     scanCollections: (scannedFields) ->
       _.filter @_collections, (collection, key) ->
@@ -237,7 +237,7 @@ define [
       ###
       if !requiredFields
         requiredFields = scannedFields
-        
+
       options=
         fields: requiredFields
 
@@ -681,7 +681,7 @@ define [
         for name, collection of @_collections
           collection.checkExistingModel model
 
-    
+
     refreshAll: ->
       #Force refreshing all collections
       Defer.nextTick =>
@@ -692,31 +692,31 @@ define [
     clearSingleModelCollections: (model) ->
       #Clear cache and single model collections
       promise = new Future('ModelRepo::clearSingleModelCollections')
-      for key, collection of @_collections      
+      for key, collection of @_collections
         if collection._id == model.id
           promise.fork()
           delete @_collections[key]
           collection.invalidateCache().done =>
             promise.resolve()
       promise
-      
+
 
     invalidateAllCache: ->
       ###
       Invalidate cache for all collections
       ###
-      
+
       #clear existing collections
       result = Future.single('ModelRepo::invalidateAllCache')
-      
+
       if isBrowser
         require ['cord!cache/localStorage'], (storage) =>
           result.when storage._invalidateAllCollections(@constructor.__name) #Invalidate All
 
       @_collections = {}
-          
+
       return result
-    
+
 
     invalidateCacheForCollectionWithField: (fieldName) ->
       ###
@@ -725,15 +725,15 @@ define [
       if isBrowser
         result = Future.single('ModelRepo::invalidateCacheForCollectionWithField')
         require ['cord!cache/localStorage'], (storage) =>
-          result.when storage.invalidateAllCollectionsWithField(@constructor.__name, fieldName)
+          result.when(storage.invalidateAllCollectionsWithField(@constructor.__name, fieldName))
       else
         Future.rejected("ModelRepo::invalidateCacheForCollectionWithField is not applicable on server-side!")
-      
+
       #clear existing collections
       for key, collection of @_collections
         if collection._fields.indexOf(fieldName) >= 0
           delete @_collections[key]
-            
+
       result
 
 
@@ -838,13 +838,13 @@ define [
       if isBrowser
         result = Future.single('ModelRepo::getCachedCollectionModels')
         require ['cord!cache/localStorage'], (storage) =>
-          result.when storage.invalidateCollection(@constructor.__name, name)
+          result.when(storage.invalidateCollection(@constructor.__name, name))
         result
       else
         Future.rejected("ModelRepo::invalidateCollectionCache is not applicable on server-side!")
-        
+
       result
-    
+
 
     _pathToObject: (pathList) ->
       result = {}

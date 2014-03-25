@@ -85,6 +85,7 @@ define [], () ->
       'postal':                  'vendor/postal/postal_lite'
       'the-box':                 'vendor/the-box/app'
       'underscore':              'vendor/underscore/underscore'
+      'localforage':             'vendor/localforage/localforage'
     shim:
       'curly':
         deps: ['underscore']
