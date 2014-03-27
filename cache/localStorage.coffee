@@ -6,9 +6,6 @@ define [
 
   class LocalStorage
 
-    storage: localForage
-
-
     saveCollectionInfo: (repoName, collectionName, ttl, info) ->
       ###
       Saves only collections meta-information
@@ -82,13 +79,13 @@ define [
       ###
       Clear local storage
       ###
-      @storage.clear()
+      localForage.clear()
 
 
     _removeItem: (key) ->
       result = Future.single('localStorage::_removeItem')
       try
-        @storage.removeItem key, ->
+        localForage.removeItem key, ->
           result.resolve()
       catch e
         result.reject(e)
@@ -102,13 +99,13 @@ define [
       ###
       result = Future.single("localStorage::_set #{key}")
       try
-        @storage.setItem key, value, ->
+        localForage.setItem key, value, ->
           result.resolve()
       catch e
         if e.code == DOMException.QUOTA_EXCEEDED_ERR or e.name.toLowerCase().indexOf('quota') != -1
           @_gc(value.length)
           try
-            @storage.setItem key, value, ->
+            localForage.setItem key, value, ->
               result.resolve()
           catch e
             _console.error "localStorage::_set(#{ key }) failed!", value, e
@@ -123,7 +120,7 @@ define [
       Future-powered proxy key-value get method.
       ###
       result = Future.single("localStorage::_get #{key}")
-      @storage.getItem key, (value) ->
+      localForage.getItem key, (value) ->
         if value?
           result.resolve(value)
         else
@@ -135,7 +132,7 @@ define [
       ###
       Saves TTL for the given key to be able to make right decisions during GC
       ###
-      @storage.getItem 'models:ttl-info', (ttlInfo) =>
+      localForage.getItem 'models:ttl-info', (ttlInfo) =>
         ttlInfo = {} if ttlInfo == null
         ttlInfo[key] = (new Date).getTime() + ttl
 
@@ -148,7 +145,7 @@ define [
       If needLength argument is given, than it tries to free just enought space, if not - all expired items are removed.
       @param (optional) needLength amount of memory needed
       ###
-      @storage.getItem 'models:ttl-info', (ttlInfo) =>
+      localForage.getItem 'models:ttl-info', (ttlInfo) =>
         if needLength
           needLength = parseInt(needLength) * 2
         else
@@ -161,16 +158,16 @@ define [
         if needLength
           while needLength > 0 and orderedTtlInfo.length
             item = orderedTtlInfo.shift()
-            @storage.getItem item[0], (val) ->
+            localForage.getItem item[0], (val) ->
               if val?
                 needLength -= val.length
-                @storage.removeItem(item[0])
+                localForage.removeItem(item[0])
               delete ttlInfo[item[0]]
         else
           currentTime = (new Date).getTime()
           for item in orderedTtlInfo
             if item[1] < currentTime
-              @storage.removeItem(item[0])
+              localForage.removeItem(item[0])
               delete ttlInfo[item[0]]
             else
               break
@@ -181,20 +178,20 @@ define [
     _invalidateAllCollectionsWithField: (repoName, fieldName) ->
       promise = new Future(1, "localStorage::_invalidateAllCollectionsWithField #{repoName} #{fieldName} promise")
 
-      @storage.length (length) =>
+      localForage.length (length) =>
         for index in [1..length-1]
           promise.fork()
 
-          @storage.key index, (key) =>
+          localForage.key index, (key) =>
             if key.slice(-5) == ':info' && key.indexOf(repoName) >= 0
               if !fieldName
-                @storage.removeItem key
-                @storage.removeItem(key.slice(0, key.length - 5))
+                localForage.removeItem key
+                localForage.removeItem(key.slice(0, key.length - 5))
               else
-                @storage.getItem key, (value) =>
+                localForage.getItem key, (value) =>
                   if !value.fields || (fieldName in value.fields)
-                    @storage.removeItem key
-                    @storage.removeItem(key.slice(0, key.length - 5))
+                    localForage.removeItem key
+                    localForage.removeItem(key.slice(0, key.length - 5))
 
             promise.resolve()
 
@@ -206,14 +203,14 @@ define [
     _invalidateAllCollections: (repoName) ->
       promise = new Future(1, "localStorage::_invalidateAllCollections #{repoName} promise")
 
-      @storage.length (length) =>
+      localForage.length (length) =>
         for index in [1..length-1]
           promise.fork()
 
-          @storage.key index, (key) =>
+          localForage.key index, (key) =>
             if key.indexOf(repoName) >= 0
-              @storage.removeItem key
-              @storage.removeItem(key.slice(0, key.length - 5))
+              localForage.removeItem key
+              localForage.removeItem(key.slice(0, key.length - 5))
 
             promise.resolve()
 
