@@ -47,6 +47,18 @@ define [
             clientSideRouter.navigate '/user/login/?back=' + window.location.pathname
           true
         config
+        
+      # Clear localStorage in case of changing collections' release number
+      serviceContainer.eval 'localStorage', (localStorage) ->
+        currentVersion = window.global.config.static.collection
+        localStorage.getItem('collectionsVersion')
+          .done (localVersion) =>
+            if currentVersion != localVersion
+              localStorage.clear()
+              localStorage.setItem 'collectionsVersion', currentVersion
+          .fail =>
+            localStorage.setItem 'collectionsVersion', currentVersion
+        
 
     ###
       Это надо перенести в более кошерное место
@@ -59,16 +71,6 @@ define [
       else
         _console.error 'Error from requirejs: ', error.toString(), 'Error: ', error
 
-    # Clear localStorage in case of changing collections' release number
-    serviceContainer.eval 'localStorage', (localStorage) ->
-      currentVersion = window.global.config.static.collection
-      localStorage.getItem('collectionsVersion')
-        .done (localVersion) =>
-          if currentVersion != localVersion
-            localStorage.clear()
-            localStorage.setItem 'collectionsVersion', currentVersion
-        .fail =>
-          localStorage.setItem 'collectionsVersion', currentVersion
 
     widgetRepo = new WidgetRepo
 
