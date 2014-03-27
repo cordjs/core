@@ -1,6 +1,5 @@
 define [
   'cord!AppConfigLoader'
-  'cord!cache/localStorage'
   'cord!Console'
   'cord!css/browserManager'
   'cord!router/clientSideRouter'
@@ -8,7 +7,7 @@ define [
   'cord!ServiceContainer'
   'cord!WidgetRepo'
   'jquery'
-], (AppConfigLoader, localStorage, _console, cssManager,
+], (AppConfigLoader, _console, cssManager,
     clientSideRouter, PageTransition, ServiceContainer, WidgetRepo, $) ->
 
   class ClientFallback
@@ -61,14 +60,15 @@ define [
         _console.error 'Error from requirejs: ', error.toString(), 'Error: ', error
 
     # Clear localStorage in case of changing collections' release number
-    currentVersion = window.global.config.static.collection
-    localStorage.getItem('collectionsVersion')
-      .done (localVersion) =>
-        if currentVersion != localVersion
-          localStorage.clear()
+    serviceContainer.eval 'localStorage', (localStorage) ->
+      currentVersion = window.global.config.static.collection
+      localStorage.getItem('collectionsVersion')
+        .done (localVersion) =>
+          if currentVersion != localVersion
+            localStorage.clear()
+            localStorage.setItem 'collectionsVersion', currentVersion
+        .fail =>
           localStorage.setItem 'collectionsVersion', currentVersion
-      .fail =>
-        localStorage.setItem 'collectionsVersion', currentVersion
 
     widgetRepo = new WidgetRepo
 

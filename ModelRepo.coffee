@@ -672,7 +672,8 @@ define [
       result.set attrs
       @_injectActionMethods(result) if attrs?.id
       result
-
+      
+    
     refreshOnlyContainingCollections: (model)->
       #Make all collections, containing this model refresh
       #It's cheaper than Collection::checkNewModel and ModelRepo._suggestNewModelToCollections,
@@ -710,7 +711,7 @@ define [
       result = Future.single('ModelRepo::invalidateAllCache')
 
       if isBrowser
-        require ['cord!cache/localStorage'], (storage) =>
+        @container.eval 'localStorage', (storage) =>
           result.when storage._invalidateAllCollections(@constructor.__name) #Invalidate All
 
       @_collections = {}
@@ -724,7 +725,7 @@ define [
       ###
       if isBrowser
         result = Future.single('ModelRepo::invalidateCacheForCollectionWithField')
-        require ['cord!cache/localStorage'], (storage) =>
+        @container.eval 'localStorage', (storage) =>
           result.when(storage.invalidateAllCollectionsWithField(@constructor.__name, fieldName))
       else
         Future.rejected("ModelRepo::invalidateCacheForCollectionWithField is not applicable on server-side!")
@@ -774,7 +775,7 @@ define [
       name = collection.name
       result = new Future(1, 'ModelRepo::cacheCollection')
       if isBrowser
-        require ['cord!cache/localStorage'], (storage) =>
+        @container.eval 'localStorage', (storage) =>
           f = storage.saveCollectionInfo @constructor.__name, name, collection.getTtl(),
             totalCount: collection._totalCount
             start: collection._loadedStart
@@ -802,7 +803,7 @@ define [
     cutCachedCollection: (collection, loadedStart, loadedEnd) ->
       if isBrowser
         result = Future.single('ModelRepo::cutCachedCollection')
-        require ['cord!cache/localStorage'], (storage) =>
+        @container.eval 'localStorage', (storage) =>
           f = storage.saveCollectionInfo @constructor.__name, collection.name, null,
             totalCount: collection._totalCount
             start: loadedStart
@@ -816,7 +817,7 @@ define [
     getCachedCollectionInfo: (name) ->
       if isBrowser
         result = Future.single('ModelRepo::getCachedCollectionInfo')
-        require ['cord!cache/localStorage'], (storage) =>
+        @container.eval 'localStorage', (storage) =>
           result.when storage.getCollectionInfo(@constructor.__name, name)
         result
       else
@@ -826,7 +827,7 @@ define [
     getCachedCollectionModels: (name, fields) ->
       if isBrowser
         resultPromise = Future.single('ModelRepo::getCachedCollectionModels')
-        require ['cord!cache/localStorage'], (storage) =>
+        @container.eval 'localStorage', (storage) =>
           storage.getCollection(@constructor.__name, name).done (models) =>
             result = []
             for m,index in models
@@ -840,7 +841,7 @@ define [
     invalidateCollectionCache: (name) ->
       if isBrowser
         result = Future.single('ModelRepo::getCachedCollectionModels')
-        require ['cord!cache/localStorage'], (storage) =>
+        @container.eval 'localStorage', (storage) =>
           result.when(storage.invalidateCollection(@constructor.__name, name))
         result
       else

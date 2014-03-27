@@ -65,8 +65,9 @@ define [], () ->
         done null, navigator.userAgent
 
       localStorage: (get, done) ->
-        require ['cord!cache/localStorage'], (LocalStorage) ->
-          done null, LocalStorage
+        require ['cord!cache/localStorage', 'localforage'], (LocalStorage, localForage) ->
+          localForage.ready().then ->
+            done null, new LocalStorage(localForage)
 
   routes:
     '/REQUIRESTAT/optimizer':
