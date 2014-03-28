@@ -279,6 +279,8 @@ define [
           widget = @widget
           $rootEl = @el
           domInfo = new DomInfo
+          # harakiri: this is need to avoid interference of subsequent async calls of the @render() for the same widget
+          @widget._cleanBehaviour()
           widget.renderTemplate(domInfo).failAloud().done (out) ->
             $newWidgetRoot = $(widget.renderRootTag(out))
             domInfo.setDomRoot($newWidgetRoot)

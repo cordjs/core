@@ -101,8 +101,8 @@ define [
       @return Future(self)
       ###
       if @_completed and not (@_state == 'rejected' and @_counter > 0)
-        throw Error("Trying to use the completed future [#{@_name}]!")
-      throw Error("Trying to fork locked future [#{@_name}]!") if @_locked
+        throw new Error("Trying to use the completed future [#{@_name}]!")
+      throw new Error("Trying to fork locked future [#{@_name}]!") if @_locked
       @_counter++
       this
 
@@ -203,8 +203,9 @@ define [
       If all waiting values are already resolved then callback is fired immedialtely.
       If done method is called several times than all passed functions will be called.
       ###
-      @_doneCallbacks.push(callback)
-      @_runDoneCallbacks() if @_counter == 0 and @_state != 'rejected'
+      if @_state != 'rejected'
+        @_doneCallbacks.push(callback)
+        @_runDoneCallbacks() if @_counter == 0
       this
 
 
@@ -215,8 +216,9 @@ define [
       If fail method is called several times than all passed functions will be called.
       ###
       throw new Error("Invalid argument for Future.fail(): #{ callback }. [#{@_name}]") if not _.isFunction(callback)
-      @_failCallbacks.push(callback)
-      @_runFailCallbacks() if @_state == 'rejected'
+      if @_state != 'resolved'
+        @_failCallbacks.push(callback)
+        @_runFailCallbacks() if @_state == 'rejected'
       this
 
 
@@ -461,6 +463,7 @@ define [
       ###
       Fires resulting callback functions defined by done with right list of arguments.
       ###
+      @_failCallbacks = []
       @_state = 'resolved'
       # this is need to avoid duplicate callback calling in case of recursive coming here from callback function
       callbacksCopy = @_doneCallbacks
@@ -472,6 +475,7 @@ define [
       ###
       Fires resulting callback functions defined by fail with right list of arguments.
       ###
+      @_doneCallbacks = []
       # this is need to avoid duplicate callback calling in case of recursive coming here from callback function
       callbacksCopy = @_failCallbacks
       @_failCallbacks = []
@@ -603,7 +607,7 @@ define [
       @return Future(modules...)
       ###
       paths = paths[0] if paths.length == 1 and _.isArray(paths[0])
-      result = @single(':require:')
+      result = @single(':require:('+ paths.join(', ') + ')')
       require paths, (modules...) ->
         result.resolve.apply(result, modules)
       , (err) ->
