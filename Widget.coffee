@@ -235,11 +235,6 @@ define [
 
       @resetChildren()
 
-      if isBrowser
-        @_browserInitialized = true
-        @_widgetReadyPromise = new Future("Widget::_widgetReadyPromise #{@constructor.__name}")
-        @_shownPromise = Future.single('Widget::_shownPromise')
-
       if not @ctx?
         if compileMode
           id = 'rwdt-' + _.uniqueId()
@@ -247,6 +242,11 @@ define [
           id = (if isBrowser then 'b' else 'n') + 'wdt-' + _.uniqueId()
         @ctx = new Context(id, @constructor.initialCtx)
         @ctx.owner(@)
+
+      if isBrowser
+        @_browserInitialized = true
+        @_widgetReadyPromise = Future.single(@debug('_widgetReadyPromise.resolved')).resolve()
+        @_shownPromise = Future.single('Widget::_shownPromise')
 
       @_callbacks = []
       @_promises = []
@@ -263,9 +263,7 @@ define [
 
       @_sentenced = true
       @cleanChildren()
-      if @behaviour?
-        @behaviour.clean()
-        @behaviour = null
+      @_cleanBehaviour()
       @cleanSubscriptions()
       @_postalSubscriptions = []
       @cleanTmpSubscriptions()
@@ -277,6 +275,17 @@ define [
       @off() #clean monologue subscriptions
       @clearPromises()
       @_shownPromise.clear() if @_shownPromise?
+      if @_widgetReadyPromise and not @_browserInitialized and not @_widgetReadyPromise.completed()
+        @_widgetReadyPromise.reject(new Error('widget is cleaned!'))
+
+
+    _cleanBehaviour: ->
+      ###
+      Correctly cleans behaviour. DRY
+      ###
+      if @behaviour?
+        @behaviour.clean()
+        @behaviour = null
 
 
     getCallback: (callback) =>
@@ -528,9 +537,11 @@ define [
 
 
     sentenceToDeath: ->
-      @cleanSubscriptions()
-      @cleanModelSubscriptions()
-      @_sentenced = true
+      if not @_sentenced
+        @cleanSubscriptions()
+        @cleanModelSubscriptions()
+        @_sentenced = true
+        @_widgetReadyPromise.reject(new Error('widget is sentenced!')) if not @_browserInitialized
       @sentenceChildrenToDeath()
 
 
@@ -1153,7 +1164,7 @@ define [
       Resets widget's browser-side initialization state to be able to correctly run browserInit()
       ###
       if isBrowser
-        @_widgetReadyPromise = new Future(1, "Widget::_widgetReadyPromise #{@constructor.__name}")
+        @_widgetReadyPromise = Future.single(@debug('_widgetReadyPromise'))
         @_browserInitialized = false
         @_shownPromise.clear() if @_shownPromise?
         @_shownPromise = Future.single('Widget::_shownPromise')
@@ -1293,30 +1304,23 @@ define [
       @browser-only
       @param jQuery $domRoot injected DOM root for the widget
       ###
-      promise = Future.single('Widget::initBehaviour')
-      if @behaviour?
-        @behaviour.clean()
-        @behaviour = null
+      @_cleanBehaviour()
 
       behaviourClass = @getBehaviourClass()
 
       if behaviourClass
-        require ["cord!/#{ @getDir() }/#{ behaviourClass }"], (BehaviourClass) =>
-          if !@_sentenced
-            if BehaviourClass instanceof Function
+        Future.require("cord!/#{ @getDir() }/#{ behaviourClass }", 'cord!Behaviour').map (BehaviourClass, Behaviour) =>
+          if not @_sentenced
+            # TODO: move this check to the build phase
+            if BehaviourClass.prototype instanceof Behaviour
               @behaviour = new BehaviourClass(this, $domRoot)
             else
-              _console.error 'WRONG BEHAVIOUR CLASS:', behaviourClass
-          promise.resolve()
-        , (err) =>
+              throw new Error("WRONG BEHAVIOUR CLASS: #{behaviourClass}")
+        .fail (err) =>
           _console.error "#{ @debug 'initBehaviour' } --> error occurred while loading behaviour:", err
           postal.publish 'error.notify.publish', {link:'', message: "Ошибка загрузки виджета #{ behaviourClass }. Попробуйте перезагрузить страницу.", details: String(err) ,error:true, timeOut: 30000 }
-
-          #throw err
       else
-        promise.resolve()
-
-      promise
+        Future.resolved()
 
 
     createChildWidget: (type, name, callback) ->
@@ -1350,7 +1354,7 @@ define [
       ###
       _console.log "#{ @debug 'browserInit' }" if global.config.debug.widget
       if @_sentenced
-        _console.warn "browserInit called for dead #{ @ctx.id } #{ @getPath() }"
+        _console.warn "browserInit called for dead #{ @debug() }"
         return @_widgetReadyPromise
 
       if not @_browserInitialized and not @_delayedRender
@@ -1366,27 +1370,25 @@ define [
           for widgetId, bindingMap of @childBindings
             @childById[widgetId].setSubscribedPushBinding(bindingMap)
 
-          @_widgetReadyPromise.when(@constructor._cssPromise)
+          readyConditions = [ @constructor._cssPromise ]
 
           childWidgetReadyPromise = new Future('browserInit::childWidgetReadyPromise')
           childWidgetReadyPromise.fork()
 
           for childWidget in @children
             # we should not wait for readiness of the child widget if it is going to render later (with timeout-stub)
-            @_widgetReadyPromise.when(childWidget.ready()) if not childWidget._delayedRender
-            childWidgetReadyPromise.when(childWidget.ready()) if not childWidget._delayedRender
-            if not childWidget.behaviour?
-              childWidget.browserInit(stopPropagateWidget, $domRoot)
+            if not childWidget._delayedRender
+              readyConditions.push(childWidget.browserInit(stopPropagateWidget, $domRoot))
+              childWidgetReadyPromise.when(childWidget.ready())
 
           childWidgetReadyPromise.resolve()
 
           selfInitBehaviour = false
-          @initBehaviour($domRoot).done =>
+          readyConditions.push @initBehaviour($domRoot).done =>
             @ctx.replayStashedEvents()
-            @_widgetReadyPromise.resolve()
             selfInitBehaviour = true
 
-          @_widgetReadyPromise.done =>
+          @_widgetReadyPromise.when(Future.sequence(readyConditions)).done =>
             @emit 'render.complete'
 
           # This code is for debugging puroses: it clarifies if there are some bad situations
@@ -1398,6 +1400,7 @@ define [
               errorInfo =
                 futureCounter: childWidgetReadyPromise._counter
                 childCount: @children.length
+                isSentenced: @isSentenced()
                 stuckChildInfo: []
               i = 0
               for childWidget in @children
@@ -1410,6 +1413,8 @@ define [
                     delayedRender: childWidget._delayedRender
                     behaviourPresent: childWidget.behaviour?
                     futureCounter: childWidget.ready()._counter
+                else
+                  errorInfo.stuckChildInfo.push childWidget.ready().completed()
                 i++
               _console.error "#{ @debug 'incompleteBrowserInit:children!' }", errorInfo
             else
