@@ -49,7 +49,7 @@ define [
       ###
       info = @struct.widgets[widgetRefId]
       @ownerWidget.widgetRepo.createWidget(info.path, @ownerWidget.getBundle()).then (widget) =>
-        @_resolvePlaceholders(widget, info.placeholders).then (resolvedPlaceholders) ->
+        @_resolvePlaceholders(info.placeholders).then (resolvedPlaceholders) ->
           widget.definePlaceholders(resolvedPlaceholders)
           widget
 
@@ -75,7 +75,20 @@ define [
         null
 
 
-    _resolvePlaceholders: (targetWidget, newPlaceholders) ->
+    assignWidget: (refUid, newWidget) ->
+      @widgets[refUid] = newWidget
+      @_reverseIndex[newWidget.ctx.id] = refUid
+
+
+    unassignWidget: (widget) ->
+      if @_reverseIndex[widget.ctx.id]?
+        delete @widgets[@_reverseIndex[widget.ctx.id]]
+        delete @_reverseIndex[widget.ctx.id]
+      else
+        # This is normal then widget template has not body blocks
+
+
+    _resolvePlaceholders: (newPlaceholders) ->
       ###
       Converts abstract placeholders definition taken from the struct template to the resolved definition
        with references to the concrete created widgets.
@@ -86,7 +99,7 @@ define [
       ###
       resolvedPlaceholders = {}
 
-      resultPromise = new Future("ST::resolvePlaceholders(#{targetWidget.debug()})")
+      resultPromise = new Future("ST::resolvePlaceholders(#{@ownerWidget.debug()})")
 
       for name, items of newPlaceholders
         do (name) =>
@@ -155,43 +168,48 @@ define [
       resultPromise.map -> resolvedPlaceholders
 
 
-    assignWidget: (refUid, newWidget) ->
-      @widgets[refUid] = newWidget
-      @_reverseIndex[newWidget.ctx.id] = refUid
-
-
-    unassignWidget: (widget) ->
-      if @_reverseIndex[widget.ctx.id]?
-        delete @widgets[@_reverseIndex[widget.ctx.id]]
-        delete @_reverseIndex[widget.ctx.id]
-      else
-        # This is normal then widget template has not body blocks
-
-
     replacePlaceholders: (widgetRefUid, currentPlaceholders, transition) ->
       ###
       Smartly replaces current placeholder contents of the given widget with the new contents
        during client-side page transition.
       New placeholder contents are taken from this structure template.
-      @param String widgetRefUid id of the target widget in the structure template
+      @param String widgetRefUid id of the target widget in the structure template (usually from the #extend tag)
       @param Map[String -> Array[Object]] currentPlaceholders currently rendered placeholders definition of the widget
       @param PageTransition transition page transition helper
       @return Future
       ###
-      extendWidget = @widgets[widgetRefUid]
-      currentPlaceholders ?= {}
+      newPlaceholders = @struct.widgets[widgetRefUid].placeholders
+
+      replaceHints = @_diffPlaceholders(currentPlaceholders, newPlaceholders)
+
+      @_resolvePlaceholders(newPlaceholders).then (resolvedPlaceholders) =>
+        @widgets[widgetRefUid].replacePlaceholders(resolvedPlaceholders, this, replaceHints, transition)
+
+
+    _diffPlaceholders: (current, replacing) ->
+      ###
+      Compares two placeholders definitions in order to detect if it's possible to not destroy current placeholders'
+       contents but only push new widgets' params there.
+      Only one none-destroy case is supported - when all of the placeholder's items are widgets (not inlines) and
+       they are of the same type and the exactly same order. In that case existing widgets are assigned
+       to the current struct template right here.
+      @param Map[String -> Array[Object]] current resolved placeholders definition from the current rendered state
+      @param Map[String -> Array[Object]] replacing new unresolved placeholders definition from the struct template
+      @return Map[String -> Object] replace hints which are used later by the Widget::replacePlaceholders()
+      ###
+      current ?= {}
 
       # search for appearence of the widget in current placeholder
       replaceHints = {}
-      for name, items of @struct.widgets[widgetRefUid].placeholders
+      for name, items of replacing
         replaceHints[name] = {}
-        if currentPlaceholders[name]?
-          if currentPlaceholders[name].length == items.length
+        if current[name]?
+          if current[name].length == items.length
             theSame = true
             i = 0
             for item in items
               if item.widget?
-                curItem = currentPlaceholders[name][i]
+                curItem = current[name][i]
                 curWidget = @ownerWidget.widgetRepo.getById(curItem.widget)
                 if curItem.type != 'widget' or curWidget.getPath() != @struct.widgets[item.widget].path
                   theSame = false
@@ -211,12 +229,11 @@ define [
           replaceHints[name].replace = false
           for item in items
             refUid = item.widget
-            curWidget = @ownerWidget.widgetRepo.getById(currentPlaceholders[name][i].widget)
+            curWidget = @ownerWidget.widgetRepo.getById(current[name][i].widget)
             @assignWidget refUid, curWidget
 
             replaceHints[name].items.push refUid
         else
           replaceHints[name].replace = true
 
-      @_resolvePlaceholders(extendWidget, @struct.widgets[widgetRefUid].placeholders).then (resolvedPlaceholders) =>
-        extendWidget.replacePlaceholders(resolvedPlaceholders, this, replaceHints, transition)
+      replaceHints
