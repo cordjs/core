@@ -100,7 +100,7 @@ define [
         @widgets[id].widget = null
         delete @widgets[id]
       else
-        throw "Try to drop unknown widget with id = #{ id }"
+        throw new Error("Try to drop unknown widget with id = #{ id }")
 
 
     registerParent: (childWidget, parentWidget) ->
@@ -400,17 +400,18 @@ define [
           # of the new root (because the old root extends from the new one directly or indirectly)
           # and push new params into the new root widget
           @setRootWidget extendWidget
-          extendWidget.getStructTemplate().done (tmpl) =>
+          extendWidget.getStructTemplate().failAloud().done (tmpl) =>
             tmpl.assignWidget(tmpl.struct.ownerWidget, extendWidget)
-            tmpl.replacePlaceholders tmpl.struct.ownerWidget, extendWidget.ctx[':placeholders'], transition, =>
+            tmpl.replacePlaceholders(tmpl.struct.ownerWidget, extendWidget.ctx[':placeholders'], transition).done =>
               extendWidget.setParams(params)
               @dropWidget _oldRootWidget.ctx.id
               # todo: this browserInit may be always redundant
               redundancyCheck = false
-              @rootWidget.browserInit(extendWidget).done ->
+              @rootWidget.browserInit(extendWidget).failAloud().done ->
                 redundancyCheck = true
                 transition.complete()
               console.warn "Strange #{ extendWidget.debug('browserInit') } is not redundant!!!" if not redundancyCheck
+            .failAloud()
         else
           # if the new widget is the same as the current root, than this is just params change and we should only push
           # new params to the root widget
@@ -419,11 +420,12 @@ define [
         # if the new root widget doesn't exists in the current page structure, than we need to create it,
         # inject to the top of the page structure and recursively find the common widget from the extend list
         # down to the base widget (containing <html> tag)
-        @createWidget(newRootWidgetPath).done (widget) =>
+        @createWidget(newRootWidgetPath).then (widget) =>
           @setRootWidget widget
-          widget.injectAction params, transition, (commonBaseWidget) =>
-            @dropWidget _oldRootWidget.ctx.id if _oldRootWidget && commonBaseWidget != _oldRootWidget
+          widget.injectAction(params, transition).done (commonBaseWidget) =>
+            @dropWidget(_oldRootWidget.ctx.id) if _oldRootWidget && commonBaseWidget != _oldRootWidget
             @rootWidget.shown().done -> transition.complete()
+        .failAloud()
 
 
     findAndCutMatchingExtendWidget: (widgetPath) ->

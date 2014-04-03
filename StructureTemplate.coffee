@@ -48,12 +48,10 @@ define [
       @return Future[Widget]
       ###
       info = @struct.widgets[widgetRefId]
-      @ownerWidget.widgetRepo.createWidget(info.path, @ownerWidget.getBundle()).flatMap (widget) =>
-        result = Future.single()
-        @resolvePlaceholders widget, info.placeholders, (resolvedPlaceholders) ->
-          widget.definePlaceholders resolvedPlaceholders
-          result.resolve(widget)
-        result
+      @ownerWidget.widgetRepo.createWidget(info.path, @ownerWidget.getBundle()).then (widget) =>
+        @_resolvePlaceholders(widget, info.placeholders).then (resolvedPlaceholders) ->
+          widget.definePlaceholders(resolvedPlaceholders)
+          widget
 
 
     getWidgetByName: (name) ->
@@ -77,29 +75,33 @@ define [
         null
 
 
-    resolvePlaceholders: (targetWidget, newPlaceholders, callback) ->
-      waitCounter = 0
-      waitCounterFinish = false
-
+    _resolvePlaceholders: (targetWidget, newPlaceholders) ->
+      ###
+      Converts abstract placeholders definition taken from the struct template to the resolved definition
+       with references to the concrete created widgets.
+      Result of this method is later used by the Widget::_renderPlaceholder() and Widget::replacePlaceholders()
+       in order to actually (re-)render DOM structure.
+      @param Map[String -> Array[Object]] newPlaceholders unresolved placeholders definition from the struct template
+      @return Future[Map[String -> Array[Object]]] resolved placeholders definition for the widget
+      ###
       resolvedPlaceholders = {}
 
-      returnCallback = ->
-        callback resolvedPlaceholders
+      resultPromise = new Future("ST::resolvePlaceholders(#{targetWidget.debug()})")
 
       for name, items of newPlaceholders
         do (name) =>
           resolvedPlaceholders[name] = []
           for item in items
             do (item) =>
-              waitCounter++
+              resultPromise.fork()
               if item.widget?
-                @getWidget(item.widget).done (widget) =>
+                @getWidget(item.widget).failAloud().done (widget) =>
                   @ownerWidget.registerChild widget, item.name
 
                   complete = false
                   timeoutPromise = null
 
-                  @ownerWidget.resolveParamRefs widget, item.params, (params) =>
+                  @ownerWidget.resolveParamRefs(widget, item.params).failAloud().done (params) =>
                     if not complete
                       complete = true
                       resolvedPlaceholders[name].push
@@ -110,9 +112,7 @@ define [
                         timeout: item.timeout
                         timeoutTemplate: item.timeoutTemplate
                         timeoutTemplateOwner: if item.timeoutTemplate? then @ownerWidget else undefined
-                      waitCounter--
-                      if waitCounter == 0 and waitCounterFinish
-                        returnCallback()
+                      resultPromise.resolve()
                     else
                       timeoutPromise.resolve(params)
 
@@ -120,7 +120,7 @@ define [
                     setTimeout =>
                       if not complete
                         complete = true
-                        timeoutPromise = new Future(1, 'StructureTemplate::resolvePlaceholders')
+                        timeoutPromise = Future.single("ST::resolvePlaceholders:timeoutPromise(#{@ownerWidget.debug()})")
                         resolvedPlaceholders[name].push
                           type: 'timeouted-widget'
                           widget: widget.ctx.id
@@ -129,13 +129,11 @@ define [
                           timeoutTemplate: item.timeoutTemplate
                           timeoutTemplateOwner: if item.timeoutTemplate? then @ownerWidget else undefined
                           timeoutPromise: timeoutPromise
-                        waitCounter--
-                        if waitCounter == 0 and waitCounterFinish
-                          returnCallback()
+                        resultPromise.resolve()
                     , item.timeout
 
               else if item.inline?
-                @getWidget(item.inline).done (widget) ->
+                @getWidget(item.inline).failAloud().done (widget) ->
                   resolvedPlaceholders[name].push
                     type: 'inline'
                     widget: widget.ctx.id
@@ -143,29 +141,24 @@ define [
                     name: item.name
                     tag: item.tag
                     class: item.class
-                  waitCounter--
-                  if waitCounter == 0 and waitCounterFinish
-                    returnCallback()
+                  resultPromise.resolve()
 
               else if item.placeholder?
-                @getWidget(item.placeholder).done (widget) ->
+                @getWidget(item.placeholder).failAloud().done (widget) ->
                   resolvedPlaceholders[name].push
                     type: 'placeholder'
                     widget: widget.ctx.id
                     name: item.name
                     class: item.class
-                  waitCounter--
-                  if waitCounter == 0 and waitCounterFinish
-                    returnCallback()
+                  resultPromise.resolve()
 
-      waitCounterFinish = true
-      if waitCounter == 0
-        returnCallback()
+      resultPromise.map -> resolvedPlaceholders
 
 
     assignWidget: (refUid, newWidget) ->
       @widgets[refUid] = newWidget
       @_reverseIndex[newWidget.ctx.id] = refUid
+
 
     unassignWidget: (widget) ->
       if @_reverseIndex[widget.ctx.id]?
@@ -175,7 +168,16 @@ define [
         # This is normal then widget template has not body blocks
 
 
-    replacePlaceholders: (widgetRefUid, currentPlaceholders, transition, callback) ->
+    replacePlaceholders: (widgetRefUid, currentPlaceholders, transition) ->
+      ###
+      Smartly replaces current placeholder contents of the given widget with the new contents
+       during client-side page transition.
+      New placeholder contents are taken from this structure template.
+      @param String widgetRefUid id of the target widget in the structure template
+      @param Map[String -> Array[Object]] currentPlaceholders currently rendered placeholders definition of the widget
+      @param PageTransition transition page transition helper
+      @return Future
+      ###
       extendWidget = @widgets[widgetRefUid]
       currentPlaceholders ?= {}
 
@@ -191,7 +193,6 @@ define [
               if item.widget?
                 curItem = currentPlaceholders[name][i]
                 curWidget = @ownerWidget.widgetRepo.getById(curItem.widget)
-                #_console.log "compare: #{ curItem.type } != 'widget' or #{ curWidget.getPath() } != #{ @struct.widgets[item.widget].path }"
                 if curItem.type != 'widget' or curWidget.getPath() != @struct.widgets[item.widget].path
                   theSame = false
                   break
@@ -217,9 +218,5 @@ define [
         else
           replaceHints[name].replace = true
 
-      @resolvePlaceholders extendWidget,
-        @struct.widgets[widgetRefUid].placeholders,
-        transition.if (resolvedPlaceholders) =>
-          extendWidget.replacePlaceholders resolvedPlaceholders, this, replaceHints, transition, ->
-            callback()
-
+      @_resolvePlaceholders(extendWidget, @struct.widgets[widgetRefUid].placeholders).then (resolvedPlaceholders) =>
+        extendWidget.replacePlaceholders(resolvedPlaceholders, this, replaceHints, transition)

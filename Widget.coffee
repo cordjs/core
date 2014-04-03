@@ -484,12 +484,18 @@ define [
           _console.warn "#{ @debug() } doesn't accept any params, '#{ key }' given!"
 
 
-    _handleOnShow: (callback) ->
+    _handleOnShow: ->
+      ###
+      Executes onShow-callback if it is defined for the widget and delays widget rendering if ':block' is returned.
+      @return Future
+      ###
       if @onShow?
-        if @onShow(callback) != ':block'
-          callback()
+        result = Future.single(@debug('_handleOnShow'))
+        if @onShow(-> result.resolve()) != ':block'
+          result.resolve()
+        result
       else
-        callback()
+        Future.resolved()
 
 
     show: (params, domInfo) ->
@@ -501,23 +507,10 @@ define [
       @final
       @return Future(String)
       ###
-      result = Future.single("#{ @debug('show') }")
       @setParams(params)
       _console.log "#{ @debug 'show' } -> params:", params, " context:", @ctx if global.config.debug.widget
-      @_handleOnShow =>
-        result.when(@renderTemplate(domInfo))
-      result
-
-
-    showJson: (params, callback) ->
-      @setParams(params)
-      _console.log "#{ @debug 'showJson' } -> params:", params, " context:", @ctx if global.config.debug.widget
-      @_handleOnShow =>
-        @renderJson callback
-
-
-    renderJson: (callback) ->
-      callback null, JSON.stringify(@ctx)
+      @_handleOnShow().then =>
+        @renderTemplate(domInfo)
 
 
     getTemplatePath: ->
@@ -566,30 +559,31 @@ define [
           @_structTemplate
 
 
-    injectAction: (params, transition, callback) ->
+    injectAction: (params, transition) ->
       ###
+      Injects the widget into the extend-tree and reorganizes the tree.
+      Recursively walks through it's extend-widgets until matching widget is found in the current extend-tree.
+      If the matching extend-widget is found then new widgets are 'attached' to it's placeholders.
+      If the matching extend-widget is not eventually found then the page is reloaded to fully rebuild the DOM.
       @browser-only
       @param Object params
       @param PageTransition transition
-      @param Function(commonBaseWidget) callback
+      @return Future[Widget] common base widget found in extend-tree
       ###
       _console.log "#{ @debug 'injectAction' }", params if global.config.debug.widget
 
-      @widgetRepo.registerNewExtendWidget this
-
+      @widgetRepo.registerNewExtendWidget(this)
       @setParams(params)
-      _console.log "#{ @debug 'injectAction' } processes context:", @ctx if global.config.debug.widget
-      @_handleOnShow =>
-        @getStructTemplate().done (tmpl) =>
-          @_injectRender tmpl, transition, callback
+      @getStructTemplate().zip(@_handleOnShow()).then (tmpl) =>
+        @_injectRender(tmpl, transition)
 
 
-    _injectRender: (tmpl, transition, callback) ->
+    _injectRender: (tmpl, transition) ->
       ###
       @browser-only
       @param StructureTemplate tmpl
       @param PageTransition transition
-      @param Function(commonBaseWidget) callback
+      @return Future[Widget] common base widget found in extend-tree
       ###
       _console.log "#{ @debug '_injectRender' }" if global.config.debug.widget
 
@@ -602,65 +596,48 @@ define [
       if extendWidgetInfo?
         extendWidget = @widgetRepo.findAndCutMatchingExtendWidget(tmpl.struct.widgets[extendWidgetInfo.widget].path)
         if extendWidget?
-          readyPromise = new Future(1, 'Widget::_injectRender readyPromise')
+          readyPromise = new Future(@debug('_injectRender:readyPromise'))
           @_inlinesRuntimeInfo = []
 
           @registerChild extendWidget
           extendWidget.cleanSubscriptions() # clean up supscriptions to the old parent's context change
-          @resolveParamRefs extendWidget, extendWidgetInfo.params, (params) ->
+          @resolveParamRefs(extendWidget, extendWidgetInfo.params).then (params) ->
             extendWidget.setParams(params)
-            readyPromise.resolve()
+          .link(readyPromise)
 
           tmpl.assignWidget extendWidgetInfo.widget, extendWidget
 
-          cb = new Future('Widget::_injectRender cb')
-          require ['jquery'], cb.callback()
-          tmpl.replacePlaceholders extendWidgetInfo.widget, extendWidget.ctx[':placeholders'], transition, cb.callback()
+          Future.require('jquery')
+            .zip(tmpl.replacePlaceholders(extendWidgetInfo.widget, extendWidget.ctx[':placeholders'], transition))
+            .then ($) =>
+              # if there are inlines owned by this widget
+              if @_inlinesRuntimeInfo.length
+                $el = $()
+                # collect all placeholder roots with all inlines to pass to the behaviour
+                $el = $el.add(domRoot) for domRoot in @_inlinesRuntimeInfo
+              else
+                $el = undefined
 
-#          Future.require('jquery').zip(placeholdersFuture).done ($) =>
+              @browserInit(extendWidget, $el)
+                .link(readyPromise)
+                .done => @markShown()
 
-          cb.done ($) =>
-            # if there are inlines owned by this widget
-            if @_inlinesRuntimeInfo.length
-              $el = $()
-              # collect all placeholder roots with all inlines to pass to the behaviour
-              $el = $el.add(domRoot) for domRoot in @_inlinesRuntimeInfo
-            else
-              $el = undefined
-            readyPromise.when(@browserInit(extendWidget, $el))
-            @ready().done => @markShown()
-
-            readyPromise.done =>
+              readyPromise
+            .then =>
               @_inlinesRuntimeInfo = null
-              callback(extendWidget)
+              extendWidget
 
         # if not extendsWidget? (if it's a new widget in extend tree)
         else
-          tmpl.getWidget(extendWidgetInfo.widget).done (extendWidget) =>
+          tmpl.getWidget(extendWidgetInfo.widget).then (extendWidget) =>
             @registerChild extendWidget
-            @resolveParamRefs extendWidget, extendWidgetInfo.params, (params) =>
-              extendWidget.injectAction params, transition, (args...) =>
-                @browserInit(extendWidget).done => @markShown()
-                callback.apply(null, args)
+            @resolveParamRefs(extendWidget, extendWidgetInfo.params).then (params) =>
+              extendWidget.injectAction(params, transition)
+            .then (commonBaseWidget) =>
+              @browserInit(extendWidget).done => @markShown()
+              commonBaseWidget
       else
-        if true
-          location.reload()
-        else
-          # This is very hackkky attempt to replace full page body without reloading.
-          # It works ok some times, but soon requirejs begin to fail to load new scripts for the page.
-          # So I decided to leave this code for the promising future and fallback to force page reload as for now.
-          _console.log "FULL PAGE REWRITE!!! struct tmpl: ", tmpl
-          @widgetRepo.replaceExtendTree()
-          @renderTemplate(DomInfo.fake()).failAloud().done (out) =>
-            document.open()
-            document.write out
-            document.close()
-            require ['cord!/cord/core/router/clientSideRouter', 'jquery'], (router, $) ->
-              $.cache = {}
-              $(window).unbind()
-              #$(document).unbind()
-              router.initNavigate()
-            callback()
+        location.reload()
 
 
     renderTemplate: (domInfo) ->
@@ -703,9 +680,16 @@ define [
         result
 
 
-    resolveParamRefs: (widget, params, callback) ->
-      # this is necessary to avoid corruption of original structure template params
-      params = _.clone params
+    resolveParamRefs: (widget, params) ->
+      ###
+      Waits until child widget param values referenced using '^' sing to deferred context values are ready.
+      By the way subscribes child widget to the pushing of those changed context values from the parent (this) widget.
+      Completes returned promise with fully resolved map of child widget's params.
+      @param Widget widget the target child widget
+      @param Map[String -> Any] params map of it's params with values with unresolved references to the parent's context
+      @return Future[String -> Any] resolved params
+      ###
+      params = _.clone(params) # this is necessary to avoid corruption of original structure template params
 
       # removing special params
       delete params.placeholder
@@ -714,8 +698,7 @@ define [
       delete params.name
       delete params.timeout
 
-      waitCounter = 0
-      waitCounterFinish = false
+      result = new Future(@debug('resolveParamRefs'))
 
       bindings = {}
 
@@ -724,18 +707,16 @@ define [
         if name != 'name' and name != 'type'
 
           if typeof value is 'string' and value.charAt(0) == '^'
-            value = value.slice 1
+            value = value.slice(1) # cut leading ^
             bindings[value] = name
 
             # if context value is deferred, than waiting asyncronously...
             if @ctx.isDeferred(value)
-              waitCounter++
+              result.fork()
               do (name, value) =>
                 @subscribeValueChange params, name, value, =>
-                  waitCounter--
                   @widgetRepo.subscribePushBinding(@ctx.id, value, widget, name, @ctx.getVersion()) if isBrowser
-                  if waitCounter == 0 and waitCounterFinish
-                    callback params
+                  result.resolve()
 
             # otherwise just getting it's value syncronously
             else
@@ -756,9 +737,7 @@ define [
       if Object.keys(bindings).length != 0
         @childBindings[widget.ctx.id] = bindings
 
-      waitCounterFinish = true
-      if waitCounter == 0
-        callback params
+      result.map -> params
 
 
     _renderExtendedTemplate: (tmpl, domInfo) ->
@@ -768,15 +747,13 @@ define [
       @param DomInfo domInfo DOM creating and inserting promise container
       @return Future(String)
       ###
-      result = Future.single("#{ @debug('_renderExtendedTemplate') }")
       extendWidgetInfo = tmpl.struct.extend
 
-      tmpl.getWidget(extendWidgetInfo.widget).done (extendWidget) =>
+      tmpl.getWidget(extendWidgetInfo.widget).then (extendWidget) =>
         extendWidget._isExtended = true if @_isExtended
         @registerChild extendWidget, extendWidgetInfo.name
-        @resolveParamRefs extendWidget, extendWidgetInfo.params, (params) ->
-          result.when(extendWidget.show(params, domInfo))
-      result
+        @resolveParamRefs(extendWidget, extendWidgetInfo.params).then (params) ->
+          extendWidget.show(params, domInfo)
 
 
     renderInline: (inlineName, domInfo) ->
@@ -1013,7 +990,7 @@ define [
       @_inlinesRuntimeInfo.push(domRoot)
 
 
-    replacePlaceholders: (placeholders, structTmpl, replaceHints, transition, callback) ->
+    replacePlaceholders: (placeholders, structTmpl, replaceHints, transition) ->
       ###
       Replaces contents of the placeholders of this widget according to the given params
       @browser-only
@@ -1021,10 +998,10 @@ define [
       @param StructureTemplate structTmpl structure template of the calling widget
       @param Object replaceHints pre-calculated helping information about which placeholders should be replaced
                                  and which should not
-      @param Function() callback callback which should be called when replacement is done (async)
+      @return Future
       ###
-      require ['cord!utils/DomHelper', 'jquery'], (DomHelper, $) =>
-        readyPromise = new Future('Widget::replacePlaceholders readyPromise')
+      Future.require('cord!utils/DomHelper', 'jquery').then (DomHelper, $) =>
+        readyPromise = new Future(@debug('replacePlaceholders:readyPromise'))
 
         ph = {}
         @ctx[':placeholders'] ?= []
@@ -1046,40 +1023,41 @@ define [
         for name, items of ph
           do (name) =>
             if replaceHints[name].replace
-              readyPromise.fork()
               domInfo = new DomInfo
-              @_renderPlaceholder(name, domInfo).done (out, renderInfo) =>
+              @_renderPlaceholder(name, domInfo).then (out, renderInfo) =>
                 $el = $(@renderPlaceholderTag(name, out))
                 domInfo.setDomRoot($el)
-                aggregatePromise = new Future('Widget::replacePlaceholders aggregatePromise') # full placeholders members initialization promise
+                aggregatePromise = new Future(@debug('replacePlaceholders:aggregatePromise')) # full placeholders members initialization promise
                 for info in renderInfo
                   switch info.type
                     when 'inline' then info.widget.addInlineDomRoot($el)
                     when 'widget' then aggregatePromise.when(info.widget.browserInit($el))
                     #when 'timeout-stub' then aggregatePromise.when(info.widget.timeoutReady())
-                aggregatePromise.done =>
+                aggregatePromise.then =>
                   # Inserting placeholder contents to the DOM-tree only after full behaviour initialization of all
                   # included widgets but not inline-blocks. Timeout-stubs are not waited for yet as they have no
                   # any behaviour initialization support yet.
-                  DomHelper.replaceNode($('#'+@_getPlaceholderDomId(name)), $el).done ->
-                    info.widget.markShown() for info in renderInfo when info.type is 'widget'
-                    domInfo.markShown()
-                    readyPromise.resolve()
+                  DomHelper.replaceNode($('#'+@_getPlaceholderDomId(name)), $el)
+                .then ->
+                  info.widget.markShown() for info in renderInfo when info.type is 'widget'
+                  domInfo.markShown()
+              .link(readyPromise)
             else
               i = 0
               for item in items
                 do (item, i) =>
                   widget = @widgetRepo.getById item.widget
-                  readyPromise.fork()
                   widget.replaceModifierClass(item.class)
-                  structTmpl.replacePlaceholders replaceHints[name].items[i],
+                  structTmpl.replacePlaceholders(
+                    replaceHints[name].items[i],
                     widget.ctx[':placeholders'],
-                    transition, ->
-                      widget.setParams(item.params)
-                      readyPromise.resolve()
+                    transition
+                  ).then ->
+                    widget.setParams(item.params)
+                  .link(readyPromise)
                 i++
 
-        readyPromise.done(callback)
+        readyPromise
 
 
     getInitCode: (parentId) ->
@@ -1543,7 +1521,7 @@ define [
               complete = false
 
               @registerChild(widget, normalizedName)
-              @resolveParamRefs widget, params, (resolvedParams) =>
+              @resolveParamRefs(widget, params).failAloud().done (resolvedParams) =>
                 widget.setModifierClass(params.class)
                 widget.show(resolvedParams, @_domInfo).failAloud().done (out) =>
                   if not complete
@@ -1577,21 +1555,22 @@ define [
             needToWait = (name for name in deferredKeys when @ctx.isDeferred(name))
 
             promise = new Future(@debug('deferred'))
-            if needToWait.length > 0
-              for name in needToWait
-                do (name) =>
-                  promise.fork()
-                  subscription = postal.subscribe
-                    topic: "widget.#{ @ctx.id }.change.#{ name }"
-                    callback: (data) ->
-                      if data.value != ':deferred'
-                        promise.resolve()
-                        subscription.unsubscribe()
-                  @addTmpSubscription subscription
+            for name in needToWait
+              do (name) =>
+                promise.fork()
+                subscription = postal.subscribe
+                  topic: "widget.#{ @ctx.id }.change.#{ name }"
+                  callback: (data) ->
+                    if data.value != ':deferred'
+                      promise.resolve()
+                      subscription.unsubscribe()
+                @addTmpSubscription subscription
 
+            @childWidgetAdd()
             chunk.map (chunk) =>
               promise.done =>
-                TimeoutStubHelper.renderTemplateFile(this, "__deferred_#{deferredId}").failAloud().done (out) ->
+                TimeoutStubHelper.renderTemplateFile(this, "__deferred_#{deferredId}").failAloud().done (out) =>
+                  @childWidgetComplete()
                   chunk.end(out)
           else
             ''
