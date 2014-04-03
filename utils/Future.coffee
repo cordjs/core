@@ -77,7 +77,8 @@ define [
       if @_name
         if global.config?.debug.core
           @_incompleteTimeout = setTimeout =>
-            _console.warn "Future timeouted [#{@_name}] (10 seconds)" if @state() == 'pending' and @_counter > 0
+            if @state() == 'pending' and @_counter > 0
+              _console.warn "Future timeouted [#{@_name}] (10 seconds), counter = #{@_counter}"
           , 10 * 1000
 
 
@@ -289,6 +290,59 @@ define [
       this
 
 
+    then: (onResolved, onRejected) ->
+      ###
+      Implements 'then'-samantics to be compatible with standard JS Promise.
+      Both arguments are optional but at least on of them must be defined!
+      @param (optional)Function onResolved callback to be evaluated in case of successful resolving of the promise
+                                           This is the same as using of combination of map() or flatMap()
+                                           (depending of the callback's returned type).
+                                           If the Future returned then it's result is proxied to the then-result Future.
+                                           Returned Array is spread into same number of callback arguments.
+                                           If exception is thrown then it's wrapped into rejected Future and returned.
+                                           Any other return value is just returned wrappend into resulting Future.
+      @param (optional)Function onRejected callback to be evaluated in case of the promise rejection
+                                           This is the same as using recover() method.
+                                           Return value behaviour is the same as for `onResolved` callback
+      @return Future[A]
+      ###
+      throw new Error("No callback given for Future.then (name = #{@_name})!") if not onResolved? and not onRejected?
+      result = Future.single("#{@_name} -> then")
+      if onResolved?
+        @done (args...) ->
+          try
+            res = onResolved.apply(null, args)
+            if res instanceof Future
+              result.when(res)
+            else if _.isArray(res)
+              result.resolve.apply(result, res)
+            else
+              result.resolve(res)
+          catch err
+            if result.completed()
+              throw err
+            else
+              #console.error "Error in Future.then", err, err.stack
+              result.reject(err)
+      if onRejected?
+        @fail (err) ->
+          try
+            res = onRejected.call(null, err)
+            if res instanceof Future
+              result.when(res)
+            else if _.isArray(res)
+              result.resolve.apply(result, res)
+            else
+              result.resolve(res)
+          catch err1
+            if result.completed()
+              throw err1
+            else
+              #console.error "Error in Future.then", err, err.stack
+              result.reject(err1)
+      result
+
+
     map: (callback) ->
       ###
       Creates new Future by applying the given callback to the successful result of this Future.
@@ -371,6 +425,7 @@ define [
         else
           result.resolve(mapRes)
       result
+
 
     mapFail: (callback) ->
       ###
