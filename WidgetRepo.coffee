@@ -422,7 +422,7 @@ define [
         # down to the base widget (containing <html> tag)
         @createWidget(newRootWidgetPath).then (widget) =>
           @setRootWidget widget
-          widget.injectAction(params, transition).done (commonBaseWidget) =>
+          widget.inject(params, transition).done (commonBaseWidget) =>
             @dropWidget(_oldRootWidget.ctx.id) if _oldRootWidget && commonBaseWidget != _oldRootWidget
             @rootWidget.shown().done -> transition.complete()
         .failAloud()

@@ -559,7 +559,7 @@ define [
           @_structTemplate
 
 
-    injectAction: (params, transition) ->
+    inject: (params, transition) ->
       ###
       Injects the widget into the extend-tree and reorganizes the tree.
       Recursively walks through it's extend-widgets until matching widget is found in the current extend-tree.
@@ -570,74 +570,63 @@ define [
       @param PageTransition transition
       @return Future[Widget] common base widget found in extend-tree
       ###
-      _console.log "#{ @debug 'injectAction' }", params if global.config.debug.widget
+      _console.log "#{ @debug 'inject' }", params if global.config.debug.widget
 
       @widgetRepo.registerNewExtendWidget(this)
       @setParams(params)
       @getStructTemplate().zip(@_handleOnShow()).then (tmpl) =>
-        @_injectRender(tmpl, transition)
 
+        @_resetWidgetReady()
+        @_behaviourContextBorderVersion = null
+        @_placeholdersRenderInfo = []
+        @_deferredBlockCounter = 0
 
-    _injectRender: (tmpl, transition) ->
-      ###
-      @browser-only
-      @param StructureTemplate tmpl
-      @param PageTransition transition
-      @return Future[Widget] common base widget found in extend-tree
-      ###
-      _console.log "#{ @debug '_injectRender' }" if global.config.debug.widget
+        extendWidgetInfo = if not tmpl.isEmpty() then tmpl.struct.extend else null
+        if extendWidgetInfo?
+          extendWidget = @widgetRepo.findAndCutMatchingExtendWidget(tmpl.struct.widgets[extendWidgetInfo.widget].path)
+          if extendWidget?
+            readyPromise = new Future(@debug('_injectRender:readyPromise'))
+            @_inlinesRuntimeInfo = []
 
-      @_resetWidgetReady()
-      @_behaviourContextBorderVersion = null
-      @_placeholdersRenderInfo = []
-      @_deferredBlockCounter = 0
-
-      extendWidgetInfo = if not tmpl.isEmpty() then tmpl.struct.extend else null
-      if extendWidgetInfo?
-        extendWidget = @widgetRepo.findAndCutMatchingExtendWidget(tmpl.struct.widgets[extendWidgetInfo.widget].path)
-        if extendWidget?
-          readyPromise = new Future(@debug('_injectRender:readyPromise'))
-          @_inlinesRuntimeInfo = []
-
-          @registerChild extendWidget
-          extendWidget.cleanSubscriptions() # clean up supscriptions to the old parent's context change
-          @resolveParamRefs(extendWidget, extendWidgetInfo.params).then (params) ->
-            extendWidget.setParams(params)
-          .link(readyPromise)
-
-          tmpl.assignWidget extendWidgetInfo.widget, extendWidget
-
-          Future.require('jquery')
-            .zip(tmpl.replacePlaceholders(extendWidgetInfo.widget, extendWidget.ctx[':placeholders'], transition))
-            .then ($) =>
-              # if there are inlines owned by this widget
-              if @_inlinesRuntimeInfo.length
-                $el = $()
-                # collect all placeholder roots with all inlines to pass to the behaviour
-                $el = $el.add(domRoot) for domRoot in @_inlinesRuntimeInfo
-              else
-                $el = undefined
-
-              @browserInit(extendWidget, $el)
-                .link(readyPromise)
-                .done => @markShown()
-
-              readyPromise
-            .then =>
-              @_inlinesRuntimeInfo = null
-              extendWidget
-
-        # if not extendsWidget? (if it's a new widget in extend tree)
-        else
-          tmpl.getWidget(extendWidgetInfo.widget).then (extendWidget) =>
             @registerChild extendWidget
-            @resolveParamRefs(extendWidget, extendWidgetInfo.params).then (params) =>
-              extendWidget.injectAction(params, transition)
-            .then (commonBaseWidget) =>
-              @browserInit(extendWidget).done => @markShown()
-              commonBaseWidget
-      else
-        location.reload()
+            extendWidget.cleanSubscriptions() # clean up supscriptions to the old parent's context change
+            @resolveParamRefs(extendWidget, extendWidgetInfo.params).then (params) ->
+              extendWidget.setParams(params)
+            .link(readyPromise)
+
+            tmpl.assignWidget extendWidgetInfo.widget, extendWidget
+
+            Future.require('jquery')
+              .zip(tmpl.replacePlaceholders(extendWidgetInfo.widget, extendWidget.ctx[':placeholders'], transition))
+              .then ($) =>
+                # if there are inlines owned by this widget
+                if @_inlinesRuntimeInfo.length
+                  $el = $()
+                  # collect all placeholder roots with all inlines to pass to the behaviour
+                  $el = $el.add(domRoot) for domRoot in @_inlinesRuntimeInfo
+                else
+                  $el = undefined
+
+                @browserInit(extendWidget, $el)
+                  .link(readyPromise)
+                  .done => @markShown()
+
+                readyPromise
+              .then =>
+                @_inlinesRuntimeInfo = null
+                extendWidget
+
+          # if not extendsWidget? (if it's a new widget in extend tree)
+          else
+            tmpl.getWidget(extendWidgetInfo.widget).then (extendWidget) =>
+              @registerChild extendWidget
+              @resolveParamRefs(extendWidget, extendWidgetInfo.params).then (params) =>
+                extendWidget.inject(params, transition)
+              .then (commonBaseWidget) =>
+                @browserInit(extendWidget).done => @markShown()
+                commonBaseWidget
+        else
+          location.reload()
 
 
     renderTemplate: (domInfo) ->
@@ -1332,11 +1321,8 @@ define [
       @return Future()
       ###
       _console.log "#{ @debug 'browserInit' }" if global.config.debug.widget
-      if @_sentenced
-        _console.warn "browserInit called for dead #{ @debug() }"
-        return @_widgetReadyPromise
 
-      if not @_browserInitialized and not @_delayedRender
+      if not @_browserInitialized and not @_delayedRender and not @_sentenced
         @_browserInitialized = true
 
         if stopPropagateWidget? and not (stopPropagateWidget instanceof Widget)
@@ -1399,8 +1385,6 @@ define [
             else
               _console.error "#{ @debug 'incompleteBrowserInit!' } css:#{ savedConstructorCssPromise.completed() } child:#{ childWidgetReadyPromise.completed() } selfInit:#{ selfInitBehaviour }" if not savedPromiseForTimeoutCheck.completed()
           , 5000
-#      else
-#        _console.warn "#{ @debug 'browserInit::duplicate!!' }" if not @_delayedRender
       @_widgetReadyPromise
 
 
