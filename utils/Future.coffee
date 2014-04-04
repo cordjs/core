@@ -343,6 +343,17 @@ define [
       result
 
 
+    catch: (callback) ->
+      ###
+      Implements 'catch'-samantics to be compatible with standard JS Promise.
+      Shortcut for promise.then(undefined, callback)
+      @see then()
+      @param Function callback function to be evaluated in case of the promise rejection
+      @return Future[A]
+      ###
+      this.then(undefined, callback)
+
+
     map: (callback) ->
       ###
       Creates new Future by applying the given callback to the successful result of this Future.
