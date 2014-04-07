@@ -37,9 +37,9 @@ define [
       argssss.url = argssss.params.url if !argssss.url and argssss.params.url?
       argssss.callback = params.callback if !argssss.callback and argssss.params.callback?
 
-      if (method == 'get')
+      if method == 'get'
         options =
-          query: argssss.params
+          qs: argssss.params
           json: true
           strictSSL: false
       else
