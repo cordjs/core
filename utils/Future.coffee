@@ -675,10 +675,33 @@ define [
       paths = paths[0] if paths.length == 1 and _.isArray(paths[0])
       result = @single(':require:('+ paths.join(', ') + ')')
       require paths, (modules...) ->
-        result.resolve.apply(result, modules)
+        try
+          result.resolve.apply(result, modules)
+        catch err
+          # this catch is needed to prevent require's error callbacks to fire when error is caused
+          # by th result's callbacks. Otherwise we'll try to reject already resolved promise two lines below.
+          console.error "Got exception in Future.require() callbacks for [#{result._name}]: #{err}", err
       , (err) ->
         result.reject(err)
       result
+
+
+    @try: (fn) ->
+      ###
+      Wraps syncronous function result into resolved or rejected Future depending if function throws an exception or not
+      @param Function fn called function
+      @return Future if the argument function throws exception than Future.rejected with that exception is returned
+                     if the argument function returns a Future than it is returned as-is
+                     otherwise Future.resolved with the function result is returned
+      ###
+      try
+        res = fn()
+        if res instanceof Future
+          res
+        else
+          Future.resolved(res)
+      catch err
+        Future.rejected(err)
 
 
     clear: ->
