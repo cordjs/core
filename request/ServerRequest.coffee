@@ -1,5 +1,5 @@
 define [
-  'curly'
+  'request'
   'cord!Utils'
   'underscore'
   'postal'
@@ -41,9 +41,11 @@ define [
         options =
           query: argssss.params
           json: true
+          strictSSL: false
       else
         options =
           json: argssss.params
+          strictSSL: false
 
       startRequest = new Date() if global.config.debug.request
 
