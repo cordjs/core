@@ -354,6 +354,16 @@ define [
       this.then(undefined, callback)
 
 
+    catchIf: (predicate) ->
+      ###
+      Bypasses rejected promise (transform it to the resolved one) if the given predicate function returns true
+      @param Function predicate
+      @return Future
+      ###
+      this.catch (err) ->
+        throw err if not predicate(err)
+
+
     map: (callback) ->
       ###
       Creates new Future by applying the given callback to the successful result of this Future.
@@ -675,12 +685,13 @@ define [
       paths = paths[0] if paths.length == 1 and _.isArray(paths[0])
       result = @single(':require:('+ paths.join(', ') + ')')
       require paths, (modules...) ->
-        try
+        try~
           result.resolve.apply(result, modules)
         catch err
           # this catch is needed to prevent require's error callbacks to fire when error is caused
           # by th result's callbacks. Otherwise we'll try to reject already resolved promise two lines below.
           console.error "Got exception in Future.require() callbacks for [#{result._name}]: #{err}", err
+          console.log err.stack
       , (err) ->
         result.reject(err)
       result
