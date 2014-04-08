@@ -23,4 +23,4 @@ CordJS is still under heavy development. There are no any unit-test or documenta
 
 CordJS is developed for the real-life commecial project -- new fully rewritten version of the megaplan.ru (one of the leading russian SaaS task manager and CRM for SMB). So this is not just an academic research.
 
-Available under terms of MIT license.
+Available under terms of MIT license &copy; Megaplan LLC.

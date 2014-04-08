@@ -672,8 +672,8 @@ define [
       result.set attrs
       @_injectActionMethods(result) if attrs?.id
       result
-      
-    
+
+
     refreshOnlyContainingCollections: (model)->
       #Make all collections, containing this model refresh
       #It's cheaper than Collection::checkNewModel and ModelRepo._suggestNewModelToCollections,

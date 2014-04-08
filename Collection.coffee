@@ -781,6 +781,7 @@ define [
       @param Object dst destination object
       @return Boolean true if the destination object was changed
       ###
+
       result = false
 
       for key, val of src
@@ -806,7 +807,7 @@ define [
         else if _.isObject(val) and _.isObject(dst[key])
           result = @_recursiveCompareAndChange(val, dst[key])
 
-        else if not _.isEqual(val, dst[key])
+        else if typeof val == typeof dst[key] and not _.isEqual(val, dst[key])
           dst[key] = _.clone(val)
           result = true
 
@@ -818,7 +819,9 @@ define [
       Does the same as _recursiveCompareAndChange, but without actual changing the values
       Also _recursiveCompareAndChange uses this function itself.
       ###
+
       result = false
+
       for key, val of src
         if dst[key] != undefined
           if _.isArray(val)
@@ -841,6 +844,7 @@ define [
             result = true
         if result
           break
+
       result
 
 
@@ -1049,9 +1053,9 @@ define [
           queryParams =
             fields: @_fields
             reconnect: @_reconnect
-          
+
           queryParams.orderBy = @_orderBy
-          
+
           if @_id
             queryParams.id = @_id
           else
@@ -1282,7 +1286,6 @@ define [
       @_queryQueue.loadingEnd = @_loadedEnd = end
       #@_loadedStart = start
       #@_loadedEnd = end
-
 
 
     debug: (method) ->
