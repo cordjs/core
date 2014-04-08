@@ -26,7 +26,6 @@ define [
       .zip(domInfo.domInserted()).map ->
         widget.markShown()
         []
-      .failAloud()
 
 
     @renderTemplateFile: (ownerWidget, fileName) ->

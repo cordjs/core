@@ -2,6 +2,7 @@ define [
   'cord!Collection'
   'cord!Context'
   'cord!css/helper'
+  'cord!errors'
   'cord!helpers/TimeoutStubHelper'
   'cord!isBrowser'
   'cord!Model'
@@ -16,7 +17,7 @@ define [
   'monologue' + (if document? then '' else '.js')
   'postal'
   'underscore'
-], (Collection, Context, cssHelper, TimeoutStubHelper, isBrowser, Model, Module, StructureTemplate,
+], (Collection, Context, cssHelper, errors, TimeoutStubHelper, isBrowser, Model, Module, StructureTemplate,
     templateLoader, DomInfo, Future,
     dust, Monologue, postal, _) ->
 
@@ -66,6 +67,10 @@ define [
     _stashedChildEvents: null
 
     _placeholdersClasses: null
+
+    # promise needed to prevent setParams() to be applied while template rendering is performed
+    # it just holds renderTemplate() method return value
+    _renderPromise: null
 
     # promise to load widget completely (with all styles and behaviours, including children)
     _widgetReadyPromise: null
@@ -248,6 +253,8 @@ define [
         @_widgetReadyPromise = Future.single(@debug('_widgetReadyPromise.resolved')).resolve()
         @_shownPromise = Future.single('Widget::_shownPromise')
 
+      @_renderPromise = Future.resolved()
+
       @_callbacks = []
       @_promises = []
 
@@ -276,7 +283,7 @@ define [
       @clearPromises()
       @_shownPromise.clear() if @_shownPromise?
       if @_widgetReadyPromise and not @_browserInitialized and not @_widgetReadyPromise.completed()
-        @_widgetReadyPromise.reject(new Error('widget is cleaned!'))
+        @_widgetReadyPromise.reject(new errors.WidgetDropped('widget is cleaned!'))
 
 
     _cleanBehaviour: ->
@@ -445,9 +452,49 @@ define [
       Main "reactor" to the widget's API params change from outside.
       Changes widget's context variables according to the rules, defined in "params" static configuration of the widget.
       Rules are applied only to defined input params.
+      Prevents applying params to the context during widget template rendering and defers actual context modification
+       to the moment after rendering. If more than one setParams() is called during template rendering then only last
+       call is performed, all others are rejected.
       @param Object params changed params
+      @return Future
       ###
-      _console.log "#{ @debug 'setParams' } -> ", params if global.config.debug.widget
+      if @_renderPromise.completed()
+        if @_sentenced
+          Future.rejected(new errors.WidgetParamsRace("#{ @debug 'setParams' } is called for sentenced widget!"))
+        else
+          Future.try => @_setParams0(params)
+      else
+        if not @_lastSetParams?
+          @_renderPromise.always =>
+            @_nextSetParamsCallback()
+        else
+          @_lastSetParams.reject(new errors.WidgetParamsRace("#{@debug('setParams') } overlapped with new call!"))
+
+        @_lastSetParams = Future.single()
+
+        @_nextSetParamsCallback = =>
+          if @_sentenced
+            x = new errors.WidgetParamsRace("#{ @debug('setParams') } is called for sentenced widget!")
+            @_lastSetParams.reject(x)
+          else
+            Future.try =>
+              @_setParams0(params)
+            .link(@_lastSetParams)
+          @_nextSetParamsCallback = null
+          @_lastSetParams = null
+
+        @_lastSetParams
+
+
+    _setParams0: (params) ->
+      ###
+      Actual "applyer" of params for the setParams() call.
+      @see setParams()
+      @param Map[String -> Any] params incoming params
+      @synchronous
+      @throws validation errors
+      ###
+      _console.log "#{ @debug '_setParams0' } -> ", params if global.config.debug.widget
       if @constructor.params? or @constructor.initialCtx?
         rules = @constructor._paramRules
         processedRules = {}
@@ -456,7 +503,7 @@ define [
           if rules[name]?
             for rule in rules[name]
               if rule.hasValidation and not rule.validate(value)
-                throw "Validation of param '#{ name }' of widget #{ @debug() } is not passed!"
+                throw new Error("Validation of param '#{ name }' of widget #{ @debug() } is not passed!")
               else
                 switch rule.type
                   when ':setSame' then @ctx.set(name, value)
@@ -507,9 +554,10 @@ define [
       @final
       @return Future(String)
       ###
-      @setParams(params)
-      _console.log "#{ @debug 'show' } -> params:", params, " context:", @ctx if global.config.debug.widget
-      @_handleOnShow().then =>
+      @setParams(params).then =>
+        _console.log "#{ @debug 'show' } -> params:", params, " context:", @ctx if global.config.debug.widget
+        @_handleOnShow()
+      .then =>
         @renderTemplate(domInfo)
 
 
@@ -539,7 +587,7 @@ define [
 
 
     isSentenced: ->
-      @_sentenced?
+      @_sentenced
 
 
     getStructTemplate: ->
@@ -573,8 +621,9 @@ define [
       _console.log "#{ @debug 'inject' }", params if global.config.debug.widget
 
       @widgetRepo.registerNewExtendWidget(this)
-      @setParams(params)
-      @getStructTemplate().zip(@_handleOnShow()).then (tmpl) =>
+      @setParams(params).then =>
+        @getStructTemplate().zip(@_handleOnShow())
+      .then (tmpl) =>
 
         @_resetWidgetReady()
         @_behaviourContextBorderVersion = null
@@ -642,7 +691,7 @@ define [
       @_placeholdersRenderInfo = []
       @_deferredBlockCounter = 0
 
-      @getStructTemplate().flatMap (tmpl) =>
+      @_renderPromise = @getStructTemplate().flatMap (tmpl) =>
         if tmpl.isExtended()
           @_renderExtendedTemplate(tmpl, domInfo)
         else
@@ -897,7 +946,9 @@ define [
             if not promise.completed()
               processWidget(out)
             else
-              TimeoutStubHelper.replaceStub(out, widget, domInfo)
+              TimeoutStubHelper.replaceStub(out, widget, domInfo).catchIf (err) ->
+                err instanceof errors.WidgetDropped
+              .failAloud()
 
 
           if info.type == 'widget'
@@ -1012,7 +1063,7 @@ define [
         for name, items of ph
           do (name) =>
             if replaceHints[name].replace
-              domInfo = new DomInfo
+              domInfo = new DomInfo("#{ @debug('renderPlaceholders') } -> #{name}")
               @_renderPlaceholder(name, domInfo).then (out, renderInfo) =>
                 $el = $(@renderPlaceholderTag(name, out))
                 domInfo.setDomRoot($el)
@@ -1514,7 +1565,9 @@ define [
                     chunk.end widget.renderRootTag(out)
                   else
                     widget._delayedRender = false
-                    TimeoutStubHelper.replaceStub(out, widget, @_domInfo)
+                    TimeoutStubHelper.replaceStub(out, widget, @_domInfo).catchIf (err) ->
+                      err instanceof errors.WidgetDropped
+                    .failAloud()
 
               if isBrowser and timeout >= 0
                 setTimeout =>
