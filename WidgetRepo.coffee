@@ -373,6 +373,35 @@ define [
       subscription
 
 
+    smartTransitPage: (newRootWidgetPath, params, transition) ->
+      ###
+      Initiates client-side transition of the page.
+      Calls transitPage() method but prevents two transitPages to be executed concurrently. If more than one
+       transitPage() is called during current incomplete transition then only last call is performed, all others are
+       skipped.
+      @browser-only
+      @param String newRootWidgetPath canonical path of the new root page-widget
+      @param Map params params for the new root widget
+      @param PageTransition transition page transition support object which contains information about transition and
+                                       triggers events related to transition process
+      @return Future
+      ###
+      if not @_inTransition
+        @_inTransition = true
+        @_currentTransition = @transitPage(newRootWidgetPath, params, transition).andThen =>
+          @_inTransition = false
+      else
+        if not @_nextTransitionCalback?
+          @_nextTransition = @_currentTransition.then =>
+            @_nextTransitionCalback()
+          .catch =>
+            @_nextTransitionCalback()
+        @_nextTransitionCalback = =>
+          @_nextTransitionCalback = null
+          @smartTransitPage(newRootWidgetPath, params, transition)
+        @_nextTransition
+
+
     transitPage: (newRootWidgetPath, params, transition) ->
       ###
       Initiates client-side transition of the page.
@@ -383,12 +412,13 @@ define [
       @param Map params params for the new root widget
       @param PageTransition transition page transition support object which contains information about transition and
                                        triggers events related to transition process
+      @return Future
       ###
       _console.log "WidgetRepo::transitPage -> current root = #{ @rootWidget.debug() }" if global.config.debug.widget
 
       # interrupting previous transition if it's not completed
-      @_curTransition.interrupt() if @_curTransition? and @_curTransition.isActive()
-      @_curTransition = transition
+#      @_curTransition.interrupt() if @_curTransition? and @_curTransition.isActive()
+#      @_curTransition = transition
 
       _oldRootWidget = @rootWidget
       # finding out if the new root widget is already exists in the current page structure
@@ -400,18 +430,19 @@ define [
           # of the new root (because the old root extends from the new one directly or indirectly)
           # and push new params into the new root widget
           @setRootWidget extendWidget
-          extendWidget.getStructTemplate().failAloud().done (tmpl) =>
+          extendWidget.getStructTemplate().then (tmpl) =>
             tmpl.assignWidget(tmpl.struct.ownerWidget, extendWidget)
-            tmpl.replacePlaceholders(tmpl.struct.ownerWidget, extendWidget.ctx[':placeholders'], transition).done =>
-              extendWidget.setParams(params)
-              @dropWidget _oldRootWidget.ctx.id
-              # todo: this browserInit may be always redundant
-              redundancyCheck = false
-              @rootWidget.browserInit(extendWidget).failAloud().done ->
-                redundancyCheck = true
-                transition.complete()
-              console.warn "Strange #{ extendWidget.debug('browserInit') } is not redundant!!!" if not redundancyCheck
-            .failAloud()
+            tmpl.replacePlaceholders(tmpl.struct.ownerWidget, extendWidget.ctx[':placeholders'], transition)
+          .then ->
+            extendWidget.setParams(params)
+          .then =>
+            @dropWidget(_oldRootWidget.ctx.id)
+            # todo: this browserInit may be always redundant. To be removed after check
+            if not @rootWidget._browserInitialized
+              @rootWidget.browserInit(extendWidget)
+              console.warn "Strange #{ extendWidget.debug('browserInit') } is not redundant!!!"
+            transition.complete()
+          .failAloud()
         else
           # if the new widget is the same as the current root, than this is just params change and we should only push
           # new params to the root widget

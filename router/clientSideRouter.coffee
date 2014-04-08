@@ -50,7 +50,7 @@ define [
         postal.publish('router.process', routeInfo)
 
         if routeInfo.route.widget?
-          @widgetRepo.transitPage(routeInfo.route.widget, routeInfo.params, new PageTransition(@currentPath, newPath))
+          @widgetRepo.smartTransitPage(routeInfo.route.widget, routeInfo.params, new PageTransition(@currentPath, newPath))
           @currentPath = newPath
           true
         else
