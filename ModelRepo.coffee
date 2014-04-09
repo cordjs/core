@@ -787,7 +787,7 @@ define [
 
           # prepare models for cache
           models = []
-          models.push(model.toJSON()) for model in collection.toArray()
+          models[key] = model.toJSON() for key, model of collection.toArray()
 
           result.when storage.saveCollection(@constructor.__name, name, models)
 
