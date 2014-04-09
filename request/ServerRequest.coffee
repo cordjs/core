@@ -1,5 +1,5 @@
 define [
-  'curly'
+  'request'
   'cord!Utils'
   'underscore'
   'postal'
@@ -37,13 +37,15 @@ define [
       argssss.url = argssss.params.url if !argssss.url and argssss.params.url?
       argssss.callback = params.callback if !argssss.callback and argssss.params.callback?
 
-      if (method == 'get')
+      if method == 'get'
         options =
-          query: argssss.params
+          qs: argssss.params
           json: true
+          strictSSL: false
       else
         options =
           json: argssss.params
+          strictSSL: false
 
       startRequest = new Date() if global.config.debug.request
 
