@@ -423,7 +423,7 @@ define [
           modelPage = Math.ceil(modelIndex + 1/ @_pageSize)
 
         @getPagingInfo(currentId, true).done (paging) =>
-          #Don't refresh collection if currentId does not belong to it
+          #Don't refresh collection if currentId is not belonged to it
           if !currentId || paging.selectedPage > 0 || modelIndex > -1
             startPage = if paging.selectedPage > 0 then paging.selectedPage else 1
             #refresh pages, starting from current, and then go 1 up, 1 down, etc
@@ -557,7 +557,7 @@ define [
       else
         @_models = models
         @_loadedStart = 0
-        @_loadedEnd = models.length - 1
+        @_loadedEnd = if models.length == 0 then 0 else models.length - 1
         @_hasLimits = false
         @_totalCount = models.length
 
