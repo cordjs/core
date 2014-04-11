@@ -606,10 +606,11 @@ define [
       changedModels = {}
 
       newListIds = {}
-      for item in newList
+
+      for index, item of newList
         newListIds[item.id] = item
 
-      for model in oldList
+      for index, model of oldList
         if not newListIds[model.id]
           deletedModels[model.id] = model
           deleted = true
@@ -618,7 +619,7 @@ define [
       targetIndex = loadingStart - 1
 
       # appending/replacing new models to the collection according to the paging options
-      for model, i in newList
+      for i, model of newList
         model.setCollection(this)
         targetIndex = loadingStart + i
         if @_byId[model.id]? and @_compareModels(model, @_byId[model.id])
