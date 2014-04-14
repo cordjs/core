@@ -507,6 +507,7 @@ define [
       urlParams.push("_filter=#{ params.filterId }") if params.filterId?
       urlParams.push("_filterParams=#{ params.filterParams }") if params.filterParams?
       urlParams.push("_pagesize=#{ params.pageSize }") if params.pageSize?
+      urlParams.push("_selectedId=#{ params.selectedId }") if params.selectedId
 
       if params.filter
         for filterField, filterValue of params.filter
@@ -786,7 +787,7 @@ define [
 
           # prepare models for cache
           models = []
-          models.push(model.toJSON()) for model in collection.toArray()
+          models[key] = model.toJSON() for key, model of collection.toArray()
 
           result.when storage.saveCollection(@constructor.__name, name, models)
 
