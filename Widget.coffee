@@ -917,7 +917,7 @@ define [
 
           processTimeoutStub = ->
             widget._delayedRender = true
-            TimeoutStubHelper.getTimeoutHtml(timeoutTemplateOwner, info.timeoutTemplate).failAloud().done (out) ->
+            TimeoutStubHelper.getTimeoutHtml(timeoutTemplateOwner, info.timeoutTemplate, widget).failAloud().done (out) ->
               placeholderOut[placeholderOrder[widgetId]] = widget.renderRootTag(out)
               renderInfo.push(type: 'timeout-stub', widget: widget)
               promise.resolve()
@@ -1560,7 +1560,7 @@ define [
                   if not complete
                     complete = true
                     widget._delayedRender = true
-                    TimeoutStubHelper.getTimeoutHtml(this, timeoutTemplate).failAloud().done (out) =>
+                    TimeoutStubHelper.getTimeoutHtml(this, timeoutTemplate, widget).failAloud().done (out) =>
                       @childWidgetComplete()
                       chunk.end widget.renderRootTag(out)
                 , timeout

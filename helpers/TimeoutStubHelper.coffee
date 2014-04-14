@@ -42,7 +42,7 @@ define [
       .failAloud()
 
 
-    @getTimeoutHtml: (ownerWidget, timeoutTemplate) ->
+    @getTimeoutHtml: (ownerWidget, timeoutTemplate, widget) ->
       ###
       Returns timeout-stub HTML depending on the presence of the timeout-stub template
       @param Widget ownerWidget
@@ -52,7 +52,7 @@ define [
       if timeoutTemplate?
         @renderTemplateFile(ownerWidget, timeoutTemplate)
       else
-        if ownerWidget?.constructor.timeoutTemplateString
-          Future.resolved(ownerWidget.constructor.timeoutTemplateString)
+        if widget?.constructor.defaultTimeoutTemplateString
+          Future.resolved(widget.constructor.defaultTimeoutTemplateString)
         else 
           Future.resolved('<img src="/bundles/cord/core/assets/pic/loader-transp.gif"/>')
