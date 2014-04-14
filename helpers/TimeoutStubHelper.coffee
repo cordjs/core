@@ -52,4 +52,7 @@ define [
       if timeoutTemplate?
         @renderTemplateFile(ownerWidget, timeoutTemplate)
       else
-        Future.resolved('<img src="/bundles/cord/core/assets/pic/loader-transp.gif"/>')
+        if ownerWidget?.constructor.timeoutTemplateString
+          Future.resolved(ownerWidget.constructor.timeoutTemplateString)
+        else 
+          Future.resolved('<img src="/bundles/cord/core/assets/pic/loader-transp.gif"/>')
