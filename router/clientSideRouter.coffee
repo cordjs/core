@@ -75,6 +75,11 @@ define [
         newPath = '/' + newPath
       return if @currentPath == newPath
 
+      if window.systemPageRefresh != undefined and window.systemPageRefresh == true
+        postal.publish 'mp2.was.updated'
+        window.location.replace newPath
+        return
+
       if @history
         options = $.extend({}, @options, options)
 
