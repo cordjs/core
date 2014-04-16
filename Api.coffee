@@ -147,7 +147,7 @@ define [
             #but might run into everlasting loop
             @authenticateUser() if !silently
             return false #stop processing other deferred callbacks in oauth
-
+            
 
     getTokensByAllMeans: (accessToken, refreshToken, callback) ->
       if not accessToken
