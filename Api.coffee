@@ -136,7 +136,7 @@ define [
       result
 
 
-    getTokensByRefreshToken: (refreshToken, callback) ->
+    getTokensByRefreshToken: (refreshToken, callback, silently = false) ->
       @serviceContainer.eval 'oauth2', (oauth2) =>
         oauth2.grantAccessTokenByRefreshToken refreshToken, @getScope(), (grantedAccessToken, grantedRefreshToken) =>
           if grantedAccessToken and grantedRefreshToken
@@ -145,9 +145,9 @@ define [
           else
             #in case of fail dont call callback - it wont be able to solve the problem,
             #but might run into everlasting loop
-            @authenticateUser()
+            @authenticateUser() if !silently
             return false #stop processing other deferred callbacks in oauth
-
+            
 
     getTokensByAllMeans: (accessToken, refreshToken, callback) ->
       if not accessToken
