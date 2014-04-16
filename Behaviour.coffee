@@ -278,17 +278,19 @@ define [
           # renderTemplate will clean this behaviour, so we must save links...
           widget = @widget
           $rootEl = @el
-          domInfo = new DomInfo
+          domInfo = new DomInfo(@debug('render'))
           # harakiri: this is need to avoid interference of subsequent async calls of the @render() for the same widget
           @widget._cleanBehaviour()
-          widget.renderTemplate(domInfo).failAloud().done (out) ->
+          widget.renderTemplate(domInfo).then (out) ->
             $newWidgetRoot = $(widget.renderRootTag(out))
             domInfo.setDomRoot($newWidgetRoot)
-            widget.browserInit($newWidgetRoot).done ->
-              DomHelper.replaceNode($rootEl, $newWidgetRoot).done ->
-                domInfo.markShown()
-                widget.markShown()
-                widget.emit 're-render.complete'
+            widget.browserInit($newWidgetRoot).then ->
+              DomHelper.replaceNode($rootEl, $newWidgetRoot)
+            .then ->
+              domInfo.markShown()
+              widget.markShown()
+              widget.emit 're-render.complete'
+          .failAloud()
 
 
     renderInline: (name) ->
@@ -299,7 +301,7 @@ define [
       ###
       @widget._behaviourContextBorderVersion = null
       @widget._resetWidgetReady()
-      domInfo = new DomInfo
+      domInfo = new DomInfo(@debug('renderInline'))
       @widget.renderInline(name, domInfo).failAloud().done (out) =>
         $newInlineRoot = $(@widget.renderInlineTag(name, out))
         domInfo.setDomRoot($newInlineRoot)
@@ -319,10 +321,11 @@ define [
       @param Function(jquery) callback callback which is called with the resulting jquery element and created object of widget
       ###
       if (parentWidget = @widget)?
-        domInfo = new DomInfo
+        domInfo = new DomInfo("#{ @debug('renderNewWidget') } -> #{ widget.debug() }")
         widget.show(params, domInfo).failAloud().done (out) ->
           $el = $(widget.renderRootTag(out))
           domInfo.setDomRoot($el)
+          domInfo.domInserted().when(widget.shown())
           widget.browserInit($el).done ->
             callback($el, widget, domInfo) if not parentWidget.isSentenced()
 

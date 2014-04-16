@@ -1,8 +1,9 @@
 define [
+  'cord!errors'
   'cord!utils/Defer'
   'cord!utils/Future'
   'underscore'
-], (Defer, Future, _) ->
+], (errors, Defer, Future, _) ->
 
   class DeferAggregator
 
@@ -37,11 +38,9 @@ define [
           df.promise.resolve()
 
         df.promise.done =>
-          try
-            if not widget.isSentenced()
-              widget.setParams(df.params)
-          catch error
-            _console.error error
+          widget.setParams(df.params).catchIf (err) ->
+            err instanceof errors.WidgetParamsRace
+          .failAloud()
 
           delete @defers[id]
 
