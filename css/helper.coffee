@@ -59,7 +59,7 @@ define [
               "/assets/z/#{cssToGroup[css]}.css"
             else
               # anti-cache suffix is needed only for direct-links, not for the optimized groups
-              "#{css}?uid=#{ global.config.static.release }"
+              "#{css}?release=#{ global.config.static.release }"
         _.map(_.uniq(optimized), @getHtmlLink).join('')
 
 

@@ -57,7 +57,7 @@ define [
       normPath = normalizePath(cssPath)
       if not @_loadedFiles[normPath]?
         if not @_cssToGroup[normPath]
-          @_loadedFiles[normPath] = @_loadLink("#{ cssPath }?uid=#{ global.config.static.release }")
+          @_loadedFiles[normPath] = @_loadLink("#{ cssPath }?release=#{ global.config.static.release }")
           @_loadingOrder.push(normPath)
         else
           groupId = @_cssToGroup[normPath]
