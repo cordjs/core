@@ -444,7 +444,18 @@ define [
                   else
                     rule.callback.call(this, changed)
         else if mb.model instanceof Collection
-          true# stub
+          mb.subscription = mb.model.on 'change', (changed) =>
+            for rule in rules[name]
+              switch rule.type
+                when ':setSame' then @ctx.set(name, mb.model.toArray())
+                when ':set' then @ctx.set(rule.ctxName, mb.model.toArray())
+                when ':callback'
+                  if rule.multiArgs
+                    (params = {})[name] = mb.model
+                    args = (params[multiName] for multiName in rule.params)
+                    rule.callback.apply(this, args)
+                  else
+                    rule.callback.call(this, mb.model)
 
 
     setParams: (params) ->
