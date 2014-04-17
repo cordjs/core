@@ -458,7 +458,7 @@ define [
                     rule.callback.call(this, mb.model)
 
 
-    setParams: (params) ->
+    setParamsSafe: (params) ->
       ###
       Main "reactor" to the widget's API params change from outside.
       Changes widget's context variables according to the rules, defined in "params" static configuration of the widget.
@@ -471,25 +471,25 @@ define [
       ###
       if @_renderPromise.completed()
         if @_sentenced
-          Future.rejected(new errors.WidgetParamsRace("#{ @debug 'setParams' } is called for sentenced widget!"))
+          Future.rejected(new errors.WidgetParamsRace("#{ @debug 'setParamsSafe' } is called for sentenced widget!"))
         else
-          Future.try => @_setParams0(params)
+          Future.try => @setParams(params)
       else
         if not @_lastSetParams?
           @_renderPromise.always =>
             @_nextSetParamsCallback()
         else
-          @_lastSetParams.reject(new errors.WidgetParamsRace("#{@debug('setParams') } overlapped with new call!"))
+          @_lastSetParams.reject(new errors.WidgetParamsRace("#{@debug('setParamsSafe') } overlapped with new call!"))
 
         @_lastSetParams = Future.single()
 
         @_nextSetParamsCallback = =>
           if @_sentenced
-            x = new errors.WidgetParamsRace("#{ @debug('setParams') } is called for sentenced widget!")
+            x = new errors.WidgetParamsRace("#{ @debug('setParamsSafe') } is called for sentenced widget!")
             @_lastSetParams.reject(x)
           else
             Future.try =>
-              @_setParams0(params)
+              @setParams(params)
             .link(@_lastSetParams)
           @_nextSetParamsCallback = null
           @_lastSetParams = null
@@ -497,15 +497,15 @@ define [
         @_lastSetParams
 
 
-    _setParams0: (params) ->
+    setParams: (params) ->
       ###
-      Actual "applyer" of params for the setParams() call.
-      @see setParams()
+      Actual synchronous "applyer" of params for the setParams() call.
+      @see setParamsSafe()
       @param Map[String -> Any] params incoming params
       @synchronous
       @throws validation errors
       ###
-      _console.log "#{ @debug '_setParams0' } -> ", params if global.config.debug.widget
+      _console.log "#{ @debug 'setParams' } -> ", params if global.config.debug.widget
       if @constructor.params? or @constructor.initialCtx?
         rules = @constructor._paramRules
         processedRules = {}
@@ -565,7 +565,7 @@ define [
       @final
       @return Future(String)
       ###
-      @setParams(params).then =>
+      @setParamsSafe(params).then =>
         _console.log "#{ @debug 'show' } -> params:", params, " context:", @ctx if global.config.debug.widget
         @_handleOnShow()
       .then =>
@@ -632,7 +632,7 @@ define [
       _console.log "#{ @debug 'inject' }", params if global.config.debug.widget
 
       @widgetRepo.registerNewExtendWidget(this)
-      @setParams(params).then =>
+      @setParamsSafe(params).then =>
         @getStructTemplate().zip(@_handleOnShow())
       .then (tmpl) =>
 
@@ -651,7 +651,7 @@ define [
             @registerChild extendWidget
             extendWidget.cleanSubscriptions() # clean up supscriptions to the old parent's context change
             @resolveParamRefs(extendWidget, extendWidgetInfo.params).then (params) ->
-              extendWidget.setParams(params)
+              extendWidget.setParamsSafe(params)
             .link(readyPromise)
 
             tmpl.assignWidget extendWidgetInfo.widget, extendWidget
@@ -1104,7 +1104,7 @@ define [
                     widget.ctx[':placeholders'],
                     transition
                   ).then ->
-                    widget.setParams(item.params)
+                    widget.setParamsSafe(item.params)
                   .link(readyPromise)
                 i++
 

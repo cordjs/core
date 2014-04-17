@@ -38,7 +38,7 @@ define [
           df.promise.resolve()
 
         df.promise.done =>
-          widget.setParams(df.params).catchIf (err) ->
+          widget.setParamsSafe(df.params).catchIf (err) ->
             err instanceof errors.WidgetParamsRace
           .failAloud()
 

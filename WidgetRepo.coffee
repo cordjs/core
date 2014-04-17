@@ -434,7 +434,7 @@ define [
             tmpl.assignWidget(tmpl.struct.ownerWidget, extendWidget)
             tmpl.replacePlaceholders(tmpl.struct.ownerWidget, extendWidget.ctx[':placeholders'], transition)
           .then ->
-            extendWidget.setParams(params)
+            extendWidget.setParamsSafe(params)
           .then =>
             @dropWidget(_oldRootWidget.ctx.id)
             # todo: this browserInit may be always redundant. To be removed after check
@@ -446,7 +446,7 @@ define [
         else
           # if the new widget is the same as the current root, than this is just params change and we should only push
           # new params to the root widget
-          extendWidget.setParams(params)
+          extendWidget.setParamsSafe(params)
       else
         # if the new root widget doesn't exists in the current page structure, than we need to create it,
         # inject to the top of the page structure and recursively find the common widget from the extend list
