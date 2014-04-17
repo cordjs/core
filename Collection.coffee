@@ -610,6 +610,8 @@ define [
         newListIds[item.id] = item
 
       for model in oldList
+        # Бывает так, что в списке моделей есть пропуски... Надо с этим разобраться.
+        continue if not model
         if not newListIds[model.id]
           deletedModels[model.id] = model
           deleted = true
