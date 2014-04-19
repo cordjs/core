@@ -391,12 +391,12 @@ define [
         @_currentTransition = @transitPage(newRootWidgetPath, params, transition).andThen =>
           @_inTransition = false
       else
-        if not @_nextTransitionCalback?
+        if not @_nextTransitionCallback?
           @_nextTransition = @_currentTransition.then =>
-            @_nextTransitionCalback()
+            @_nextTransitionCallback()
           .catch =>
-            @_nextTransitionCalback()
-        @_nextTransitionCalback = =>
+            @_nextTransitionCallback()
+        @_nextTransitionCallback = =>
           @_nextTransitionCalback = null
           @smartTransitPage(newRootWidgetPath, params, transition)
         @_nextTransition
@@ -436,7 +436,10 @@ define [
           .then ->
             extendWidget.setParamsSafe(params)
           .then =>
-            @dropWidget(_oldRootWidget.ctx.id)
+            try
+              @dropWidget(_oldRootWidget.ctx.id)
+            catch err
+              console.error "Inconsistent widget drop in transitPage(1): #{err}", _oldRootWidget.constructor.__name, _oldRootWidget
             # todo: this browserInit may be always redundant. To be removed after check
             if not @rootWidget._browserInitialized
               @rootWidget.browserInit(extendWidget)
@@ -454,7 +457,10 @@ define [
         @createWidget(newRootWidgetPath).then (widget) =>
           @setRootWidget widget
           widget.inject(params, transition).done (commonBaseWidget) =>
-            @dropWidget(_oldRootWidget.ctx.id) if _oldRootWidget && commonBaseWidget != _oldRootWidget
+            try
+              @dropWidget(_oldRootWidget.ctx.id) if _oldRootWidget && commonBaseWidget != _oldRootWidget
+            catch err
+              console.error "Inconsistent widget drop in transitPage(2): #{err}", _oldRootWidget.constructor.__name, _oldRootWidget
             @rootWidget.shown().done -> transition.complete()
         .failAloud()
 
