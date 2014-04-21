@@ -699,8 +699,8 @@ define [
 
     @try: (fn) ->
       ###
-      Wraps syncronous function result into resolved or rejected Future depending if function throws an exception or not
-      @param Function fn called function
+      Wraps synchronous function result into resolved or rejected Future depending if the function throws an exception
+      @param Function fn function to be called
       @return Future if the argument function throws exception than Future.rejected with that exception is returned
                      if the argument function returns a Future than it is returned as-is
                      otherwise Future.resolved with the function result is returned
