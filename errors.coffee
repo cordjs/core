@@ -5,12 +5,12 @@ define ->
 
   WidgetDropped: class WidgetDropped extends Error
     constructor: (@message) ->
-      @name = 'WidgetParamsRace'
+      @name = 'WidgetDropped'
       Error.call(this, @message)
-      Error.captureStackTrace(this, arguments.callee)
+      Error.captureStackTrace?(this, arguments.callee)
 
   WidgetParamsRace: class WidgetParamsRace extends Error
     constructor: (@message) ->
       @name = 'WidgetParamsRace'
       Error.call(this, @message)
-      Error.captureStackTrace(this, arguments.callee)
+      Error.captureStackTrace?(this, arguments.callee)
