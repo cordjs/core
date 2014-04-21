@@ -685,7 +685,7 @@ define [
       paths = paths[0] if paths.length == 1 and _.isArray(paths[0])
       result = @single(':require:('+ paths.join(', ') + ')')
       require paths, (modules...) ->
-        try~
+        try
           result.resolve.apply(result, modules)
         catch err
           # this catch is needed to prevent require's error callbacks to fire when error is caused
