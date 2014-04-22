@@ -333,6 +333,8 @@ define [
           promise.done (CollectionClass) =>
             info.collectionClass = CollectionClass
             collection = Collection.fromJSON(this, name, info)
+            #Assume that collection from backend is always fresh
+            collection.updateLastQueryTime()
             @_registerCollection(name, collection)
             @container.injectServices(collection).done =>
               collection.browserInit?()

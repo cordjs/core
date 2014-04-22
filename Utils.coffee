@@ -64,6 +64,18 @@ define [
       number
 
 
+    @escapeTags = (input) ->
+      tags = 
+        '&': '&amp;'
+        '<': '&lt;'
+        '>': '&gt;'
+        
+      source = String(input)
+      source.replace /[&<>]/g, (tag) ->
+        tags[tag] or tag
+      
+    
+
     @stripTags = (input, allowed) ->
       ###
         A JavaScript equivalent of PHP’s strip_tags

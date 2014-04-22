@@ -52,6 +52,9 @@ define [
 
     # custom rest access point
     _accessPoint: null
+    
+    #Last time collection was queried from backend
+    _lastQueryTime: 0
 
 
     @generateName: (options) ->
@@ -186,6 +189,13 @@ define [
             return false
 
       return true
+      
+    getLastQueryTime: ->
+      if @_lastQueryTime then @_lastQueryTime else 0
+      
+    
+    getLastQueryTimeDiff: ->
+      (new Date).getTime() - @getLastQueryTime()
 
 
     sync: (returnMode, start, end, callback) ->
@@ -969,6 +979,9 @@ define [
 
       result
 
+    updateLastQueryTime: ->
+      @_lastQueryTime = (new Date()).getTime()
+      
 
     _enqueueQuery: (start, end, refresh) ->
       ###
@@ -1009,7 +1022,7 @@ define [
 
       if ( not end? || (end - start > 50) ) && not @_id && not @repo._debugCanDoUnlimit
         _console.error 'ACHTUNG!!! Me bumped into unlimited query: end =', end, 'start =', start, @repo.restResource
-
+        
       # detecting if there are queries in the queue which already cover required range
       curStart = start
       curEnd = end
@@ -1069,6 +1082,8 @@ define [
 
           queryParams.requestParams = @_requestParams if @_requestParams
           queryParams.accessPoint = @_accessPoint if @_accessPoint
+
+          @updateLastQueryTime()
 
           @repo.query(queryParams).done (models) =>
             # invalidating cached totalCount
@@ -1247,7 +1262,7 @@ define [
 
       collection._reindexModels()
       collection._initialized = obj.initialized || (collection._models.length > 0)
-
+      
       collection
 
 
