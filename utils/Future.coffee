@@ -324,6 +324,8 @@ define [
             else
               #console.error "Error in Future.then", err, err.stack
               result.reject(err)
+      else
+        @done (args...) -> result.resolve.apply(result, args)
       if onRejected?
         @fail (err) ->
           try
@@ -340,6 +342,8 @@ define [
             else
               #console.error "Error in Future.then", err, err.stack
               result.reject(err1)
+      else
+        @fail (err) -> result.reject(err)
       result
 
 
