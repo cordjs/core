@@ -13,9 +13,9 @@ define [
     _showPromise: null
 
 
-    constructor: ->
-      @_domRootPromise = Future.single('DomInfo::_domRootPromise')
-      @_showPromise = Future.single('DomInfo::_showPromise')
+    constructor: (name = '') ->
+      @_domRootPromise = Future.single("DomInfo::domRoot -> #{name}")
+      @_showPromise = Future.single("DomInfo::_show -> #{name}")
 
 
     setDomRoot: (el) ->
@@ -41,7 +41,7 @@ define [
 
 
     @fake: ->
-      result = new DomInfo
+      result = new DomInfo('fake')
       result._domRootPromise.reject("DOM root from fake DomInfo should not be used!")
       result.markShown()
       result

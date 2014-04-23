@@ -100,7 +100,7 @@ define [
         @widgets[id].widget = null
         delete @widgets[id]
       else
-        throw "Try to drop unknown widget with id = #{ id }"
+        throw new Error("Try to drop unknown widget with id = #{ id }")
 
 
     registerParent: (childWidget, parentWidget) ->
@@ -182,7 +182,7 @@ define [
       initUrl = if global.config.browserInitScriptId
         "/assets/z/#{global.config.browserInitScriptId}.js"
       else
-        "/bundles/cord/core/init/browser-init.js?rel=1"
+        "/bundles/cord/core/init/browser-init.js?release=" + global.config.static.release
 
       """
       <script>
@@ -190,7 +190,7 @@ define [
           config: #{ JSON.stringify(global.appConfig.browser) }
         };
       </script>
-      <script data-main="#{initUrl}" src="/vendor/requirejs/require.js?rel=1"></script>
+      <script data-main="#{initUrl}" src="/vendor/requirejs/require.js?release=#{global.config.static.release}"></script>
       <script>
           function cordcorewidgetinitializerbrowser(wi) {
             requirejs(['cord!utils/Future'], function(Future) {
@@ -373,6 +373,35 @@ define [
       subscription
 
 
+    smartTransitPage: (newRootWidgetPath, params, transition) ->
+      ###
+      Initiates client-side transition of the page.
+      Calls transitPage() method but prevents two transitPages to be executed concurrently. If more than one
+       transitPage() is called during current incomplete transition then only last call is performed, all others are
+       skipped.
+      @browser-only
+      @param String newRootWidgetPath canonical path of the new root page-widget
+      @param Map params params for the new root widget
+      @param PageTransition transition page transition support object which contains information about transition and
+                                       triggers events related to transition process
+      @return Future
+      ###
+      if not @_inTransition
+        @_inTransition = true
+        @_currentTransition = @transitPage(newRootWidgetPath, params, transition).andThen =>
+          @_inTransition = false
+      else
+        if not @_nextTransitionCallback?
+          @_nextTransition = @_currentTransition.then =>
+            @_nextTransitionCallback()
+          .catch =>
+            @_nextTransitionCallback()
+        @_nextTransitionCallback = =>
+          @_nextTransitionCalback = null
+          @smartTransitPage(newRootWidgetPath, params, transition)
+        @_nextTransition
+
+
     transitPage: (newRootWidgetPath, params, transition) ->
       ###
       Initiates client-side transition of the page.
@@ -383,12 +412,13 @@ define [
       @param Map params params for the new root widget
       @param PageTransition transition page transition support object which contains information about transition and
                                        triggers events related to transition process
+      @return Future
       ###
       _console.log "WidgetRepo::transitPage -> current root = #{ @rootWidget.debug() }" if global.config.debug.widget
 
       # interrupting previous transition if it's not completed
-      @_curTransition.interrupt() if @_curTransition? and @_curTransition.isActive()
-      @_curTransition = transition
+#      @_curTransition.interrupt() if @_curTransition? and @_curTransition.isActive()
+#      @_curTransition = transition
 
       _oldRootWidget = @rootWidget
       # finding out if the new root widget is already exists in the current page structure
@@ -400,30 +430,39 @@ define [
           # of the new root (because the old root extends from the new one directly or indirectly)
           # and push new params into the new root widget
           @setRootWidget extendWidget
-          extendWidget.getStructTemplate().done (tmpl) =>
+          extendWidget.getStructTemplate().then (tmpl) =>
             tmpl.assignWidget(tmpl.struct.ownerWidget, extendWidget)
-            tmpl.replacePlaceholders tmpl.struct.ownerWidget, extendWidget.ctx[':placeholders'], transition, =>
-              extendWidget.setParams(params)
-              @dropWidget _oldRootWidget.ctx.id
-              # todo: this browserInit may be always redundant
-              redundancyCheck = false
-              @rootWidget.browserInit(extendWidget).done ->
-                redundancyCheck = true
-                transition.complete()
-              console.warn "Strange #{ extendWidget.debug('browserInit') } is not redundant!!!" if not redundancyCheck
+            tmpl.replacePlaceholders(tmpl.struct.ownerWidget, extendWidget.ctx[':placeholders'], transition)
+          .then ->
+            extendWidget.setParamsSafe(params)
+          .then =>
+            try
+              @dropWidget(_oldRootWidget.ctx.id)
+            catch err
+              console.error "Inconsistent widget drop in transitPage(1): #{err}", _oldRootWidget.constructor.__name, _oldRootWidget
+            # todo: this browserInit may be always redundant. To be removed after check
+            if not @rootWidget._browserInitialized
+              @rootWidget.browserInit(extendWidget)
+              console.warn "Strange #{ extendWidget.debug('browserInit') } is not redundant!!!"
+            transition.complete()
+          .failAloud()
         else
           # if the new widget is the same as the current root, than this is just params change and we should only push
           # new params to the root widget
-          extendWidget.setParams(params)
+          extendWidget.setParamsSafe(params)
       else
         # if the new root widget doesn't exists in the current page structure, than we need to create it,
         # inject to the top of the page structure and recursively find the common widget from the extend list
         # down to the base widget (containing <html> tag)
-        @createWidget(newRootWidgetPath).done (widget) =>
+        @createWidget(newRootWidgetPath).then (widget) =>
           @setRootWidget widget
-          widget.injectAction params, transition, (commonBaseWidget) =>
-            @dropWidget _oldRootWidget.ctx.id if _oldRootWidget && commonBaseWidget != _oldRootWidget
+          widget.inject(params, transition).done (commonBaseWidget) =>
+            try
+              @dropWidget(_oldRootWidget.ctx.id) if _oldRootWidget && commonBaseWidget != _oldRootWidget
+            catch err
+              console.error "Inconsistent widget drop in transitPage(2): #{err}", _oldRootWidget.constructor.__name, _oldRootWidget
             @rootWidget.shown().done -> transition.complete()
+        .failAloud()
 
 
     findAndCutMatchingExtendWidget: (widgetPath) ->

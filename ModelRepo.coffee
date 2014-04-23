@@ -66,7 +66,13 @@ define [
       if @_collections[name]? and @_collections[name].isConsistent()
         collection = @_collections[name]
       else
+        options = _.clone(options)
         @_collections[name] = null
+        
+        if _.isObject(options.rawModelsData)
+          options.models = []
+          options.models.push(@buildModel(item)) for item in options.rawModelsData
+        
         collection = new Collection(this, name, options)
         @_registerCollection(name, collection)
       collection

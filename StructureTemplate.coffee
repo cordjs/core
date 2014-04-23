@@ -48,12 +48,10 @@ define [
       @return Future[Widget]
       ###
       info = @struct.widgets[widgetRefId]
-      @ownerWidget.widgetRepo.createWidget(info.path, @ownerWidget.getBundle()).flatMap (widget) =>
-        result = Future.single()
-        @resolvePlaceholders widget, info.placeholders, (resolvedPlaceholders) ->
-          widget.definePlaceholders resolvedPlaceholders
-          result.resolve(widget)
-        result
+      @ownerWidget.widgetRepo.createWidget(info.path, @ownerWidget.getBundle()).then (widget) =>
+        @_resolvePlaceholders(info.placeholders).then (resolvedPlaceholders) ->
+          widget.definePlaceholders(resolvedPlaceholders)
+          widget
 
 
     getWidgetByName: (name) ->
@@ -77,29 +75,46 @@ define [
         null
 
 
-    resolvePlaceholders: (targetWidget, newPlaceholders, callback) ->
-      waitCounter = 0
-      waitCounterFinish = false
+    assignWidget: (refUid, newWidget) ->
+      @widgets[refUid] = newWidget
+      @_reverseIndex[newWidget.ctx.id] = refUid
 
+
+    unassignWidget: (widget) ->
+      if @_reverseIndex[widget.ctx.id]?
+        delete @widgets[@_reverseIndex[widget.ctx.id]]
+        delete @_reverseIndex[widget.ctx.id]
+      else
+        # This is normal then widget template has not body blocks
+
+
+    _resolvePlaceholders: (newPlaceholders) ->
+      ###
+      Converts abstract placeholders definition taken from the struct template to the resolved definition
+       with references to the concrete created widgets.
+      Result of this method is later used by the Widget::_renderPlaceholder() and Widget::replacePlaceholders()
+       in order to actually (re-)render DOM structure.
+      @param Map[String -> Array[Object]] newPlaceholders unresolved placeholders definition from the struct template
+      @return Future[Map[String -> Array[Object]]] resolved placeholders definition for the widget
+      ###
       resolvedPlaceholders = {}
 
-      returnCallback = ->
-        callback resolvedPlaceholders
+      resultPromise = new Future("ST::resolvePlaceholders(#{@ownerWidget.debug()})")
 
       for name, items of newPlaceholders
         do (name) =>
           resolvedPlaceholders[name] = []
           for item in items
             do (item) =>
-              waitCounter++
+              resultPromise.fork()
               if item.widget?
-                @getWidget(item.widget).done (widget) =>
+                @getWidget(item.widget).failAloud().done (widget) =>
                   @ownerWidget.registerChild widget, item.name
 
                   complete = false
                   timeoutPromise = null
 
-                  @ownerWidget.resolveParamRefs widget, item.params, (params) =>
+                  @ownerWidget.resolveParamRefs(widget, item.params).failAloud().done (params) =>
                     if not complete
                       complete = true
                       resolvedPlaceholders[name].push
@@ -110,9 +125,7 @@ define [
                         timeout: item.timeout
                         timeoutTemplate: item.timeoutTemplate
                         timeoutTemplateOwner: if item.timeoutTemplate? then @ownerWidget else undefined
-                      waitCounter--
-                      if waitCounter == 0 and waitCounterFinish
-                        returnCallback()
+                      resultPromise.resolve()
                     else
                       timeoutPromise.resolve(params)
 
@@ -120,7 +133,7 @@ define [
                     setTimeout =>
                       if not complete
                         complete = true
-                        timeoutPromise = new Future(1, 'StructureTemplate::resolvePlaceholders')
+                        timeoutPromise = Future.single("ST::resolvePlaceholders:timeoutPromise(#{@ownerWidget.debug()})")
                         resolvedPlaceholders[name].push
                           type: 'timeouted-widget'
                           widget: widget.ctx.id
@@ -129,13 +142,11 @@ define [
                           timeoutTemplate: item.timeoutTemplate
                           timeoutTemplateOwner: if item.timeoutTemplate? then @ownerWidget else undefined
                           timeoutPromise: timeoutPromise
-                        waitCounter--
-                        if waitCounter == 0 and waitCounterFinish
-                          returnCallback()
+                        resultPromise.resolve()
                     , item.timeout
 
               else if item.inline?
-                @getWidget(item.inline).done (widget) ->
+                @getWidget(item.inline).failAloud().done (widget) ->
                   resolvedPlaceholders[name].push
                     type: 'inline'
                     widget: widget.ctx.id
@@ -143,55 +154,63 @@ define [
                     name: item.name
                     tag: item.tag
                     class: item.class
-                  waitCounter--
-                  if waitCounter == 0 and waitCounterFinish
-                    returnCallback()
+                  resultPromise.resolve()
 
               else if item.placeholder?
-                @getWidget(item.placeholder).done (widget) ->
+                @getWidget(item.placeholder).failAloud().done (widget) ->
                   resolvedPlaceholders[name].push
                     type: 'placeholder'
                     widget: widget.ctx.id
                     name: item.name
                     class: item.class
-                  waitCounter--
-                  if waitCounter == 0 and waitCounterFinish
-                    returnCallback()
+                  resultPromise.resolve()
 
-      waitCounterFinish = true
-      if waitCounter == 0
-        returnCallback()
+      resultPromise.map -> resolvedPlaceholders
 
 
-    assignWidget: (refUid, newWidget) ->
-      @widgets[refUid] = newWidget
-      @_reverseIndex[newWidget.ctx.id] = refUid
+    replacePlaceholders: (widgetRefUid, currentPlaceholders, transition) ->
+      ###
+      Smartly replaces current placeholder contents of the given widget with the new contents
+       during client-side page transition.
+      New placeholder contents are taken from this structure template.
+      @param String widgetRefUid id of the target widget in the structure template (usually from the #extend tag)
+      @param Map[String -> Array[Object]] currentPlaceholders currently rendered placeholders definition of the widget
+      @param PageTransition transition page transition helper
+      @return Future
+      ###
+      newPlaceholders = @struct.widgets[widgetRefUid].placeholders
 
-    unassignWidget: (widget) ->
-      if @_reverseIndex[widget.ctx.id]?
-        delete @widgets[@_reverseIndex[widget.ctx.id]]
-        delete @_reverseIndex[widget.ctx.id]
-      else
-        # This is normal then widget template has not body blocks
+      replaceHints = @_diffPlaceholders(currentPlaceholders, newPlaceholders)
+
+      @_resolvePlaceholders(newPlaceholders).then (resolvedPlaceholders) =>
+        @widgets[widgetRefUid].replacePlaceholders(resolvedPlaceholders, this, replaceHints, transition)
 
 
-    replacePlaceholders: (widgetRefUid, currentPlaceholders, transition, callback) ->
-      extendWidget = @widgets[widgetRefUid]
-      currentPlaceholders ?= {}
+    _diffPlaceholders: (current, replacing) ->
+      ###
+      Compares two placeholders definitions in order to detect if it's possible to not destroy current placeholders'
+       contents but only push new widgets' params there.
+      Only one none-destroy case is supported - when all of the placeholder's items are widgets (not inlines) and
+       they are of the same type and the exactly same order. In that case existing widgets are assigned
+       to the current struct template right here.
+      @param Map[String -> Array[Object]] current resolved placeholders definition from the current rendered state
+      @param Map[String -> Array[Object]] replacing new unresolved placeholders definition from the struct template
+      @return Map[String -> Object] replace hints which are used later by the Widget::replacePlaceholders()
+      ###
+      current ?= {}
 
       # search for appearence of the widget in current placeholder
       replaceHints = {}
-      for name, items of @struct.widgets[widgetRefUid].placeholders
+      for name, items of replacing
         replaceHints[name] = {}
-        if currentPlaceholders[name]?
-          if currentPlaceholders[name].length == items.length
+        if current[name]?
+          if current[name].length == items.length
             theSame = true
             i = 0
             for item in items
               if item.widget?
-                curItem = currentPlaceholders[name][i]
+                curItem = current[name][i]
                 curWidget = @ownerWidget.widgetRepo.getById(curItem.widget)
-                #_console.log "compare: #{ curItem.type } != 'widget' or #{ curWidget.getPath() } != #{ @struct.widgets[item.widget].path }"
                 if curItem.type != 'widget' or curWidget.getPath() != @struct.widgets[item.widget].path
                   theSame = false
                   break
@@ -210,16 +229,11 @@ define [
           replaceHints[name].replace = false
           for item in items
             refUid = item.widget
-            curWidget = @ownerWidget.widgetRepo.getById(currentPlaceholders[name][i].widget)
+            curWidget = @ownerWidget.widgetRepo.getById(current[name][i].widget)
             @assignWidget refUid, curWidget
 
             replaceHints[name].items.push refUid
         else
           replaceHints[name].replace = true
 
-      @resolvePlaceholders extendWidget,
-        @struct.widgets[widgetRefUid].placeholders,
-        transition.if (resolvedPlaceholders) =>
-          extendWidget.replacePlaceholders resolvedPlaceholders, this, replaceHints, transition, ->
-            callback()
-
+      replaceHints

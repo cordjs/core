@@ -30,6 +30,7 @@ define [
       port: proxyUrl.port
       path: proxyUrl.path
       headers: headers
+      rejectUnauthorized: false
 
     if proxyUrl.protocol == 'http:'
       protocol = http

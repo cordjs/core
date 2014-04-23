@@ -324,6 +324,8 @@ define [
             else
               #console.error "Error in Future.then", err, err.stack
               result.reject(err)
+      else
+        @done (args...) -> result.resolve.apply(result, args)
       if onRejected?
         @fail (err) ->
           try
@@ -340,7 +342,30 @@ define [
             else
               #console.error "Error in Future.then", err, err.stack
               result.reject(err1)
+      else
+        @fail (err) -> result.reject(err)
       result
+
+
+    catch: (callback) ->
+      ###
+      Implements 'catch'-samantics to be compatible with standard JS Promise.
+      Shortcut for promise.then(undefined, callback)
+      @see then()
+      @param Function callback function to be evaluated in case of the promise rejection
+      @return Future[A]
+      ###
+      this.then(undefined, callback)
+
+
+    catchIf: (predicate) ->
+      ###
+      Bypasses rejected promise (transform it to the resolved one) if the given predicate function returns true
+      @param Function predicate
+      @return Future
+      ###
+      this.catch (err) ->
+        throw err if not predicate(err)
 
 
     map: (callback) ->
@@ -664,10 +689,34 @@ define [
       paths = paths[0] if paths.length == 1 and _.isArray(paths[0])
       result = @single(':require:('+ paths.join(', ') + ')')
       require paths, (modules...) ->
-        result.resolve.apply(result, modules)
+        try
+          result.resolve.apply(result, modules)
+        catch err
+          # this catch is needed to prevent require's error callbacks to fire when error is caused
+          # by th result's callbacks. Otherwise we'll try to reject already resolved promise two lines below.
+          console.error "Got exception in Future.require() callbacks for [#{result._name}]: #{err}", err
+          console.log err.stack
       , (err) ->
         result.reject(err)
       result
+
+
+    @try: (fn) ->
+      ###
+      Wraps synchronous function result into resolved or rejected Future depending if the function throws an exception
+      @param Function fn function to be called
+      @return Future if the argument function throws exception than Future.rejected with that exception is returned
+                     if the argument function returns a Future than it is returned as-is
+                     otherwise Future.resolved with the function result is returned
+      ###
+      try
+        res = fn()
+        if res instanceof Future
+          res
+        else
+          Future.resolved(res)
+      catch err
+        Future.rejected(err)
 
 
     clear: ->

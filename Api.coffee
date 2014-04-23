@@ -40,7 +40,7 @@ define [
       @serviceContainer = serviceContainer
       @accessToken = ''
       @restoreToken = ''
-
+      
 
     getScope: ->
       ###
