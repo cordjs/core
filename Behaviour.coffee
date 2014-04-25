@@ -3,9 +3,10 @@ define [
   'cord!utils/Defer'
   'cord!utils/DomHelper'
   'cord!utils/DomInfo'
+  'cord!utils/Future'
   'jquery'
   'postal'
-], (Model, Defer, DomHelper, DomInfo, $, postal) ->
+], (Model, Defer, DomHelper, DomInfo, Future, $, postal) ->
 
   class Behaviour
 
@@ -272,6 +273,8 @@ define [
       Fully re-render and replace all widget's contents by killing all child widgets and re-rendering own template.
       Works using defer async in order to collapse several simultaineous calls of render into one.
       ###
+      result = Future.single 'render.complete'
+
       @widget.sentenceChildrenToDeath()
       @defer 'render', =>
         if @widget?
@@ -290,7 +293,12 @@ define [
               domInfo.markShown()
               widget.markShown()
               widget.emit 're-render.complete'
+              result.resolve(widget.behaviour)
           .failAloud()
+        else
+          result.reject(new Error('Behaviour already clean ' + @constructor.__name))
+
+      result
 
 
     renderInline: (name) ->
