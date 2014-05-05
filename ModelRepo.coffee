@@ -745,6 +745,24 @@ define [
           delete @_collections[key]
 
       result
+      
+      
+    invalidateCacheForCollectionsWithFilter: (fieldName, filterValue) ->
+      ###
+      Invalidate cache for all collections where filter contains fieldName=filterVaue
+      ###
+      result = new Future('ModelRepo::invalidateCacheForCollectionsWithFilter')
+      
+      for key, collection of @_collections
+        if collection._filter[fieldName] = filterValue
+          if isBrowser
+            result.fork()
+            @container.eval 'localStorage', (storage) =>
+              result.when(collection.invalidateCache())
+              result.resolve()
+          delete @_collections[key]
+          
+      result      
 
 
     _suggestNewModelToCollections: (model) ->
