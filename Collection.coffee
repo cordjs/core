@@ -366,7 +366,8 @@ define [
       Checks if the new model is related to this collection. If it is reloads collection from the backend.
       @param Model model the new model
       ###
-      @refresh(model.id, emitModelChangeExcept) if not @_id or @_id == model.id
+      id = if _.isObject(model) then model.id else model
+      @refresh(id, emitModelChangeExcept) if not @_id or @_id == id
 
 
     _reorderModelsLocal: ->
