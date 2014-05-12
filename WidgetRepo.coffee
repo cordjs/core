@@ -274,7 +274,7 @@ define [
           widget: widget
           namedChilds: namedChilds
 
-        @serviceContainer.injectServices(widget).done =>
+        @serviceContainer.injectServices(widget).failAloud().done =>
           @_parentPromises[ctx.id].resolve()
 
           if parentId?

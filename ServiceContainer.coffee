@@ -44,7 +44,7 @@ define [
       @param Object target the instance to be injected to
       @return Future completed when all services asyncronously loaded and assigned into the target object
       ###
-      injectPromise = new Future('Container::injectServices')
+      injectPromise = new Future("Container::injectServices(#{target.constructor.name})")
 
       if target.constructor.inject
         if _.isFunction target.constructor.inject
@@ -76,6 +76,6 @@ define [
         else
           for serviceAlias,serviceName of services
             injectService serviceAlias,serviceName
-          
+
 
       injectPromise
