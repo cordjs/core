@@ -1639,6 +1639,21 @@ define [
               @childWidgetComplete()
               chunk.end @renderPlaceholderTag(name, out)
 
+
+        i18n: (chunk, context, bodies, params) =>
+          ###
+          {#i18n text="" [context=""] [wrapped="true"] /}
+          ###
+          text = params.text or ''
+          context = params.context or @ctx.i18nContext or 'common'
+          wrapped = (params.wrapped and params.wrapped == 'true') or false
+
+          if @ctx.i18nHelper
+            return chunk.write(@ctx.i18nHelper(text, context, wrapped))
+          else
+            return chunk.write(text)
+
+
         #
         # Widget initialization script generator
         #
