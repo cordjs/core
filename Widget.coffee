@@ -224,7 +224,7 @@ define [
             @ctx = params.context
           else
             @ctx = new Context(params.context)
-            @ctx.owner(this)
+            @ctx.setOwnerWidget(this)
         @setRepo params.repo if params.repo?
         @setServiceContainer params.serviceContainer if params.serviceContainer?
         compileMode = params.compileMode if params.compileMode?
@@ -246,7 +246,7 @@ define [
         else
           id = (if isBrowser then 'b' else 'n') + 'wdt-' + _.uniqueId()
         @ctx = new Context(id, @constructor.initialCtx)
-        @ctx.owner(@)
+        @ctx.setOwnerWidget(this)
 
       if isBrowser
         @_browserInitialized = true

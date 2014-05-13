@@ -30,13 +30,13 @@ define [
             @_initDeferredDebug(key)
 
 
-    owner: (owner) ->
+    setOwnerWidget: (owner) ->
       if owner
-        Object.defineProperty @, "_owner",
+        Object.defineProperty @, "_ownerWidget",
           value: owner
           writable: true
           enumerable: false
-      @_owner
+      @_ownerWidget
 
 
     set: (args...) ->
