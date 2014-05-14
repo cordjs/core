@@ -355,7 +355,7 @@ define [
 
     checkExistingModel: (model) ->
       #Refresh the collection only if it contains suggested model
-      id = if _.isObject(model) then model.id else model
+      return if isNaN(id = parseInt(if _.isObject(model) then model.id else model))
 
       if id && @_byId[id]
         @refresh()
@@ -366,8 +366,9 @@ define [
       Checks if the new model is related to this collection. If it is reloads collection from the backend.
       @param Model model the new model
       ###
-      id = if _.isObject(model) then model.id else model
-      @refresh(id, emitModelChangeExcept) if not @_id or @_id == id
+      return if isNaN(id = parseInt(if _.isObject(model) then model.id else model)) 
+      
+      @refresh(id, emitModelChangeExcept) if not @_id or parseInt(@_id) == id
 
 
     _reorderModelsLocal: ->
