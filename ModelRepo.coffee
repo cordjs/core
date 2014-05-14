@@ -468,6 +468,8 @@ define [
                   @emit 'sync', model
                   @_suggestNewModelToCollections(model) if !notRefreshCollections
                   promise.resolve(response)
+            else 
+              promise.resolve('Nothing to save')
           else
             api.post @restResource, model.getChangedFields(), (response, error) =>
               if error
