@@ -57,7 +57,6 @@ define [
       startRequest = new Date() if global.config.debug.request
 
       window.curly[method] argssss.url, options, (error, response, body) =>
-
         if not error? and response.statusCode != 200
           error =
             statusCode: response.statusCode
@@ -86,8 +85,8 @@ define [
           if error
             loggerTags.push 'error'
             errorParams = requestParams: argssss.params
-            errorParams['errorCode'] = response.statusCode if response?.statusCode
-            errorParams['errorText'] = response.body._message if response?.body?._message
+            errorParams['errorCode'] = error.statusCode
+            errorParams['errorText'] = error.statusText
             loggerParams = _.extend loggerParams, errorParams
 
           postal.publish 'logger.log.publish',

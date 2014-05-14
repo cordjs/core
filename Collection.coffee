@@ -52,7 +52,7 @@ define [
 
     # custom rest access point
     _accessPoint: null
-    
+
     #Last time collection was queried from backend
     _lastQueryTime: 0
 
@@ -130,7 +130,7 @@ define [
         @_id = options.id ? 0
         @_filter = options.filter ? {}
         @_pageSize = options.pageSize ? 0
-        
+
         @_fillModelList(options.models, options.start, options.end) if _.isArray(options.models)
 
       #special case - fixed collections, when model are already provided and we have no need to do anything with them
@@ -191,11 +191,11 @@ define [
             return false
 
       return true
-      
+
     getLastQueryTime: ->
       if @_lastQueryTime then @_lastQueryTime else 0
-      
-    
+
+
     getLastQueryTimeDiff: ->
       (new Date).getTime() - @getLastQueryTime()
 
@@ -986,7 +986,7 @@ define [
 
     updateLastQueryTime: ->
       @_lastQueryTime = (new Date()).getTime()
-      
+
 
     _enqueueQuery: (start, end, refresh) ->
       ###
@@ -1027,7 +1027,7 @@ define [
 
       if ( not end? || (end - start > 50) ) && not @_id && not @repo._debugCanDoUnlimit
         _console.error 'ACHTUNG!!! Me bumped into unlimited query: end =', end, 'start =', start, @repo.restResource
-        
+
       # detecting if there are queries in the queue which already cover required range
       curStart = start
       curEnd = end
@@ -1267,7 +1267,7 @@ define [
 
       collection._reindexModels()
       collection._initialized = obj.initialized || (collection._models.length > 0)
-      
+
       collection
 
 

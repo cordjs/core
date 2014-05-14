@@ -11,8 +11,7 @@ define [
 
     @getConfig: ->
       @config = global.config if @config == undefined
-
-      return @config
+      @config
 
 
     @stringify: (args) ->

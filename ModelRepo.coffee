@@ -68,11 +68,11 @@ define [
       else
         options = _.clone(options)
         @_collections[name] = null
-        
+
         if _.isObject(options.rawModelsData)
           options.models = []
           options.models.push(@buildModel(item)) for item in options.rawModelsData
-        
+
         collection = new Collection(this, name, options)
         @_registerCollection(name, collection)
       collection
@@ -515,6 +515,7 @@ define [
       urlParams.push("_filter=#{ params.filterId }") if params.filterId?
       urlParams.push("_filterParams=#{ params.filterParams }") if params.filterParams?
       urlParams.push("_pagesize=#{ params.pageSize }") if params.pageSize?
+      urlParams.push("_sortby=#{ params.orderBy }") if params.orderBy?
       urlParams.push("_selectedId=#{ params.selectedId }") if params.selectedId
 
       if params.filter
@@ -745,14 +746,14 @@ define [
           delete @_collections[key]
 
       result
-      
-      
+
+
     invalidateCacheForCollectionsWithFilter: (fieldName, filterValue) ->
       ###
       Invalidate cache for all collections where filter contains fieldName=filterVaue
       ###
       result = new Future('ModelRepo::invalidateCacheForCollectionsWithFilter')
-      
+
       for key, collection of @_collections
         if collection._filter[fieldName] = filterValue
           if isBrowser
@@ -761,8 +762,8 @@ define [
               result.when(collection.invalidateCache())
               result.resolve()
           delete @_collections[key]
-          
-      result      
+
+      result
 
 
     _suggestNewModelToCollections: (model) ->
