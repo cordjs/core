@@ -355,7 +355,7 @@ define [
 
     checkExistingModel: (model) ->
       #Refresh the collection only if it contains suggested model
-      return if isNaN(id = parseInt(if _.isObject(model) then model.id else model))
+      id = parseInt(if _.isObject(model) then model.id else model)
 
       if id and not isNaN(id) and @_byId[id]
         @refresh()
