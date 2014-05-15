@@ -1648,9 +1648,9 @@ define [
           delete(params.text)
 
           if @ctx.i18nHelper
-            return chunk.write(@ctx.i18nHelper(text, params))
+            chunk.write(@ctx.i18nHelper(text, params))
           else
-            return chunk.write(text)
+            chunk.write(text)
 
 
         #
