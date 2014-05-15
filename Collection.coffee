@@ -357,7 +357,7 @@ define [
       #Refresh the collection only if it contains suggested model
       return if isNaN(id = parseInt(if _.isObject(model) then model.id else model))
 
-      if id && @_byId[id]
+      if id and not isNaN(id) and @_byId[id]
         @refresh()
 
 
@@ -366,9 +366,9 @@ define [
       Checks if the new model is related to this collection. If it is reloads collection from the backend.
       @param Model model the new model
       ###
-      return if isNaN(id = parseInt(if _.isObject(model) then model.id else model)) 
+      id = parseInt(if _.isObject(model) then model.id else model)
       
-      @refresh(id, emitModelChangeExcept) if not @_id or parseInt(@_id) == id
+      @refresh(id, emitModelChangeExcept) if not @_id or (not isNaN(id) and parseInt(@_id) == id)
 
 
     _reorderModelsLocal: ->
