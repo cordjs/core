@@ -194,6 +194,7 @@ define [
         callback: 'function'
 
       noAuthTokens = (args.params and args.params.noAuthTokens == true)
+      skipAuth = (args.params and args.params.skipAuth == true)
 
       processRequest = (accessToken, refreshToken) =>
         requestUrl = "#{@options.protocol}://#{@options.host}/#{@options.urlPrefix}#{args.url}"
@@ -203,7 +204,7 @@ define [
         @serviceContainer.eval 'request', (request) =>
           doRequest = =>
             request[method] requestUrl, requestParams, (response, error) =>
-              if response?.error == 'invalid_grant' || response?.error == 'invalid_request'
+              if not skipAuth and (response?.error == 'invalid_grant' || response?.error == 'invalid_request')
                 return processRequest null, refreshToken
 
               if (error && (error.statusCode || error.message))
@@ -241,11 +242,16 @@ define [
           if noAuthTokens
             doRequest()
           else
-            @getTokensByAllMeans accessToken, refreshToken, (accessToken, refreshToken) =>
+            if skipAuth
               requestUrl += ( if requestUrl.lastIndexOf("?") == -1 then "?" else "&" ) + "access_token=#{accessToken}"
               requestParams.access_token = accessToken
-
               doRequest()
+            else
+              @getTokensByAllMeans accessToken, refreshToken, (accessToken, refreshToken) =>
+                requestUrl += ( if requestUrl.lastIndexOf("?") == -1 then "?" else "&" ) + "access_token=#{accessToken}"
+                requestParams.access_token = accessToken
+
+                doRequest()
 
       if noAuthTokens
         processRequest()
