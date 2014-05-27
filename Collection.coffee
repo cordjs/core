@@ -404,8 +404,17 @@ define [
         if m != undefined
           @_byId[m.id] = m
 
-
-    refresh: (currentId, emitModelChangeExcept = true) ->
+    
+    partialRefresh: (startPage, maxPages, minRefreshInterval = 0) ->
+      ###
+      Reloads olny maxPages pages of the collection only if the collection hasn't been refreshed for required interval
+      Useful for potentilally huge collections
+      ###
+      if minRefreshInterval >= 0 and @getLastQueryTimeDiff() > minRefreshInterval
+        @refresh(undefined, true, startPage, maxPages) 
+      
+    
+    refresh: (currentId, emitModelChangeExcept = true, startPage = 0, maxPages = 0) ->
       ###
       Reloads currently loaded part of collection from the backend.
       By the way triggers change events for every changed model and for the collection if there are any changes.
@@ -415,9 +424,14 @@ define [
       ###
 
       #Special case - fixed collections, no need to sync or refresh
-      return if @_fixed
-
-      return if @_refreshInProgress
+      return if @_fixed 
+      
+      return if @_refreshInProgress 
+      
+      #The collection has no active 'change' subsriptions, just clear last refresh time
+      if not @_hasActiveChangeSubscriptions()
+        @_lastQueryTime = 0
+        return
 
       @_refreshInProgress = true
 
@@ -425,7 +439,7 @@ define [
       if not @_pageSize
         queryParams = @_buildRefreshQueryParams()
         @repo.query queryParams, (models) =>
-          @_replaceModelList models, queryParams.start, queryParams.end, emitModelChangeExcept
+          @_replaceModelList(models, queryParams.start, queryParams.end, emitModelChangeExcept)
           @_refreshInProgress = false
           #TODO: GC unregister single model collection if it became empty.
       else
@@ -439,7 +453,7 @@ define [
         @getPagingInfo(currentId, true).done (paging) =>
           #Don't refresh collection if currentId is not belonged to it
           if !currentId || paging.selectedPage > 0 || modelIndex > -1
-            startPage = if paging.selectedPage > 0 then paging.selectedPage else 1
+            startPage = if paging.selectedPage > 0 then paging.selectedPage else startPage
             #refresh pages, starting from current, and then go 1 up, 1 down, etc
             #if modelPage didn't change refresh only page, containing the model
             direction = 'down'
@@ -449,17 +463,17 @@ define [
             @_topPage = @_bottomPage = startPage
             @_refreshReachedTop = false
             @_refreshReachedBottom = false
-            @_refreshPage startPage, paging, direction
+            @_refreshPage(startPage, paging, direction, 0, maxPages)
           else
             @_refreshInProgress = false
 
 
-    _refreshPage: (page, paging, direction) ->
+    _refreshPage: (page, paging, direction, deepness = 0, maxDepth = 0) ->
       if paging.pages == 0
       # special case, when collection nullifies on server
         @_refreshInProgress = false
-        return @_replaceModelList [], @_loadedStart, @_loadedEnd
-      if page > 0 && page <= paging.pages
+        return @_replaceModelList([], @_loadedStart, @_loadedEnd)
+      if (page > 0 && page <= paging.pages) and maxDepth <= 0 or deepness < maxDepth
         start = (page - 1) * @_pageSize
         end = page * @_pageSize - 1
         @_enqueueQuery(start, end, true).done =>
@@ -486,7 +500,7 @@ define [
           else
             page = @_bottomPage = @_bottomPage + 1
 
-          @_refreshPage page, paging, direction
+          @_refreshPage(page, paging, direction, deepness + 1, maxDepth)
       else
         @_refreshInProgress = false
 
@@ -518,6 +532,17 @@ define [
           result.end = @_loadedEnd
       result
 
+
+    _hasActiveChangeSubscriptions: ->
+      if @_subscriptions.change and @_subscriptions.change.length > 0
+        return true
+        
+      for topic, subscriptions of @_subscriptions
+        if subscriptions.length > 0 and topic.substr(-6) == 'change'
+          return true
+          
+      false
+      
 
     addModel: (model, position = ':tail') ->
       ###
