@@ -157,3 +157,26 @@ define [
       event.offsetX = if event.offsetX then event.offsetX else event.originalEvent.layerX
       event.offsetY = if event.offsetY then event.offsetY else event.originalEvent.layerY
       return event
+
+
+    @upperFirstChar = (text) ->
+      text.substr(0, 1).toUpperCase() + text.substr(1)
+
+
+    @lowerFirstChar = (text) ->
+      text.substr(0, 1).toLowerCase() + text.substr(1)
+
+
+    @splitCamelCase = (text) ->
+      Utils.upperFirstChar(text).match(/[A-Z][a-z0-9]*/g)
+
+
+    @detransliterate = (text) ->
+      rus = "щ ш ч ц ю я ё ж ъ ы э а б в г д е з и й к л м н о п р с т у ф х ь".split(' ')
+      eng = "shh sh ch cz yu ya yo zh `` y' e` a b v g d e z i y k l m n o p r s t u f h `".split(' ')
+
+      for x in [0..rus.length - 1]
+        text = text.split(eng[x]).join(rus[x])
+        text = text.split(eng[x].toUpperCase()).join(rus[x].toUpperCase())
+
+      text
