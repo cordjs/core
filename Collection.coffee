@@ -87,7 +87,7 @@ define [
       pageSize = if options.pageSize then options.pageSize else ''
 
       collectionVersion = global.config.static.collection
-
+      
       [
         collectionVersion
         clazz
