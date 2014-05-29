@@ -534,13 +534,12 @@ define [
 
 
     _hasActiveChangeSubscriptions: ->
-      if @_subscriptions.change and @_subscriptions.change.length > 0
-        return true
-        
+      return false if not @_subscriptions
+      return true if @_subscriptions.change and @_subscriptions.change.length > 0
+
       for topic, subscriptions of @_subscriptions
-        if subscriptions.length > 0 and topic.substr(-6) == 'change'
-          return true
-          
+        return true if subscriptions.length > 0 and topic.substr(-6) == 'change'
+
       false
       
 
