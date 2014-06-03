@@ -421,7 +421,7 @@ define [
                                        triggers events related to transition process
       @return Future
       ###
-      _console.log "WidgetRepo::transitPage -> current root = #{ @rootWidget.debug() }" #if global.config.debug.widget
+      _console.log "WidgetRepo::transitPage -> current root = #{ @rootWidget.debug() }" if global.config.debug.widget
 
       # interrupting previous transition if it's not completed
 #      @_curTransition.interrupt() if @_curTransition? and @_curTransition.isActive()

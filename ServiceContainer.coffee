@@ -57,8 +57,7 @@ define [
             injectPromise.fork()
             try
               @eval serviceName, (service) ->
-                if global.config?.debug.service
-                  _console.log "Container::injectServices -> eval(#{ serviceName }) for target #{ target.constructor.name } finished success"
+                _console.log "Container::injectServices -> eval(#{ serviceName }) for target #{ target.constructor.name } finished success" if global.config?.debug.service
 
                 target[serviceAlias] = service
                 injectPromise.resolve()
@@ -67,8 +66,7 @@ define [
               target[serviceAlias] = undefined
               injectPromise.resolve()
           else
-            if global.config?.debug.service
-              _console.warn "Container::injectServices #{ serviceName } for target #{ target.constructor.name } is not defined"
+            _console.warn "Container::injectServices #{ serviceName } for target #{ target.constructor.name } is not defined" if global.config?.debug.service
 
         if _.isArray services
           for serviceName in services
