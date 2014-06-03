@@ -44,10 +44,10 @@ define [
         config.api.authenticateUserCallback = ->
           backPath = window.location.pathname
           if not (backPath.indexOf('user/login') >= 0 or backPath.indexOf('user/logout') >= 0)
-            clientSideRouter.navigate '/user/login/?back=' + window.location.pathname
+            clientSideRouter.forceNavigate('/user/login/?back=' + window.location.pathname)
           true
         config
-        
+
       # Clear localStorage in case of changing collections' release number
       serviceContainer.eval 'localStorage', (localStorage) ->
         currentVersion = window.global.config.static.collection
@@ -58,7 +58,7 @@ define [
               localStorage.setItem 'collectionsVersion', currentVersion
           .fail =>
             localStorage.setItem 'collectionsVersion', currentVersion
-        
+
 
     ###
       Это надо перенести в более кошерное место

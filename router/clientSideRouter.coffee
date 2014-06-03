@@ -101,6 +101,15 @@ define [
       options
 
 
+    forceNavigate: (newPath) ->
+      if @history
+        @widgetRepo.resetSmartTransition()
+        @process(newPath)
+        history.pushState({}, document.title, @currentPath) if not @options.shim
+      else
+        window.location.href = newPath
+
+
     _initHistoryNavigate: ->
       ###
       Setups client-side navigating event handlers.
