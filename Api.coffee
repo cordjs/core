@@ -40,7 +40,7 @@ define [
       @serviceContainer = serviceContainer
       @accessToken = ''
       @restoreToken = ''
-      
+
 
     getScope: ->
       ###
@@ -145,9 +145,12 @@ define [
           else
             #in case of fail dont call callback - it wont be able to solve the problem,
             #but might run into everlasting loop
-            @authenticateUser() if !silently
+            if !silently
+              @authenticateUser().done(callback).fail (message) ->
+                console.error(message)
+
             return false #stop processing other deferred callbacks in oauth
-            
+
 
     getTokensByAllMeans: (accessToken, refreshToken, callback) ->
       if not accessToken
@@ -156,7 +159,9 @@ define [
         else
           #in case of fail dont call callback - it wont be able to solve the problem,
           #but might run into everlasting loop
-          @authenticateUser()
+          @authenticateUser().done(callback).fail (message) ->
+            console.error(message)
+            
       else
         callback accessToken, refreshToken
 
