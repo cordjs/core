@@ -297,7 +297,7 @@ define [
       # initializing DOM bindings of widgets in reverse order (leafs of widget tree - first)
       futures = (@bind(id) for id in @_widgetOrder.reverse())
       @serviceContainer.eval 'cookie', (cookie) =>
-        if cookie.get 'require_stat_collection_enabled'
+        if cookie.get('cord_require_stat_collection_enabled')
           Future.sequence(futures).done =>
             Future.require('jquery', 'cord!css/browserManager').zip(Future.timeout(3000)).done ([$, cssManager]) =>
               keys = Object.keys(require.s.contexts._.defined)
