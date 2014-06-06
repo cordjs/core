@@ -309,7 +309,7 @@ define [
                 definedModules: keys
                 css: cssManager._loadingOrder
               .done (resp) ->
-                $('body').addClass('require-stat-collected')
+                $('body').addClass('cord-require-stat-collected')
                 console.warn "/REQUIRESTAT/collect response", resp
 
       @_widgetOrder = null
