@@ -296,19 +296,21 @@ define [
           @_currentExtendList.push(widget)
       # initializing DOM bindings of widgets in reverse order (leafs of widget tree - first)
       futures = (@bind(id) for id in @_widgetOrder.reverse())
-      if false
-        Future.sequence(futures).done =>
-          Future.require('jquery', 'cord!css/browserManager').zip(Future.timeout(3000)).done ([$, cssManager]) =>
-            keys = Object.keys(require.s.contexts._.defined)
-            re = /^cord(-\w)?!/
-            keys = _.filter keys, (name) ->
-              not re.test(name)
-            $.post '/REQUIRESTAT/collect',
-              root: @getRootWidget().getPath()
-              definedModules: keys
-              css: cssManager._loadingOrder
-            .done (resp) ->
-              console.warn "/REQUIRESTAT/collect response", resp
+      @serviceContainer.eval 'cookie', (cookie) =>
+        if cookie.get('cord_require_stat_collection_enabled')
+          Future.sequence(futures).done =>
+            Future.require('jquery', 'cord!css/browserManager').zip(Future.timeout(3000)).done ([$, cssManager]) =>
+              keys = Object.keys(require.s.contexts._.defined)
+              re = /^cord(-\w)?!/
+              keys = _.filter keys, (name) ->
+                not re.test(name)
+              $.post '/REQUIRESTAT/collect',
+                root: @getRootWidget().getPath()
+                definedModules: keys
+                css: cssManager._loadingOrder
+              .done (resp) ->
+                $('body').addClass('cord-require-stat-collected')
+                console.warn "/REQUIRESTAT/collect response", resp
 
       @_widgetOrder = null
 
