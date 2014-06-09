@@ -182,11 +182,11 @@ define [
       promise = new Future(1, "localStorage::_invalidateAllCollectionsWithField #{repoName} #{fieldName} promise")
 
       @storage.length (length) =>
-        for index in [1..length-1]
+        for index in [0..length-1]
           promise.fork()
 
           @storage.key index, (key) =>
-            if key.slice(-5) == ':info' && key.indexOf(repoName) >= 0
+            if key and key.slice(-5) == ':info' && key.indexOf(repoName) >= 0
               if !fieldName
                 @storage.removeItem key
                 @storage.removeItem(key.slice(0, key.length - 5))
