@@ -65,16 +65,16 @@ define [
 
 
     @escapeTags = (input) ->
-      tags = 
+      tags =
         '&': '&amp;'
         '<': '&lt;'
         '>': '&gt;'
-        
+
       source = String(input)
       source.replace /[&<>]/g, (tag) ->
         tags[tag] or tag
-      
-    
+
+
 
     @stripTags = (input, allowed) ->
       ###
@@ -180,3 +180,29 @@ define [
         text = text.split(eng[x].toUpperCase()).join(rus[x].toUpperCase())
 
       text
+
+
+    @base64Encode = (data) ->
+      b64 = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/="
+      i = 0
+      enc = ''
+
+      while (i < data.length)
+        o1 = data.charCodeAt(i++)
+        o2 = data.charCodeAt(i++)
+        o3 = data.charCodeAt(i++)
+
+        bits = o1<<16 | o2<<8 | o3
+
+        h1 = bits>>18 & 0x3f
+        h2 = bits>>12 & 0x3f
+        h3 = bits>>6 & 0x3f
+        h4 = bits & 0x3f
+
+        enc += b64.charAt(h1) + b64.charAt(h2) + b64.charAt(h3) + b64.charAt(h4)
+
+      switch (data.length % 3)
+        when 1 then enc = enc.slice(0, -2) + '=='
+        when 2 then enc = enc.slice(0, -1) + '='
+
+      enc
