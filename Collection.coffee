@@ -87,7 +87,7 @@ define [
       pageSize = if options.pageSize then options.pageSize else ''
 
       collectionVersion = global.config.static.collection
-      
+
       [
         collectionVersion
         clazz
@@ -367,7 +367,7 @@ define [
       @param Model model the new model
       ###
       id = parseInt(if _.isObject(model) then model.id else model)
-      
+
       @refresh(id, emitModelChangeExcept) if not @_id or (not isNaN(id) and parseInt(@_id) == id)
 
 
@@ -404,16 +404,16 @@ define [
         if m != undefined
           @_byId[m.id] = m
 
-    
+
     partialRefresh: (startPage, maxPages, minRefreshInterval = 0) ->
       ###
       Reloads olny maxPages pages of the collection only if the collection hasn't been refreshed for required interval
       Useful for potentilally huge collections
       ###
       if minRefreshInterval >= 0 and @getLastQueryTimeDiff() > minRefreshInterval
-        @refresh(undefined, true, startPage, maxPages) 
-      
-    
+        @refresh(undefined, true, startPage, maxPages)
+
+
     refresh: (currentId, emitModelChangeExcept = true, startPage = 0, maxPages = 0) ->
       ###
       Reloads currently loaded part of collection from the backend.
@@ -424,10 +424,10 @@ define [
       ###
 
       #Special case - fixed collections, no need to sync or refresh
-      return if @_fixed 
-      
-      return if @_refreshInProgress 
-      
+      return if @_fixed
+
+      return if @_refreshInProgress
+
       #The collection has no active 'change' subsriptions, just clear last refresh time
       if not @_hasActiveChangeSubscriptions()
         @_lastQueryTime = 0
@@ -452,7 +452,7 @@ define [
 
         @getPagingInfo(currentId, true).done (paging) =>
           #Don't refresh collection if currentId is not belonged to it
-          if !currentId || paging.selectedPage > 0 || modelIndex > -1
+          if !currentId || paging.selectedPage > 0 || modelIndex > -1 || startPage > 0
             startPage = if paging.selectedPage > 0 then paging.selectedPage else startPage
             #refresh pages, starting from current, and then go 1 up, 1 down, etc
             #if modelPage didn't change refresh only page, containing the model
@@ -541,7 +541,7 @@ define [
         return true if subscriptions.length > 0 and topic.substr(-6) == 'change'
 
       false
-      
+
 
     addModel: (model, position = ':tail') ->
       ###

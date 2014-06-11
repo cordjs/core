@@ -468,7 +468,7 @@ define [
                   @emit 'sync', model
                   @_suggestNewModelToCollections(model) if !notRefreshCollections
                   promise.resolve(response)
-            else 
+            else
               promise.resolve('Nothing to save')
           else
             api.post @restResource, model.getChangedFields(), (response, error) =>
@@ -699,7 +699,7 @@ define [
       #Force refreshing all collections
       Defer.nextTick =>
         for name, collection of @_collections
-          collection.refresh()
+          collection.partialRefresh(1, 0, 1)
 
 
     clearSingleModelCollections: (model) ->
