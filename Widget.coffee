@@ -251,7 +251,7 @@ define [
       if isBrowser
         @_browserInitialized = true
         @_widgetReadyPromise = Future.single(@debug('_widgetReadyPromise.resolved')).resolve()
-        @_shownPromise = Future.single('Widget::_shownPromise')
+        @_shownPromise = Future.single('Widget::_shownPromise ' + this.constructor.name)
 
       @_renderPromise = Future.resolved()
 
@@ -1196,7 +1196,7 @@ define [
         @_widgetReadyPromise = Future.single(@debug('_widgetReadyPromise'))
         @_browserInitialized = false
         @_shownPromise.clear() if @_shownPromise?
-        @_shownPromise = Future.single('Widget::_shownPromise')
+        @_shownPromise = Future.single('Widget::_shownPromise ' + this.constructor.name)
         @_shown = false
 
 
