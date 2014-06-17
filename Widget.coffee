@@ -948,7 +948,7 @@ define [
               renderInfo.push(type: 'timeout-stub', widget: widget)
               promise.resolve()
 
-          replaceTimeoutStub = (out) ->
+          replaceTimeoutStub = (out, timeoutDomInfo) ->
             ###
             DRY insert actual content of the widget instead of timeout stub, inserted before
             @browser-only
@@ -957,7 +957,10 @@ define [
             if not promise.completed()
               processWidget(out)
             else
-              TimeoutStubHelper.replaceStub(out, widget, domInfo).catchIf (err) ->
+              TimeoutStubHelper.replaceStub(out, widget, domInfo).then ($newRoot) ->
+                timeoutDomInfo.setDomRoot($newRoot)
+                domInfo.domInserted().done -> timeoutDomInfo.markShown()
+              .catchIf (err) ->
                 err instanceof errors.WidgetDropped
               .failAloud()
 
@@ -966,8 +969,13 @@ define [
             placeholderOrder[widgetId] = i
 
             complete = false
+            timeoutDomInfo = domInfo
+            hasTimeout = isBrowser and info.timeout? and info.timeout >= 0
 
-            if isBrowser and info.timeout? and info.timeout >= 0
+            if hasTimeout
+              # Creating "internal" DOM root info for the widget with timeout to be able to organize
+              #  the order and right context for replacement of serveral timeouted blocks enclosed into each other
+              timeoutDomInfo = new DomInfo(@debug('_renderPlaceholder:widget:timeout'))
               setTimeout ->
                 # if the widget has not been rendered within given timeout, render stub template from the {:timeout} block
                 if not complete
@@ -975,20 +983,24 @@ define [
                   processTimeoutStub()
               , info.timeout
 
-            widget.show(info.params, domInfo).failAloud().done (out) ->
+            widget.show(info.params, timeoutDomInfo).failAloud().done (out) ->
               if not complete
                 complete = true
+                # in case of no timeout just linking to the upper DOM info
+                timeoutDomInfo.completeWith(domInfo) if hasTimeout
                 processWidget(out)
                 promise.resolve()
               else
-                replaceTimeoutStub(out)
+                replaceTimeoutStub(out, timeoutDomInfo)
 
           else if info.type == 'timeouted-widget'
             placeholderOrder[widgetId] = i
             processTimeoutStub()
-            info.timeoutPromise.done (params) ->
-              widget.show(params, domInfo).failAloud().done (out) ->
-                replaceTimeoutStub(out)
+            info.timeoutPromise.then (params) ->
+              timeoutDomInfo = new DomInfo(@debug('_renderPlaceholder:timeouted-widget:timeout'))
+              widget.show(params, timeoutDomInfo).then (out) ->
+                replaceTimeoutStub(out, timeoutDomInfo)
+            .failAloud()
 
           else if info.type == 'inline'
             placeholderOrder[info.template] = i
@@ -1482,7 +1494,7 @@ define [
       This method should be called when the widget's body is actually shown in the DOM.
       @param Boolean ignoreChildren if true doesn't recursively call markShown for it's child widgets
       ###
-      if not @_shown
+      if not @_shown and not @_delayedRender # timeouted widget should not be marked as shown
         child.markShown() for child in @children if not ignoreChildren
         # _shown is necessary to protect from duplicate recursive calling of markShown() from the future's callbacks
         # this redundancy can be removed when inline-generated widgets will have appropriate detection and separation API
@@ -1550,6 +1562,8 @@ define [
             normalizedName = undefined if not normalizedName
 
             timeout = if params.timeout? then parseInt(params.timeout) else -1
+            hasTimeout = isBrowser and timeout >= 0
+            timeoutDomInfo = if hasTimeout then new DomInfo(@debug('#widget::timeout')) else @_domInfo
 
             @getStructTemplate().flatMap (tmpl) =>
               # creating widget from the structured template or not depending on it's existence and name
@@ -1569,18 +1583,22 @@ define [
               @registerChild(widget, normalizedName)
               @resolveParamRefs(widget, params).failAloud().done (resolvedParams) =>
                 widget.setModifierClass(params.class)
-                widget.show(resolvedParams, @_domInfo).failAloud().done (out) =>
+                widget.show(resolvedParams, timeoutDomInfo).failAloud().done (out) =>
                   if not complete
                     complete = true
+                    timeoutDomInfo.completeWith(@_domInfo) if hasTimeout
                     @childWidgetComplete()
-                    chunk.end widget.renderRootTag(out)
+                    chunk.end(widget.renderRootTag(out))
                   else
                     widget._delayedRender = false
-                    TimeoutStubHelper.replaceStub(out, widget, @_domInfo).catchIf (err) ->
+                    TimeoutStubHelper.replaceStub(out, widget, @_domInfo).then ($newRoot) =>
+                      timeoutDomInfo.setDomRoot($newRoot)
+                      @_domInfo.domInserted().done -> timeoutDomInfo.markShown()
+                    .catchIf (err) ->
                       err instanceof errors.WidgetDropped
                     .failAloud()
 
-              if isBrowser and timeout >= 0
+              if hasTimeout
                 setTimeout =>
                   # if the widget has not been rendered within given timeout, render stub template from the {:timeout} block
                   if not complete
@@ -1588,7 +1606,7 @@ define [
                     widget._delayedRender = true
                     TimeoutStubHelper.getTimeoutHtml(this, timeoutTemplate, widget).failAloud().done (out) =>
                       @childWidgetComplete()
-                      chunk.end widget.renderRootTag(out)
+                      chunk.end(widget.renderRootTag(out))
                 , timeout
             .failAloud()
 
@@ -1635,9 +1653,9 @@ define [
             if params and params.class
               @_placeholdersClasses[name] = params.class
 
-            @_renderPlaceholder(name, @_domInfo).done (out) =>
+            @_renderPlaceholder(name, @_domInfo).failAloud().done (out) =>
               @childWidgetComplete()
-              chunk.end @renderPlaceholderTag(name, out)
+              chunk.end(@renderPlaceholderTag(name, out))
 
 
         i18n: (chunk, context, bodies, params) =>

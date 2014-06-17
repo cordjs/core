@@ -17,15 +17,16 @@ define [
       @param String hmtl widget's rendered template
       @param Widget widget the inserted widget
       @param DomInfo domInfo special helper object holding futures about context DOM creating and inserting
-      @return Future
+      @return Future[jQuery] new DOM root to be used by the enclosed widgets
       ###
       Future.require('jquery', 'cord!utils/DomHelper').flatMap ($, DomHelper) ->
         $newRoot = $(widget.renderRootTag(html))
         widget.browserInit($newRoot).zip(domInfo.domRootCreated()).flatMap (any, $contextRoot) ->
-          DomHelper.replaceNode($('#'+widget.ctx.id, $contextRoot), $newRoot)
-      .zip(domInfo.domInserted()).map ->
-        widget.markShown()
-        []
+          DomHelper.replaceNode($('#'+widget.ctx.id, $contextRoot), $newRoot).done ->
+            domInfo.domInserted().done ->
+              widget.markShown()
+        .map ->
+          $newRoot
 
 
     @renderTemplateFile: (ownerWidget, fileName) ->
@@ -53,5 +54,5 @@ define [
       else
         if widget?.constructor.defaultTimeoutTemplateString
           Future.resolved(widget.constructor.defaultTimeoutTemplateString)
-        else 
+        else
           Future.resolved('<img src="/bundles/cord/core/assets/pic/loader-transp.gif"/>')

@@ -40,6 +40,16 @@ define [
     domInserted: -> @_showPromise
 
 
+    completeWith: (anotherDomInfo) ->
+      ###
+      Links this DOM info to the given one. So it will be marked as created and shown when the given DOM info will be
+       marked
+      @param DomInfo anotherDomInfo another DomInfo instance which completion should mean completion of this DOM info
+      ###
+      @_domRootPromise.when(anotherDomInfo.domRootCreated())
+      @_showPromise.when(anotherDomInfo.domInserted())
+
+
     @fake: ->
       result = new DomInfo('fake')
       result._domRootPromise.reject("DOM root from fake DomInfo should not be used!")
