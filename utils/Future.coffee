@@ -74,12 +74,12 @@ define [
       @_alwaysCallbacks = []
       @_name = name
 
-      if @_name
-        if global.config?.debug.core
-          @_incompleteTimeout = setTimeout =>
-            if @state() == 'pending' and @_counter > 0
-              _console.warn "Future timeouted [#{@_name}] (10 seconds), counter = #{@_counter}"
-          , 10 * 1000
+      timeout = global.config?.debug.future.timeout
+      if timeout > 0
+        @_incompleteTimeout = setTimeout =>
+          if @state() == 'pending' and @_counter > 0
+            _console.warn "Future timeouted [#{@_name}] (10 seconds), counter = #{@_counter}"
+        , timeout
 
 
     clearDoneCallbacks: ->
@@ -149,7 +149,7 @@ define [
         @_counter--
         if @_state != 'rejected'
           @_state = 'rejected'
-          @_callbackArgs = [err ? 'Future rejected without error message!']
+          @_callbackArgs = [err ? new Error('Future rejected without error message!')]
           @_runFailCallbacks() if @_failCallbacks.length > 0
           @_runAlwaysCallbacks() if @_alwaysCallbacks.length > 0
       else
@@ -721,7 +721,7 @@ define [
 
     clear: ->
       if @_incompleteTimeout?
-        clearTimeout @_incompleteTimeout
+        clearTimeout(@_incompleteTimeout)
         @_incompleteTimeout = null
 
 

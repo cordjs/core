@@ -233,10 +233,10 @@ define [
 
 
     _initDeferredDebug: (name) ->
-      debugCore = global.config?.debug.core
+      timeout = global.config?.debug.deferred.timeout
 
-      if @[name] == ':deferred' and debugCore
+      if @[name] == ':deferred' and timeout > 0
         setTimeout =>
           _console.warn '### Deferred timeout', name, @id, @_owner?.constructor.__name  if @[name] == ':deferred'
-        , 10000
+        , timeout
 
