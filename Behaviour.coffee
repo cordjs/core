@@ -270,35 +270,47 @@ define [
 
     render: ->
       ###
-      Fully re-render and replace all widget's contents by killing all child widgets and re-rendering own template.
-      Works using defer async in order to collapse several simultaineous calls of render into one.
+      Fully re-renders and replaces all widget's contents by killing all child widgets and re-rendering own template.
+      Works using defer async in order to collapse several simultaneous calls of render into one.
+      @return Future[Behaviour] new behaviour instance
       ###
-      result = Future.single 'render.complete'
-
       @widget.sentenceChildrenToDeath()
-      @defer 'render', =>
-        if @widget?
-          # renderTemplate will clean this behaviour, so we must save links...
-          widget = @widget
-          $rootEl = @el
-          domInfo = new DomInfo(@debug('render'))
-          # harakiri: this is need to avoid interference of subsequent async calls of the @render() for the same widget
-          @widget._cleanBehaviour()
-          widget.renderTemplate(domInfo).then (out) ->
-            $newWidgetRoot = $(widget.renderRootTag(out))
-            domInfo.setDomRoot($newWidgetRoot)
-            widget.browserInit($newWidgetRoot).then ->
-              DomHelper.replaceNode($rootEl, $newWidgetRoot)
-            .then ->
-              domInfo.markShown()
-              widget.markShown()
-              widget.emit 're-render.complete'
-              result.resolve(widget.behaviour)
-          .failAloud()
-        else
-          result.reject(new Error('Behaviour already clean ' + @constructor.__name))
+      # re-render shouldn't be performed before the widget is shown due to possibility of wrong DOM root element
+      #  state and replacing the DOM node in wrong place after re-render
+      # this is pretty dangerous change and should attract attention when re-render isn't performed when it should be
+      @widget.shown().then =>
+        if not @_renderAggregatePromise?
+          @_renderAggregatePromise = Future.single(@debug('renderAggregate'))
+          Defer.nextTick =>
+            @_renderAggregatePromise.when(@_render0())
+            @_renderAggregatePromise = null
+        @_renderAggregatePromise
+      .failAloud()
 
-      result
+
+    _render0: ->
+      ###
+      Actually re-render code. Should be used only from public render() method.
+      ###
+      if @widget?
+        # renderTemplate will clean this behaviour, so we must save links...
+        widget = @widget
+        $rootEl = @el
+        domInfo = new DomInfo(@debug('render'))
+        # harakiri: this is need to avoid interference of subsequent async calls of the @render() for the same widget
+        @widget._cleanBehaviour()
+        widget.renderTemplate(domInfo).then (out) ->
+          $newWidgetRoot = $(widget.renderRootTag(out))
+          domInfo.setDomRoot($newWidgetRoot)
+          widget.browserInit($newWidgetRoot).then ->
+            DomHelper.replaceNode($rootEl, $newWidgetRoot)
+          .then ->
+            domInfo.markShown()
+            widget.markShown()
+            widget.emit 're-render.complete'
+            widget.behaviour
+      else
+        Future.rejected(new Error("Behaviour [#{@constructor.__name}] is already cleaned!"))
 
 
     renderInline: (name) ->
@@ -359,17 +371,6 @@ define [
 
     dropChildWidget: (widget) ->
       @widget.dropChild(widget.ctx.id)
-
-
-    defer: (id, fn) ->
-      @defers ?= {}
-      if @defers[id]?
-        @defers[id]++
-      else
-        @defers[id] = 1
-        Defer.nextTick =>
-          fn()
-          delete @defers[id]
 
 
     getServiceContainer: ->
