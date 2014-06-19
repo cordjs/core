@@ -15,9 +15,6 @@ define [
       @[':internal'] = {}
       @[':internal'].version = 0
 
-      @deferredTimes = {}
-      @deferredTime = new Date()
-
       if typeof arg1 is 'object'
         for key, value of arg1
           @[key] = value
@@ -70,26 +67,21 @@ define [
       @param (optional)Future callbackPromise promise to support setWithCallback() method functionality
       @return Boolean true if the change event was triggered (the value was changed)
       ###
+      stashChange = true
       if newValue != undefined
         if @[name] == ':deferred'
           # if the current value special :deferred than event should be triggered even if the new value is null
           triggerChange = (newValue != ':deferred')
+          # stashing should be turned off for modifying from :deferred except the value has become :deferred during
+          #  widget template rendering (when stashing is enabled)
+          stashChange = @[':internal'].deferredStash?[name]
 
-          # only for debugging
-          if triggerChange
-            time = new Date()
-            deferTime = (time - (if @deferredTimes[name] then @deferredTimes[name] else @deferredTime) ) / 1000
-            if deferTime > 0.1 and global.config.debug.core
-              _console.log '!!! Deferred time', name, @id, @_owner?.constructor.__name, 'was', deferTime, 'secs'
         else
           oldValue = @[name]
           if oldValue == null
             # null needs special check because null == null in javascript isn't true
             triggerChange = (newValue != null)
           else
-#            if _.isObject(oldValue) and _.isObject(newValue)
-#              triggerChange = not _.isEqual(newValue, oldValue)
-#            else
             triggerChange = (newValue != oldValue)
       else
         triggerChange = false
@@ -103,14 +95,21 @@ define [
         callbackPromise.fork() if callbackPromise
         curVersion = ++@[':internal'].version
         if @[':internal'].stash
-          cursor = _.uniqueId()
-          @[':internal'].stash.push
-            id: @id
-            name: name
-            newValue: newValue
-            oldValue: oldValue
-            cursor: cursor
-            version: curVersion
+          if newValue == ':deferred'
+            # if the value become deferred during enabled stashing then we should remember it to allow stashing
+            #  when it'll set again. Otherwise behaviour can miss some change events emitted during widget rendering.
+            @[':internal'].deferredStash ?= {}
+            @[':internal'].deferredStash[name] = true
+          else if stashChange
+            cursor = _.uniqueId()
+            @[':internal'].stash.push
+              id: @id
+              name: name
+              newValue: newValue
+              oldValue: oldValue
+              cursor: cursor
+              version: curVersion
+
         Defer.nextTick =>
           _console.log "publish widget.#{ @id }.change.#{ name }" if global.config.debug.widget
           postal.publish "widget.#{ @id }.change.#{ name }",
@@ -129,7 +128,6 @@ define [
 
     setDeferred: (args...) ->
       for name in args
-        @deferredTimes[name] = new Date()
         @setSingle(name, ':deferred')
 
 
@@ -174,8 +172,11 @@ define [
       @browser-only
       ###
       if @[':internal'].stash and @[':internal'].stash.length
+        originalStash = @[':internal'].stash
+        @[':internal'].stash = null
+        @[':internal'].deferredStash = null
         Defer.nextTick =>
-          for ev in @[':internal'].stash
+          for ev in originalStash
             postal.publish "widget.#{ ev.id }.change.#{ ev.name }",
               name: ev.name
               value: ev.newValue
@@ -183,7 +184,6 @@ define [
               cursor: ev.cursor
               version: ev.version
               stashed: true
-          @[':internal'].stash = null
 
 
     getVersion: ->
