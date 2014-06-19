@@ -78,6 +78,15 @@ define [
       collection
 
 
+    euthanizeCollection: (collection) ->
+      ###
+      Removes collection from @_collections and clear it's cache
+      @return Future which resolves when cache is cleared
+      ###
+      delete @_collections[collection.name]
+      @invalidateCollectionCache(collection.name)
+
+
     createExtendedCollection: (collectionClass, options) ->
       ###
       Creates extended collection using the given collection class. Besides just calling the class constructor

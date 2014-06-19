@@ -152,6 +152,14 @@ define [
       @repo.on('change', @_handleModelChange).withContext(this)
 
 
+
+    euthanize: ->
+      ###
+      Remove collection from Repo and cache
+      ###
+      @repo.euthanizeCollection(this)
+
+
     cache: ->
       ###
       Cache collection
