@@ -953,8 +953,8 @@ define [
             DRY insert actual content of the widget instead of timeout stub, inserted before
             @browser-only
             ###
-            widget._delayedRender = false
             if not promise.completed()
+              widget._delayedRender = false
               processWidget(out)
             else
               TimeoutStubHelper.replaceStub(out, widget, domInfo).then ($newRoot) ->
@@ -1359,7 +1359,12 @@ define [
               throw new Error("WRONG BEHAVIOUR CLASS: #{behaviourClass}")
         .fail (err) =>
           _console.error "#{ @debug 'initBehaviour' } --> error occurred while loading behaviour:", err
-          postal.publish 'error.notify.publish', {link:'', message: "Ошибка загрузки виджета #{ behaviourClass }. Попробуйте перезагрузить страницу.", details: String(err) ,error:true, timeOut: 30000 }
+          postal.publish 'error.notify.publish',
+            link: ''
+            message: "Ошибка загрузки виджета #{ behaviourClass }. Попробуйте перезагрузить страницу."
+            details: String(err)
+            error: true
+            timeOut: 30000
       else
         Future.resolved()
 
@@ -1590,7 +1595,6 @@ define [
                     @childWidgetComplete()
                     chunk.end(widget.renderRootTag(out))
                   else
-                    widget._delayedRender = false
                     TimeoutStubHelper.replaceStub(out, widget, @_domInfo).then ($newRoot) =>
                       timeoutDomInfo.setDomRoot($newRoot)
                       @_domInfo.domInserted().done -> timeoutDomInfo.markShown()

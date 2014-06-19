@@ -21,6 +21,9 @@ define [
       ###
       Future.require('jquery', 'cord!utils/DomHelper').flatMap ($, DomHelper) ->
         $newRoot = $(widget.renderRootTag(html))
+        # _delayedRender flag MUST be unset here (not before) to avoid interference of another browserInit during
+        #  async Future.require() above
+        widget._delayedRender = false
         widget.browserInit($newRoot).zip(domInfo.domRootCreated()).flatMap (any, $contextRoot) ->
           DomHelper.replaceNode($('#'+widget.ctx.id, $contextRoot), $newRoot).done ->
             domInfo.domInserted().done ->
