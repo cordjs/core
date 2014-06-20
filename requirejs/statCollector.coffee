@@ -17,12 +17,12 @@ define [
       fs.readFile jsStatFile, (err, data) ->
         stat = if err then {} else JSON.parse(data)
         stat[post.root] = post['definedModules[]'].sort()
-        fs.writeFile jsStatFile, JSON.stringify(stat, null, 2), (err)->
+        fs.writeFile jsStatFile, JSON.stringify(stat, null, 2), (err) ->
           throw err if err
       fs.readFile cssStatFile, (err, data) ->
         stat = if err then {} else JSON.parse(data)
         stat[post.root] = post['css[]']
-        fs.writeFile cssStatFile, JSON.stringify(stat, null, 2), (err)->
+        fs.writeFile cssStatFile, JSON.stringify(stat, null, 2), (err) ->
           throw err if err
 
     res.end("<pre>#{ JSON.stringify(body, null, 2) }</pre>")
