@@ -33,19 +33,19 @@ define [
 
 
     _deepClone: (value) ->
-      
+
       if _.isArray(value)
         result = []
         for val in value
           result.push @_deepClone(val)
-        return result        
+        return result
       else if _.isObject(value)
         result = {}
         for key, val of value
           result[key] = @_deepClone(val)
-        return result              
+        return result
       return value
-      
+
 
     getDefinedFieldNames: ->
       ###
@@ -86,8 +86,8 @@ define [
           @_fieldNames.push(key) if @_fieldNames.indexOf(key) == -1
 
       this
-      
-    
+
+
     refreshOnlyContainingCollections: ->
       #Make all collections, containing this model refresh
       #It's cheaper than Collection::checkNewModel and ModelRepo._suggestNewModelToCollections,
@@ -135,7 +135,7 @@ define [
       @collection.repo.emit 'change', changeVal
 
 
-    save: (notRefreshCollections = false)->
+    save: (notRefreshCollections = false) ->
       ###
       Save model via collection repo
       @param notRefreshCollections - if true caller must take care of collections refreshing

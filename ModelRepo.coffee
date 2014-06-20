@@ -686,7 +686,7 @@ define [
       result
 
 
-    refreshOnlyContainingCollections: (model)->
+    refreshOnlyContainingCollections: (model) ->
       #Make all collections, containing this model refresh
       #It's cheaper than Collection::checkNewModel and ModelRepo._suggestNewModelToCollections,
       #because mentioned ones make almost all collections refresh
