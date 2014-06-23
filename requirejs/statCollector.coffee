@@ -1,11 +1,8 @@
 define [
   'fs'
-  'http'
-  'https'
   'underscore'
-  'url'
   'querystring'
-], (fs, http, https, _, url, qs) ->
+], (fs, _, qs) ->
 
   (req, res) ->
     jsStatFile  = 'require-stat.json'
@@ -16,12 +13,14 @@ define [
       post = qs.parse(body)
       fs.readFile jsStatFile, (err, data) ->
         stat = if err then {} else JSON.parse(data)
-        stat[post.root] = post['definedModules[]'].sort()
+        current = stat[post.root] ? []
+        stat[post.root] = _.uniq(post['definedModules[]'].concat(current).sort(), true)
         fs.writeFile jsStatFile, JSON.stringify(stat, null, 2), (err) ->
           throw err if err
       fs.readFile cssStatFile, (err, data) ->
         stat = if err then {} else JSON.parse(data)
-        stat[post.root] = post['css[]']
+        current = stat[post.root] ? []
+        stat[post.root] = _.uniq(post['css[]'].concat(current).sort(), true)
         fs.writeFile cssStatFile, JSON.stringify(stat, null, 2), (err) ->
           throw err if err
 
