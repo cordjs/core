@@ -24,7 +24,8 @@ define [
         try
           stat = if err then {} else JSON.parse(data)
           current = stat[post.root] ? []
-          stat[post.root] = _.uniq(post['css[]'].concat(current).sort(), true)
+          # WARNING! It's not allowed to sort list of CSS-filed due to possibility to break dependency order of the CSS
+          stat[post.root] = _.uniq(current.concat(post['css[]']))
           fs.writeFile cssStatFile, JSON.stringify(stat, null, 2), (err) ->
             throw err if err
         catch err
