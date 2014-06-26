@@ -1059,7 +1059,7 @@ define [
           @_queryQueue.loadingEnd = end = undefined
 
       if ( not end? || (end - start > 50) ) && not @_id && not @repo._debugCanDoUnlimit
-        _console.error 'ACHTUNG!!! Me bumped into unlimited query: end =', end, 'start =', start, @repo.restResource
+        _console.warning 'ACHTUNG!!! Me bumped into unlimited query: end =', end, 'start =', start, @repo.restResource
 
       # detecting if there are queries in the queue which already cover required range
       curStart = start
