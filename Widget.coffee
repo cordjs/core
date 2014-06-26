@@ -1470,9 +1470,9 @@ define [
                 else
                   errorInfo.stuckChildInfo.push childWidget.ready().completed()
                 i++
-              _console.error "#{ @debug 'incompleteBrowserInit:children!' }", errorInfo
+              _console.warning "#{ @debug 'incompleteBrowserInit:children!' }", errorInfo
             else
-              _console.error "#{ @debug 'incompleteBrowserInit!' } css:#{ savedConstructorCssPromise.completed() } child:#{ childWidgetReadyPromise.completed() } selfInit:#{ selfInitBehaviour }" if not savedPromiseForTimeoutCheck.completed()
+              _console.warning "#{ @debug 'incompleteBrowserInit!' } css:#{ savedConstructorCssPromise.completed() } child:#{ childWidgetReadyPromise.completed() } selfInit:#{ selfInitBehaviour }" if not savedPromiseForTimeoutCheck.completed()
           , 5000
       @_widgetReadyPromise
 
