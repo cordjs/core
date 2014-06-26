@@ -147,7 +147,7 @@ define [
             #but might run into everlasting loop
             if !silently
               @authenticateUser().done(callback).fail (message) ->
-                _console.warning(message)
+                _console.warn(message)
 
             return false #stop processing other deferred callbacks in oauth
 
@@ -160,7 +160,7 @@ define [
           #in case of fail dont call callback - it wont be able to solve the problem,
           #but might run into everlasting loop
           @authenticateUser().done(callback).fail (message) ->
-            _console.warning(message)
+            _console.warn(message)
 
       else
         callback accessToken, refreshToken
