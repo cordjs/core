@@ -577,6 +577,9 @@ define [
 
 
     cleanChildren: ->
+      # clean :any child subscriptions
+      @_subscribeOnAnyChild = null if @_subscribeOnAnyChild?
+
       if @children.length
         if @_structTemplate? and not @_structTemplate.isEmpty()
           @_structTemplate.unassignWidget(widget) for widget in @children
