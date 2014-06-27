@@ -254,7 +254,7 @@ define [
       rangeAdjustPromise = Future.single('Collection::sync rangeAdjustPromise')
       # special promise for cache mode to avoid running remote sync if unnecessary
       activateSyncPromise = Future.single('Collection::sync activateSyncPromise')
-      activateSyncPromise.resolve() if not cacheMode
+      activateSyncPromise.resolve(true) if not cacheMode
 
       if not @_initialized
         # try to load local storage cache only when syncing first time
@@ -263,36 +263,38 @@ define [
             if not firstResultPromise.completed()
               @_fillModelList(models, syncStart, syncEnd) if not @_initialized # the check is need in case of parallel cache trial
               firstResultPromise.resolve(this)
-          activateSyncPromise.reject() if cacheMode # remote sync is not necessary in :cache mode
+          activateSyncPromise.resolve(false) if cacheMode # remote sync is not necessary in :cache mode
         .fail (error) =>
-          activateSyncPromise.resolve() if cacheMode # cache failed, need to remote sync even in :cache mode
+          activateSyncPromise.resolve(true) if cacheMode # cache failed, need to remote sync even in :cache mode
       else # if @_initialized
         rangeAdjustPromise.resolve(start, end)
         if cacheMode
           # in :cache mode we need to check if requested range is already loaded into the collection's payload
           if start? and end?
             if start >= @_loadedStart and end <= @_loadedEnd
-              activateSyncPromise.reject()
+              activateSyncPromise.resolve(false)
               firstResultPromise.resolve(this)
             else
-              activateSyncPromise.resolve()
+              activateSyncPromise.resolve(true)
           else
             if @_hasLimits == false
-              activateSyncPromise.reject()
+              activateSyncPromise.resolve(false)
               firstResultPromise.resolve(this)
             else
-              activateSyncPromise.resolve()
+              activateSyncPromise.resolve(true)
 
       # sync with backend
-      syncPromise = Future.single('Collection::sync syncPromise ' + @_accessPoint + ' ' + JSON.stringify(@_filter) + ' ' + @_fields) # special promise for :sync mode completion
-      activateSyncPromise.done => # pass :cache mode
-        rangeAdjustPromise.done (syncStart, syncEnd) => # wait for range adjustment from the local cache
-          @_enqueueQuery(syncStart, syncEnd).done => # avoid repeated refresh-query
-            syncPromise.resolve(this)
-            if not firstResultPromise.completed()
-              firstResultPromise.resolve(this)
-          .fail ->
-            syncPromise.reject()
+      # special promise for :sync mode completion
+      syncPromise = activateSyncPromise.then (activate) =>
+        if activate
+          # wait for range adjustment from the local cache
+          rangeAdjustPromise.then (syncStart, syncEnd) =>
+            @_enqueueQuery(syncStart, syncEnd) # avoid repeated refresh-query
+          .then =>
+            firstResultPromise.resolve(this) if not firstResultPromise.completed()
+            this
+        else
+          this
 
       # handling different behaviours of return modes
       resultPromise = Future.single('Collection::sync resultPromise')
@@ -1084,23 +1086,14 @@ define [
 
       # if not covered by the already queued queries, adding a new query to the queue
       if not waitForQuery?
-        queryPromise = Future.single('Collection::_enqueueQuery queryPromise')
-        waitForQuery =
-          start: start
-          end: end
-          type: queryType
-          promise: queryPromise
-
         # attaching to the last query's in the queue promise
         if (lastQuery = _.last(queryList))?
           prevQueryPromise = lastQuery.promise
         else
-          prevQueryPromise = new Future('Collection::_enqueueQuery prevQueryPromise')
-
-        queryList.push(waitForQuery)
+          prevQueryPromise = Future.resolved()
 
         # starting to process query only after completion of the previous in the queue
-        prevQueryPromise.done =>
+        queryPromise = prevQueryPromise.then =>
           queryParams =
             fields: @_fields
             reconnect: @_reconnect
@@ -1123,30 +1116,39 @@ define [
 
           @updateLastQueryTime()
 
-          @repo.query(queryParams).done (models) =>
-            # invalidating cached totalCount
-            if @_totalCountFromCache
-              @_totalCount = null
-              @_totalCountFromCache = false
+          @repo.query(queryParams)
+        .then (models) =>
+          # invalidating cached totalCount
+          if @_totalCountFromCache
+            @_totalCount = null
+            @_totalCountFromCache = false
 
-            if (start >= @_loadedStart and start <= @_loadedEnd) or (end >= @_loadedStart and end <= @_loadedEnd) or (start == undefined and end == undefined and @_loadedEnd > -1)
-              # if there are interceptions of the just loaded set and already existing set,
-              #  than we need to trigger events
-              @_replaceModelList models, start, end
-            else
-              # append or prepend - not triggering events
-              @_fillModelList models, start, end
-              @repo.cacheCollection(this)
+          if (start >= @_loadedStart and start <= @_loadedEnd) or (end >= @_loadedStart and end <= @_loadedEnd) or (start == undefined and end == undefined and @_loadedEnd > -1)
+            # if there are interceptions of the just loaded set and already existing set,
+            #  than we need to trigger events
+            @_replaceModelList models, start, end
+          else
+            # append or prepend - not triggering events
+            @_fillModelList models, start, end
+            @repo.cacheCollection(this)
 
-            @_initialized = true
+          @_initialized = true
 
-            # not forgetting to remove the completed query from the queue
-            if queryList[0] == waitForQuery
-              queryList.shift()
-            else
-              throw new Error("Inconsistent query queue: #{ queryList }, #{ waitForQuery }!")
+          # not forgetting to remove the completed query from the queue
+          if queryList[0] == waitForQuery
+            queryList.shift()
+          else
+            throw new Error("Inconsistent query queue: #{ queryList }, #{ waitForQuery }!")
 
-            queryPromise.resolve()
+          this
+
+        waitForQuery =
+          start: start
+          end: end
+          type: queryType
+          promise: queryPromise
+
+        queryList.push(waitForQuery)
 
       waitForQuery.promise
 
