@@ -245,7 +245,10 @@ define [
       timeout = global.config?.debug.deferred.timeout
 
       if @[name] == ':deferred' and timeout > 0
-        @[':internal'].deferredTimeouts ?= []
-        @[':internal'].deferredTimeouts.push setTimeout =>
+        @[':internal'].deferredTimeouts ?= {}
+        dt = @[':internal'].deferredTimeouts
+        clearTimeout(dt[name]) if dt[name]
+        dt[name] = setTimeout =>
           _console.warn '### Deferred timeout', name, @id, @_owner?.constructor.__name if @[name] == ':deferred'
+          dt[name] = null
         , timeout
