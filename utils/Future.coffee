@@ -78,7 +78,7 @@ define [
       if timeout > 0
         @_incompleteTimeout = setTimeout =>
           if @state() == 'pending' and @_counter > 0
-            _console.warn "Future timeouted [#{@_name}] (10 seconds), counter = #{@_counter}"
+            _console.warn "Future timed out [#{@_name}] (#{timeout/1000} seconds), counter = #{@_counter}"
         , timeout
 
 
