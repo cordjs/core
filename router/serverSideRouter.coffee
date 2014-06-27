@@ -117,7 +117,7 @@ define [
 
           eventEmitter.once 'fallback', (args) =>
             if previousProcess.showPromise
-              previousProcess.showPromise.clearAllCallbacks()
+              previousProcess.showPromise.clear()
 
             # Clear previous root widget
             if widgetRepo.getRootWidget()

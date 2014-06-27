@@ -232,11 +232,20 @@ define [
         callback(new this(obj))
 
 
+    clearDeferredTimeouts: ->
+      ###
+      Prevents debug timeouts for deferred values to be redundantly logged when the owner widget is going to die
+      ###
+      if @[':internal'].deferredTimeouts?
+        clearTimeout(timeout) for timeout in @[':internal'].deferredTimeouts
+        @[':internal'].deferredTimeouts = null
+
+
     _initDeferredDebug: (name) ->
       timeout = global.config?.debug.deferred.timeout
 
       if @[name] == ':deferred' and timeout > 0
-        setTimeout =>
-          _console.warn '### Deferred timeout', name, @id, @_owner?.constructor.__name  if @[name] == ':deferred'
+        @[':internal'].deferredTimeouts ?= []
+        @[':internal'].deferredTimeouts.push setTimeout =>
+          _console.warn '### Deferred timeout', name, @id, @_owner?.constructor.__name if @[name] == ':deferred'
         , timeout
-

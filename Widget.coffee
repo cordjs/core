@@ -280,8 +280,11 @@ define [
       @_subscibedPushBindings = {}
       @clearCallbacks()
       @off() #clean monologue subscriptions
-      @clearPromises()
-      @_shownPromise.clear() if @_shownPromise?
+      @_cleanPromises()
+      if @_shownPromise?
+        @_shownPromise.clear()
+        @_shownPromise = null
+      @ctx.clearDeferredTimeouts()
       if @_widgetReadyPromise and not @_browserInitialized and not @_widgetReadyPromise.completed()
         @_widgetReadyPromise.reject(new errors.WidgetDropped('widget is cleaned!'))
 
@@ -293,6 +296,10 @@ define [
       if @behaviour?
         @behaviour.clean()
         @behaviour = null
+
+      if @_browserInitDebugTimeout?
+        clearTimeout(@_browserInitDebugTimeout)
+        @_browserInitDebugTimeout = null
 
 
     getCallback: (callback) =>
@@ -332,8 +339,8 @@ define [
       @_promises.push promise
 
 
-    clearPromises: ->
-      promise.clearAllCallbacks() for promise in @_promises
+    _cleanPromises: ->
+      promise.clear() for promise in @_promises
       @_promises = []
 
 
@@ -1452,7 +1459,7 @@ define [
           # when widget doesn't become ready at all even after 5 seconds. Likely that points to some errors in logic.
           savedPromiseForTimeoutCheck = @_widgetReadyPromise
           savedConstructorCssPromise = @constructor._cssPromise
-          setTimeout =>
+          @_browserInitDebugTimeout = setTimeout =>
             if not childWidgetReadyPromise.completed()
               errorInfo =
                 futureCounter: childWidgetReadyPromise._counter
@@ -1476,6 +1483,7 @@ define [
               _console.warn "#{ @debug 'incompleteBrowserInit:children!' }", errorInfo
             else
               _console.warn "#{ @debug 'incompleteBrowserInit!' } css:#{ savedConstructorCssPromise.completed() } child:#{ childWidgetReadyPromise.completed() } selfInit:#{ selfInitBehaviour }" if not savedPromiseForTimeoutCheck.completed()
+            @_browserInitDebugTimeout = null
           , 5000
       @_widgetReadyPromise
 

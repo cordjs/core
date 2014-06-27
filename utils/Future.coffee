@@ -82,19 +82,6 @@ define [
         , timeout
 
 
-    clearDoneCallbacks: ->
-      @_doneCallbacks = []
-
-
-    clearFailCallbacks: ->
-      @_failCallbacks = []
-
-
-    clearAllCallbacks: ->
-      @_doneCallbacks = []
-      @_failCallbacks = []
-
-
     fork: ->
       ###
       Adds one more value to wait.
@@ -720,6 +707,13 @@ define [
 
 
     clear: ->
+      ###
+      Way to eliminate any impact of resolving or rejecting or time-outing of this promise.
+      Should be used when actions that are waiting for this promise completion are no more needed.
+      ###
+      @_doneCallbacks = []
+      @_failCallbacks = []
+      @_alwaysCallbacks = []
       if @_incompleteTimeout?
         clearTimeout(@_incompleteTimeout)
         @_incompleteTimeout = null
