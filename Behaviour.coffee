@@ -4,11 +4,12 @@ define [
   'cord!utils/DomHelper'
   'cord!utils/DomInfo'
   'cord!utils/Future'
+  'cord!Module'
   'jquery'
   'postal'
-], (Model, Defer, DomHelper, DomInfo, Future, $, postal) ->
+], (Model, Defer, DomHelper, DomInfo, Future, Module, $, postal) ->
 
-  class Behaviour
+  class Behaviour extends Module
 
     # jQuery aggregate of all DOM-roots of the widget
     # (widget can have multiple DOM-roots when it has several inline-blocks)
