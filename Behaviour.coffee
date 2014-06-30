@@ -323,14 +323,17 @@ define [
       @widget._behaviourContextBorderVersion = null
       @widget._resetWidgetReady()
       domInfo = new DomInfo(@debug('renderInline'))
-      @widget.renderInline(name, domInfo).failAloud().done (out) =>
-        $newInlineRoot = $(@widget.renderInlineTag(name, out))
+      @widget.renderInline(name, domInfo).then (out) =>
+        @widget.renderInlineTag(name, out)
+      .then (wrappedOut) =>
+        $newInlineRoot = $(wrappedOut)
         domInfo.setDomRoot($newInlineRoot)
         id = @widget.ctx[':inlines'][name].id
         $oldInlineRoot = $('#'+id)
-        DomHelper.replaceNode($oldInlineRoot, $newInlineRoot).done =>
+        DomHelper.replaceNode($oldInlineRoot, $newInlineRoot).then =>
           domInfo.markShown()
           @widget.browserInit()
+      .failAloud()
 
 
     renderNewWidget: (widget, params, callback) ->

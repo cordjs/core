@@ -280,8 +280,11 @@ define [
       @_subscibedPushBindings = {}
       @clearCallbacks()
       @off() #clean monologue subscriptions
-      @clearPromises()
-      @_shownPromise.clear() if @_shownPromise?
+      @_cleanPromises()
+      if @_shownPromise?
+        @_shownPromise.clear()
+        @_shownPromise = null
+      @ctx.clearDeferredTimeouts()
       if @_widgetReadyPromise and not @_browserInitialized and not @_widgetReadyPromise.completed()
         @_widgetReadyPromise.reject(new errors.WidgetDropped('widget is cleaned!'))
 
@@ -293,6 +296,10 @@ define [
       if @behaviour?
         @behaviour.clean()
         @behaviour = null
+
+      if @_browserInitDebugTimeout?
+        clearTimeout(@_browserInitDebugTimeout)
+        @_browserInitDebugTimeout = null
 
 
     getCallback: (callback) =>
@@ -332,8 +339,8 @@ define [
       @_promises.push promise
 
 
-    clearPromises: ->
-      promise.clearAllCallbacks() for promise in @_promises
+    _cleanPromises: ->
+      promise.clear() for promise in @_promises
       @_promises = []
 
 
@@ -577,6 +584,9 @@ define [
 
 
     cleanChildren: ->
+      # clean :any child subscriptions
+      @_subscribeOnAnyChild = null if @_subscribeOnAnyChild?
+
       if @children.length
         if @_structTemplate? and not @_structTemplate.isEmpty()
           @_structTemplate.unassignWidget(widget) for widget in @children
@@ -854,12 +864,19 @@ define [
       Builds and returns correct html-code of the widget's inline root tag with the given name and rendered contents.
       @param String name inline name
       @param String content rendered template of the widget
-      @return String
+      @return Future[String]
       ###
       info = @ctx[':inlines'][name]
-      classString = @_buildClassString(info.class)
-      classAttr = if classString.length then ' class="' + classString + '"' else ''
-      "<#{ info.tag } id=\"#{ info.id }\"#{ classAttr }>#{ content }</#{ info.tag }>"
+      @getStructTemplate().then (struct) =>
+        classString =
+          # widget's classes should be injected to it's inlines only if the widget doesn't have it's own DOM root
+          # (i.e. extended widgets)
+          if struct.isExtended()
+            @_buildClassString(info.class)
+          else
+            info.class
+        classAttr = if classString.length then ' class="' + classString + '"' else ''
+        "<#{ info.tag } id=\"#{ info.id }\"#{ classAttr }>#{ content }</#{ info.tag }>"
 
 
     replaceModifierClass: (cls) ->
@@ -1012,10 +1029,13 @@ define [
               template: info.template
               class: info.class
               tag: info.tag
-            widget.renderInline(info.name, domInfo).failAloud().done (out) ->
-              placeholderOut[placeholderOrder[info.template]] = widget.renderInlineTag(info.name, out)
+            widget.renderInline(info.name, domInfo).then (out) ->
+              widget.renderInlineTag(info.name, out)
+            .then (wrappedOut) =>
+              placeholderOut[placeholderOrder[info.template]] = wrappedOut
               renderInfo.push(type: 'inline', name: info.name, widget: widget)
               promise.resolve()
+            .failAloud()
 
           else # if info.type == 'placeholder'
             orderId = 'placeholder-' + info.name
@@ -1439,7 +1459,7 @@ define [
           # when widget doesn't become ready at all even after 5 seconds. Likely that points to some errors in logic.
           savedPromiseForTimeoutCheck = @_widgetReadyPromise
           savedConstructorCssPromise = @constructor._cssPromise
-          setTimeout =>
+          @_browserInitDebugTimeout = setTimeout =>
             if not childWidgetReadyPromise.completed()
               errorInfo =
                 futureCounter: childWidgetReadyPromise._counter
@@ -1460,9 +1480,10 @@ define [
                 else
                   errorInfo.stuckChildInfo.push childWidget.ready().completed()
                 i++
-              _console.error "#{ @debug 'incompleteBrowserInit:children!' }", errorInfo
+              _console.warn "#{ @debug 'incompleteBrowserInit:children!' }", errorInfo
             else
-              _console.error "#{ @debug 'incompleteBrowserInit!' } css:#{ savedConstructorCssPromise.completed() } child:#{ childWidgetReadyPromise.completed() } selfInit:#{ selfInitBehaviour }" if not savedPromiseForTimeoutCheck.completed()
+              _console.warn "#{ @debug 'incompleteBrowserInit!' } css:#{ savedConstructorCssPromise.completed() } child:#{ childWidgetReadyPromise.completed() } selfInit:#{ selfInitBehaviour }" if not savedPromiseForTimeoutCheck.completed()
+            @_browserInitDebugTimeout = null
           , 5000
       @_widgetReadyPromise
 

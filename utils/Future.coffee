@@ -78,21 +78,8 @@ define [
       if timeout > 0
         @_incompleteTimeout = setTimeout =>
           if @state() == 'pending' and @_counter > 0
-            _console.warn "Future timeouted [#{@_name}] (10 seconds), counter = #{@_counter}"
+            _console.warn "Future timed out [#{@_name}] (#{timeout/1000} seconds), counter = #{@_counter}"
         , timeout
-
-
-    clearDoneCallbacks: ->
-      @_doneCallbacks = []
-
-
-    clearFailCallbacks: ->
-      @_failCallbacks = []
-
-
-    clearAllCallbacks: ->
-      @_doneCallbacks = []
-      @_failCallbacks = []
 
 
     fork: ->
@@ -720,6 +707,13 @@ define [
 
 
     clear: ->
+      ###
+      Way to eliminate any impact of resolving or rejecting or time-outing of this promise.
+      Should be used when actions that are waiting for this promise completion are no more needed.
+      ###
+      @_doneCallbacks = []
+      @_failCallbacks = []
+      @_alwaysCallbacks = []
       if @_incompleteTimeout?
         clearTimeout(@_incompleteTimeout)
         @_incompleteTimeout = null
