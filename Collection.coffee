@@ -730,9 +730,14 @@ define [
       @return Boolean true if models differ, false if they are the same
       ###
       return true if model1.id != model2.id
+
       for field in model1.getDefinedFieldNames()
-        if field != 'id' and not @_modelsEq(model1[field], model2[field])
+        if @repo.hasFieldCompareFunction(field)
+          return true if @repo.fieldCompareFunction(field, model1[field], model2[field])
+
+        else if field != 'id' and not @_modelsEq(model1[field], model2[field])
           return true
+
       return false
 
 
@@ -822,13 +827,14 @@ define [
       @_selfEmittedChangeModelId = null
 
 
-    _recursiveCompareAndChange: (src, dst) ->
+    _recursiveCompareAndChange: (src, dst, level = 0) ->
       ###
       Deeply rewrites values from the source object to the corresponding keys of the destination object.
       Only existing keys of the destination model are changed, no new keys are added.
       If the value is object than recursively calls itself.
       @param Object src source object
       @param Object dst destination object
+      @param Int level internal counter of recursion level
       @return Boolean true if the destination object was changed
       ###
 
@@ -837,15 +843,20 @@ define [
       for key, val of src
         continue if dst[key] == undefined
 
-        if _.isArray(val) and _.isArray(dst[key])
+        if level == 0 and @repo.hasFieldCompareFunction(key)
+          if @repo.fieldCompareFunction(key, val, dst[key])
+            dst[key] = _.clone(val)
+            result = true
+
+        else if _.isArray(val) and _.isArray(dst[key])
           if val.length == 0
             #If dst was an array longer than 0
-            result = (!_.isArray(dst[key])) || dst[key].length > 0
+            result = result or ((!_.isArray(dst[key])) || dst[key].length > 0)
             dst[key] = []
           else
             if _.isArray dst[key]
-              for newVal,newKey in val
-                result |= dst[key][newKey] == undefined || @_recursiveCompare(newVal, dst[key][newKey])
+              for newVal, newKey in val
+                result = result or (dst[key][newKey] == undefined || @_recursiveCompare(newVal, dst[key][newKey]))
                 if result
                   dst[key] = _.clone(val)
                   break
@@ -855,7 +866,7 @@ define [
 
         # todo: can be more smart here, but very difficult
         else if _.isObject(val) and _.isObject(dst[key])
-          result = @_recursiveCompareAndChange(val, dst[key])
+          result = result or @_recursiveCompareAndChange(val, dst[key], level++)
 
         else if typeof val == typeof dst[key] and not _.isEqual(val, dst[key])
           dst[key] = _.clone(val)
@@ -890,7 +901,7 @@ define [
           else if not _.isObject(val)
             if not _.isEqual(val, dst[key])
               result = true
-          else if @_recursiveCompareAndChange(val, dst[key])
+          else if @_recursiveCompare(val, dst[key])
             result = true
         if result
           break
@@ -907,8 +918,12 @@ define [
       @
       ###
       if (model = @_byId[changeInfo.id])?
-        if @_selfEmittedChangeModelId != changeInfo.id and @_recursiveCompareAndChange(changeInfo, model)
-          @emit "model.#{ changeInfo.id }.change", model
+        # If not excepted model
+        if @_selfEmittedChangeModelId != changeInfo.id
+          modelHasReallyChanged = @_recursiveCompareAndChange(changeInfo, model)
+          isSourceModel = changeInfo._sourceModel == model
+          if isSourceModel or modelHasReallyChanged
+            @emit("model.#{ changeInfo.id }.change", model)
 
 
     # paging related

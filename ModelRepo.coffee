@@ -20,6 +20,11 @@ define [
 
     predefinedCollections: null
 
+    # @type Map[String: (Any, Any) -> Boolean]
+    # If it is defined for a field, the function is used as compare method for that field.
+    # The function must return true if values are different.
+    fieldCompareFunctions: null
+
     fieldTags: null
 
     # key-value of available additional REST-API action names to inject into model instances as methods
@@ -466,6 +471,7 @@ define [
             # Don't do api request if model isn't change
             if Object.keys(changeInfo).length
               changeInfo.id = model.id
+              changeInfo._sourceModel = model
               @emit 'change', changeInfo
               api.put @restResource + '/' + model.id, model.getChangedFields(), (response, error) =>
                 if error
@@ -941,6 +947,20 @@ define [
           else
             @_recursiveExtend(dst[key], src[key])
       dst
+
+
+    hasFieldCompareFunction: (field) ->
+      ###
+      Returns true if ModelRepo has custom compare function for the given field.
+      ###
+      @fieldCompareFunctions and @fieldCompareFunctions[field]
+
+
+    fieldCompareFunction: (field, value1, value2) ->
+      ###
+      Executes and returnes result of custom compare function for the given field and values.
+      ###
+      @fieldCompareFunctions[field](value1, value2)
 
 
     debug: (method) ->
