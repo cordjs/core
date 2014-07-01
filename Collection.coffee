@@ -851,14 +851,15 @@ define [
         else if _.isArray(val) and _.isArray(dst[key])
           if val.length == 0
             #If dst was an array longer than 0
-            result = result or ((!_.isArray(dst[key])) || dst[key].length > 0)
-            dst[key] = []
+            if not _.isArray(dst[key]) or dst[key].length > 0
+              dst[key] = []
+              result = true
           else
             if _.isArray dst[key]
               for newVal, newKey in val
-                result = result or (dst[key][newKey] == undefined || @_recursiveCompare(newVal, dst[key][newKey]))
-                if result
+                if dst[key][newKey] == undefined or @_recursiveCompare(newVal, dst[key][newKey])
                   dst[key] = _.clone(val)
+                  result = true
                   break
             else
               dst[key] = _.clone(val)
@@ -866,7 +867,7 @@ define [
 
         # todo: can be more smart here, but very difficult
         else if _.isObject(val) and _.isObject(dst[key])
-          result = result or @_recursiveCompareAndChange(val, dst[key], level++)
+          result = result or @_recursiveCompareAndChange(val, dst[key], level + 1)
 
         else if typeof val == typeof dst[key] and not _.isEqual(val, dst[key])
           dst[key] = _.clone(val)
