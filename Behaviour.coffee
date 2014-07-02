@@ -346,11 +346,12 @@ define [
       if (parentWidget = @widget)?
         domInfo = new DomInfo("#{ @debug('renderNewWidget') } -> #{ widget.debug() }")
         widget.show(params, domInfo).failAloud().done (out) ->
-          $el = $(widget.renderRootTag(out))
-          domInfo.setDomRoot($el)
-          domInfo.domInserted().when(widget.shown())
-          widget.browserInit($el).done ->
-            callback($el, widget, domInfo) if not parentWidget.isSentenced()
+          if not widget.isSentenced()
+            $el = $(widget.renderRootTag(out))
+            domInfo.setDomRoot($el)
+            domInfo.domInserted().when(widget.shown())
+            widget.browserInit($el).done ->
+              callback($el, widget, domInfo) if not parentWidget.isSentenced()
 
 
     initChildWidget: (type, name, params, callback) ->
