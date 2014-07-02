@@ -866,8 +866,8 @@ define [
               result = true
 
         # todo: can be more smart here, but very difficult
-        else if _.isObject(val) and _.isObject(dst[key])
-          result = result or @_recursiveCompareAndChange(val, dst[key], level + 1)
+        else if _.isObject(val) and _.isObject(dst[key]) and @_recursiveCompareAndChange(val, dst[key], level + 1)
+          result = true
 
         else if typeof val == typeof dst[key] and not _.isEqual(val, dst[key])
           dst[key] = _.clone(val)
