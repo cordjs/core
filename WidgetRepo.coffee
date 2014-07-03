@@ -448,7 +448,7 @@ define [
             try
               @dropWidget(_oldRootWidget.ctx.id)
             catch err
-              console.error "Inconsistent widget drop in transitPage(1): #{err}", _oldRootWidget.constructor.__name, _oldRootWidget
+              console.error "Inconsistent widget drop in transitPage(1): #{err}", err, _oldRootWidget.constructor.__name, _oldRootWidget
             # todo: this browserInit may be always redundant. To be removed after check
             if not @rootWidget._browserInitialized
               @rootWidget.browserInit(extendWidget)
@@ -469,7 +469,7 @@ define [
             try
               @dropWidget(_oldRootWidget.ctx.id) if _oldRootWidget && commonBaseWidget != _oldRootWidget
             catch err
-              console.error "Inconsistent widget drop in transitPage(2): #{err}", _oldRootWidget.constructor.__name, _oldRootWidget
+              console.error "Inconsistent widget drop in transitPage(2): #{err}", err, _oldRootWidget.constructor.__name, _oldRootWidget
             @rootWidget.shown().done -> transition.complete()
         .failAloud()
 
