@@ -585,7 +585,7 @@ define [
 
     cleanChildren: ->
       # clean :any child subscriptions
-      @_subscribeOnAnyChild = null if @_subscribeOnAnyChild?
+      @_subscribeOnAnyChild = null
 
       if @children.length
         if @_structTemplate? and not @_structTemplate.isEmpty()
