@@ -68,6 +68,7 @@ define [
 
           if global.config.debug.request == 'full'
             fullParams = requestParams: argssss.params
+            fullParams.requestParams.options = options
             fullParams['response'] = response.body if response?.body
             loggerParams = _.extend loggerParams, fullParams
 
