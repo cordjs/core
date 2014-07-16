@@ -103,7 +103,8 @@ define [
       ###
       that = this
       makeSafeCallback = (callback) ->
-        result = -> callback.apply(null, arguments) if not result.cleared and not that.widget.isSentenced()
+        if not result.cleared and that.widget and not that.widget.isSentenced()
+          result = -> callback.apply(null, arguments)
         result.cleared = false
         result
 
