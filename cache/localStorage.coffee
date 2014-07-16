@@ -4,10 +4,10 @@ define [
 ], (Future, sha1) ->
 
   class LocalStorage
-  
+
     constructor: (storage) ->
       @storage = storage
-      
+
 
     saveCollectionInfo: (repoName, collectionName, ttl, info) ->
       ###
@@ -122,6 +122,7 @@ define [
       ###
       Future-powered proxy key-value get method.
       ###
+      return Future.rejected('Debugger: no more localstorage')
       result = Future.single("localStorage::_get #{key}")
       @storage.getItem key, (value) ->
         if value?
