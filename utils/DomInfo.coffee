@@ -1,6 +1,7 @@
 define [
+  'cord!isBrowser'
   './Future'
-], (Future) ->
+], (isBrowser, Future) ->
 
   class DomInfo
     ###
@@ -55,3 +56,27 @@ define [
       result._domRootPromise.reject("DOM root from fake DomInfo should not be used!")
       result.markShown()
       result
+
+
+    @merge: (infos...) ->
+      ###
+      Smartly merges several given DomInfos into one
+      @return DomInfo
+      ###
+      if isBrowser
+        result = new DomInfo('merged')
+
+        filtered = infos.filter (info) -> !!info
+        domRootsPromise = filtered.map (info) -> info.domRootCreated()
+        domInsertedPromise = filtered.map (info) -> info.domInserted()
+
+        Future.sequence(domRootsPromise).zip(Future.require('jquery')).then (domRoots, $) ->
+          roots = $()
+          roots = roots.add(root) for root in domRoots
+          result.setDomRoot(roots)
+        Future.sequence(domInsertedPromise).then ->
+          result.markShown()
+
+        result
+      else
+        @fake()

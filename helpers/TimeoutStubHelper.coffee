@@ -25,7 +25,10 @@ define [
         #  async Future.require() above
         widget._delayedRender = false
         widget.browserInit($newRoot).zip(domInfo.domRootCreated()).flatMap (any, $contextRoot) ->
-          DomHelper.replaceNode($('#'+widget.ctx.id, $contextRoot), $newRoot).done ->
+          oldElement = $('#'+widget.ctx.id, $contextRoot)
+          if oldElement.length == 0
+            console.error "Wrong contextRoot in replaceTimeoutStub for #{ widget.debug() }!", $contextRoot
+          DomHelper.replaceNode(oldElement, $newRoot).done ->
             domInfo.domInserted().done ->
               widget.markShown()
         .map ->

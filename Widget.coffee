@@ -826,9 +826,9 @@ define [
 
       if @ctx[':inlines'][inlineName]?
         tmplPath = "#{ @getDir() }/#{ @ctx[':inlines'][inlineName].template }.html"
-        templateLoader.loadToDust(tmplPath).failAloud().flatMap =>
+        templateLoader.loadToDust(tmplPath).failAloud().then =>
           @_saveContextVersionForBehaviourSubscriptions()
-          @_domInfo = domInfo
+          @_domInfo = DomInfo.merge(@_domInfo, domInfo)
           Future.call(dust.render, tmplPath, @getBaseContext().push(@ctx))
       else
         throw new Error("Trying to render unknown inline (name = #{ inlineName })!")
@@ -1616,7 +1616,9 @@ define [
                     @childWidgetComplete()
                     chunk.end(widget.renderRootTag(out))
                   else
+                    console.log @debug("replaceTimeout") if widget.constructor.name == 'ProjectList'
                     TimeoutStubHelper.replaceStub(out, widget, @_domInfo).then ($newRoot) =>
+                      console.log @debug("replaceTimeout complete") if widget.constructor.name == 'ProjectList'
                       timeoutDomInfo.setDomRoot($newRoot)
                       @_domInfo.domInserted().done -> timeoutDomInfo.markShown()
                     .catchIf (err) ->
