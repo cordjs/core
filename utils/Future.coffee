@@ -2,7 +2,9 @@ define [
   'underscore'
 ], (_) ->
 
-  throwExceptionCallback = (err) -> throw err
+  throwExceptionCallback = (err) ->
+    _console.error err
+    throw err
 
   class Future
     ###
