@@ -198,6 +198,8 @@ define [
         params: 'object'
         callback: 'function'
 
+      result = Future.single("Api::send(#{args.url})")
+
       noAuthTokens = (args.params and args.params.noAuthTokens == true)
       skipAuth = (args.params and args.params.skipAuth == true)
 
@@ -209,6 +211,22 @@ define [
         @serviceContainer.eval 'request', (request) =>
           doRequest = =>
             request[method] requestUrl, requestParams, (response, error) =>
+
+              complete = ->
+                args.callback?(response, error)
+
+                if not error
+                  result.resolve(response)
+                else
+                  e = new Error(error.message)
+                  e.url = requestUrl
+                  e.method = method
+                  e.params = requestParams
+                  e.statusCode = error.statusCode
+                  e.statusText = error.statusText
+                  e.originalError = error
+                  result.reject(e)
+
               if not skipAuth and (response?.error == 'invalid_grant' || response?.error == 'invalid_request')
                 return processRequest null, refreshToken
 
@@ -228,7 +246,7 @@ define [
 
                   postal.publish 'error.notify.publish', {link:'', message: message, error:true, timeOut: 30000 }
 
-                  args.callback response, error if args.callback
+                  complete()
 
                 # надо посмотреть в конфигах как реагировать на ту или иную ошибку
                 errorCode = response?._code
@@ -242,7 +260,7 @@ define [
                     @serviceContainer.get('fallback').fallback @fallbackErrors[errorCode].widget, @fallbackErrors[errorCode].params
 
               else
-                args.callback response, error if args.callback
+                complete()
 
           if noAuthTokens
             doRequest()
@@ -262,3 +280,5 @@ define [
         processRequest()
       else
         @restoreTokens processRequest
+
+      result
