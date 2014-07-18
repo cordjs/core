@@ -12,19 +12,24 @@ define [
   class Context
 
     constructor: (arg1, arg2) ->
+      ###
+      @param {Object|String} arg1 initial context values or widget ID
+      @param (optional) {Object} arg2 initial context values (if first value is ID
+      ###
       @[':internal'] = {}
       @[':internal'].version = 0
 
-      if typeof arg1 is 'object'
-        for key, value of arg1
-          @[key] = value
+      initCtx = {}
+
+      if _.isObject(arg1)
+        initCtx = arg1
       else
         @id = arg1
-        if arg2
-          for key, value of arg2
-            @[key] = value
+        initCtx = arg2 if _.isObject(arg2)
 
-            @_initDeferredDebug(key)
+      for key, value of initCtx
+        @[key] = value
+        @_initDeferredDebug(key)
 
 
     setOwnerWidget: (owner) ->
@@ -62,6 +67,7 @@ define [
     setSingle: (name, newValue, callbackPromise) ->
       ###
       Sets single context param's value
+      @deprecated Use Context::set() instead
       @param String name param name
       @param Any newValue param value
       @param (optional)Future callbackPromise promise to support setWithCallback() method functionality

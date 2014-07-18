@@ -146,6 +146,22 @@ define [
       name
 
 
+    @cloneLevel2: (obj) ->
+      ###
+      Return clone of object up to level 2. I.e. if value of the object is an object or an array it's shallow-copied.
+       But not deeper.
+      @param {Object} obj
+      @return {Object}
+      ###
+      res = {}
+      for key, val of obj
+        if _.isObject(val) and not _.isFunction(val)
+          res[key] = _.clone(val)
+        else
+          res[key] = val
+      res
+
+
     @getIconColorById = (id) ->
       id = parseInt(id)
       id = 0 if isNaN(id)

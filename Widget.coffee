@@ -10,6 +10,7 @@ define [
   'cord!StructureTemplate'
 
   'cord!templateLoader'
+  'cord!Utils'
   'cord!utils/DomInfo'
   'cord!utils/Future'
 
@@ -18,7 +19,7 @@ define [
   'postal'
   'underscore'
 ], (Collection, Context, cssHelper, errors, TimeoutStubHelper, isBrowser, Model, Module, StructureTemplate,
-    templateLoader, DomInfo, Future,
+    templateLoader, Utils, DomInfo, Future,
     dust, Monologue, postal, _) ->
 
   dust.onLoad = (tmplPath, callback) ->
@@ -245,7 +246,7 @@ define [
           id = 'rwdt-' + _.uniqueId()
         else
           id = (if isBrowser then 'b' else 'n') + 'wdt-' + _.uniqueId()
-        @ctx = new Context(id, @constructor.initialCtx)
+        @ctx = new Context(id, Utils.cloneLevel2(@constructor.initialCtx))
         @ctx.setOwnerWidget(this)
 
       if isBrowser
