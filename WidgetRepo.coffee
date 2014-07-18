@@ -13,6 +13,7 @@ define [
 ], (Api, Collection, Context, cssHelper, deferAggregator, isBrowser, Model, ModelRepo, Future, postal, _) ->
 
   class WidgetRepo
+
     widgets: null
     rootWidget: null
 
@@ -219,8 +220,8 @@ define [
       Performs final initialization of the transferred from the server-side objects on the browser-side.
       This method is called when all data from the server is loaded.
       ###
-      configPromise = Future.single('WidgetRepo::endInit')
-      require ['cord!AppConfigLoader'], (AppConfigLoader) -> configPromise.when(AppConfigLoader.ready())
+      configPromise = Future.require('cord!AppConfigLoader').then (AppConfigLoader) ->
+        AppConfigLoader.ready()
       @_initPromise.zip(configPromise).done (any, appConfig) =>
         # start services registered with autostart option
         for serviceName, info of appConfig.services
@@ -247,15 +248,14 @@ define [
         for ctxName, paramName of bindingMap
           @_pushBindings[widgetId][ctxName] = paramName
 
-      @_initPromise.fork()
-      @_parentPromises[ctx.id] = (new Future('WidgetRepo::init parentPromises')).fork()
+      @_parentPromises[ctx.id] = Future.single("WidgetRepo::parentPromise(#{widgetPath}, #{ctx.id})")
 
-      callbackPromise = new Future('WidgetRepo::init callbackPromise')
+      callbackPromise = new Future("WidgetRepo::init callbackPromise(#{widgetPath}, #{ctx.id})")
       require ["cord-w!#{ widgetPath }"],       callbackPromise.callback()
       Context.fromJSON ctx, @serviceContainer,  callbackPromise.callback()
       @_unserializeModelBindings modelBindings, callbackPromise.callback()
 
-      callbackPromise.done (WidgetClass, ctx, modelBindings) =>
+      callbackPromise.then (WidgetClass, ctx, modelBindings) =>
 
         widget = new WidgetClass
           context: ctx
@@ -274,18 +274,17 @@ define [
           widget: widget
           namedChilds: namedChilds
 
-        @serviceContainer.injectServices(widget).failAloud().done =>
-          @_parentPromises[ctx.id].resolve()
-
+        @serviceContainer.injectServices(widget).link(@_parentPromises[ctx.id]).then =>
           if parentId?
-            @_parentPromises[parentId].done =>
+            @_parentPromises[parentId].then =>
               @widgets[parentId].widget.registerChild(widget, @widgets[parentId].namedChilds[ctx.id] ? null)
               if widgetPath == '/cord/core//Switcher'
                 widget._contextBundle = @widgets[parentId].widget.getBundle()
-              @_initPromise.resolve()
           else
             @rootWidget = widget
-            @_initPromise.resolve()
+
+      .link(@_initPromise)
+      .failAloud()
 
 
     setupBindings: ->
