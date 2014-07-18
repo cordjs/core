@@ -1,4 +1,4 @@
-define [], ->
+define ->
 
   moduleKeywords = ['included', 'extended']
 

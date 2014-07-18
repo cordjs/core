@@ -1,6 +1,6 @@
 `if (typeof define !== 'function') { var define = require('amdefine')(module) }`
 
-define [], ->
+define ->
   ###
   Common path aliases. Always included to the paths config for requirejs
   ###

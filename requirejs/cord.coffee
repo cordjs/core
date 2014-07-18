@@ -1,4 +1,4 @@
-define [], ->
+define ->
 
   load: (name, req, load) ->
     req [name], (module) ->
