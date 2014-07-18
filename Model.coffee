@@ -90,7 +90,7 @@ define [
 
     refreshOnlyContainingCollections: ->
       #Make all collections, containing this model refresh
-      #It's cheaper than Collection::checkNewModel and ModelRepo._suggestNewModelToCollections,
+      #It's cheaper than Collection::checkNewModel and ModelRepo.suggestNewModelToCollections,
       #because mentioned ones make almost all collections refresh
       @collection.repo.refreshOnlyContainingCollections @
 
