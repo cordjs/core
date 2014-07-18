@@ -481,7 +481,7 @@ define [
                   @cacheCollection(model.collection) if model.collection?
                   model.resetChangedFields()
                   @emit 'sync', model
-                  @_suggestNewModelToCollections(model) if !notRefreshCollections
+                  @suggestNewModelToCollections(model) if !notRefreshCollections
                   promise.resolve(response)
             else
               promise.resolve('Nothing to save')
@@ -494,7 +494,7 @@ define [
                 model.id = response.id
                 model.resetChangedFields()
                 @emit 'sync', model
-                @_suggestNewModelToCollections(model) if !notRefreshCollections
+                @suggestNewModelToCollections(model) if !notRefreshCollections
                 @_injectActionMethods(model)
                 promise.resolve(response)
       else
@@ -590,7 +590,7 @@ define [
       if Object.keys changeInfo
         changeInfo.id = model.id
         @emit 'change', changeInfo
-        @_suggestNewModelToCollections(model)
+        @suggestNewModelToCollections(model)
 
 
     propagateFieldChange: (id, fieldName, newValue) ->
@@ -703,7 +703,7 @@ define [
 
     refreshOnlyContainingCollections: (model) ->
       #Make all collections, containing this model refresh
-      #It's cheaper than Collection::checkNewModel and ModelRepo._suggestNewModelToCollections,
+      #It's cheaper than Collection::checkNewModel and ModelRepo.suggestNewModelToCollections,
       #because mentioned ones make almost all collections refresh
       Defer.nextTick =>
         for name, collection of @_collections
@@ -783,7 +783,7 @@ define [
       result
 
 
-    _suggestNewModelToCollections: (model) ->
+    suggestNewModelToCollections: (model) ->
       ###
       Notifies all available collections to check if they need to refresh with the new model
       ###
