@@ -68,6 +68,12 @@ define ->
         require ['cord!cache/localStorage', 'localforage'], (LocalStorage, localForage) ->
           localForage.ready().then ->
             done null, new LocalStorage(localForage)
+          .catch (err) ->
+            _console.error "ERROR while initializing localforage: #{err.message}! Driver: #{localForage.driver()}", err
+            localForage.setDriver(localForage.LOCALSTORAGE).then ->
+              done null, new LocalStorage(localForage)
+            .catch (err) ->
+              _console.error "FATAL: error while initializing localforage with localStorage fallback: #{err.message}!", err
 
   routes:
     '/REQUIRESTAT/optimizer':
