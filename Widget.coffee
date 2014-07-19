@@ -1318,7 +1318,7 @@ define [
         throw new Error("Invalid child widget callback definition: [#{ childName }, #{ topic }]")
 
       if childName == ':any'
-        @_subscribeOnAnyChild = [] unless @_subscribeOnAnyChild
+        @_subscribeOnAnyChild ?= []
         @_subscribeOnAnyChild.push
           topic: topic,
           callback:callback
@@ -1390,26 +1390,21 @@ define [
         Future.resolved()
 
 
-    createChildWidget: (type, name, callback) ->
+    createChildWidget: (type, name) ->
       ###
       Dynamically creates new child widget with the given canonical type
       @param String type new widget type (absolute or in context of the current widget)
       @param (optional)String name optional name for the new widget
-      @param Function(Widget) callback callback function to pass resulting child widget
+      @return Future[Widget] new child widget
       ###
-
-      if _.isFunction(name)
-        callback = name
-        name = null
-
-      @widgetRepo.createWidget(type, @getBundle()).done (child) =>
+      @widgetRepo.createWidget(type, @getBundle()).then (child) =>
         @registerChild(child, name)
 
         if @_subscribeOnAnyChild
           for option in @_subscribeOnAnyChild
             child.on(option.topic, option.callback).withContext(this)
 
-        callback(child)
+        child
 
 
     browserInit: (stopPropagateWidget, $domRoot) ->

@@ -1,4 +1,5 @@
 define [
+  'cord!errors'
   'cord!Model'
   'cord!utils/Defer'
   'cord!utils/DomHelper'
@@ -7,7 +8,20 @@ define [
   'cord!Module'
   'jquery'
   'postal'
-], (Model, Defer, DomHelper, DomInfo, Future, Module, $, postal) ->
+], (errors, Model, Defer, DomHelper, DomInfo, Future, Module, $, postal) ->
+
+  checkIsSentenced = (widget, message = '') ->
+    ###
+    Utility DRY function to check if the given widget is sentenced and trow special exception about it.
+    @param {Widget} widget the checking widget
+    @param optional{String} message additional message to be included to the exception
+    @throws Error
+    ###
+    if widget.isSentenced()
+      err = new Error("Widget #{widget.debug()} is sentenced!#{ if message then " (#{message})" else ''}")
+      err.sentenced = true
+      throw err
+
 
   class Behaviour extends Module
 
@@ -252,6 +266,8 @@ define [
             @_renderAggregatePromise.when(@_render0())
             @_renderAggregatePromise = null
         @_renderAggregatePromise
+      .catchIf (err) ->
+        err instanceof errors.WidgetDropped
       .failAloud()
 
 
@@ -302,23 +318,23 @@ define [
       .failAloud()
 
 
-    renderNewWidget: (widget, params, callback) ->
+    _renderNewWidget: (widget, params) ->
       ###
       Renders (via show method) the given widget with the given params, inserts it into DOM and initialtes.
       Returns jquery-object referring to the widget's root element via callback argument.
       @param Widget widget widget object
       @param Object params key-value params for the widget
-      @param Function(jquery) callback callback which is called with the resulting jquery element and created object of widget
+      @return Future[jQuery] jQuery element of the created widget
       ###
-      if (parentWidget = @widget)?
-        domInfo = new DomInfo("#{ @debug('renderNewWidget') } -> #{ widget.debug() }")
-        widget.show(params, domInfo).failAloud().done (out) ->
-          if not widget.isSentenced()
-            $el = $(widget.renderRootTag(out))
-            domInfo.setDomRoot($el)
-            domInfo.domInserted().when(widget.shown())
-            widget.browserInit($el).done ->
-              callback($el, widget, domInfo) if not parentWidget.isSentenced()
+      domInfo = new DomInfo("#{ @debug('renderNewWidget') } -> #{ widget.debug() }")
+      widget.show(params, domInfo).then (out) ->
+        checkIsSentenced(widget, 'after widget.show')
+        $el = $(widget.renderRootTag(out))
+        domInfo.setDomRoot($el)
+        domInfo.domInserted().when(widget.shown())
+        widget.browserInit($el).then ->
+          checkIsSentenced(widget, 'after browserInit')
+          $el
 
 
     initChildWidget: (type, name, params, callback) ->
@@ -336,8 +352,16 @@ define [
         params = name
         name = null
 
-      @widget.createChildWidget type, name, (newWidget) =>
-        @renderNewWidget newWidget, params, callback
+      try
+        checkIsSentenced(@widget)
+        @widget.createChildWidget(type, name).then (newWidget) =>
+          checkIsSentenced(newWidget, 'before _renderNewWidget')
+          @_renderNewWidget(newWidget, params).done ($el) ->
+            callback?($el, newWidget)
+          .then ($el) ->
+            [[$el, newWidget]]
+      catch err
+        Future.rejected(err)
 
 
     dropChildWidget: (widget) ->
