@@ -32,7 +32,7 @@ define [
               else
                 # if the generated file doesn't exists, just disabling CSS group loading
                 Future.resolved({})
-            .failAloud()
+            .failAloud('CssHelper::_getCssToGroup')
           else
             Future.resolved({})
       @_cssToGroupFuture

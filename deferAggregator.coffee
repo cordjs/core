@@ -40,7 +40,7 @@ define [
         df.promise.done =>
           widget.setParamsSafe(df.params).catchIf (err) ->
             err instanceof errors.WidgetParamsRace
-          .failAloud()
+          .failAloud(widget.debug('DeferAggregator'))
 
           delete @defers[id]
 

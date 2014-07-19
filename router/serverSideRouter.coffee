@@ -102,11 +102,11 @@ define [
           previousProcess = {}
 
           processWidget = (rootWidgetPath, params) =>
-            widgetRepo.createWidget(rootWidgetPath).done (rootWidget) ->
+            widgetRepo.createWidget(rootWidgetPath).then (rootWidget) ->
               rootWidget._isExtended = true
               widgetRepo.setRootWidget(rootWidget)
               previousProcess.showPromise = rootWidget.show(params, DomInfo.fake())
-              previousProcess.showPromise.failAloud().done (out) ->
+              previousProcess.showPromise.done (out) ->
                 eventEmitter.removeAllListeners('fallback')
                 # prevent browser to use the same connection
                 res.shouldKeepAlive = false
@@ -114,6 +114,7 @@ define [
                 res.end(out)
                 # todo: may be need some cleanup before?
                 clear()
+            .failAloud("ServerSideRouter::processWidget:#{rootWidgetPath}")
 
           eventEmitter.once 'fallback', (args) =>
             if previousProcess.showPromise
@@ -133,7 +134,7 @@ define [
             routeCallback
               serviceContainer: serviceContainer
               params: params
-            , =>
+            , ->
               res.end()
               clear()
           else

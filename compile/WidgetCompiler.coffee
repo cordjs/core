@@ -246,7 +246,7 @@ define [
                  + "#{ _.values(bodyList).join '' }; return #{ bodyFnName };})();"
 
       amdTmplString = "define(['dustjs-helpers'], function(dust){#{ tmplString }});"
-      Future.call(fs.writeFile, tmplFullPath, amdTmplString).failAloud()
+      Future.call(fs.writeFile, tmplFullPath, amdTmplString)
 
 
     _saveSubTemplate: (bodyFn, fileName) ->
@@ -312,8 +312,9 @@ define [
               @addExtendCall(widget, params)
 
               if bodies.block?
-                @_renderBodyBlock(bodies.block, widget).failAloud().done ->
+                @_renderBodyBlock(bodies.block, widget).done ->
                   chunk.end('')
+                .failAloud("WidgetCompiler::#extend:#{@widget.debug()}:#{params.type}")
               else
                 console.warn "WARNING: Extending layout #{ params.type } with nothing!"
                 chunk.end('')
@@ -324,7 +325,7 @@ define [
           {#widget/} block (compile mode)
           ###
           chunk.map (chunk) =>
-            require ["cord-w!#{ params.type }@#{ @widget.getBundle() }"], (WidgetClass) =>
+            Future.require("cord-w!#{ params.type }@#{ @widget.getBundle() }").then (WidgetClass) =>
               widget = new WidgetClass(compileMode: true)
 
               if bodies.timeout? and params.timeout? and params.timeout >= 0
@@ -353,11 +354,12 @@ define [
 
 
               if hasNonEmptyBody
-                @_renderBodyBlock(bodies.block, widget).zip(timeoutTemplateFuture).failAloud().done ->
+                @_renderBodyBlock(bodies.block, widget).zip(timeoutTemplateFuture).done ->
                   chunk.end('')
               else
-                timeoutTemplateFuture.failAloud().done ->
+                timeoutTemplateFuture.done ->
                   chunk.end('')
+            .failAloud("WidgetCompiler::#widget:#{@widget.debug()}:#{params.type}")
 
 
         inline: (chunk, context, bodies, params) =>
@@ -380,8 +382,9 @@ define [
 
                 @addPlaceholderInline sw, ph, @widget, templateName, name, tag, cls
 
-                @_renderBodyBlock(bodies.block).zip(templateSaveFuture).failAloud().done ->
+                @_renderBodyBlock(bodies.block).zip(templateSaveFuture).done ->
                   chunk.end('')
+                .failAloud("WidgetCompiler::#inline:#{@widget.debug()}")
 
             else
               throw new Error(
@@ -424,7 +427,7 @@ define [
             chunk.map (chunk) =>
               @_saveSubTemplate(bodies.block, "__deferred_#{ deferredId }")
                 .zip @_renderBodyBlock(bodies.block)
-                .failAloud()
+                .failAloud("WidgetCompiler::#deferred:#{@widget.debug()}")
                 .done ->
                   chunk.end('')
           else

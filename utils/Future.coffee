@@ -2,10 +2,6 @@ define [
   'underscore'
 ], (_) ->
 
-  throwExceptionCallback = (err) ->
-    _console.error err
-    throw err
-
   class Future
     ###
     Simple aggregative future/promise class.
@@ -223,11 +219,14 @@ define [
       this
 
 
-    failAloud: ->
+    failAloud: (message) ->
       ###
       Adds often-used scenario of fail that just throws exception with the error
       ###
-      @fail(throwExceptionCallback)
+      name = @_name
+      @fail (err) ->
+        _console.error "Future(#{name})::failAloud#{ if message then " with message: #{message}" else '' }", err
+        throw err
 
 
     callback: (neededArgs...) ->

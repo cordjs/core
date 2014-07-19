@@ -268,7 +268,7 @@ define [
         @_renderAggregatePromise
       .catchIf (err) ->
         err instanceof errors.WidgetDropped
-      .failAloud()
+      .failAloud(@debug('render'))
 
 
     _render0: ->
@@ -315,7 +315,7 @@ define [
         DomHelper.replaceNode($oldInlineRoot, $newInlineRoot).then =>
           domInfo.markShown()
           @widget.browserInit()
-      .failAloud()
+      .failAloud(@debug('renderInline'))
 
 
     _renderNewWidget: (widget, params) ->

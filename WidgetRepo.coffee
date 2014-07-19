@@ -284,7 +284,7 @@ define [
             @rootWidget = widget
 
       .link(@_initPromise)
-      .failAloud()
+      .failAloud("WidgetRepo::init:#{widgetPath}:#{ctx.id}")
 
 
     setupBindings: ->
@@ -453,7 +453,7 @@ define [
               @rootWidget.browserInit(extendWidget)
               console.warn "Strange #{ extendWidget.debug('browserInit') } is not redundant!!!"
             transition.complete()
-          .failAloud()
+          .failAloud("WidgetRepo::transitPage:#{newRootWidgetPath}:getStructTemplate")
         else
           # if the new widget is the same as the current root, than this is just params change and we should only push
           # new params to the root widget
@@ -470,7 +470,7 @@ define [
             catch err
               console.error "Inconsistent widget drop in transitPage(2): #{err}", err, _oldRootWidget.constructor.__name, _oldRootWidget
             @rootWidget.shown().done -> transition.complete()
-        .failAloud()
+        .failAloud("WidgetRepo::transitPage:#{newRootWidgetPath}:createWidget")
 
 
     findAndCutMatchingExtendWidget: (widgetPath) ->

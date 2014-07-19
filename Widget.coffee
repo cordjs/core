@@ -827,12 +827,12 @@ define [
 
       if @ctx[':inlines'][inlineName]?
         tmplPath = "#{ @getDir() }/#{ @ctx[':inlines'][inlineName].template }.html"
-        templateLoader.loadToDust(tmplPath).failAloud().then =>
+        templateLoader.loadToDust(tmplPath).then =>
           @_saveContextVersionForBehaviourSubscriptions()
           @_domInfo = DomInfo.merge(@_domInfo, domInfo)
           Future.call(dust.render, tmplPath, @getBaseContext().push(@ctx))
       else
-        throw new Error("Trying to render unknown inline (name = #{ inlineName })!")
+        Future.rejected(new Error("Trying to render unknown inline (name = #{ inlineName })!"))
 
 
     renderRootTag: (content) ->
@@ -934,6 +934,7 @@ define [
       renderInfo = []
       promise = new Future("#{ @debug('_renderPlaceholder') }")
 
+      self = this
       i = 0
       placeholderOrder = {}
       phs = @ctx[':placeholders'] ? []
@@ -961,7 +962,7 @@ define [
 
           processTimeoutStub = ->
             widget._delayedRender = true
-            TimeoutStubHelper.getTimeoutHtml(timeoutTemplateOwner, info.timeoutTemplate, widget).failAloud().done (out) ->
+            TimeoutStubHelper.getTimeoutHtml(timeoutTemplateOwner, info.timeoutTemplate, widget).done (out) ->
               placeholderOut[placeholderOrder[widgetId]] = widget.renderRootTag(out)
               renderInfo.push(type: 'timeout-stub', widget: widget)
               promise.resolve()
@@ -980,7 +981,6 @@ define [
                 domInfo.domInserted().done -> timeoutDomInfo.markShown()
               .catchIf (err) ->
                 err instanceof errors.WidgetDropped
-              .failAloud()
 
 
           if info.type == 'widget'
@@ -998,27 +998,28 @@ define [
                 # if the widget has not been rendered within given timeout, render stub template from the {:timeout} block
                 if not complete
                   complete = true
-                  processTimeoutStub()
+                  processTimeoutStub().failAloud(self.debug("_renderPlaceholder:processTimeoutStub:#{widget.debug()}"))
               , info.timeout
 
-            widget.show(info.params, timeoutDomInfo).failAloud().done (out) ->
+            widget.show(info.params, timeoutDomInfo).then (out) ->
               if not complete
-                complete = true
                 # in case of no timeout just linking to the upper DOM info
                 timeoutDomInfo.completeWith(domInfo) if hasTimeout
                 processWidget(out)
                 promise.resolve()
+                complete = true # should be here to avoid returning `promise` (above) and locking to it
               else
                 replaceTimeoutStub(out, timeoutDomInfo)
+            .failAloud(@debug("_renderPlaceholder:show:#{widget.debug()}"))
 
           else if info.type == 'timeouted-widget'
             placeholderOrder[widgetId] = i
-            processTimeoutStub()
+            timeoutDomInfo = new DomInfo(@debug('_renderPlaceholder:timeouted-widget:timeout'))
             info.timeoutPromise.then (params) ->
-              timeoutDomInfo = new DomInfo(@debug('_renderPlaceholder:timeouted-widget:timeout'))
-              widget.show(params, timeoutDomInfo).then (out) ->
-                replaceTimeoutStub(out, timeoutDomInfo)
-            .failAloud()
+              widget.show(params, timeoutDomInfo)
+            .zip(processTimeoutStub()).then (out) ->
+              replaceTimeoutStub(out, timeoutDomInfo)
+            .failAloud(@debug("_renderPlaceholder:timeouted-widget:#{widget.debug()}"))
 
           else if info.type == 'inline'
             placeholderOrder[info.template] = i
@@ -1036,16 +1037,17 @@ define [
               placeholderOut[placeholderOrder[info.template]] = wrappedOut
               renderInfo.push(type: 'inline', name: info.name, widget: widget)
               promise.resolve()
-            .failAloud()
+              undefined
+            .failAloud(@debug("_renderPlaceholder:renderInline:#{info.name}:#{widget.debug()}"))
 
           else # if info.type == 'placeholder'
             orderId = 'placeholder-' + info.name
             placeholderOrder[orderId] = i
-            widget._renderPlaceholder(info.name, domInfo).done (out, rInfo) ->
+            widget._renderPlaceholder(info.name, domInfo).done (out) ->
               widget._placeholdersClasses[info.name] = info.class if info.class
               placeholderOut[placeholderOrder[orderId]] = widget.renderPlaceholderTag(info.name, out)
-#              renderInfo = renderInfo.concat(rInfo)
               promise.resolve()
+            .failAloud(@debug("_renderPlaceholder:placeholder:#{info.name}:#{widget.debug()}"))
 
           i++
 
@@ -1587,7 +1589,7 @@ define [
             hasTimeout = isBrowser and timeout >= 0
             timeoutDomInfo = if hasTimeout then new DomInfo(@debug('#widget::timeout')) else @_domInfo
 
-            @getStructTemplate().flatMap (tmpl) =>
+            @getStructTemplate().then (tmpl) =>
               # creating widget from the structured template or not depending on it's existence and name
               # btw getting and pushing futher timeout template name from the structure template if there is one
               if tmpl.isEmpty() or not normalizedName
@@ -1603,23 +1605,22 @@ define [
               complete = false
 
               @registerChild(widget, normalizedName)
-              @resolveParamRefs(widget, params).failAloud().done (resolvedParams) =>
+              @resolveParamRefs(widget, params).then (resolvedParams) =>
                 widget.setModifierClass(params.class)
-                widget.show(resolvedParams, timeoutDomInfo).failAloud().done (out) =>
-                  if not complete
-                    complete = true
-                    timeoutDomInfo.completeWith(@_domInfo) if hasTimeout
-                    @childWidgetComplete()
-                    chunk.end(widget.renderRootTag(out))
-                  else
-                    console.log @debug("replaceTimeout") if widget.constructor.name == 'ProjectList'
-                    TimeoutStubHelper.replaceStub(out, widget, @_domInfo).then ($newRoot) =>
-                      console.log @debug("replaceTimeout complete") if widget.constructor.name == 'ProjectList'
-                      timeoutDomInfo.setDomRoot($newRoot)
-                      @_domInfo.domInserted().done -> timeoutDomInfo.markShown()
-                    .catchIf (err) ->
-                      err instanceof errors.WidgetDropped
-                    .failAloud()
+                widget.show(resolvedParams, timeoutDomInfo)
+              .then (out) =>
+                if not complete
+                  complete = true
+                  timeoutDomInfo.completeWith(@_domInfo) if hasTimeout
+                  @childWidgetComplete()
+                  chunk.end(widget.renderRootTag(out))
+                else
+                  TimeoutStubHelper.replaceStub(out, widget, @_domInfo).then ($newRoot) =>
+                    timeoutDomInfo.setDomRoot($newRoot)
+                    @_domInfo.domInserted().done -> timeoutDomInfo.markShown()
+                  .catchIf (err) ->
+                    err instanceof errors.WidgetDropped
+              .failAloud(@debug("#widget:resolveParamRefs:#{@debug()}"))
 
               if hasTimeout
                 setTimeout =>
@@ -1627,11 +1628,12 @@ define [
                   if not complete
                     complete = true
                     widget._delayedRender = true
-                    TimeoutStubHelper.getTimeoutHtml(this, timeoutTemplate, widget).failAloud().done (out) =>
+                    TimeoutStubHelper.getTimeoutHtml(this, timeoutTemplate, widget).done (out) =>
                       @childWidgetComplete()
                       chunk.end(widget.renderRootTag(out))
+                    .failAloud(@debug("#widget:getTimeoutHtml:#{widget.debug()}"))
                 , timeout
-            .failAloud()
+            .failAloud(@debug("#widget:getStructTemplate:#{params.type}"))
 
 
         deferred: (chunk, context, bodies, params) =>
@@ -1657,10 +1659,12 @@ define [
 
             @childWidgetAdd()
             chunk.map (chunk) =>
-              promise.done =>
-                TimeoutStubHelper.renderTemplateFile(this, "__deferred_#{deferredId}").failAloud().done (out) =>
-                  @childWidgetComplete()
-                  chunk.end(out)
+              promise.then =>
+                TimeoutStubHelper.renderTemplateFile(this, "__deferred_#{deferredId}")
+              .then (out) =>
+                @childWidgetComplete()
+                chunk.end(out)
+              .failAloud(@debug('#deferred'))
           else
             ''
 
@@ -1676,9 +1680,10 @@ define [
             if params and params.class
               @_placeholdersClasses[name] = params.class
 
-            @_renderPlaceholder(name, @_domInfo).failAloud().done (out) =>
+            @_renderPlaceholder(name, @_domInfo).done (out) =>
               @childWidgetComplete()
               chunk.end(@renderPlaceholderTag(name, out))
+            .failAloud(@debug("#placeholder:#{name}"))
 
 
         i18n: (chunk, context, bodies, params) =>

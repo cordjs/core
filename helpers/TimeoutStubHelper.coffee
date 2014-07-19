@@ -45,7 +45,6 @@ define [
       tmplPath = "#{ ownerWidget.getDir() }/#{ fileName }.html"
       templateLoader.loadToDust(tmplPath).flatMap ->
         Future.call(dust.render, tmplPath, ownerWidget.getBaseContext().push(ownerWidget.ctx))
-      .failAloud()
 
 
     @getTimeoutHtml: (ownerWidget, timeoutTemplate, widget) ->
