@@ -235,40 +235,6 @@ define [
       @clearCallbacks()
 
 
-    html: (element) ->
-      @el.html(element.el or element)
-      @refreshElements()
-      @el
-
-
-    append: (elements...) ->
-      elements = (e.el or e for e in elements)
-      @el.append(elements...)
-      @refreshElements()
-      @el
-
-
-    appendTo: (element) ->
-      @el.appendTo(element.el or element)
-      @refreshElements()
-      @el
-
-
-    prepend: (elements...) ->
-      elements = (e.el or e for e in elements)
-      @el.prepend(elements...)
-      @refreshElements()
-      @el
-
-
-    replace: (element) ->
-      [previous, @el] = [@el, $(element.el or element)]
-      previous.replaceWith(@el)
-      @delegateEvents(@events) if @events
-      @refreshElements()
-      @el
-
-
     render: ->
       ###
       Fully re-renders and replaces all widget's contents by killing all child widgets and re-rendering own template.
