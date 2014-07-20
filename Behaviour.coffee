@@ -364,6 +364,45 @@ define [
         Future.rejected(err)
 
 
+    insertChildWidget: (type, params = {}) ->
+      ###
+      Creates and correctly inserts a new child widget with the given params into the given place in the DOM.
+      By default the root element of the newly created widget is appended to the end of the root element of this widget.
+      Unlike `initChildWidget()` this method correctly performs `markShown()` for the inserted widget.
+      @param {String} type widget type in canonical format (absolute or in context of the current widget)
+      @param (optional){Object} params new widget's params and special positioning params
+                                       Positioning params:
+                                        ':position': 'append'(default)|'prepend'|'replace'
+                                        ':context': DOM (jQuery) element into which should be inserted
+                                                                           or which should be replaced
+                                                    default - root element of this widget
+      @return Future[Array[jQuery, Widget]]
+      ###
+      widgetParams = {}
+      name = undefined
+      insertPosition = 'append'
+      insertContext = @el
+      for key, val of params
+        switch key
+          when 'name'      then name = val
+          when ':position' then insertPosition = val
+          when ':context'  then insertContext = val
+          else widgetParams[key] = val
+
+      if insertPosition == 'replace' and insertContext == @el
+        return Future.rejected(new Error("Child widget cannot replace parent\'s root element (#{@debug()})!"))
+
+      @initChildWidget(type, name, widgetParams).spread ($el, newWidget) ->
+        (switch insertPosition
+          when 'append' then DomHelper.append(insertContext, $el)
+          when 'prepend' then DomHelper.prepend(insertContext, $el)
+          when 'replace' then DomHelper.replace(insertContext, $el)
+          else throw new Error("Invalid insert position: #{insertPosition}!")
+        ).then ->
+          newWidget.markShown()
+          [[$el, newWidget]]
+
+
     dropChildWidget: (widget) ->
       @widget.dropChild(widget.ctx.id)
 
