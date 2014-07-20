@@ -356,6 +356,15 @@ define [
         throw err if not predicate(err)
 
 
+    spread: (onResolved, onRejected) ->
+      ###
+      Like then but expands Array result of the Future to the multiple arguments of the onResolved function call.
+      ###
+      this.then (array) ->
+        onResolved.apply(null, array)
+      , onRejected
+
+
     map: (callback) ->
       ###
       Creates new Future by applying the given callback to the successful result of this Future.
