@@ -458,12 +458,13 @@ define [
         #Find current model page
         if currentId && @_byId[currentId]
           modelIndex = _.indexOf @_models, @_byId[currentId]
-          modelPage = Math.ceil(modelIndex + 1/ @_pageSize)
+          modelPage = Math.ceil((modelIndex + 1) / @_pageSize)
 
         @getPagingInfo(currentId, true).done (paging) =>
           #Don't refresh collection if currentId is not belonged to it
           if !currentId || paging.selectedPage > 0 || modelIndex > -1 || startPage > 0
             startPage = if paging.selectedPage > 0 then paging.selectedPage else startPage
+            startPage = 1 if startPage < 1
             #refresh pages, starting from current, and then go 1 up, 1 down, etc
             #if modelPage didn't change refresh only page, containing the model
             direction = 'down'
@@ -574,7 +575,7 @@ define [
       modelPage = 0
       if !isNaN(parseInt(@_pageSize)) && @_pageSize > 0
         modelIndex = _.indexOf @_models, model
-        modelPage = Math.ceil(modelIndex + 1/ @_pageSize)
+        modelPage = Math.ceil((modelIndex + 1) / @_pageSize)
 
       changedModels = {}
       changedModels[model.id] = model
@@ -1035,6 +1036,7 @@ define [
               result.resolve({})
 
       result
+
 
     updateLastQueryTime: ->
       @_lastQueryTime = (new Date()).getTime()

@@ -180,24 +180,21 @@ define [
 
       if syncMode == ':cache' || syncMode == ':cache-async'
         model = @probeCollectionsForModel(id, fields)
-        if model
-          _console.log 'debug: buildSingleModel found in an existing collection' if global.config.debug.model
-          options =
-             fields: fields
-             id: model.id
 
-          options.model = @buildModel(model)
+        if model
+          options =
+           fields: fields
+           id: model.id
+           model: @buildModel(model)
 
           collection = @createCollection(options)
+
           try
             promise.resolve(collection.get(id))
           catch error
-            if error.name == 'ModelNotExists'
-              promise.reject(error)
+            promise.reject(error) if error.name == 'ModelNotExists'
 
           return promise
-        else
-          _console.log 'debug: buildSingleModel missed in existing collections :(' if global.config.debug.model
 
       syncMode = ':async' if syncMode == ':cache-async'
       collection = @createSingleModel(id, fields, extraOptions)
@@ -721,7 +718,7 @@ define [
       #Clear cache and single model collections
       promise = new Future('ModelRepo::clearSingleModelCollections')
       for key, collection of @_collections
-        if collection._id == model.id
+        if parseInt(collection._id) == model.id
           promise.fork()
           delete @_collections[key]
           collection.invalidateCache().done =>
