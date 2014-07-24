@@ -855,18 +855,13 @@ define [
             if not _.isArray(dst[key]) or dst[key].length > 0
               dst[key] = []
               result = true
-          else
-            if _.isArray dst[key]
-              for newVal, newKey in val
-                if dst[key][newKey] == undefined or @_recursiveCompare(newVal, dst[key][newKey])
-                  dst[key] = _.clone(val)
-                  result = true
-                  break
-            else
-              dst[key] = _.clone(val)
-              result = true
+#          else
+#            for newVal, newKey in val
+#              if dst[key][newKey] == undefined or @_recursiveCompare(newVal, dst[key][newKey])
+#                dst[key] = _.clone(val)
+#                result = true
+#                break
 
-        # todo: can be more smart here, but very difficult
         else if _.isObject(val) and _.isObject(dst[key])
           if @_recursiveCompareAndChange(val, dst[key], level + 1)
             result = true
