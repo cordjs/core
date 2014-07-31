@@ -286,6 +286,7 @@ define [
           $newWidgetRoot = $(widget.renderRootTag(out))
           domInfo.setDomRoot($newWidgetRoot)
           widget.browserInit($newWidgetRoot).then ->
+            $newWidgetRoot.attr('style', $rootEl.attr('style'))
             DomHelper.replaceNode($rootEl, $newWidgetRoot)
           .then ->
             domInfo.markShown()

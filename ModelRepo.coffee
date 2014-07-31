@@ -769,7 +769,7 @@ define [
       result = new Future('ModelRepo::invalidateCacheForCollectionsWithFilter')
 
       for key, collection of @_collections
-        if collection._filter[fieldName] = filterValue
+        if collection._filter[fieldName] == filterValue
           if isBrowser
             result.fork()
             @container.eval 'localStorage', (storage) =>
