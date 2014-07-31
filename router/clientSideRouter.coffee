@@ -156,5 +156,8 @@ define [
       (RegExp(name + '=' + '(.+?)(&|$)').exec(location.search)||[null,null])[1]
 
 
+    goBack: ->
+      history.back() if @history
+
 
   new ClientSideRouter
