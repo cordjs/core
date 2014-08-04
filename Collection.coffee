@@ -121,7 +121,7 @@ define [
         @_orderBy = options.orderBy ? null
         @_filterId = null
         @_filterParams = null
-        @_id = options.model.id
+        @_id = parseInt(options.model.id)
         @_filter = {}
       else
         @_orderBy = options.orderBy ? null
@@ -922,6 +922,7 @@ define [
           isSourceModel = changeInfo._sourceModel == model
           if isSourceModel or modelHasReallyChanged
             @emit("model.#{ changeInfo.id }.change", model)
+            @cache()
 
 
     # paging related
@@ -1300,7 +1301,7 @@ define [
         m.setCollection(collection)
         models[start + i] = m
       collection._models = models
-      collection._id = obj.id
+      collection._id = parseInt(obj.id)
       collection._filterType = obj.filterType
       collection._filterParams = obj.filterParams
       collection._filterId = obj.filterId
