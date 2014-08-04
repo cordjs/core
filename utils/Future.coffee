@@ -1,6 +1,7 @@
 define [
   'underscore'
-], (_) ->
+  'cord!utils/Defer'
+], (_, Defer) ->
 
   class Future
     ###
@@ -208,14 +209,15 @@ define [
       this
 
 
-    always: (callback) ->
+    finally: (callback) ->
       ###
       Defines callback funtion to be called when future is completed by any mean.
       Callback arguments are using popular semantics with first-argument-as-an-error (Left) and other arguments
        are successful results of the future.
       ###
       @_alwaysCallbacks.push(callback)
-      @_runAlwaysCallbacks() if @_counter == 0 or @_state == 'rejected'
+      if @_counter == 0 or @_state == 'rejected'
+        Defer.nextTick => @_runAlwaysCallbacks()
       this
 
 
@@ -424,7 +426,7 @@ define [
       @return Future(this.result)
       ###
       result = Future.single("#{@_name} -> andThen")
-      @always (args...) ->
+      this.finally (args...) ->
         callback.apply(null, args)
         result.complete.apply(result, args)
       result

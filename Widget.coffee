@@ -484,7 +484,7 @@ define [
           Future.try => @setParams(params)
       else
         if not @_lastSetParams?
-          @_renderPromise.always =>
+          @_renderPromise.finally =>
             @_nextSetParamsCallback()
         else
           @_lastSetParams.reject(new errors.WidgetParamsRace("#{@debug('setParamsSafe') } overlapped with new call!"))
