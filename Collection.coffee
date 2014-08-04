@@ -484,11 +484,11 @@ define [
       # special case, when collection nullifies on server
         @_refreshInProgress = false
         return @_replaceModelList([], @_loadedStart, @_loadedEnd)
+
       if (page > 0 && page <= paging.pages) and maxDepth <= 0 or deepness < maxDepth
         start = (page - 1) * @_pageSize
         end = page * @_pageSize - 1
         @_enqueueQuery(start, end, true).done =>
-
           if direction == 'stop'
             @_refreshInProgress = false
             return

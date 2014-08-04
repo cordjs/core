@@ -237,7 +237,7 @@ define [
       @_postalSubscriptions = []
       @_tmpSubscriptions = []
       @_placeholdersClasses = {}
-      @_stashedChildEvents = []
+      @_stashedChildEvents = {}
 
       @resetChildren()
 
@@ -587,6 +587,7 @@ define [
     cleanChildren: ->
       # clean :any child subscriptions
       @_subscribeOnAnyChild = null
+      @_stashedChildEvents = {}
 
       if @children.length
         if @_structTemplate? and not @_structTemplate.isEmpty()
