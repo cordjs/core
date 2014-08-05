@@ -64,16 +64,18 @@ define ->
       userAgentText: (get, done) ->
         done null, navigator.userAgent
 
-      localStorage: (get, done) ->
-        require ['cord!cache/localStorage', 'localforage'], (LocalStorage, localForage) ->
-          localForage.ready().then ->
-            done null, new LocalStorage(localForage)
-          .catch (err) ->
-            _console.error "ERROR while initializing localforage: #{err.message}! Driver: #{localForage.driver()}", err
-            localForage.setDriver(localForage.LOCALSTORAGE).then ->
+      localStorage:
+        deps: ['config', 'container']
+        factory: (get, done) ->
+          require ['cord!cache/localStorage', 'localforage'], (LocalStorage, localForage) ->
+            localForage.setDriver(get('config').localForage.driver).then ->
               done null, new LocalStorage(localForage)
             .catch (err) ->
-              _console.error "FATAL: error while initializing localforage with localStorage fallback: #{err.message}!", err
+              _console.error "ERROR while initializing localforage: #{err.message}! Driver: #{localForage.driver()}", err
+              localForage.setDriver(localForage.LOCALSTORAGE).then ->
+                done null, new LocalStorage(localForage)
+              .catch (err) ->
+                _console.error "FATAL: error while initializing localforage with localStorage fallback: #{err.message}!", err
 
   routes:
     '/REQUIRESTAT/optimizer':
