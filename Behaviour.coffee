@@ -158,7 +158,8 @@ define [
               # right to the element
               $(selector, @$rootEls).on(eventName, method)
             else
-              @$rootEls.on(eventName, selector, method)
+              root = if @el.length == 1 then @el else @$rootEls
+              root.on(eventName, selector, method)
 
 
     initWidgetEvents: (events) ->
