@@ -68,6 +68,11 @@ define ->
         deps: ['config', 'container']
         factory: (get, done) ->
           require ['cord!cache/localStorage', 'localforage'], (LocalStorage, localForage) ->
+            localForage.config
+              name: 'Megaplan2'
+              storeName: 'megaplan'
+              version: get('config').static.collection
+
             localForage.setDriver(get('config').localForage.driver).then ->
               done null, new LocalStorage(localForage)
             .catch (err) ->
