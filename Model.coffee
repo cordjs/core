@@ -88,6 +88,14 @@ define [
       this
 
 
+    setAloud: (key, val) ->
+      ###
+      Sets new value and emit change to everyone who subsribed on the Model's 'change' event
+      ###
+      @set(key, val)
+      @collection.repo.emitModelChange(this)
+
+
     refreshOnlyContainingCollections: ->
       #Make all collections, containing this model refresh
       #It's cheaper than Collection::checkNewModel and ModelRepo.suggestNewModelToCollections,
