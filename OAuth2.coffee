@@ -16,7 +16,27 @@ define [
           accessToken: '/oauth/access_token'
       @options = _.extend  defaultOptions, options
       @serviceContainer = serviceContainer
-      
+
+
+    grantAccessTokenByAuhorizationCode: (code, callback) =>
+      ###
+      Получает токены по коду авторизации, ранее выданному авторизационным сервером
+      ###
+      params =
+        grant_type: 'authorization_code'
+        code: code
+        client_id: @options.clientId
+        client_secret: @options.secretKey
+        format: 'json'
+        redirect_uri: @options.endpoints.redirectUri
+
+      @serviceContainer.eval 'request', (request) =>
+        request.get @options.endpoints.accessToken, params, (result) =>
+          if result
+            callback result.access_token, result.refresh_token
+          else
+            callback null, null
+
 
     ## Получение токена по grant_type = password (логин и пароль)
     grantAccessTokenByPassword: (user, password, scope, callback) =>

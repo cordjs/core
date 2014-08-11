@@ -64,20 +64,25 @@ define [
           widgetRepo = null
 
         config = global.config
+        loginUrl = config.api.loginUrl
+        loginUrl = 'user/login' if not loginUrl
+        logoutUrl = config.api.logoutUrl
+        logoutUrl = 'user/logout' if not logoutUrl
         config.api.authenticateUserCallback = ->
           if serviceContainer
             response = serviceContainer.get 'serverResponse'
             request = serviceContainer.get 'serverRequest'
             if !response.alreadyRelocated
-              response.shouldKeepAlive = false
-              response.alreadyRelocated = true
-              response.writeHead 302,
-                "Location": '/user/login/?back=' + request.url
-                "Cache-Control" : "no-cache, no-store, must-revalidate"
-                "Pragma": "no-cache"
-                "Expires": 0
-              response.end()
-              clear()
+              if not (request.url.indexOf(loginUrl) >= 0 or request.url.indexOf(logoutUrl) >= 0)
+                response.shouldKeepAlive = false
+                response.alreadyRelocated = true
+                response.writeHead 302,
+                  "Location": '/'+loginUrl+'/?back=' + request.url
+                  "Cache-Control" : "no-cache, no-store, must-revalidate"
+                  "Pragma": "no-cache"
+                  "Expires": 0
+                response.end()
+                clear()
           false
 
         serviceContainer.set 'config', config

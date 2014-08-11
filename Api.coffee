@@ -97,6 +97,15 @@ define [
           callback @accessToken, @refreshToken
 
 
+    getTokenByAuthorizationCode: (code, callback) ->
+      @serviceContainer.eval 'oauth2', (oauth2) =>
+        oauth2.grantAccessTokenByAuhorizationCode code, (accessToken, refreshToken) =>
+          @storeTokens(accessToken, refreshToken, callback)
+          postal.publish 'auth.tokens.ready',
+            accessToken: accessToken
+            refreshToken: refreshToken
+
+
     getTokensByUsernamePassword: (username, password, callback) ->
       @serviceContainer.eval 'oauth2', (oauth2) =>
         oauth2.grantAccessTokenByPassword username, password, @getScope(), (accessToken, refreshToken) =>
