@@ -364,11 +364,11 @@ define [
 
 
     checkExistingModel: (model) ->
-      #Refresh the collection only if it contains suggested model
+      # Refresh the collection only if it contains suggested model
       id = parseInt(if _.isObject(model) then model.id else model)
 
       if id and not isNaN(id) and @_byId[id]
-        @refresh()
+        @refresh(id)
 
 
     checkNewModel: (model, emitModelChangeExcept = true) ->
@@ -378,7 +378,7 @@ define [
       ###
       id = parseInt(if _.isObject(model) then model.id else model)
 
-      @refresh(id, emitModelChangeExcept) if not @_id or (not isNaN(id) and parseInt(@_id) == id)
+      @refresh(id, 3, 0, emitModelChangeExcept) if not @_id or (not isNaN(id) and parseInt(@_id) == id)
 
 
     _reorderModelsLocal: ->
@@ -415,89 +415,143 @@ define [
           @_byId[m.id] = m
 
 
+    isRefreshAllowed: ->
+      ###
+      Returns true if refresh allowed, which means
+      1. there's no other refreshes in progress
+      2. the collection is not fixed
+      3. the collection has at least one 'change' subscription
+      ###
+      if @_fixed or @_refreshInProgress
+        return false
+      else if not @_hasActiveChangeSubscriptions()
+        @_lastQueryTime = 0
+        return false
+
+      true
+
+
     partialRefresh: (startPage, maxPages, minRefreshInterval = 0) ->
       ###
       Reloads olny maxPages pages of the collection only if the collection hasn't been refreshed for required interval
       Useful for potentilally huge collections
       ###
-      if minRefreshInterval >= 0 and @getLastQueryTimeDiff() > minRefreshInterval
-        @refresh(undefined, true, startPage, maxPages)
+      # _console.log "#{ @repo.restResource } partialRefresh: (startPage=#{startPage}, maxPages=#{maxPages}, minRefreshInterval=#{minRefreshInterval})"
+      startPage = Number(startPage)
+      maxPages = Number(maxPages)
+
+      # This is actually for debugging purposes
+      if isNaN(startPage) or isNaN(maxPages) or startPage < 1 or maxPages <1
+        return _console.error('collection.partialRefresh called with wront parameters startPage, maxPages',
+        startPage,
+        maxPages,
+        (new Error()).stack)
+
+      if minRefreshInterval >= 0 and @getLastQueryTimeDiff() > minRefreshInterval and @isRefreshAllowed()
+        @_refreshInProgress = true
+        if not @_pageSize
+          @_fullReload()
+        else
+          @_simplePageRefresh(startPage, maxPages)
 
 
-    refresh: (currentId, emitModelChangeExcept = true, startPage = 0, maxPages = 0) ->
+    refresh: (currentId, maxPages = 3, minRefreshInterval = 0, emitModelChangeExcept = true) ->
       ###
       Reloads currently loaded part of collection from the backend.
       By the way triggers change events for every changed model and for the collection if there are any changes.
       todo: support of single-model collections
       @param int currentId - id of currently used model (selected or showed),
+      @param int maxPages  - amount of pages to be refreshed, the rest of the collection will be cleaned
       if currentId and pageSize are defined, refresh will start from page, containing the currentId model, going up and down
       ###
 
-      #Special case - fixed collections, no need to sync or refresh
-      return if @_fixed
+      #_console.log "#{ @repo.restResource } refresh: (currentId=#{currentId}, emitModelChangeExcept=#{emitModelChangeExcept}, maxPages=#{maxPages})"
 
-      return if @_refreshInProgress
-
-      #The collection has no active 'change' subsriptions, just clear last refresh time
-      if not @_hasActiveChangeSubscriptions()
-        @_lastQueryTime = 0
+      # Try to catch some architectural errors
+      if isNaN(Number(currentId))
+        _console.error('collection.refresh called with wrong parameter currentId', currentId, (new Error()).stack)
         return
+
+      if maxPages < 1
+        _console.error('collection.refresh called with wrong parameter maxPages', maxPages, (new Error()).stack)
+
+      return if not (minRefreshInterval >= 0 and @getLastQueryTimeDiff() > minRefreshInterval and @isRefreshAllowed())
 
       @_refreshInProgress = true
 
-      #Refresh all models at once if no paging used
+      # Refresh all models at once if no paging used
       if not @_pageSize
-        queryParams = @_buildRefreshQueryParams()
-        @repo.query queryParams, (models) =>
-          @_replaceModelList(models, queryParams.start, queryParams.end, emitModelChangeExcept)
-          @_refreshInProgress = false
-          #TODO: GC unregister single model collection if it became empty.
+        @_fullReload()
       else
-        #refresh paging info first
+        # Collection boundaries
+        startPage = @_loadedStart / @_pageSize
+        endPage = @_loadedEnd / @_pageSize
 
-        #Find current model page
-        if currentId && @_byId[currentId]
+        # Check if the model is already in the collection, which means we know where to start
+        if @_byId[currentId]
           modelIndex = _.indexOf @_models, @_byId[currentId]
           modelPage = Math.ceil((modelIndex + 1) / @_pageSize)
+          @_sophisticatedRefreshPage(modelPage, startPage, endPage, maxPages)
 
-        @getPagingInfo(currentId, true).done (paging) =>
-          #Don't refresh collection if currentId is not belonged to it
-          if !currentId || paging.selectedPage > 0 || modelIndex > -1 || startPage > 0
-            startPage = if paging.selectedPage > 0 then paging.selectedPage else startPage
-            startPage = 1 if startPage < 1
-            #refresh pages, starting from current, and then go 1 up, 1 down, etc
-            #if modelPage didn't change refresh only page, containing the model
-            direction = 'down'
-            if currentId && modelPage && modelPage == paging.selectedPage
-              direction = 'stop'
-
-            @_topPage = @_bottomPage = startPage
-            @_refreshReachedTop = false
-            @_refreshReachedBottom = false
-            @_refreshPage(startPage, paging, direction, 0, maxPages)
-          else
-            @_refreshInProgress = false
+        else
+          # If model is not in the collection than we have to check if the model belongs to the collection
+          # The best way to do this is to make a paging request
+          @getPagingInfo(currentId, true).failAloud().done (paging) =>
+            if paging.pages == 0
+              # special case, when collection nullifies on server
+              @_replaceModelList([], @_loadedStart, @_loadedEnd)
+              @_refreshInProgress = false
+            else if paging.selectedPage > 0
+              # Don't refresh collection if currentId is not belonged to it
+              @_sophisticatedRefreshPage(paging.selectedPage, startPage, endPage, maxPages)
+            else
+              @_refreshInProgress = false
 
 
-    _refreshPage: (page, paging, direction, deepness = 0, maxDepth = 0) ->
-      if paging.pages == 0
-      # special case, when collection nullifies on server
+    _fullReload: ->
+      ###
+      Completely reloads all collection at once
+      ###
+      # _console.log '_fullReload'
+      queryParams = @_buildRefreshQueryParams()
+      @repo.query queryParams, (models) =>
+        @_replaceModelList(models, queryParams.start, queryParams.end)
         @_refreshInProgress = false
-        return @_replaceModelList([], @_loadedStart, @_loadedEnd)
 
-      if (page > 0 && page <= paging.pages) and maxDepth <= 0 or deepness < maxDepth
+
+
+    _simplePageRefresh: (startPage, maxPages, loadedPages = 0) ->
+      ###
+      Simple refreshes few pages one by one
+      ###
+      # _console.log "#{ @repo.restResource } _simplePageRefresh: (startPage=#{startPage}, maxPages=#{maxPages}, loadedPages=#{loadedPages}) ->"
+      if startPage < 1 or maxPages < 1
+        _console.error('collection._simplePageRefresh got bad parameters.')
+
+      else
+        start = (startPage - 1) * @_pageSize
+        end = startPage * @_pageSize - 1
+
+        # We'll continue refreshing if [start,end] intersects with [@_loadedStart, @_loadedEnd]
+        if (start <= @_loadedStart <= end or start <= @_loadedEnd <= end) and loadedPages + 1 < maxPages
+          @_enqueueQuery(start, end, true).failAloud().done =>
+            @_simplePageRefresh(startPage + 1, maxPages, loadedPages + 1)
+        else
+          @_refreshInProgress = false
+
+
+    _sophisticatedRefreshPage: (page, startPage, endPage, maxPages = 3, direction = 'down', loadedPages = 0) ->
+      _console.log "#{ @repo.restResource } _sophisticatedRefreshPage: (page=#{page}, startPage=#{startPage}, endPage=#{endPage}, maxPages=#{maxPages}, direction=#{direction}, loadedPages=#{loadedPages})"
+      if page > 0 and loadedPages < maxPages and (start <= @_loadedStart <= end or start <= @_loadedEnd <= end)
         start = (page - 1) * @_pageSize
         end = page * @_pageSize - 1
         @_enqueueQuery(start, end, true).done =>
-          if direction == 'stop'
-            @_refreshInProgress = false
-            return
 
-          if !@_refreshReachedTop
-            @_refreshReachedTop = page == 1
+          if not @_refreshReachedTop
+            @_refreshReachedTop = page == startPage
 
-          if !@_refreshReachedBottom
-            @_refreshReachedBottom = page == paging.pages
+          if not @_refreshReachedBottom
+            @_refreshReachedBottom = page == endPage
 
           if @_refreshReachedTop
             direction = 'down'
@@ -506,13 +560,28 @@ define [
           else
             direction = if direction == 'up' then 'down' else 'up'
 
+          @_topPage = page if not @_topPage
+          @_bottomPage = page if not @_bottomPage
+
           if direction == 'up'
             page = @_topPage = @_topPage - 1
           else
             page = @_bottomPage = @_bottomPage + 1
 
-          @_refreshPage(page, paging, direction, deepness + 1, maxDepth)
+          @_sophisticatedRefreshPage(page, startPage, endPage, maxPages, direction, loadedPages + 1)
+        .fail (message) =>
+          @_topPage = 0
+          @_bottomPage = 0
+          @_refreshReachedTop = false
+          @_refreshReachedBottom = false
+          @_refreshInProgress = false
+          _console.error('collection._sophisticatedRefreshPage _enqueueQuery error: ', message)
       else
+        # total flush
+        @_topPage = 0
+        @_bottomPage = 0
+        @_refreshReachedTop = false
+        @_refreshReachedBottom = false
         @_refreshInProgress = false
 
 
@@ -936,6 +1005,9 @@ define [
       @param (optional)Int lastPage number of the last page
       @return Future(Array[Model])
       ###
+
+      # _console.log("collection.getPage (firstPage=#{firstPage}, lastPage=#{lastPage})")
+
       if arguments.length == 1
         lastPage = firstPage
 
