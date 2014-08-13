@@ -100,28 +100,26 @@ define [
     getTokenByAuthorizationCode: (code, callback) ->
       @serviceContainer.eval 'oauth2', (oauth2) =>
         oauth2.grantAccessTokenByAuhorizationCode code, (accessToken, refreshToken) =>
-          @storeTokens(accessToken, refreshToken, callback)
-          postal.publish 'auth.tokens.ready',
-            accessToken: accessToken
-            refreshToken: refreshToken
+          @onAccessTokenGranted(accessToken, refreshToken, callback)
 
 
     getTokensByUsernamePassword: (username, password, callback) ->
       @serviceContainer.eval 'oauth2', (oauth2) =>
         oauth2.grantAccessTokenByPassword username, password, @getScope(), (accessToken, refreshToken) =>
-          @storeTokens accessToken, refreshToken, callback
-          postal.publish 'auth.tokens.ready',
-            accessToken: accessToken
-            refreshToken: refreshToken
+          @onAccessTokenGranted(accessToken, refreshToken, callback)
 
 
     getTokensByExtensions: (url, params, callback) ->
       @serviceContainer.eval 'oauth2', (oauth2) =>
         oauth2.grantAccessTokenByExtensions url, params, @getScope(), (accessToken, refreshToken) =>
-          @storeTokens accessToken, refreshToken, callback
-          postal.publish 'auth.tokens.ready',
-            accessToken: accessToken
-            refreshToken: refreshToken
+          @onAccessTokenGranted(accessToken, refreshToken, callback)
+
+
+    onAccessTokenGranted: (accessToken, refreshToken, callback) ->
+      @storeTokens(accessToken, refreshToken, callback)
+      postal.publish 'auth.tokens.ready',
+        accessToken: accessToken
+        refreshToken: refreshToken
 
 
     authenticateUser: ->
