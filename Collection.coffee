@@ -484,8 +484,8 @@ define [
         @_fullReload()
       else
         # Collection boundaries
-        startPage = @_loadedStart / @_pageSize
-        endPage = @_loadedEnd / @_pageSize
+        startPage = Math.floor(@_loadedStart / @_pageSize) + 1
+        endPage = Math.ceil(@_loadedEnd / @_pageSize)
 
         # Check if the model is already in the collection, which means we know where to start
         if @_byId[currentId]
@@ -541,10 +541,12 @@ define [
 
 
     _sophisticatedRefreshPage: (page, startPage, endPage, maxPages = 3, direction = 'down', loadedPages = 0) ->
-      _console.log "#{ @repo.restResource } _sophisticatedRefreshPage: (page=#{page}, startPage=#{startPage}, endPage=#{endPage}, maxPages=#{maxPages}, direction=#{direction}, loadedPages=#{loadedPages})"
+      # _console.log "#{ @repo.restResource } _sophisticatedRefreshPage: (page=#{page}, startPage=#{startPage}, endPage=#{endPage}, maxPages=#{maxPages}, direction=#{direction}, loadedPages=#{loadedPages})"
+
+      start = (page - 1) * @_pageSize
+      end = page * @_pageSize - 1
+
       if page > 0 and loadedPages < maxPages and (start <= @_loadedStart <= end or start <= @_loadedEnd <= end)
-        start = (page - 1) * @_pageSize
-        end = page * @_pageSize - 1
         @_enqueueQuery(start, end, true).done =>
 
           if not @_refreshReachedTop
