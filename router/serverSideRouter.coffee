@@ -66,20 +66,13 @@ define [
         config = global.config
         loginUrl = config.api.loginUrl or 'user/login'
         logoutUrl = config.api.logoutUrl or 'user/logout'
-        config.api.authenticateUserCallback = ->
+        config.api.authenticateUserCallback = =>
           if serviceContainer
             response = serviceContainer.get 'serverResponse'
             request = serviceContainer.get 'serverRequest'
-            if !response.alreadyRelocated
+            if not response.alreadyRelocated
               if not (request.url.indexOf(loginUrl) >= 0 or request.url.indexOf(logoutUrl) >= 0)
-                response.shouldKeepAlive = false
-                response.alreadyRelocated = true
-                response.writeHead 302,
-                  "Location": "/#{loginUrl}/?back=#{request.url}"
-                  "Cache-Control" : "no-cache, no-store, must-revalidate"
-                  "Pragma": "no-cache"
-                  "Expires": 0
-                response.end()
+                @redirect("/#{loginUrl}/?back=#{request.url}", response)
                 clear()
           false
 
@@ -148,5 +141,18 @@ define [
         true
       else
         false
+
+
+    redirect: (redirectUrl, response) ->
+      response.shouldKeepAlive = false
+      response.alreadyRelocated = true
+      response.writeHead 302,
+        "Location": redirectUrl
+        "Cache-Control" : "no-cache, no-store, must-revalidate"
+        "Pragma": "no-cache"
+        "Expires": 0
+      response.end()
+
+
 
   new ServerSideRouter
