@@ -5,6 +5,8 @@ define [
   'underscore'
 ], (cordWidgetHelper, Future, pathUtils, _) ->
 
+  baseUrl = if global.config?.localFsMode then '' else '/'
+
   class Helper
     ###
     Helper functions for the css-file management
@@ -56,10 +58,10 @@ define [
         optimized =
           for css in cssList
             if cssToGroup[css]
-              "/assets/z/#{cssToGroup[css]}.css"
+              "#{baseUrl}assets/z/#{cssToGroup[css]}.css"
             else
               # anti-cache suffix is needed only for direct-links, not for the optimized groups
-              "#{css}?release=#{ global.config.static.release }"
+              "#{css}?release=#{global.config.static.release}"
         _.map(_.uniq(optimized), @getHtmlLink).join('')
 
 
@@ -70,21 +72,20 @@ define [
       @param Widget contextWidget
       @return String
       ###
-      result = null
       if shortPath.substr(0, 1) != '/' and shortPath.indexOf '//' == -1
         # context of current widget
         shortPath += '.css' if shortPath.substr(-4) != '.css'
-        result = "/bundles/#{ contextWidget.getDir() }/#{ shortPath }"
+        "#{baseUrl}bundles/#{contextWidget.getDir()}/#{shortPath}"
       else
         if shortPath.substr(0,8) == '/vendor/'
           shortPath += '.css' if shortPath.substr(-4) != '.css'
-          result = shortPath
+          if global.config.localFsMode then shortPath.substr(1) else shortPath
         else
           # canonical path format
           info = pathUtils.parsePathRaw "#{ shortPath }@#{ contextWidget.getBundle() }"
 
           relativePath = info.relativePath
-          nameParts = relativePath.split '/'
+          nameParts = relativePath.split('/')
           widgetClassName = nameParts.pop()
           if cordWidgetHelper.classNameFormat.test widgetClassName
             dirName = widgetClassName.charAt(0).toLowerCase() + widgetClassName.slice(1)
@@ -93,8 +94,7 @@ define [
           else
             relativePath += '.css' if relativePath.substr(-4) != '.css'
 
-          result = "/bundles#{ info.bundle }/widgets/#{ relativePath }"
-      result
+          "#{baseUrl}bundles#{info.bundle}/widgets/#{relativePath}"
 
 
   new Helper

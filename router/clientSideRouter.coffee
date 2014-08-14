@@ -3,34 +3,28 @@ define [
   'cord!PageTransition'
   'jquery'
   'postal'
-  'cord!ServiceContainer'
-  'cord!AppConfigLoader'
-], (Router, PageTransition, $, postal, ServiceContainer, AppConfigLoader) ->
+], (Router, PageTransition, $, postal) ->
+
+  # detecting private settings from configuration and environment
+  # should
+  historySupport = window.history?.pushState? and not global.config.localFsMode
+
 
   class ClientSideRouter extends Router
-
-    options:
-      trigger: true
-      history: true
-      shim: false
-
-    historySupport: window.history?.pushState?
 
     widgetRepo: null
 
 
-    constructor: (options = {}) ->
+    constructor: ->
       super
 
-      @options = $.extend({}, @options, options)
-
-      if (@options.history)
-        @history = @historySupport && @options.history
+      @_noPageReload = historySupport or global.config.localFsMode
 
       # save current path
       @currentPath = @getActualPath()
 
-      @_initHistoryNavigate() if @history and not @options.shim
+      @_initHistoryNavigate() if historySupport
+      @_initLinkClickHook() if @_noPageReload
 
 
     setWidgetRepo: (widgetRepo) ->
@@ -59,65 +53,50 @@ define [
         false
 
 
-    navigate: (args...) ->
+    navigate: (newPath) ->
       ###
       Initiates url changing and related client-side page transition.
-      @param (multiple)String path path parts which will be concatenated to form target path
-      @param (optional)Boolean|Object options if last argument is boolean, than it's treated as options.trigger
-                                              if last argument is Object, than it's treated as options
+      @param String newPath path to navigate to
       ###
       _console.clear() if global.config.console.clear
 
-      options = @_processNavigateArgs args
-
-      newPath = args.join('/')
-      if newPath.substr(0, 1) isnt '/'
-        newPath = '/' + newPath
+      newPath = '/' + newPath if newPath.charAt(0) != '/'
       return if @currentPath == newPath
 
       if window.systemPageRefresh != undefined and window.systemPageRefresh == true
         postal.publish 'mp2.was.updated'
-        window.location.replace newPath
+        window.location.replace(newPath)
         return
 
-      if @history
-        options = $.extend({}, @options, options)
-
-        @process(newPath) if options.trigger
-
-        history.pushState({}, document.title, @currentPath) if not options.shim
+      if @_noPageReload
+        @process(newPath)
+        history.pushState({}, document.title, @currentPath) if historySupport
       else
         window.location.href = newPath
-
-
-    _processNavigateArgs: (args) ->
-      options = {}
-      lastArg = args[args.length - 1]
-      if typeof lastArg is 'object'
-        options = args.pop()
-      else if typeof lastArg is 'boolean'
-        options.trigger = args.pop()
-
-      options
 
 
     forceNavigate: (newPath) ->
-      if @history
-        @widgetRepo.resetSmartTransition()
-        @process(newPath)
-        history.pushState({}, document.title, @currentPath) if not @options.shim
-      else
-        window.location.href = newPath
+      ###
+      Enforce immediate navigation even if current page transition is in progress.
+      This function is necessary to avoid transition deadlocks in certain situations.
+      ###
+      @widgetRepo.resetSmartTransition()
+      @navigate newPath
 
 
     _initHistoryNavigate: ->
       ###
-      Setups client-side navigating event handlers.
+      Setups client-side navigating history event handler.
       ###
       $(window).bind 'popstate', =>
         newPath = @getActualPath()
-        @process(newPath) unless newPath == @currentPath
+        @process(newPath) if newPath != @currentPath
 
+
+    _initLinkClickHook: ->
+      ###
+      Setups client-side navigating link click event handler.
+      ###
       self = this
 
       # Read more: http://perfectionkills.com/detecting-event-support-without-browser-sniffing/
@@ -131,7 +110,7 @@ define [
 
         if href and href.slice(0, root.length) == root and href.indexOf("javascript:") != 0
           event.preventDefault()
-          self.navigate href.slice(root.length), true
+          self.navigate(href.slice(root.length))
 
 
     getActualPath: ->
@@ -140,8 +119,7 @@ define [
       @return String
       ###
       path = window.location.pathname
-      if path.substr(0, 1) isnt '/'
-        path = '/' + path
+      path = '/' + path if path.charAt(0) != '/'
       path
 
 
@@ -157,7 +135,7 @@ define [
 
 
     goBack: ->
-      history.back() if @history
+      history.back() if @_noPageReload
 
 
   new ClientSideRouter

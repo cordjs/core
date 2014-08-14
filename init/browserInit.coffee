@@ -41,12 +41,13 @@ define [
 
       serviceContainer.def 'config', ->
         config = global.config
-        loginUrl = config.loginUrl or 'user/login'
-        logoutUrl = config.logoutUrl or 'user/logout'
+        loginUrl = config.loginUrl or 'user/login/'
+        logoutUrl = config.logoutUrl or 'user/logout/'
         config.api.authenticateUserCallback = ->
           backPath = window.location.pathname
           if not (backPath.indexOf(loginUrl) >= 0 or backPath.indexOf(logoutUrl) >= 0)
-            clientSideRouter.forceNavigate("#{loginUrl}?back=#{window.location.pathname}")
+            backUrl = clientSideRouter.currentPath or window.location.pathname # in SPA mode window.location doesn't make sense
+            clientSideRouter.forceNavigate("#{loginUrl}?back=#{backUrl}")
           true
         config
 
