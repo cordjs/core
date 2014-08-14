@@ -423,12 +423,12 @@ define [
       3. the collection has at least one 'change' subscription
       ###
       if @_fixed or @_refreshInProgress
-        return false
+        false
       else if not @_hasActiveChangeSubscriptions()
         @_lastQueryTime = 0
-        return false
-
-      true
+        false
+      else
+        true
 
 
     partialRefresh: (startPage, maxPages, minRefreshInterval = 0) ->
