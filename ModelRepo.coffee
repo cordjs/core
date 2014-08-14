@@ -708,10 +708,10 @@ define [
 
 
     refreshAll: ->
-      #Force refreshing all collections
+      # Force refreshing all collections
       Defer.nextTick =>
         for name, collection of @_collections
-          collection.partialRefresh(1, 0, 1)
+          collection.partialRefresh(1, 1, 0)
 
 
     clearSingleModelCollections: (model) ->
