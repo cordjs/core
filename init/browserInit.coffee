@@ -15,7 +15,8 @@ define [
     constructor: (@router) ->
 
     fallback: (newWidgetPath, params) ->
-      @router.widgetRepo.transitPage(newWidgetPath, params, new PageTransition(@router.currentPath, @router.currentPath))
+      tPath = @router.getCurrentPath()
+      @router.widgetRepo.transitPage(newWidgetPath, params, new PageTransition(tPath, tPath))
 
 
   -> # browserInit() function
@@ -46,7 +47,8 @@ define [
         config.api.authenticateUserCallback = ->
           backPath = window.location.pathname
           if not (backPath.indexOf(loginUrl) >= 0 or backPath.indexOf(logoutUrl) >= 0)
-            backUrl = clientSideRouter.currentPath or window.location.pathname # in SPA mode window.location doesn't make sense
+            # in SPA mode window.location doesn't make sense
+            backUrl = clientSideRouter.getCurrentPath() or window.location.pathname
             clientSideRouter.forceNavigate("#{loginUrl}?back=#{backUrl}")
           true
         config

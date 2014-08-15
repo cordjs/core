@@ -21,7 +21,7 @@ define [
       @_noPageReload = historySupport or global.config.localFsMode
 
       # save current path
-      @currentPath = @getActualPath()
+      @_currentPath = @getActualPath()
 
       @_initHistoryNavigate() if historySupport
       @_initLinkClickHook() if @_noPageReload
@@ -44,8 +44,10 @@ define [
         postal.publish('router.process', routeInfo)
 
         if routeInfo.route.widget?
-          @widgetRepo.smartTransitPage(routeInfo.route.widget, routeInfo.params, new PageTransition(@currentPath, newPath))
-          @currentPath = newPath
+          @widgetRepo.smartTransitPage(
+            routeInfo.route.widget, routeInfo.params, new PageTransition(@_currentPath, newPath)
+          )
+          @_currentPath = newPath
           true
         else
           return false
@@ -61,7 +63,7 @@ define [
       _console.clear() if global.config.console.clear
 
       newPath = '/' + newPath if newPath.charAt(0) != '/'
-      return if @currentPath == newPath
+      return if @_currentPath == newPath
 
       if window.systemPageRefresh != undefined and window.systemPageRefresh == true
         postal.publish 'mp2.was.updated'
@@ -70,7 +72,7 @@ define [
 
       if @_noPageReload
         @process(newPath)
-        history.pushState({}, document.title, @currentPath) if historySupport
+        history.pushState({}, document.title, @_currentPath) if historySupport
       else
         window.location.href = newPath
 
@@ -90,7 +92,7 @@ define [
       ###
       $(window).bind 'popstate', =>
         newPath = @getActualPath()
-        @process(newPath) if newPath != @currentPath
+        @process(newPath) if newPath != @_currentPath
 
 
     _initLinkClickHook: ->

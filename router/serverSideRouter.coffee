@@ -25,7 +25,7 @@ define [
     process: (req, res, fallback = false) ->
       path = url.parse(req.url, true)
 
-      @currentPath = req.url
+      @_currentPath = req.url
 
       if (routeInfo = @matchRoute(path.pathname))
 
