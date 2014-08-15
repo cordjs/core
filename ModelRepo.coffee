@@ -709,6 +709,8 @@ define [
 
     refreshAll: ->
       # Force refreshing all collections
+      # Depricated
+      _console.warn('ModelRepo.refreshAll is depricated.')
       Defer.nextTick =>
         for name, collection of @_collections
           collection.partialRefresh(1, 1, 0)

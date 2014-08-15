@@ -3,18 +3,37 @@ define [
   'underscore'
 ], ($, _) ->
 
-  class BrowserCookie
+  if global.config.localFsMode
 
-    get: (name, defaultValue) =>
-      value = $.cookie name
-      value ?= defaultValue
+    class BrowserCookie
+      ###
+      Simple dumb cookie emulation for the non-cookiable environment
+      ###
 
-    set: (name, value, params) =>
-      _params =
-        path: '/'
+      constructor: ->
+        @_cookies = {}
 
-      _params = _.extend _params, params if params
 
-      $.cookie name, value, _params
+      get: (name, defaultValue) ->
+        @_cookies[name] ? defaultValue
 
-      true
+
+      set: (name, value, params) ->
+        @_cookies[name] = value
+        true
+
+
+
+  else
+
+    class BrowserCookie
+
+      get: (name, defaultValue) ->
+        $.cookie(name) ? defaultValue
+
+
+      set: (name, value, params) ->
+        _params = path: '/'
+        _.extend(_params, params) if params
+        $.cookie name, value, _params
+        true

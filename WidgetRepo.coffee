@@ -180,10 +180,12 @@ define [
 
 
     getTemplateCode: ->
+      baseUrl = if global.config.localFsMode then '' else '/'
+
       initUrl = if global.config.browserInitScriptId
-        "/assets/z/#{global.config.browserInitScriptId}.js"
+        "#{baseUrl}assets/z/#{global.config.browserInitScriptId}.js"
       else
-        "/bundles/cord/core/init/browser-init.js?release=" + global.config.static.release
+        "#{baseUrl}bundles/cord/core/init/browser-init.js?release=" + global.config.static.release
 
       """
       <script>
@@ -191,7 +193,7 @@ define [
           config: #{ JSON.stringify(global.appConfig.browser) }
         };
       </script>
-      <script data-main="#{initUrl}" src="/vendor/requirejs/require.js?release=#{global.config.static.release}"></script>
+      <script data-main="#{initUrl}" src="#{baseUrl}vendor/requirejs/require.js?release=#{global.config.static.release}"></script>
       <script>
           function cordcorewidgetinitializerbrowser(wi) {
             requirejs(['cord!utils/Future'], function(Future) {
@@ -422,7 +424,8 @@ define [
                                        triggers events related to transition process
       @return Future
       ###
-      _console.log "WidgetRepo::transitPage -> current root = #{ @rootWidget.debug() }" if global.config.debug.widget
+      if global.config.debug.widget
+        _console.log "WidgetRepo::transitPage -> #{newRootWidgetPath}, current root = #{ @rootWidget.debug() }"
 
       # interrupting previous transition if it's not completed
 #      @_curTransition.interrupt() if @_curTransition? and @_curTransition.isActive()
