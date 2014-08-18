@@ -352,6 +352,10 @@ define [
 
 
     toArray: ->
+      # This method returns array of loaded models.
+      # Warning! Probably you should not use this function for paged collections, but getPage()
+      if @_pageSize > 0
+        _console.warn('Warning, collection.toArray() was used for paged collection!', @debug())
       @_models
 
 
@@ -548,7 +552,6 @@ define [
 
       if page > 0 and loadedPages < maxPages and (start <= @_loadedStart <= end or start <= @_loadedEnd <= end)
         @_enqueueQuery(start, end, true).done =>
-
           if not @_refreshReachedTop
             @_refreshReachedTop = page == startPage
 
@@ -1123,7 +1126,6 @@ define [
       @param Int end ending position or range required to load
       @return Future()
       ###
-
       # detecting query type and adjusting range to request according to the already requested range
       curLoadingStart = @_queryQueue.loadingStart
       curLoadingEnd = @_queryQueue.loadingEnd

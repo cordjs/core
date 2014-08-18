@@ -10,7 +10,17 @@ define [
 
   class ServerSideFallback
 
-    constructor: (@eventEmitter) ->
+    constructor: (@eventEmitter, @router) ->
+
+
+    defaultFallback: ->
+      # If we dont need to push params into fallback widget, use default, defined in fallbackRoutes
+      routeInfo = @router.matchFallbackRoute(@router.currentPath)
+      if routeInfo?.route?.widget?
+        @fallback(routeInfo.route.widget, routeInfo.route.params)
+      else
+        _console.warn('defaultFallback route was not found for', @router.currentPath)
+
 
     fallback: (widgetPath, params) ->
       #TODO: find better way to change root widget
@@ -85,7 +95,7 @@ define [
         widgetRepo.setResponse(res)
 
         eventEmitter = new @EventEmitter()
-        fallback = new ServerSideFallback(eventEmitter)
+        fallback = new ServerSideFallback(eventEmitter, this)
 
         serviceContainer.set 'fallback', fallback
 

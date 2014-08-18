@@ -14,6 +14,15 @@ define [
 
     constructor: (@router) ->
 
+    defaultFallback: ->
+      # If we dont need to push params into fallback widget, use default, defined in fallbackRoutes
+      routeInfo = @router.matchFallbackRoute(@router.currentPath)
+      if routeInfo?.route?.widget?
+        @fallback(routeInfo.route.widget, routeInfo.params)
+      else
+        _console.warn('defaultFallback route was not found for', @router.currentPath)
+
+
     fallback: (newWidgetPath, params) ->
       @router.widgetRepo.transitPage(newWidgetPath, params, new PageTransition(@router.currentPath, @router.currentPath))
 
