@@ -3,7 +3,7 @@ Initializes requirejs configuration and then calls cordjs framework initializati
 ###
 
 require.config
-  baseUrl: '/'
+  baseUrl: if global.config.localFsMode then '' else '/'
   urlArgs: "release=" + global.config.static.release
 
 

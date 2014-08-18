@@ -35,7 +35,7 @@ define [
     process: (req, res, fallback = false) ->
       path = url.parse(req.url, true)
 
-      @currentPath = req.url
+      @_currentPath = req.url
 
       if (routeInfo = @matchRoute(path.pathname))
 
@@ -80,10 +80,9 @@ define [
           if serviceContainer
             response = serviceContainer.get 'serverResponse'
             request = serviceContainer.get 'serverRequest'
-            if not response.alreadyRelocated
-              if not (request.url.indexOf(loginUrl) >= 0 or request.url.indexOf(logoutUrl) >= 0)
-                @redirect("/#{loginUrl}/?back=#{request.url}", response)
-                clear()
+            if not (request.url.indexOf(loginUrl) >= 0 or request.url.indexOf(logoutUrl) >= 0)
+              @redirect("/#{loginUrl}/?back=#{request.url}", response)
+              clear()
           false
 
         serviceContainer.set 'config', config
@@ -154,14 +153,15 @@ define [
 
 
     redirect: (redirectUrl, response) ->
-      response.shouldKeepAlive = false
-      response.alreadyRelocated = true
-      response.writeHead 302,
-        "Location": redirectUrl
-        "Cache-Control" : "no-cache, no-store, must-revalidate"
-        "Pragma": "no-cache"
-        "Expires": 0
-      response.end()
+      if not response.alreadyRelocated
+        response.shouldKeepAlive = false
+        response.alreadyRelocated = true
+        response.writeHead 302,
+          "Location": redirectUrl
+          "Cache-Control" : "no-cache, no-store, must-revalidate"
+          "Pragma": "no-cache"
+          "Expires": 0
+        response.end()
 
 
 

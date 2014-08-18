@@ -996,7 +996,6 @@ define [
           isSourceModel = changeInfo._sourceModel == model
           if isSourceModel or modelHasReallyChanged
             @emit("model.#{ changeInfo.id }.change", model)
-            @cache()
 
 
     # paging related

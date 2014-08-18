@@ -24,7 +24,8 @@ define [
 
 
     fallback: (newWidgetPath, params) ->
-      @router.widgetRepo.transitPage(newWidgetPath, params, new PageTransition(@router.currentPath, @router.currentPath))
+      tPath = @router.getCurrentPath()
+      @router.widgetRepo.transitPage(newWidgetPath, params, new PageTransition(tPath, tPath))
 
 
   -> # browserInit() function
@@ -50,12 +51,14 @@ define [
 
       serviceContainer.def 'config', ->
         config = global.config
-        loginUrl = config.loginUrl or 'user/login'
-        logoutUrl = config.logoutUrl or 'user/logout'
+        loginUrl = config.loginUrl or 'user/login/'
+        logoutUrl = config.logoutUrl or 'user/logout/'
         config.api.authenticateUserCallback = ->
           backPath = window.location.pathname
           if not (backPath.indexOf(loginUrl) >= 0 or backPath.indexOf(logoutUrl) >= 0)
-            clientSideRouter.forceNavigate("#{loginUrl}?back=#{window.location.pathname}")
+            # in SPA mode window.location doesn't make sense
+            backUrl = clientSideRouter.getCurrentPath() or window.location.pathname
+            clientSideRouter.forceNavigate("#{loginUrl}?back=#{backUrl}")
           true
         config
 

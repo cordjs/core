@@ -2,7 +2,7 @@ define ['underscore'], (_) ->
 
   class Router
 
-    currentPath: ''
+    _currentPath: ''
 
 
     constructor: ->
@@ -62,6 +62,13 @@ define ['underscore'], (_) ->
           }
 
       false
+
+
+    getCurrentPath: ->
+      ###
+      @return String
+      ###
+      @_currentPath
 
 
 

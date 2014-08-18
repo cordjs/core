@@ -3,6 +3,7 @@
 fs            = require 'fs'
 path          = require 'path'
 requirejs     = require 'requirejs'
+_             = require 'underscore'
 
 http          = require 'http'
 serverStatic  = require 'node-static'
@@ -20,6 +21,12 @@ exports.services = services =
 global._console = console
 
 exports.init = (baseUrl = 'public', configName = 'default', serverPort) ->
+
+  config = loadConfig(configName, serverPort)
+  global.appConfig = config
+  global.config    = config.node
+
+
   requirejs.config
     paths: require('../requirejs/pathConfig')
     baseUrl: baseUrl
@@ -34,8 +41,7 @@ exports.init = (baseUrl = 'public', configName = 'default', serverPort) ->
     'cord!requirejs/statCollector'
     'cord!router/serverSideRouter'
     'cord!utils/Future'
-    'underscore'
-  ], (pathUtils, AppConfigLoader, Console, Rest, xdrProxy, statCollector, router, Future, _) ->
+  ], (pathUtils, AppConfigLoader, Console, Rest, xdrProxy, statCollector, router, Future) ->
     pathUtils.setPublicPrefix(baseUrl)
 
     router.EventEmitter = EventEmitter
@@ -44,34 +50,6 @@ exports.init = (baseUrl = 'public', configName = 'default', serverPort) ->
     services.xdrProxy = xdrProxy
     services.statCollector = statCollector
 
-    # Loading configuration
-    try
-      if configName.charAt(0) != '/'
-        configName = pathDir + '/conf/' + configName + '.js'
-      services.config = require configName
-      timeLog "Loaded config from " + configName
-    catch e
-      services.config = {}
-      timeLog "Fail loading config from " + configName + " with error " + e
-
-    # Merge node and browser configuration with common (defaults)
-    common = _.clone services.config.common
-    services.config.node = _.extend common, services.config.node
-
-    common = _.clone services.config.common
-    services.config.browser = _.extend common, services.config.browser
-
-    # Redefine server port if port defined in command line parameter
-    services.config.node.server.port = serverPort if serverPort
-    services.config.node.server.port = 18180 if not services.config.node.server.port
-
-    # Remove defaul configuration
-    delete services.config.common
-    global.appConfig = services.config
-
-    global.config = services.config.node
-
-    # Using javascript here to change global variable.
     global._console = Console
 
     Rest.host = global.config.server.host
@@ -110,13 +88,46 @@ exports.startServer = startServer = (callback) ->
   .listen(global.config.server.port)
   callback?()
 
+
 exports.restartServer = restartServer = ->
   stopServer()
   startServer ->
     timeLog "Server restart success"
 
+
 exports.stopServer = stopServer = ->
   services.nodeServer.close()
+
+
+# Private functions
+
+loadConfig = (configName, serverPort) ->
+  try
+    if configName.charAt(0) != '/'
+      configName = pathDir + '/conf/' + configName + '.js'
+    result = require(configName)
+
+    # Merge node and browser configuration with common (defaults)
+    common = _.clone(result.common)
+    result.node = _.extend(common, result.node)
+
+    common = _.clone(result.common)
+    result.browser = _.extend(common, result.browser)
+
+    # Redefine server port if port defined in command line parameter
+    result.node.server.port = serverPort or 18180
+
+    # Remove common configuration
+    delete result.common
+
+    timeLog "Loaded config from #{configName}"
+
+    result
+  catch e
+    timeLog "Fail loading config from #{configName} with error #{e}"
+    {}
+
+
 
 timeLog = (message) ->
   console.log "#{(new Date).toLocaleTimeString()} - #{message}"
