@@ -4,9 +4,10 @@ define [
   'cord!ServiceContainer'
   'cord!WidgetRepo'
   'cord!utils/DomInfo'
+  'cord!utils/profiler'
   'underscore'
   'url'
-], (AppConfigLoader, Router, ServiceContainer, WidgetRepo, DomInfo, _, url) ->
+], (AppConfigLoader, Router, ServiceContainer, WidgetRepo, DomInfo, pr, _, url) ->
 
   class ServerSideFallback
 
@@ -32,13 +33,26 @@ define [
 
   class ServerSideRouter extends Router
 
-    process: (req, res, fallback = false) ->
+    constructor: ->
+      super
+      @process = @_profiledProcess
+
+
+    _profiledProcess: (req, res, fallback = false) ->
+      pr.newRoot "ServerSideRouter::process -> #{req.url}", =>
+        pr.onCurrentTimerFinish (timer) ->
+          pr.saveTimer(timer)
+        @_process0 req, res, fallback
+
+
+    _process0: (req, res, fallback = false) ->
       path = url.parse(req.url, true)
 
       @_currentPath = req.url
 
-      if (routeInfo = @matchRoute(path.pathname))
+      routeInfo = pr.call(this, @matchRoute, path.pathName) # timer name is constructed automatically
 
+      if routeInfo
         rootWidgetPath = routeInfo.route.widget
         routeCallback = routeInfo.route.callback
         params = _.extend(path.query, routeInfo.params)
@@ -99,10 +113,11 @@ define [
         serviceContainer.set 'fallback', fallback
 
         AppConfigLoader.ready().done (appConfig) ->
-          for serviceName, info of appConfig.services
-            do (info) ->
-              serviceContainer.def serviceName, info.deps, (get, done) ->
-                info.factory.call(serviceContainer, get, done)
+          pr.timer 'ServerSideRouter::defineServices', =>
+            for serviceName, info of appConfig.services
+              do (info) ->
+                serviceContainer.def serviceName, info.deps, (get, done) ->
+                  info.factory.call(serviceContainer, get, done)
 
           previousProcess = {}
 
@@ -133,7 +148,6 @@ define [
 
           if rootWidgetPath?
             processWidget rootWidgetPath, params
-
 
           else if routeCallback?
             routeCallback

@@ -93,6 +93,7 @@ define ->
       'the-box':                 'vendor/the-box/app'
       'underscore':              'vendor/underscore/underscore'
       'localforage':             'vendor/localforage/localforage'
+      'zone':                    'vendor/zone/zone'
     shim:
       'curly':
         deps: ['underscore']
@@ -110,3 +111,5 @@ define ->
       'moment-ru':
         deps: ['moment']
         exports: 'null'
+      zone:
+        exports: 'zone'
