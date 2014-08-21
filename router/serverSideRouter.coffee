@@ -16,11 +16,11 @@ define [
 
     defaultFallback: ->
       # If we dont need to push params into fallback widget, use default, defined in fallbackRoutes
-      routeInfo = @router.matchFallbackRoute(@router.currentPath)
+      routeInfo = @router.matchFallbackRoute(@router.getCurrentPath())
       if routeInfo?.route?.widget?
         @fallback(routeInfo.route.widget, routeInfo.route.params)
       else
-        _console.warn('defaultFallback route was not found for', @router.currentPath)
+        _console.warn('defaultFallback route was not found for', @router.getCurrentPath())
 
 
     fallback: (widgetPath, params) ->
