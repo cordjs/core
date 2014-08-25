@@ -111,10 +111,7 @@ define [
             @_state = 'resolved' if @_locked
             @_runDoneCallbacks() if @_doneCallbacks.length > 0
             @_runAlwaysCallbacks() if @_alwaysCallbacks.length > 0
-            # Clean debug timeout
-            if @_incompleteTimeout?
-              clearTimeout(@_incompleteTimeout)
-              @_incompleteTimeout = null
+            @_clearDebugTimeout()
           # not changing state to 'resolved' here because it is possible to call fork() again if done hasn't called yet
       else
         nameStr = if @_name then " (name = #{ @_name})" else ''
@@ -138,6 +135,7 @@ define [
           @_callbackArgs = [err ? new Error("Future[#{@_name}] rejected without error message!")]
           @_runFailCallbacks() if @_failCallbacks.length > 0
           @_runAlwaysCallbacks() if @_alwaysCallbacks.length > 0
+          @_clearDebugTimeout()
       else
         throw new Error("Future::reject is called more times than Future::fork! [#{@_name}]")
 
@@ -192,7 +190,9 @@ define [
       ###
       if @_state != 'rejected'
         @_doneCallbacks.push(callback)
-        @_runDoneCallbacks() if @_counter == 0
+        if @_counter == 0
+          @_runDoneCallbacks()
+          @_clearDebugTimeout()
       this
 
 
@@ -205,7 +205,9 @@ define [
       throw new Error("Invalid argument for Future.fail(): #{ callback }. [#{@_name}]") if not _.isFunction(callback)
       if @_state != 'resolved'
         @_failCallbacks.push(callback)
-        @_runFailCallbacks() if @_state == 'rejected'
+        if @_state == 'rejected'
+          @_runFailCallbacks()
+          @_clearDebugTimeout()
       this
 
 
@@ -217,6 +219,7 @@ define [
       ###
       @_alwaysCallbacks.push(callback)
       if @_counter == 0 or @_state == 'rejected'
+        @_clearDebugTimeout()
         Defer.nextTick => @_runAlwaysCallbacks()
       this
 
@@ -718,6 +721,13 @@ define [
         Future.rejected(err)
 
 
+    _clearDebugTimeout: ->
+      if @_incompleteTimeout?
+        debugTimeoutCounter--
+        clearTimeout(@_incompleteTimeout)
+        @_incompleteTimeout = null
+
+
     clear: ->
       ###
       Way to eliminate any impact of resolving or rejecting or time-outing of this promise.
@@ -726,9 +736,7 @@ define [
       @_doneCallbacks = []
       @_failCallbacks = []
       @_alwaysCallbacks = []
-      if @_incompleteTimeout?
-        clearTimeout(@_incompleteTimeout)
-        @_incompleteTimeout = null
+      @_clearDebugTimeout()
 
 
     # debugging
