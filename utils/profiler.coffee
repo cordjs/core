@@ -46,12 +46,7 @@ define [
       if timer.counter == 0
         if timer.asyncDetected
           timer.asyncTime = fixTimer(timer.asyncTime)
-        if timer.childCompleteCounter == 0
-          timer.asyncTime = 0 if not timer.asyncDetected
-          timer.finished = true
-          rootZone.clearTimeout(timer.zoneTimeoutId)
-          timer.zoneTimeoutId = null
-          timer.parent().completeChild(timer)
+        timer.complete() if timer.childCompleteCounter == 0
 
     onError: (err) ->
       console.log 'onError', name, @timer().counter, err
@@ -98,52 +93,15 @@ define [
       else
         newRoot = !!newRoot
 
+      # if the current zone doesn't have timerId than we should use profilerRootZone to enable profiling hooks,
+      #  so the new timer in this case will be created as root-level timer regardless of the newRoot value
       myZone = if newRoot or not zone.timerId? then profilerRootZone else zone
 
       result = undefined
 
       timerId = timerIdCounter++
       oldTimer = currentTimer
-      timersById[timerId] = timer = currentTimer =
-        name: name
-        asyncDetected: false
-        syncTime: 0
-        asyncTime: 0
-        error: null
-        finished: false
-        onFinish: null
-        counter: 0
-
-        parentId: myZone.timerId
-
-        childCompleteCounter: 0
-        children: []
-
-        addChild: (child) ->
-          @children.push(child)
-          @childCompleteCounter++
-
-        completeChild: (child) ->
-          @childCompleteCounter--
-          if @childCompleteCounter == 0 and @counter == 0
-            @asyncTime = 0 if not @asyncDetected
-            @finished = true
-            rootZone.clearTimeout(@zoneTimeoutId)
-            @zoneTimeoutId = null
-            @parent().completeChild(this)
-
-        parent: ->
-          timersById[@parentId]
-
-        zoneTimeoutId: rootZone.setTimeout ->
-          console.log '!!!!!!!===============================!!!!!!!'
-          console.log 'Timer zone timed out!'
-          pr.printTimer(timer)
-        , 9000
-
-
-      parentTimer = timersById[myZone.timerId]
-      parentTimer.addChild(timer)
+      timersById[timerId] = timer = currentTimer = new ProfilingTimer(name, myZone.timerId)
 
       myZone.fork
         timerId: timerId
@@ -178,6 +136,58 @@ define [
       console.log '-------------------------------------------------'
       console.log 'Timer', timer.name
       console.log JSON.stringify(timer, null, 2)
+
+
+
+  class ProfilingTimer
+    ###
+    Represents profiling node that aims to account synchronous and asynchronous timing of execution.
+    Timers organizes hierarchy. All timers created during execution of current timer (including async calls)
+     are by default child timers of current timer. Exception - when timer is explicitly declared as root-level timer.
+    ###
+
+    asyncDetected: false
+    syncTime: 0
+    asyncTime: 0
+    error: null
+    finished: false
+    onFinish: null
+    counter: 0
+
+    childCompleteCounter: 0
+    children: null
+
+
+    constructor: (@name, @parentId) ->
+      @children = []
+      @_zoneTimeoutId = rootZone.setTimeout =>
+        console.log '!!!!!!!===============================!!!!!!!'
+        console.log 'Timer zone timed out!'
+        pr.printTimer(this)
+      , 15000
+      @parent().addChild(this)
+
+
+    addChild: (child) ->
+      @children.push(child)
+      @childCompleteCounter++
+
+
+    completeChild: (child) ->
+      @childCompleteCounter--
+      @complete() if @childCompleteCounter == 0 and @counter == 0
+
+
+    complete: ->
+      @asyncTime = 0 if not @asyncDetected
+      @finished = true
+      rootZone.clearTimeout(@_zoneTimeoutId)
+      delete @_zoneTimeoutId
+      @parent().completeChild(this)
+
+
+    parent: ->
+      timersById[@parentId]
 
 
 
