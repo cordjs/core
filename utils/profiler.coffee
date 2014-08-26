@@ -1,20 +1,6 @@
 define [
   'zone' + (if document? then '' else '.js')
-  'cord!Api'
-], (rootZone, Api) ->
-
-  # zone-patching of cordjs higher-level functions which use asynchronous unpatched nodejs operations
-  rootZone.constructor.patchFnWithCallbacks Api.prototype, [
-    'send'
-  ]
-
-  # profiler-patch of the Api:send() method
-  # TODO: do this using pr.patch()
-  origApiSend = Api.prototype.send
-  Api.prototype.send = (args...) ->
-    pr.timer "Api::#{args[0]}(#{args[1]})", =>
-      origApiSend.apply(this, args)
-
+], (rootZone) ->
 
   # private vars
 
@@ -111,6 +97,26 @@ define [
       console.log '-------------------------------------------------'
       console.log 'Timer', timer.name
       console.log JSON.stringify(timer, null, 2)
+
+
+    patch: (obj, fnName, index = null, field = null) ->
+      ###
+      Patches method `fnName` of `obj` to wrap that method into profiler timer.
+      @param Object obj
+      @param String fnName name of the function
+      @param (optional)Int index index of the function argument to include into auto-generated timer name
+      @param (optional)String field field name of that function argument (see `index`) to include in the timer name
+      ###
+      origFn = obj[fnName]
+      obj[fnName] = (args...) ->
+        hint = null
+        if index?
+          hint = args[index]
+          hint = hint[field] if hint and field?
+          hint = hint.constructor.name if typeof hint == 'object'
+        hint = if hint? then "(#{hint})" else ''
+        pr.timer "#{this.constructor.name}::#{fnName}#{hint}", =>
+          origFn.apply(this, args)
 
 
 

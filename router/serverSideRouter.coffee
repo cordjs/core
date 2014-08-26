@@ -33,17 +33,7 @@ define [
 
   class ServerSideRouter extends Router
 
-    constructor: ->
-      super
-      @process = @_profiledProcess
-
-
-    _profiledProcess: (req, res, fallback = false) ->
-      pr.newRoot "ServerSideRouter::process -> #{req.url}", =>
-        @_process0(req, res, fallback)
-
-
-    _process0: (req, res, fallback = false) ->
+    process: (req, res, fallback = false) ->
       path = url.parse(req.url, true)
 
       @_currentPath = req.url

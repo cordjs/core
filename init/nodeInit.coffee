@@ -37,11 +37,12 @@ exports.init = (baseUrl = 'public', configName = 'default', serverPort) ->
     'cord!AppConfigLoader'
     'cord!Console'
     'cord!Rest'
+    'cord!init/profilerInit'
     'cord!request/xdrProxy'
     'cord!requirejs/statCollector'
     'cord!router/serverSideRouter'
     'cord!utils/Future'
-  ], (pathUtils, AppConfigLoader, Console, Rest, xdrProxy, statCollector, router, Future) ->
+  ], (pathUtils, AppConfigLoader, Console, Rest, profilerInit, xdrProxy, statCollector, router, Future) ->
     pathUtils.setPublicPrefix(baseUrl)
 
     router.EventEmitter = EventEmitter
@@ -59,6 +60,8 @@ exports.init = (baseUrl = 'public', configName = 'default', serverPort) ->
       global.config.browserInitScriptId = id
     .mapFail ->
       true
+
+    profilerInit()
 
     AppConfigLoader.ready().zip(biFuture).done (appConfig) ->
       router.addRoutes(appConfig.routes)
