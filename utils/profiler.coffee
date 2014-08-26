@@ -17,15 +17,54 @@ define [
 
 
   # private vars
-  # list of root-level timers
+
+  # index of all timers by id
   timersById = {}
+  # timers id generator
   timerIdCounter = 1
 
   currentTimer = null
 
 
+
+  # Profiling zone
+
+  profilerRootZone = rootZone.fork
+    enqueueTask: ->
+      @timer().asyncDetected = true
+      @timer().counter++
+
+    dequeueTask: ->
+      @timer().counter--
+
+    beforeTask: ->
+      @timer().counter++
+
+    afterTask: ->
+      timer = @timer()
+      timer.counter--
+      if timer.counter == 0
+        if timer.asyncDetected
+          timer.asyncTime = fixTimer(timer.asyncTime)
+        if timer.childCompleteCounter == 0
+          timer.asyncTime = 0 if not timer.asyncDetected
+          timer.finished = true
+          rootZone.clearTimeout(timer.zoneTimeoutId)
+          timer.zoneTimeoutId = null
+          timer.parent().completeChild(timer)
+
+    onError: (err) ->
+      console.log 'onError', name, @timer().counter, err
+      @timer().error = err
+      throw err
+
+    timer: -> timersById[@timerId]
+
+    timerId: 0
+
+
+
   # fake parent timer for all root timers (helpful to avoid code duplication)
-  rootZone.timerId = 0
   timersById[0] =
     childCompleteCounter: 0
     children: []
@@ -59,7 +98,7 @@ define [
       else
         newRoot = !!newRoot
 
-      myZone = if newRoot then rootZone else zone
+      myZone = if newRoot or not zone.timerId? then profilerRootZone else zone
 
       result = undefined
 
@@ -75,6 +114,8 @@ define [
         onFinish: null
         counter: 0
 
+        parentId: myZone.timerId
+
         childCompleteCounter: 0
         children: []
 
@@ -89,7 +130,10 @@ define [
             @finished = true
             rootZone.clearTimeout(@zoneTimeoutId)
             @zoneTimeoutId = null
-            parentTimer.completeChild(this)
+            @parent().completeChild(this)
+
+        parent: ->
+          timersById[@parentId]
 
         zoneTimeoutId: rootZone.setTimeout ->
           console.log '!!!!!!!===============================!!!!!!!'
@@ -97,39 +141,12 @@ define [
           pr.printTimer(timer)
         , 9000
 
+
       parentTimer = timersById[myZone.timerId]
       parentTimer.addChild(timer)
 
       myZone.fork
-        enqueueTask: ->
-          timer.asyncDetected = true
-          timer.counter++
-
-        dequeueTask: ->
-          timer.counter--
-
-        beforeTask: ->
-          timer.counter++
-
-        afterTask: ->
-          timer.counter--
-          if timer.counter == 0
-            if timer.asyncDetected
-              timer.asyncTime = fixTimer(timer.asyncTime)
-            if timer.childCompleteCounter == 0
-              timer.asyncTime = 0 if not timer.asyncDetected
-              timer.finished = true
-              rootZone.clearTimeout(timer.zoneTimeoutId)
-              timer.zoneTimeoutId = null
-              parentTimer.completeChild(timer)
-
-        onError: (err) ->
-          console.log 'onError', name, timer.counter, err
-          timer.error = err
-          throw err
-
         timerId: timerId
-
       .run ->
         start = fixTimer()
         result = fn()
