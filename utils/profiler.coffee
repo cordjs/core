@@ -23,8 +23,6 @@ define [
   # timers id generator
   timerIdCounter = 1
 
-  currentTimer = null
-
 
 
   # Profiling zone
@@ -59,22 +57,7 @@ define [
 
 
 
-  # fake parent timer for all root timers (helpful to avoid code duplication)
-  timersById[0] =
-    childCompleteCounter: 0
-    children: []
-
-    addChild: (child) ->
-      @children.push(child)
-      @childCompleteCounter++
-
-    completeChild: (child) ->
-      @childCompleteCounter--
-      pr.printTimer(child)
-
-
   pr =
-
     newRoot: (name, fn) ->
       @timer(name, true, fn)
 
@@ -100,8 +83,7 @@ define [
       result = undefined
 
       timerId = timerIdCounter++
-      oldTimer = currentTimer
-      timersById[timerId] = timer = currentTimer = new ProfilingTimer(name, myZone.timerId)
+      timersById[timerId] = timer = new ProfilingTimer(name, myZone.timerId)
 
       myZone.fork
         timerId: timerId
@@ -110,9 +92,6 @@ define [
         result = fn()
         timer.syncTime = fixTimer(start)
         timer.asyncTime = fixTimer()
-
-        currentTimer = oldTimer
-
         result
 
 
@@ -128,14 +107,26 @@ define [
         context[fnName].apply(context, args)
 
 
-    onCurrentTimerFinish: (fn) ->
-      currentTimer.onFinish = fn if currentTimer?
-
-
     printTimer: (timer) ->
       console.log '-------------------------------------------------'
       console.log 'Timer', timer.name
       console.log JSON.stringify(timer, null, 2)
+
+
+
+
+  # fake parent timer for all root timers (helpful to avoid code duplication)
+  timersById[0] =
+    childCompleteCounter: 0
+    children: []
+
+    addChild: (child) ->
+      @children.push(child)
+      @childCompleteCounter++
+
+    completeChild: (child) ->
+      @childCompleteCounter--
+      pr.printTimer(child)
 
 
 
