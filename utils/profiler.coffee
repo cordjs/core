@@ -18,92 +18,49 @@ define [
 
   # private vars
   # list of root-level timers
-  timers = []
   timersById = {}
-  timerIdCounter = 0
+  timerIdCounter = 1
 
   currentTimer = null
+
+
+  # fake parent timer for all root timers (helpful to avoid code duplication)
+  rootZone.timerId = 0
+  timersById[0] =
+    childCompleteCounter: 0
+    children: []
+
+    addChild: (child) ->
+      @children.push(child)
+      @childCompleteCounter++
+
+    completeChild: (child) ->
+      @childCompleteCounter--
+      pr.printTimer(child)
+
 
   pr =
 
     newRoot: (name, fn) ->
-      result = undefined
-
-      timerId = timerIdCounter++
-      oldTimer = currentTimer
-      timersById[timerId] = timer = currentTimer =
-        name: name
-        asyncDetected: false
-        syncTime: 0
-        asyncTime: 0
-        error: null
-        finished: false
-        onFinish: null
-        counter: 0
-
-        childCompleteCounter: 0
-        children: []
-
-        addChild: (child) ->
-          @children.push(child)
-          @childCompleteCounter++
-
-        completeChild: (child) ->
-          @childCompleteCounter--
-          if @childCompleteCounter == 0 and @counter == 0
-            @asyncTime = 0 if not @asyncDetected
-            @finished = true
-            @onFinish?(timer)
-
-      timers.push(timer)
-
-      timer.zoneTimeoutId = rootZone.setTimeout ->
-        console.log '!!!!!!!===============================!!!!!!!'
-        console.log 'Root timer zone timed out!'
-        pr.saveTimer(timer)
-      , 9000
-
-      rootZone.fork
-        enqueueTask: ->
-          timer.asyncDetected = true
-          timer.counter++
-
-        dequeueTask: ->
-          timer.counter--
-
-        afterTask: ->
-          if timer.counter == 0
-            if timer.asyncDetected
-              timer.asyncTime = fixTimer(timer.asyncTime)
-            if timer.childCompleteCounter == 0
-              timer.asyncTime = 0 if not timer.asyncDetected
-              timer.finished = true
-              timer.onFinish?(timer)
-
-        onError: (err) ->
-          timer.error = err
-          throw err
-
-        timerId: timerId
-
-      .run ->
-        start = fixTimer()
-        result = fn()
-        timer.syncTime = fixTimer(start)
-        timer.asyncTime = fixTimer()
-
-        currentTimer = oldTimer
-
-        result
+      @timer(name, true, fn)
 
 
-    timer: (name, fn) ->
+    timer: (name, newRoot, fn) ->
       ###
       Creates a new timer with the given name and calls and profiles the given function "inside" of that timer.
       @param String name timer name
+      @param (optional)Boolean newRoot if true, creates a new root-level timer (default - false)
       @param Function fn the profiled function
       @return Any the profiled function's return value
       ###
+      if typeof newRoot == 'function'
+        fn = newRoot
+        newRoot = false
+      else
+        newRoot = !!newRoot
+
+      myZone = if newRoot then rootZone else zone
+
       result = undefined
 
       timerId = timerIdCounter++
@@ -130,12 +87,20 @@ define [
           if @childCompleteCounter == 0 and @counter == 0
             @asyncTime = 0 if not @asyncDetected
             @finished = true
+            rootZone.clearTimeout(@zoneTimeoutId)
+            @zoneTimeoutId = null
             parentTimer.completeChild(this)
 
-      parentTimer = timersById[zone.timerId]
+        zoneTimeoutId: rootZone.setTimeout ->
+          console.log '!!!!!!!===============================!!!!!!!'
+          console.log 'Timer zone timed out!'
+          pr.printTimer(timer)
+        , 9000
+
+      parentTimer = timersById[myZone.timerId]
       parentTimer.addChild(timer)
 
-      zone.fork
+      myZone.fork
         enqueueTask: ->
           timer.asyncDetected = true
           timer.counter++
@@ -143,13 +108,19 @@ define [
         dequeueTask: ->
           timer.counter--
 
+        beforeTask: ->
+          timer.counter++
+
         afterTask: ->
+          timer.counter--
           if timer.counter == 0
             if timer.asyncDetected
               timer.asyncTime = fixTimer(timer.asyncTime)
             if timer.childCompleteCounter == 0
               timer.asyncTime = 0 if not timer.asyncDetected
               timer.finished = true
+              rootZone.clearTimeout(timer.zoneTimeoutId)
+              timer.zoneTimeoutId = null
               parentTimer.completeChild(timer)
 
         onError: (err) ->
@@ -186,12 +157,9 @@ define [
       currentTimer.onFinish = fn if currentTimer?
 
 
-    saveTimer: (timer) ->
-      if timer.zoneTimeoutId?
-        clearTimeout(timer.zoneTimeoutId)
-        delete timer.zoneTimeoutId
+    printTimer: (timer) ->
       console.log '-------------------------------------------------'
-      console.log 'Fake saving timer', timer.name
+      console.log 'Timer', timer.name
       console.log JSON.stringify(timer, null, 2)
 
 

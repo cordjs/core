@@ -40,11 +40,7 @@ define [
 
     _profiledProcess: (req, res, fallback = false) ->
       pr.newRoot "ServerSideRouter::process -> #{req.url}", =>
-        result = @_process0(req, res, fallback)
-        if result
-          pr.onCurrentTimerFinish (timer) ->
-            pr.saveTimer(timer)
-        result
+        @_process0(req, res, fallback)
 
 
     _process0: (req, res, fallback = false) ->
