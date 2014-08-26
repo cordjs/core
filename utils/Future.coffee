@@ -723,7 +723,6 @@ define [
 
     _clearDebugTimeout: ->
       if @_incompleteTimeout?
-        debugTimeoutCounter--
         clearTimeout(@_incompleteTimeout)
         @_incompleteTimeout = null
 
