@@ -40,9 +40,11 @@ define [
 
     _profiledProcess: (req, res, fallback = false) ->
       pr.newRoot "ServerSideRouter::process -> #{req.url}", =>
-        pr.onCurrentTimerFinish (timer) ->
-          pr.saveTimer(timer)
-        @_process0 req, res, fallback
+        result = @_process0(req, res, fallback)
+        if result
+          pr.onCurrentTimerFinish (timer) ->
+            pr.saveTimer(timer)
+        result
 
 
     _process0: (req, res, fallback = false) ->
@@ -50,7 +52,7 @@ define [
 
       @_currentPath = req.url
 
-      routeInfo = pr.call(this, @matchRoute, path.pathName) # timer name is constructed automatically
+      routeInfo = pr.call(this, 'matchRoute', path.pathname) # timer name is constructed automatically
 
       if routeInfo
         rootWidgetPath = routeInfo.route.widget
@@ -122,19 +124,20 @@ define [
           previousProcess = {}
 
           processWidget = (rootWidgetPath, params) =>
-            widgetRepo.createWidget(rootWidgetPath).then (rootWidget) ->
-              rootWidget._isExtended = true
-              widgetRepo.setRootWidget(rootWidget)
-              previousProcess.showPromise = rootWidget.show(params, DomInfo.fake())
-              previousProcess.showPromise.done (out) ->
-                eventEmitter.removeAllListeners('fallback')
-                # prevent browser to use the same connection
-                res.shouldKeepAlive = false
-                res.writeHead 200, 'Content-Type': 'text/html'
-                res.end(out)
-                # todo: may be need some cleanup before?
-                clear()
-            .failAloud("ServerSideRouter::processWidget:#{rootWidgetPath}")
+            pr.timer 'ServerSideRouter::showWidget', ->
+              widgetRepo.createWidget(rootWidgetPath).then (rootWidget) ->
+                rootWidget._isExtended = true
+                widgetRepo.setRootWidget(rootWidget)
+                previousProcess.showPromise = rootWidget.show(params, DomInfo.fake())
+                previousProcess.showPromise.done (out) ->
+                  eventEmitter.removeAllListeners('fallback')
+                  # prevent browser to use the same connection
+                  res.shouldKeepAlive = false
+                  res.writeHead 200, 'Content-Type': 'text/html'
+                  res.end(out)
+                  # todo: may be need some cleanup before?
+                  clear()
+              .failAloud("ServerSideRouter::processWidget:#{rootWidgetPath}")
 
           eventEmitter.once 'fallback', (args) =>
             if previousProcess.showPromise
