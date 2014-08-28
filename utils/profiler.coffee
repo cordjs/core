@@ -21,11 +21,16 @@ define [
     dequeueTask: ->
       @timer().counter--
 
-    beforeTask: ->
+    beforeTask: (isClearFn = false) ->
       @timer().counter++
+      if not isClearFn
+        @_curTaskSyncStart = fixTimer()
 
-    afterTask: ->
+    afterTask: (isClearFn = false) ->
       timer = @timer()
+      if not isClearFn
+        timer.ownAsyncTime += fixTimer(@_curTaskSyncStart)
+        @_curTaskSyncStart = 0
       timer.counter--
       if timer.counter == 0
         if timer.asyncDetected
@@ -33,13 +38,15 @@ define [
         timer.complete() if timer.childCompleteCounter == 0
 
     onError: (err) ->
-      console.log 'onError', name, @timer().counter, err
-      @timer().error = err
+      timer = @timer()
+      console.error 'onError', timer.name, timer.counter, err
+      timer.error = err
       throw err
 
     timer: -> timersById[@timerId]
 
     timerId: 0
+    _curTaskSyncStart: 0
 
 
 
@@ -73,7 +80,9 @@ define [
 
       myZone.fork
         timerId: timerId
+        _curTaskSyncStart: 0
       .run ->
+        timer.startTime = fixTimer(timer.relativeStartTime)
         start = fixTimer()
         result = fn()
         timer.syncTime = fixTimer(start)
@@ -143,9 +152,11 @@ define [
      are by default child timers of current timer. Exception - when timer is explicitly declared as root-level timer.
     ###
 
+    startTime: 0
     asyncDetected: false
     syncTime: 0
     asyncTime: 0
+    ownAsyncTime: 0
     error: null
     finished: false
     onFinish: null
@@ -154,20 +165,25 @@ define [
     childCompleteCounter: 0
     children: null
 
+    relativeStartTime: 0
+
 
     constructor: (@name, @parentId) ->
       @children = []
-      @_zoneTimeoutId = rootZone.setTimeout =>
-        console.log '!!!!!!!===============================!!!!!!!'
-        console.log 'Timer zone timed out!'
-        pr.printTimer(this)
-      , 15000
+      if @parentId == 0
+        @_zoneTimeoutId = rootZone.setTimeout =>
+          console.log '!!!!!!!===============================!!!!!!!'
+          console.log 'Timer zone timed out!'
+          pr.printTimer(this)
+        , 15000
       @parent().addChild(this)
+      @relativeStartTime = fixTimer() if @parentId == 0
 
 
     addChild: (child) ->
       @children.push(child)
       @childCompleteCounter++
+      child.relativeStartTime = @relativeStartTime
 
 
     completeChild: (child) ->
@@ -185,6 +201,21 @@ define [
 
     parent: ->
       timersById[@parentId]
+
+
+    toJSON: ->
+      result =
+        name: @name
+        startTime: @startTime
+        syncTime: @syncTime
+      result.asyncTime = @asyncTime if @asyncTime > 0 and @finished
+      result.ownAsyncTime = @ownAsyncTime
+      if not @finished
+        result.finished = @finished
+        result.counter = @counter
+        result.childCompleteCounter = @childCompleteCounter
+      result.children = @children if @children.length > 0
+      result
 
 
 
