@@ -111,6 +111,7 @@ define [
             @_state = 'resolved' if @_locked
             @_runDoneCallbacks() if @_doneCallbacks.length > 0
             @_runAlwaysCallbacks() if @_alwaysCallbacks.length > 0
+            @_clearFailCallbacks() if @_state == 'resolved'
             @_clearDebugTimeout()
           # not changing state to 'resolved' here because it is possible to call fork() again if done hasn't called yet
       else
@@ -135,6 +136,7 @@ define [
           @_callbackArgs = [err ? new Error("Future[#{@_name}] rejected without error message!")]
           @_runFailCallbacks() if @_failCallbacks.length > 0
           @_runAlwaysCallbacks() if @_alwaysCallbacks.length > 0
+          @_clearDoneCallbacks()
           @_clearDebugTimeout()
       else
         throw new Error("Future::reject is called more times than Future::fork! [#{@_name}]")
@@ -191,8 +193,9 @@ define [
       if @_state != 'rejected'
         @_doneCallbacks.push(callback)
         if @_counter == 0
-          @_runDoneCallbacks()
           @_clearDebugTimeout()
+          @_runDoneCallbacks()
+          @_clearFailCallbacks()
       this
 
 
@@ -206,8 +209,8 @@ define [
       if @_state != 'resolved'
         @_failCallbacks.push(callback)
         if @_state == 'rejected'
-          @_runFailCallbacks()
           @_clearDebugTimeout()
+          @_runFailCallbacks()
       this
 
 
@@ -220,7 +223,9 @@ define [
       @_alwaysCallbacks.push(callback)
       if @_counter == 0 or @_state == 'rejected'
         @_clearDebugTimeout()
-        Defer.nextTick => @_runAlwaysCallbacks()
+        Defer.nextTick =>
+          @_runAlwaysCallbacks()
+          @_clearFailCallbacks() if @_state == 'resolved'
       this
 
 
@@ -545,7 +550,6 @@ define [
       ###
       Fires resulting callback functions defined by done with right list of arguments.
       ###
-      @_failCallbacks = []
       @_state = 'resolved'
       # this is need to avoid duplicate callback calling in case of recursive coming here from callback function
       callbacksCopy = @_doneCallbacks
@@ -557,7 +561,6 @@ define [
       ###
       Fires resulting callback functions defined by fail with right list of arguments.
       ###
-      @_doneCallbacks = []
       # this is need to avoid duplicate callback calling in case of recursive coming here from callback function
       callbacksCopy = @_failCallbacks
       @_failCallbacks = []
@@ -727,13 +730,21 @@ define [
         @_incompleteTimeout = null
 
 
+    _clearDoneCallbacks: ->
+      @_doneCallbacks = []
+
+
+    _clearFailCallbacks: ->
+      @_failCallbacks = []
+
+
     clear: ->
       ###
       Way to eliminate any impact of resolving or rejecting or time-outing of this promise.
       Should be used when actions that are waiting for this promise completion are no more needed.
       ###
-      @_doneCallbacks = []
-      @_failCallbacks = []
+      @_clearDoneCallbacks()
+      @_clearFailCallbacks()
       @_alwaysCallbacks = []
       @_clearDebugTimeout()
 
