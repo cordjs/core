@@ -1,116 +1,83 @@
 define [
-  'cord!utils/profiler'
   'cord!Api'
-  'cord!Widget'
-  'cord!WidgetRepo'
   'cord!ServiceContainer'
   'cord!templateLoader'
+  'cord!Widget'
+  'cord!WidgetRepo'
   'cord!router/serverSideRouter'
   'cord!utils/Future'
+  'cord!utils/profiler'
   'dustjs-helpers'
-], (pr, Api, Widget, WidgetRepo, ServiceContainer, templateLoader, router, Future, dust) ->
+], (Api, ServiceContainer, templateLoader, Widget, WidgetRepo, router, Future, pr, dust) ->
 
 
   patchFutureWithZone = ->
-    idCounter = 0
+    # registry of bound zones associated with "zoneified" Future callbacks, need to correctly dequeue zone tasks on clear
     futureIds = {}
+    idCounter = 0
 
-    origDone = Future.prototype.done
-    Future.prototype.done = (fn) ->
-      if @_state != 'rejected'
-        if not @_zone_track_id_
-          @_zone_track_id_ = idCounter++
-          futureIds[@_zone_track_id_] =
-            dones: {}
-            fails: {}
-            finallies: {}
-        fn._zone_track_id_ = idCounter++
-        futureIds[@_zone_track_id_].dones[fn._zone_track_id_] = zone
+    # patching Future.done, .fail and .finally to preserve zone chain for callbacks
+    patchFnNames = ['done', 'fail', 'finally']
+    for fnName in patchFnNames
+      do (fnName) ->
+        stateFilter = switch fnName
+          when 'done' then 'rejected'
+          when 'fail' then 'resolved'
+          when 'finally' then 'always' # fake state, condition should always be true
+        origFn = Future.prototype[fnName]
 
-        self = this
-        patchedCallback = ->
-          delete futureIds[self._zone_track_id_].dones[fn._zone_track_id_]
-          fn.apply(this, arguments)
+        Future.prototype[fnName] = (fn) ->
+          if @_state != stateFilter
+            if not @_zone_track_id_
+              @_zone_track_id_ = idCounter++
+              futureIds[@_zone_track_id_] =
+                done: {}
+                fail: {}
+                finally: {}
+            fn._zone_track_id_ = idCounter++
+            futureIds[@_zone_track_id_][fnName][fn._zone_track_id_] = zone
 
-        args = zone.constructor.bindArgumentsOnce([patchedCallback])
-        origDone.apply(this, args)
-      this
+            self = this
+            patchedCallback = ->
+              delete futureIds[self._zone_track_id_][fnName][fn._zone_track_id_]
+              fn.apply(this, arguments)
 
-
-    origFail = Future.prototype.fail
-    Future.prototype.fail = (fn) ->
-      if @_state != 'resolved'
-        if not @_zone_track_id_
-          @_zone_track_id_ = idCounter++
-          futureIds[@_zone_track_id_] =
-            dones: {}
-            fails: {}
-            finallies: {}
-        fn._zone_track_id_ = idCounter++
-        futureIds[@_zone_track_id_].fails[fn._zone_track_id_] = zone
-
-        self = this
-        patchedCallback = ->
-          delete futureIds[self._zone_track_id_].fails[fn._zone_track_id_]
-          fn.apply(this, arguments)
-
-        args = zone.constructor.bindArgumentsOnce([patchedCallback])
-        origFail.apply(this, args)
-      this
+            args = zone.constructor.bindArgumentsOnce([patchedCallback])
+            origFn.apply(this, args)
+          this
 
 
-    origFinally = Future.prototype.finally
-    Future.prototype.finally = (fn) ->
-      if not @_zone_track_id_
-        @_zone_track_id_ = idCounter++
-        futureIds[@_zone_track_id_] =
-          dones: {}
-          fails: {}
-          finallies: {}
-      fn._zone_track_id_ = idCounter++
-      futureIds[@_zone_track_id_].finallies[fn._zone_track_id_] = zone
-      self = this
+    # patching Future._clearDoneCallbacks and ._clearFailCallbacks
+    #  to correctly dequeue zone tasks enqueued by Future.done or .fail
+    patchFnNames = ['done', 'fail']
+    for fnName in patchFnNames
+      do (fnName) ->
+        clearFnName = "_clear#{fnName.charAt(0).toUpperCase()}#{fnName.slice(1)}Callbacks"
+        origFn = Future.prototype[clearFnName]
 
-      patchedCallback = ->
-        delete futureIds[self._zone_track_id_].finallies[fn._zone_track_id_]
-        fn.apply(this, arguments)
-
-      args = zone.constructor.bindArgumentsOnce([patchedCallback])
-      origFinally.apply(this, args)
+        Future.prototype[clearFnName] = ->
+          if @_zone_track_id_
+            _runClearTasks(futureIds[@_zone_track_id_][fnName])
+            futureIds[@_zone_track_id_][fnName] = {}
+          origFn.apply(this, arguments)
 
 
-    clearDone = Future.prototype._clearDoneCallbacks
-    Future.prototype._clearDoneCallbacks = ->
-      if @_zone_track_id_
-        for id, boundZone of futureIds[@_zone_track_id_].dones
-          boundZone.beforeTask(true)
-          boundZone.dequeueTask()
-          boundZone.afterTask(true)
-        futureIds[@_zone_track_id_].dones = {}
-      clearDone.apply(this, arguments)
-
-
-    clearFail = Future.prototype._clearFailCallbacks
-    Future.prototype._clearFailCallbacks = ->
-      if @_zone_track_id_
-        for id, boundZone of futureIds[@_zone_track_id_].fails
-          boundZone.beforeTask(true)
-          boundZone.dequeueTask()
-          boundZone.afterTask(true)
-        futureIds[@_zone_track_id_].fails = {}
-      clearFail.apply(this, arguments)
-
-
+    # patching Future.clear to correctly dequeue all zone tasks associated with the Future instance
     origClear = Future.prototype.clear
     Future.prototype.clear = ->
       origClear.apply(this, arguments)
       if @_zone_track_id_
-        for id, boundZone of futureIds[@_zone_track_id_].finallies
-          boundZone.beforeTask(true)
-          boundZone.dequeueTask()
-          boundZone.afterTask(true)
+        _runClearTasks(futureIds[@_zone_track_id_].finally)
         delete @_zone_track_id_
         delete futureIds[@_zone_track_id_]
+
+
+  _runClearTasks = (zoneMap) ->
+    # DRY for Future clearing patched methods
+    for id, boundZone of zoneMap
+      boundZone.beforeTask(true)
+      boundZone.dequeueTask()
+      boundZone.afterTask(true)
 
 
   ->
