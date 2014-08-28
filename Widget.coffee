@@ -621,8 +621,10 @@ define [
       if @_structTemplate?
         Future.resolved(@_structTemplate)
       else
-        tmplStructureFile = "bundles/#{ @getTemplatePath() }.struct"
-        Future.require(tmplStructureFile).map (struct) =>
+        if not @constructor._rawStructPromise
+          tmplStructureFile = "bundles/#{ @getTemplatePath() }.struct"
+          @constructor._rawStructPromise = Future.require(tmplStructureFile)
+        @constructor._rawStructPromise.map (struct) =>
           if struct.widgets? and Object.keys(struct.widgets).length > 1
             @_structTemplate = new StructureTemplate(struct, this)
           else
