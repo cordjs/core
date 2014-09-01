@@ -4,7 +4,7 @@ define [
   'cord!templateLoader'
   'cord!Widget'
   'cord!WidgetRepo'
-  'cord!router/serverSideRouter'
+  'cord!router/' + if cordIsBrowser then 'clientSideRouter' else 'serverSideRouter'
   'cord!utils/Future'
   'cord!utils/profiler'
   'dustjs-helpers'

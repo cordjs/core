@@ -6,6 +6,7 @@ require.config
   baseUrl: if global.config.localFsMode then '' else '/'
   urlArgs: "release=" + global.config.static.release
 
+window.cordIsBrowser = true
 
 require [
   'bundles/cord/core/requirejs/pathConfig'
