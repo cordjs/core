@@ -216,7 +216,7 @@ define [
 
     finally: (callback) ->
       ###
-      Defines callback funtion to be called when future is completed by any mean.
+      Defines callback function to be called when future is completed by any mean.
       Callback arguments are using popular semantics with first-argument-as-an-error (Left) and other arguments
        are successful results of the future.
       ###
