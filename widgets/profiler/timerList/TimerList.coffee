@@ -13,9 +13,11 @@ define [
     @initialCtx:
       timers: []
       nextLevel: 0
+      rootTimerInfo: null
 
     @params:
       timers: 'onTimersParamChange'
+      rootTimerInfo: ':ctx'
       level: (number) ->
         @cssClass += ' level-color-' + number % 6
         @ctx.set nextLevel: number + 1

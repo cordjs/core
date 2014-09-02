@@ -25,13 +25,17 @@ define [
       isSlowest: false
       overHalf: false
       overQuarter: false
+      rootTimerInfo: {}
 
     @params:
-      timerInfo: 'onTimerInfoParamChange'
-      level: ':ctx'
+      'timerInfo, rootTimerInfo': 'onTimerInfoParamChange'
+      level: (level) ->
+        @ctx.set
+          level: level
+          timelineContainerLeft: 50 - level
 
 
-    onTimerInfoParamChange: (info) ->
+    onTimerInfoParamChange: (info, rootInfo) ->
       @ctx.set
         name: info.name
         syncTime: roundTime(info.syncTime)
@@ -41,6 +45,13 @@ define [
         isSlowest: !!info.slowest
         overHalf: !!info.overHalf
         overQuarter: !!info.overQuarter
+
+      # calculating timeline graph coordinates relatively to the root timer
+      root = rootInfo ? info
+      @ctx.set
+        timelineLeft: (info.startTime - root.startTime) / root.totalTime * 100
+        timelineWidth: info.totalTime / root.totalTime * 100
+        rootTimerInfo: root
 
 
     toggleChildren: (show) ->

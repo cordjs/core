@@ -6,7 +6,7 @@ define [
 
     @elements:
       '>.e-name': 'timerName' # > is needed due to recursive nature of the widget
-      '>.e-time.has-children': 'totalTime'
+      '>.e-time.has-children span': 'totalTime'
 
     @events:
       'click @totalTime': (evt) ->

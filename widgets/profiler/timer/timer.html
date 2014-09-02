@@ -6,6 +6,10 @@
   <span>{totalTime}</span>
 </span>
 <span class="e-name">{name}</span>
+<div class="timeline-container" style="left:{timelineContainerLeft}ex;">
+  <div class="e-timeline" style="left:{timelineLeft}%; width:{timelineWidth}%"></div>
+</div>
 {?children}{?showChildren}
-  {#widget type="//profiler/TimerList" name="childTimers" timers="^children" level=level /}
+  {#widget type="//profiler/TimerList" name="childTimers"
+           timers="^children" rootTimerInfo="^rootTimerInfo" level=level /}
 {/showChildren}{/children}
