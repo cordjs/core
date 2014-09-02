@@ -92,8 +92,11 @@ define [
       ###
       Sets new value and emit change to everyone who subsribed on the Model's 'change' event
       ###
+      params = id: @id
+      params[key] = val
+      @collection.repo.emit 'change', params
+
       @set(key, val)
-      @collection.repo.emitModelChange(this)
 
 
     refreshOnlyContainingCollections: ->
