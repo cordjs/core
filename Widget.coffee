@@ -1412,6 +1412,23 @@ define [
         child
 
 
+    injectChildWidget: (type, params = {}) ->
+      ###
+      Dynamically creates and injects a new widget as a child of this widget on browser-side.
+      Behaviour is required.
+      This method is mainly necessary for injecting debug tools and other "plugins".
+      @browserOnly
+      @param {String} type widget type in canonical format (absolute or in context of the current widget)
+      @param (optional){Object} params new widget's params and special positioning params
+                                       (see Behaviour::insertChildWidget)
+      @return Future[Array[jQuery, Widget]]
+      ###
+      if @behaviour
+        @behaviour.insertChildWidget(type, params)
+      else
+        Future.rejected(new Error("Injecting child widget into behaviourless widget [#{@debug()}] is not supported!"))
+
+
     browserInit: (stopPropagateWidget, $domRoot) ->
       ###
       Almost copy of widgetRepo::init but for client-side rendering
