@@ -19,11 +19,24 @@
     width: 6em
     text-align: right
 
+    &.slowest
+      color: #A00 !important
+      font-weight: bold
+
+    &.over-half
+      color: coral !important
+      font-weight: bold
+
+    &.over-quarter
+      color: #df8505 !important
+      font-weight: bold
+
     &.has-children
+      color: #004099
+
       span
-        border-bottom: 1px dotted #CACACA
+        border-bottom: 1px dashed #149bdf
         cursor: pointer
-        color: #050
 
         &:hover
           border-bottom: 1px solid black

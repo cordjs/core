@@ -22,6 +22,9 @@ define [
       children: []
       showChildren: false
       level: 0 # need to set different contrast background colors for nested timers
+      isSlowest: false
+      overHalf: false
+      overQuarter: false
 
     @params:
       timerInfo: 'onTimerInfoParamChange'
@@ -35,6 +38,9 @@ define [
         startTime: roundTime(info.startTime)
         totalTime: roundTime(info.totalTime)
         children: info.children
+        isSlowest: !!info.slowest
+        overHalf: !!info.overHalf
+        overQuarter: !!info.overQuarter
 
 
     toggleChildren: (show) ->
