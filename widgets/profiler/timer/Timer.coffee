@@ -48,9 +48,25 @@ define [
 
       # calculating timeline graph coordinates relatively to the root timer
       root = rootInfo ? info
+      rootStart = root.startTime
+      rootTotal = root.totalTime
+      leftToPercent = (time) -> (time - rootStart) / rootTotal * 100
+      widthToPercent = (time) -> time / rootTotal * 100
+
+      timelines = []
+      timelines.push
+        type: 'sync'
+        left: leftToPercent(info.startTime)
+        width: widthToPercent(info.syncTime)
+
+      if info.asyncTime?
+        timelines.push
+          type: 'async'
+          left: leftToPercent(info.startTime + info.syncTime)
+          width: widthToPercent(info.asyncTime)
+
       @ctx.set
-        timelineLeft: (info.startTime - root.startTime) / root.totalTime * 100
-        timelineWidth: info.totalTime / root.totalTime * 100
+        timelines: timelines
         rootTimerInfo: root
 
 
