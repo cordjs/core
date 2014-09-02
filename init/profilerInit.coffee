@@ -4,11 +4,12 @@ define [
   'cord!templateLoader'
   'cord!Widget'
   'cord!WidgetRepo'
+  if cordIsBrowser then 'cord!init/browserInit' else undefined
   'cord!router/' + if cordIsBrowser then 'clientSideRouter' else 'serverSideRouter'
   'cord!utils/Future'
   'cord!utils/profiler'
   'dustjs-helpers'
-], (Api, ServiceContainer, templateLoader, Widget, WidgetRepo, router, Future, pr, dust) ->
+], (Api, ServiceContainer, templateLoader, Widget, WidgetRepo, browserInit, router, Future, pr, dust) ->
 
 
   patchFutureWithZone = ->
@@ -102,3 +103,4 @@ define [
     pr.patch(dust, 'render', 0)
     pr.patch(templateLoader, 'loadWidgetTemplate', 0)
     pr.patch(Future, 'require', 0)
+    pr.patch(browserInit, 'init') if cordIsBrowser

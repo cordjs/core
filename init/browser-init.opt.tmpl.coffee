@@ -18,4 +18,4 @@ require.config(groupLoadingMap: groupLoadingMap)
 
 require ['cord!init/browserInit', 'cord!css/browserManager'], (browserInit, cssManager) ->
   cssManager.setGroupLoadingMap(cssGroupMap)
-  browserInit()
+  browserInit.init()

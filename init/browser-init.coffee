@@ -19,5 +19,9 @@ require [
 
   require configs, (args...) ->
     require.config(config.requirejs) for config in args when config.requirejs
-    require ['cord!init/browserInit'], (browserInit) ->
-      browserInit()
+
+    require ['cord!init/profilerInit'], (profilerInit) ->
+      profilerInit()
+
+      require ['cord!init/browserInit'], (browserInit) ->
+        browserInit.init()

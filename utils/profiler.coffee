@@ -128,6 +128,13 @@ define [
           origFn.apply(this, args)
 
 
+    onCurrentTimerFinish: (cb) ->
+      ###
+      Sets finish callback to the currently active profiler timer
+      @param Function cb
+      ###
+      zone.timer().onFinish = cb
+
 
 
   # fake parent timer for all root timers (helpful to avoid code duplication)
@@ -141,7 +148,6 @@ define [
 
     completeChild: (child) ->
       @childCompleteCounter--
-      pr.printTimer(child)
 
 
 
@@ -172,8 +178,8 @@ define [
       @children = []
       if @parentId == 0
         @_zoneTimeoutId = rootZone.setTimeout =>
-          console.log '!!!!!!!===============================!!!!!!!'
-          console.log 'Timer zone timed out!'
+          console.warn '!!!!!!!===============================!!!!!!!'
+          console.warn 'Timer zone timed out!', this.name
           pr.printTimer(this)
         , 15000
       @parent().addChild(this)
@@ -196,6 +202,7 @@ define [
       @finished = true
       rootZone.clearTimeout(@_zoneTimeoutId)
       delete @_zoneTimeoutId
+      @onFinish?(this)
       @parent().completeChild(this)
 
 
@@ -213,7 +220,7 @@ define [
       if not @finished
         result.finished = @finished
         result.counter = @counter
-        result.childCompleteCounter = @childCompleteCounter
+        result.childCompleteCounter = @childCompleteCounter if @children.length > 0
       result.children = @children if @children.length > 0
       result
 
@@ -227,7 +234,7 @@ define [
   @return Float number of milliseconds between start time and current time
   ###
   fixTimer =
-    if process and process.hrtime
+    if typeof process != 'undefined' and process.hrtime
       (startValue = 0) ->
         x = process.hrtime()
         (x[0] * 1e9 + x[1]) / 1e6 - startValue

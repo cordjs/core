@@ -1,0 +1,30 @@
+.b-sdf-profiler-timer
+  clear: both
+  padding-left: 1ex
+  font-family: monospace
+  line-height: 15px
+
+  >.e-name
+    display: table-cell
+    font-size: 11px
+    font-style: italic
+    word-break: break-all
+    word-wrap break-word
+
+  >.e-time
+    display: table-cell
+    margin-left: 1ex
+    padding-right: 1em
+    font-size: 11px
+    width: 6em
+    text-align: right
+
+    &.has-children
+      span
+        border-bottom: 1px dotted #CACACA
+        cursor: pointer
+        color: #050
+
+        &:hover
+          border-bottom: 1px solid black
+          color: #FF7E00

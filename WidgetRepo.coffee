@@ -35,7 +35,7 @@ define [
     _newExtendList: null
 
 
-    constructor: ->
+    constructor: (@serverProfilerUid = '') ->
       @widgets = {}
       @_widgetOrder = []
       @_pushBindings = {}
@@ -190,6 +190,7 @@ define [
       """
       <script>
         var global = {
+          cordServerProfilerUid: "#{ @serverProfilerUid }",
           config: #{ JSON.stringify(global.appConfig.browser) }
         };
       </script>
@@ -229,7 +230,16 @@ define [
         for serviceName, info of appConfig.services
           @serviceContainer.eval(serviceName) if info.autoStart
         # setup browser-side behaviour for all loaded widgets
-        @setupBindings()
+        @_setupBindings().then =>
+          # Initializing profiler panel
+          # todo: make this configurable
+          topBaseWidget = @_currentExtendList[@_currentExtendList.length - 1]
+          topBaseWidget.injectChildWidget '/cord/core//Profiler',
+            ':context': $('body')
+            ':position': 'append'
+            serverUid: @serverProfilerUid
+          .failAloud()
+
         # for GC
         @_parentPromises = null
         @_initPromise = null
@@ -289,17 +299,18 @@ define [
       .failAloud("WidgetRepo::init:#{widgetPath}:#{ctx.id}")
 
 
-    setupBindings: ->
+    _setupBindings: ->
       # organizing extendList in right order
       for id in @_widgetOrder
         widget = @widgets[id].widget
         if widget._isExtended
           @_currentExtendList.push(widget)
       # initializing DOM bindings of widgets in reverse order (leafs of widget tree - first)
-      futures = (@bind(id) for id in @_widgetOrder.reverse())
+      bindPromises = (@bind(id) for id in @_widgetOrder.reverse())
+      result = Future.sequence(bindPromises)
       @serviceContainer.eval 'cookie', (cookie) =>
         if cookie.get('cord_require_stat_collection_enabled')
-          Future.sequence(futures).done =>
+          result.done =>
             Future.require('jquery', 'cord!css/browserManager').zip(Future.timeout(3000)).done ([$, cssManager]) =>
               keys = Object.keys(require.s.contexts._.defined)
               re = /^cord(-\w)?!/
@@ -314,6 +325,7 @@ define [
                 console.warn "/REQUIRESTAT/collect response", resp
 
       @_widgetOrder = null
+      result
 
 
     bind: (widgetId) ->
@@ -323,7 +335,7 @@ define [
         w.initBehaviour().andThen ->
           w.markShown(ignoreChildren = true)
       else
-        throw "Try to use uninitialized widget with id = #{ widgetId }"
+        Future.rejected(new Error("Try to use uninitialized widget with id = #{widgetId}"))
 
 
     getById: (id) ->

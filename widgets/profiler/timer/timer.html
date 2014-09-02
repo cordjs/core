@@ -1,0 +1,9 @@
+<span class="e-time
+            {?children} has-children{/children}
+            {?isSlowest} slowest{/isSlowest}">
+  <span>{totalTime}</span>
+</span>
+<span class="e-name">{name}</span>
+{?children}{?showChildren}
+  {#widget type="//profiler/TimerList" name="childTimers" timers="^children" level=level /}
+{/showChildren}{/children}
