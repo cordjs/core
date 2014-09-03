@@ -5,11 +5,12 @@ define [
   'cord!Widget'
   'cord!WidgetRepo'
   if cordIsBrowser then 'cord!init/browserInit' else undefined
+  'cord!request/' + if cordIsBrowser then 'BrowserRequest' else 'ServerRequest'
   'cord!router/' + if cordIsBrowser then 'clientSideRouter' else 'serverSideRouter'
   'cord!utils/Future'
   'cord!utils/profiler'
   'dustjs-helpers'
-], (Api, ServiceContainer, templateLoader, Widget, WidgetRepo, browserInit, router, Future, pr, dust) ->
+], (Api, ServiceContainer, templateLoader, Widget, WidgetRepo, browserInit, Request, router, Future, pr, dust) ->
 
 
   patchFutureWithZone = ->
@@ -85,7 +86,7 @@ define [
     patchFutureWithZone()
 
     # zone-patching of cordjs higher-level functions which use asynchronous unpatched nodejs operations
-    zone.constructor.patchFnWithCallbacks Api.prototype, [
+    zone.constructor.patchFnWithCallbacks Request.prototype, [
       'send'
     ]
     zone.constructor.patchFnWithCallbacks Widget.prototype, [
@@ -94,6 +95,7 @@ define [
 
 
     pr.patch(router, 'process', 0, 'url')
+    pr.patch(Request.prototype, 'send', 1)
     pr.patch(Api.prototype, 'send', 1)
     pr.patch(Widget.prototype, 'renderTemplate', 1)
     pr.patch(Widget.prototype, 'resolveParamRefs', 1)
