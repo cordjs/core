@@ -33,6 +33,7 @@ define [
         @ctx.set
           level: level
           timelineContainerLeft: 50 - level
+          guardLevel: (level - 1) % 6
 
 
     onTimerInfoParamChange: (info, rootInfo) ->
@@ -50,14 +51,11 @@ define [
       root = rootInfo ? info
       rootStart = root.startTime
       rootTotal = root.totalTime
+
       leftToPercent = (time) -> (time - rootStart) / rootTotal * 100
       widthToPercent = (time) -> time / rootTotal * 100
 
       timelines = []
-      timelines.push
-        type: 'sync'
-        left: leftToPercent(info.startTime)
-        width: widthToPercent(info.syncTime)
 
       if info.asyncTime?
         timelines.push
@@ -65,9 +63,21 @@ define [
           left: leftToPercent(info.startTime + info.syncTime)
           width: widthToPercent(info.asyncTime)
 
+      timelines.push
+        type: 'exec'
+        left: leftToPercent(info.startTime)
+        width: widthToPercent(info.pureExecTime)
+
+      timelines.push
+        type: 'sync'
+        left: leftToPercent(info.startTime)
+        width: widthToPercent(info.ownAsyncTime)
+
+
       @ctx.set
         timelines: timelines
         rootTimerInfo: root
+        guardLeft: leftToPercent(info.startTime) - 1
 
 
     toggleChildren: (show) ->

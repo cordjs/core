@@ -55,10 +55,50 @@
       height: 0.33em
       border-width: 1px
       border-style: solid
+      border-color: black
 
       &.sync
         background-color: indianred
-        border-color: red
       &.async
         background-color: greenyellow
-        border-color: green
+      &.exec
+        background-color: #339bb9
+
+    .timeline-guard
+      position: absolute
+      right: 0
+      height: 100%
+      background-color: white
+
+      &.level-color-0
+        background-color: antiquewhite
+        &:before
+          background: linear-gradient(to right, rgba(255,255,255,0) 0%, antiquewhite 70%, antiquewhite 100%)
+      &.level-color-1
+        background-color: cornsilk
+        &:before
+          background: linear-gradient(to right, rgba(255,255,255,0) 0%, cornsilk 70%, cornsilk 100%)
+      &.level-color-2
+        background-color: #d9edf7
+        &:before
+          background: linear-gradient(to right, rgba(255,255,255,0) 0%, #d9edf7 70%, #d9edf7 100%)
+      &.level-color-3
+        background-color: gainsboro
+        &:before
+          background: linear-gradient(to right, rgba(255,255,255,0) 0%, gainsboro 70%, gainsboro 100%)
+      &.level-color-4
+        background-color: lavenderblush
+        &:before
+          background: linear-gradient(to right, rgba(255,255,255,0) 0%, lavenderblush 70%, lavenderblush 100%)
+      &.level-color-5
+        background-color: moccasin
+        &:before
+          background: linear-gradient(to right, rgba(255,255,255,0) 0%, moccasin 70%, moccasin 100%)
+
+      &:before
+        content: " "
+        position: absolute
+        display: block
+        left: -20px
+        width: 20px
+        height: 100%

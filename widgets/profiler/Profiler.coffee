@@ -37,11 +37,15 @@ define [
       Mutates incoming timerData struct
       @param Object timerData
       ###
+      pureExecTime = 0
       max = timerData.ownFinishTime = timerData.startTime + timerData.syncTime + (timerData.asyncTime ? 0)
       if timerData.children
         for child in timerData.children
           @_calculateDerivativeMetrics(child)
           max = child.finishTime if child.finishTime > max
+          pureExecTime += child.pureExecTime
       timerData.finishTime = max
-      timerData.totalTime = timerData.finishTime - timerData.startTime
+      timerData.totalTime = timerData.finishTime - timerData.startTime # total duration until finish including children
+      timerData.pureExecTime = pureExecTime + timerData.ownAsyncTime   # total execution time of chunks in event-loop
+                                                                       # including children
       undefined
