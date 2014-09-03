@@ -91,12 +91,10 @@ define [
     setAloud: (key, val) ->
       ###
       Sets new value and emit change to everyone who subsribed on the Model's 'change' event
+      This won't change any models in other collections! Use save() or propagateModelChange() for that.
       ###
-      params = id: @id
-      params[key] = val
-      @collection.repo.emit 'change', params
-
       @set(key, val)
+      @collection.emit("model.#{ model.id }.change", this)
 
 
     refreshOnlyContainingCollections: ->
