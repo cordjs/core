@@ -569,6 +569,10 @@ define [
 
 
     emitModelChange: (model) ->
+      ###
+      Call this if model's current state (not changeset) has to be propagated into all collections
+      @param Model - model
+      ###
       if model instanceof Model
         changeInfo = model.toJSON()
         changeInfo.id = model.id
@@ -579,8 +583,8 @@ define [
 
     propagateModelChange: (model) ->
       ###
-      Model changed and needs to be updated in all collections
-      @param id Model - model
+      Model changed by set() or setAloud() method and needs to be updated in all collections
+      @param Model - model
       ###
       changeInfo = model.getChangedFields()
 
