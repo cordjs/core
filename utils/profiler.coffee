@@ -25,12 +25,16 @@ define [
       @timer().counter++
       if not isClearFn
         @_curTaskSyncStart = fixTimer()
+        @_curTaskChildDecrement = 0
 
     afterTask: (isClearFn = false) ->
       timer = @timer()
       if not isClearFn
-        timer.ownAsyncTime += fixTimer(@_curTaskSyncStart)
+        # we need to reduce own time by the children timers sync time to avoid double-accounting
+        timer.ownAsyncTime += fixTimer(@_curTaskSyncStart) - @_curTaskChildDecrement
+        timer.ownTaskCount++
         @_curTaskSyncStart = 0
+        @_curTaskChildDecrement = 0
       timer.counter--
       if timer.counter == 0
         if timer.asyncDetected
@@ -47,6 +51,7 @@ define [
 
     timerId: 0
     _curTaskSyncStart: 0
+    _curTaskChildDecrement: 0
 
 
 
@@ -81,12 +86,15 @@ define [
       myZone.fork
         timerId: timerId
         _curTaskSyncStart: 0
+        _curTaskChildDecrement: 0
       .run ->
         timer.startTime = fixTimer(timer.relativeStartTime)
         start = fixTimer()
         result = fn()
         timer.syncTime = fixTimer(start)
         timer.asyncTime = fixTimer()
+        # accumulating sync time of child timers in the parent zone (to reduce it's own time by this value)
+        myZone._curTaskChildDecrement += timer.syncTime
         result
 
 
@@ -167,6 +175,7 @@ define [
     finished: false
     onFinish: null
     counter: 0
+    ownTaskCount: 0
 
     childCompleteCounter: 0
     children: null
@@ -215,6 +224,7 @@ define [
         name: @name
         startTime: @startTime
         syncTime: @syncTime
+        ownTaskCount: @ownTaskCount
       result.asyncTime = @asyncTime if @asyncTime > 0 and @finished
       result.ownAsyncTime = @ownAsyncTime
       if not @finished
