@@ -94,7 +94,7 @@ define [
       This won't change any models in other collections! Use save() or propagateModelChange() for that.
       ###
       @set(key, val)
-      @collection.emit("model.#{ model.id }.change", this)
+      @collection.emit("model.#{ @id }.change", this)
 
 
     refreshOnlyContainingCollections: ->
