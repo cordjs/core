@@ -11,6 +11,10 @@
     font-style: italic
     word-break: break-all
     word-wrap break-word
+    cursor: pointer
+    &:hover
+      text-decoration: underline
+      text-decoration-style: dotted
 
   >.e-time
     display: table-cell
@@ -42,6 +46,23 @@
         &:hover
           border-bottom: 1px solid black
           color: #FF7E00
+
+  >.e-timer-desc
+    clearfix()
+    font-size: 11px
+    border: 1px dotted #999
+    margin: 0.5ex 6em
+    padding: 1ex
+    background-color: rgba(255, 255, 255, 0.6)
+
+    li
+      float: left
+      margin-right: 3em
+      font-weight: bold
+
+      i
+        font-weight: normal
+        font-style: normal
 
   .timeline-container
     position: absolute

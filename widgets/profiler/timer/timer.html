@@ -5,13 +5,20 @@
             {?overQuarter} over-quarter{/overQuarter}">
   <span>{totalTime}</span>
 </span>
-<span class="e-name">{name}</span>
+<span class="e-name" title="{name}">{name}</span>
 <div class="timeline-container" style="left:{timelineContainerLeft}ex;">
   <div class="timeline-guard level-color-{guardLevel}" style="left:{guardLeft}%"></div>
 {#timelines}
   <div class="e-timeline {type}" style="left:{left}%; width:{width}%"></div>
 {/timelines}
 </div>
+<ul class="e-timer-desc
+           {^showDesc} hidden{/showDesc}">
+  <li>Start: <i>{startTime}</i></li>
+  <li>Own Exec: <i>{ownPureExecTime}</i></li>
+  <li>Total Exec: <i>{totalPureExecTime}</i></li>
+  <li>Own Task Count: <i>{ownTaskCount}</i></li>
+</ul>
 {?children}{?showChildren}
   {#widget type="//profiler/TimerList" name="childTimers"
            timers="^children" rootTimerInfo="^rootTimerInfo" level=level /}

@@ -26,6 +26,7 @@ define [
       overHalf: false
       overQuarter: false
       rootTimerInfo: {}
+      showDesc: false
 
     @params:
       'timerInfo, rootTimerInfo': 'onTimerInfoParamChange'
@@ -42,6 +43,9 @@ define [
         syncTime: roundTime(info.syncTime)
         startTime: roundTime(info.startTime)
         totalTime: roundTime(info.totalTime)
+        ownPureExecTime: roundTime(info.ownAsyncTime)
+        totalPureExecTime: roundTime(info.pureExecTime)
+        ownTaskCount: info.ownTaskCount
         children: info.children
         isSlowest: !!info.slowest
         overHalf: !!info.overHalf
@@ -91,3 +95,16 @@ define [
         else
           not @ctx.showChildren
       @ctx.set showChildren: newValue
+
+
+    toggleDesc: (show) ->
+      ###
+      Switches description state between collapsed and shown.
+      @param (optional)Boolean show if true - show, else - collapse, if not set - toggle from previous state
+      ###
+      newValue =
+        if show?
+          !!show
+        else
+          not @ctx.showDesc
+      @ctx.set showDesc: newValue
