@@ -9,7 +9,8 @@ define [
   # timers id generator
   timerIdCounter = 1
 
-
+  # Synchronous timers "call-stack". Useful to detect wait-dependencies between timers and to prevent double accounting
+  syncTimerStack = []
 
   # Profiling zone
 
@@ -22,19 +23,22 @@ define [
       @timer().counter--
 
     beforeTask: (isClearFn = false) ->
-      @timer().counter++
+      timer = @timer()
+      timer.counter++
       if not isClearFn
+        timer.waitDeps.push(syncTimerStack.map (x) -> x.id) if syncTimerStack.length
+        syncTimerStack.push(id: timer.id, decrement: 0.0)
         @_curTaskSyncStart = fixTimer()
-        @_curTaskChildDecrement = 0
 
     afterTask: (isClearFn = false) ->
       timer = @timer()
       if not isClearFn
         # we need to reduce own time by the children timers sync time to avoid double-accounting
-        timer.ownAsyncTime += fixTimer(@_curTaskSyncStart) - @_curTaskChildDecrement
+        curTaskTime = fixTimer(@_curTaskSyncStart)
+        timer.ownAsyncTime += curTaskTime - syncTimerStack.pop().decrement
+        syncTimerStack[syncTimerStack.length - 1].decrement = curTaskTime if syncTimerStack.length
         timer.ownTaskCount++
         @_curTaskSyncStart = 0
-        @_curTaskChildDecrement = 0
       timer.counter--
       if timer.counter == 0
         if timer.asyncDetected
@@ -51,7 +55,6 @@ define [
 
     timerId: 0
     _curTaskSyncStart: 0
-    _curTaskChildDecrement: 0
 
 
 
@@ -81,20 +84,17 @@ define [
       result = undefined
 
       timerId = timerIdCounter++
-      timersById[timerId] = timer = new ProfilingTimer(name, myZone.timerId)
+      timersById[timerId] = timer = new ProfilingTimer(timerId, name, myZone.timerId)
 
       myZone.fork
         timerId: timerId
         _curTaskSyncStart: 0
-        _curTaskChildDecrement: 0
       .run ->
         timer.startTime = fixTimer(timer.relativeStartTime)
         start = fixTimer()
         result = fn()
         timer.syncTime = fixTimer(start)
         timer.asyncTime = fixTimer()
-        # accumulating sync time of child timers in the parent zone (to reduce it's own time by this value)
-        myZone._curTaskChildDecrement += timer.syncTime
         result
 
 
@@ -176,6 +176,7 @@ define [
     onFinish: null
     counter: 0
     ownTaskCount: 0
+    waitDeps: null
 
     childCompleteCounter: 0
     children: null
@@ -183,8 +184,9 @@ define [
     relativeStartTime: 0
 
 
-    constructor: (@name, @parentId) ->
+    constructor: (@id, @name, @parentId) ->
       @children = []
+      @waitDeps = []
       if @parentId == 0
         @_zoneTimeoutId = rootZone.setTimeout =>
           console.warn '!!!!!!!===============================!!!!!!!'
@@ -221,10 +223,12 @@ define [
 
     toJSON: ->
       result =
+        id: @id
         name: @name
         startTime: @startTime
         syncTime: @syncTime
         ownTaskCount: @ownTaskCount
+        waitDeps: @waitDeps
       result.asyncTime = @asyncTime if @asyncTime > 0 and @finished
       result.ownAsyncTime = @ownAsyncTime
       if not @finished
