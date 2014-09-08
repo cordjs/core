@@ -5,7 +5,6 @@ define [
 
   class TimerList extends Widget
 
-    behaviourClass: false
     rootTag: 'ul'
     cssClass: 'b-cord-profiler-timer-list'
     css: true
@@ -14,6 +13,7 @@ define [
       timers: []
       nextLevel: 0
       rootTimerInfo: null
+      expandSlowest: false
 
     @params:
       timers: 'onTimersParamChange'
@@ -21,6 +21,7 @@ define [
       level: (number) ->
         @cssClass += ' level-color-' + number % 6
         @ctx.set nextLevel: number + 1
+      expandSlowest: ':ctx' # used in behaviour to initiate expand slowest immediately after first render
 
 
     onTimersParamChange: (timers) ->
@@ -40,6 +41,19 @@ define [
           tim.overQuarter = true
 
       @ctx.set timers: timers
+
+
+    expandSlowestPath: ->
+      redTimer = @_getSlowestTimer(@ctx.timers)
+      index = @ctx.timers.indexOf(redTimer)
+      i = -1
+      # identify child Timer widget related to the slowest timer by position and recursively call "expand" for it
+      for child in @children
+        i++ if _.isFunction(child.expandSlowestPath)
+        if i == index
+          child.expandSlowestPath()
+          break
+      @ctx.set expandSlowest: false
 
 
     _getSlowestTimer: (timers) ->

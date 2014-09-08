@@ -27,6 +27,7 @@ define [
       overQuarter: false
       rootTimerInfo: {}
       showDesc: false
+      expandSlowest: false
 
     @params:
       'timerInfo, rootTimerInfo': 'onTimerInfoParamChange'
@@ -108,3 +109,14 @@ define [
         else
           not @ctx.showDesc
       @ctx.set showDesc: newValue
+
+
+    expandSlowestPath: ->
+      if @childByName.childTimers?
+        @childByName.childTimers.expandSlowestPath()
+      else
+        @ctx.set expandSlowest: true
+        # this is temporary state, need to reset if after re-render
+        @once 're-render.complete', ->
+          @ctx.set expandSlowest: false
+      @toggleChildren(true)

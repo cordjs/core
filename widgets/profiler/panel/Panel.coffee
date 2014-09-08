@@ -4,7 +4,6 @@ define [
 
   class Panel extends Widget
 
-    behaviourClass: false
     cssClass: 'b-sdf-profiler-panel'
     css: true
 
@@ -13,3 +12,7 @@ define [
 
     @params:
       timers: ':ctx'
+
+
+    expandSlowestPath: ->
+      @childByName.timerList?.expandSlowestPath()
