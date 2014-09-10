@@ -3,7 +3,7 @@
             {?isSlowest} slowest{/isSlowest}
             {?overHalf} over-half{/overHalf}
             {?overQuarter} over-quarter{/overQuarter}">
-  <span>{totalTime}</span>
+  <span title="{timerInfo.id}">{totalTime}</span>
 </span>
 <span class="e-name" title="{name}">{name}</span>
 <div class="timeline-container" style="left:{timelineContainerLeft}ex;">
@@ -18,8 +18,10 @@
   <li>Own Exec: <i>{ownPureExecTime}</i></li>
   <li>Total Exec: <i>{totalPureExecTime}</i></li>
   <li>Own Task Count: <i>{ownTaskCount}</i></li>
+  <li class="e-wait-deps">Wait deps: <i>{waitDeps}</i></li>
 </ul>
 {?children}{?showChildren}
   {#widget type="//profiler/TimerList" name="childTimers"
-           timers="^children" rootTimerInfo="^rootTimerInfo" level=level expandSlowest=expandSlowest /}
+           timers="^children" rootTimerInfo="^rootTimerInfo" highlightInfo="^childrenHighlightInfo"
+           level=level expandSlowest=expandSlowest /}
 {/showChildren}{/children}

@@ -1,6 +1,7 @@
 define [
   'cord!Widget'
-], (Widget) ->
+  'underscore'
+], (Widget, _) ->
 
   roundTime = (x) -> parseFloat(x).toFixed(3)
 
@@ -15,11 +16,13 @@ define [
     css: true
 
     @initialCtx:
+      highlightType: 'none'
       name: ''
       syncTime: 0.0
       startTime: 0.0
       totalTime: 0.0
       children: []
+      childrenHighlightInfo: {}
       showChildren: false
       level: 0 # need to set different contrast background colors for nested timers
       isSlowest: false
@@ -37,6 +40,9 @@ define [
           timelineContainerLeft: 50 - level
           guardLevel: (level - 1) % 6
 
+    @childEvents:
+      'childTimers actions.highlight-wait-deps': (payload) -> @emit 'actions.highlight-wait-deps', payload
+
 
     onTimerInfoParamChange: (info, rootInfo) ->
       @ctx.set
@@ -51,6 +57,8 @@ define [
         isSlowest: !!info.slowest
         overHalf: !!info.overHalf
         overQuarter: !!info.overQuarter
+        timerInfo: info
+        waitDeps: info.waitDeps.join(', ')
 
       # calculating timeline graph coordinates relatively to the root timer
       root = rootInfo ? info
@@ -85,6 +93,16 @@ define [
         guardLeft: leftToPercent(info.startTime) - 1
 
 
+    setHighlightInfo: (info) ->
+      ###
+      Updates wait dependency highlight state pushed from the parent TimerList widget
+      @public
+      @param Object info struct with precalculated highlighting type and child timers info
+      ###
+      @ctx.set highlightType: info.type
+      @ctx.set childrenHighlightInfo: info.children if info.children
+
+
     toggleChildren: (show) ->
       ###
       Switches children state between collapsed and shown.
@@ -111,12 +129,25 @@ define [
       @ctx.set showDesc: newValue
 
 
+    triggerHighlightWaitDeps: ->
+      ###
+      Triggers action to highlight all timers which caused the current timer to move forward and complete.
+      ###
+      # excluding first chunk of wait dependencies because it's always obviously parent timer's call-stack
+      cutSync = _.rest(@ctx.timerInfo.waitDeps)
+      # taking into account only top-most caller timer
+      firstDeps = cutSync.map (x) -> x[0]
+      @emit 'actions.highlight-wait-deps',
+        selectedTimerId: @ctx.timerInfo.id
+        depTimerIds: _.uniq(firstDeps)
+
+
     expandSlowestPath: ->
       if @childByName.childTimers?
         @childByName.childTimers.expandSlowestPath()
       else
         @ctx.set expandSlowest: true
         # this is temporary state, need to reset if after re-render
-        @once 're-render.complete', ->
+        @once 're-render.complete', =>
           @ctx.set expandSlowest: false
       @toggleChildren(true)

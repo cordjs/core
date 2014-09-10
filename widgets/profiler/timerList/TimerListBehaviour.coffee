@@ -6,3 +6,4 @@ define [
 
     init: ->
       @widget.expandSlowestPath() if @widget.ctx.expandSlowest
+      @widget.pushTimersHighlightInfo()

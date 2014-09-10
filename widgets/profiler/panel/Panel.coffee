@@ -9,9 +9,14 @@ define [
 
     @initialCtx:
       timers: []
+      highlightInfo: {}
 
     @params:
       timers: ':ctx'
+      highlightInfo: ':ctx'
+
+    @childEvents:
+      'timerList actions.highlight-wait-deps': (payload) -> @emit 'actions.highlight-wait-deps', payload
 
 
     expandSlowestPath: ->

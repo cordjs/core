@@ -24,6 +24,24 @@
     width: 6em
     text-align: right
 
+    &.wait-deps-highlight-selected
+      border: 2px solid blue
+
+    &.wait-deps-highlight-selected-parent
+      border: 1px dotted blue
+
+    &.wait-deps-highlight-selected-dep-parent
+      border: 2px dashed blue
+
+    &.wait-deps-highlight-dep
+      border: 2px solid orangered
+
+    &.wait-deps-highlight-dep-parent
+      border: 1px dotted orangered
+
+    &.wait-deps-highlight-dep-dep-parent
+      border: 2px dashed orangered
+
     &.slowest
       color: #A00 !important
       font-weight: bold
@@ -63,6 +81,10 @@
       i
         font-weight: normal
         font-style: normal
+
+    .e-wait-deps
+      cursor: pointer
+      border-bottom: 1px dotted blue
 
   .timeline-container
     position: absolute
