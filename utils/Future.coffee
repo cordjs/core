@@ -73,12 +73,7 @@ define [
       @_alwaysCallbacks = []
       @_name = name
 
-      timeout = global.config?.debug.future.timeout
-      if timeout > 0
-        @_incompleteTimeout = setTimeout =>
-          if @state() == 'pending' and @_counter > 0
-            _console.warn "Future timed out [#{@_name}] (#{timeout/1000} seconds), counter = #{@_counter}"
-        , timeout
+      @_initDebugTimeout() if @_counter > 0
 
 
     fork: ->
@@ -91,6 +86,7 @@ define [
         throw new Error("Trying to use the completed future [#{@_name}]!")
       throw new Error("Trying to fork locked future [#{@_name}]!") if @_locked
       @_counter++
+      @_initDebugTimeout() if @_counter == 1
       this
 
 
@@ -194,8 +190,9 @@ define [
         @_doneCallbacks.push(callback)
         if @_counter == 0
           @_clearDebugTimeout()
-          @_runDoneCallbacks()
-          @_clearFailCallbacks()
+          Defer.nextTick =>
+            @_runDoneCallbacks()
+            @_clearFailCallbacks()
       this
 
 
@@ -210,7 +207,8 @@ define [
         @_failCallbacks.push(callback)
         if @_state == 'rejected'
           @_clearDebugTimeout()
-          @_runFailCallbacks()
+          Defer.nextTick =>
+            @_runFailCallbacks()
       this
 
 
@@ -236,14 +234,13 @@ define [
       name = @_name
       @fail (err) ->
         _console.error "Future(#{name})::failAloud#{ if message then " with message: #{message}" else '' }", err
-        throw err
 
 
     callback: (neededArgs...) ->
       ###
       Generates callback proxy function to be used in return-in-async-callback functions
        which allows to avoid callback-indentation hell by merging callback callback calls
-       of severar such functions into one callback which is called when all async functions
+       of several such functions into one callback which is called when all async functions
        are complete.
 
       All arguments of aggregated callbacks are passed to 'done'-defined callback in order of calling
@@ -722,6 +719,15 @@ define [
           Future.resolved(res)
       catch err
         Future.rejected(err)
+
+
+    _initDebugTimeout: ->
+      timeout = global.config?.debug.future.timeout
+      if timeout > 0
+        @_incompleteTimeout = setTimeout =>
+          if @state() == 'pending' and @_counter > 0
+            _console.warn "Future timed out [#{@_name}] (#{timeout/1000} seconds), counter = #{@_counter}"
+        , timeout
 
 
     _clearDebugTimeout: ->
