@@ -222,6 +222,7 @@ define [
       ###
       Performs final initialization of the transferred from the server-side objects on the browser-side.
       This method is called when all data from the server is loaded.
+      @browser-only
       ###
       configPromise = Future.require('cord!AppConfigLoader').then (AppConfigLoader) ->
         AppConfigLoader.ready()
@@ -233,12 +234,17 @@ define [
         @_setupBindings().then =>
           # Initializing profiler panel
           # todo: make this configurable
+          if window.zone?
+            tmpZone = window.zone
+            window.zone = zone.constructor.rootZone
           topBaseWidget = @_currentExtendList[@_currentExtendList.length - 1]
           topBaseWidget.injectChildWidget '/cord/core//Profiler',
             ':context': $('body')
             ':position': 'append'
             serverUid: @serverProfilerUid
           .failAloud()
+          if window.zone?
+            window.zone = tmpZone
 
         # for GC
         @_parentPromises = null
