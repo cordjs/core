@@ -5,6 +5,8 @@ CAPS-named variables are placeholders and should be replaced with the actual val
 
 require.config(COMPUTED_REQUIREJS_CONFIG)
 
+window.cordIsBrowser = true
+
 jsGroupMap = JS_GROUP_MAP
 cssGroupMap = CSS_GROUP_MAP
 
@@ -16,6 +18,9 @@ for groupId, modules of jsGroupMap
 
 require.config(groupLoadingMap: groupLoadingMap)
 
-require ['cord!init/browserInit', 'cord!css/browserManager'], (browserInit, cssManager) ->
-  cssManager.setGroupLoadingMap(cssGroupMap)
-  browserInit.init()
+require ['cord!init/profilerInit'], (profilerInit) ->
+  profilerInit()
+
+  require ['cord!init/browserInit', 'cord!css/browserManager'], (browserInit, cssManager) ->
+    cssManager.setGroupLoadingMap(cssGroupMap)
+    browserInit.init()
