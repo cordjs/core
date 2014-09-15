@@ -1126,7 +1126,7 @@ define [
                   # Inserting placeholder contents to the DOM-tree only after full behaviour initialization of all
                   # included widgets but not inline-blocks. Timeout-stubs are not waited for yet as they have no
                   # any behaviour initialization support yet.
-                  DomHelper.replaceNode($('#'+@_getPlaceholderDomId(name)), $el)
+                  DomHelper.replace($('#'+@_getPlaceholderDomId(name)), $el)
                 .then ->
                   info.widget.markShown() for info in renderInfo when info.type is 'widget'
                   domInfo.markShown()
@@ -1471,6 +1471,9 @@ define [
             selfInitBehaviour = true
 
           @_widgetReadyPromise.when(Future.sequence(readyConditions)).done =>
+            if @_browserInitDebugTimeout
+              clearTimeout(@_browserInitDebugTimeout)
+              @_browserInitDebugTimeout = null
             @emit 'render.complete'
 
           # This code is for debugging puroses: it clarifies if there are some bad situations
@@ -1499,8 +1502,8 @@ define [
                   errorInfo.stuckChildInfo.push childWidget.ready().completed()
                 i++
               _console.warn "#{ @debug 'incompleteBrowserInit:children!' }", errorInfo
-            else
-              _console.warn "#{ @debug 'incompleteBrowserInit!' } css:#{ savedConstructorCssPromise.completed() } child:#{ childWidgetReadyPromise.completed() } selfInit:#{ selfInitBehaviour }" if not savedPromiseForTimeoutCheck.completed()
+            else if not savedPromiseForTimeoutCheck.completed()
+              _console.warn "#{ @debug 'incompleteBrowserInit!' } css:#{ savedConstructorCssPromise.completed() } child:#{ childWidgetReadyPromise.completed() } selfInit:#{ selfInitBehaviour }"
             @_browserInitDebugTimeout = null
           , 5000
       @_widgetReadyPromise
