@@ -1,5 +1,6 @@
 define [
   'cord!Api'
+  if cordIsBrowser then 'cord!Behaviour' else undefined
   'cord!ServiceContainer'
   'cord!templateLoader'
   'cord!Widget'
@@ -10,7 +11,8 @@ define [
   'cord!utils/Future'
   'cord!utils/profiler'
   'dustjs-helpers'
-], (Api, ServiceContainer, templateLoader, Widget, WidgetRepo, browserInit, Request, router, Future, pr, dust) ->
+], (Api, Behaviour, ServiceContainer, templateLoader, Widget, WidgetRepo,
+    browserInit, Request, router, Future, pr, dust) ->
 
 
   patchFutureWithZone = ->
@@ -82,6 +84,50 @@ define [
       boundZone.afterTask(true)
 
 
+
+  patchRequirejsWithZone = ->
+    delegate = window.require
+    if delegate
+      window.require = ->
+        if typeof arguments[1] == 'function'
+          argIndex = 1
+          callback = arguments[1]
+          errback = arguments[2]
+        else if typeof arguments[2] == 'function'
+          argIndex = 2
+          callback = arguments[2]
+          errback = arguments[3]
+        else
+          argIndex = 0
+
+        if not errback or argIndex == 0
+          delegate.apply(this, zone.constructor.bindArgumentsOnce(arguments))
+        else
+          boundZone = zone
+          arguments[argIndex] = boundZone.bind ->
+            res = callback.apply(this, arguments)
+            boundZone.dequeueTask(callback)
+            # clear errback task
+            boundZone.beforeTask(true)
+            boundZone.dequeueTask()
+            boundZone.afterTask(true)
+            res
+
+          boundZone = zone
+          arguments[argIndex + 1] = boundZone.bind ->
+            res = errback.apply(this, arguments)
+            boundZone.dequeueTask(errback)
+            # clear callback task
+            boundZone.beforeTask(true)
+            boundZone.dequeueTask()
+            boundZone.afterTask(true)
+            res
+
+          delegate.apply(this, arguments)
+
+      window.requirejs = window.require
+
+
   ->
     patchFutureWithZone()
 
@@ -93,10 +139,10 @@ define [
       'subscribeValueChange'
     ]
 
+    patchRequirejsWithZone() if cordIsBrowser
 
     pr.patch(router, 'process', 0, 'url')
     pr.patch(Request.prototype, 'send', 1)
-    pr.patch(Api.prototype, 'send', 1)
     pr.patch(Widget.prototype, 'renderTemplate', 1)
     pr.patch(Widget.prototype, 'resolveParamRefs', 1)
     pr.patch(Widget.prototype, 'getStructTemplate', 1)
@@ -104,5 +150,15 @@ define [
     pr.patch(ServiceContainer.prototype, 'injectServices', 0)
     pr.patch(dust, 'render', 0)
     pr.patch(templateLoader, 'loadWidgetTemplate', 0)
-    pr.patch(Future, 'require', 0)
-    pr.patch(browserInit, 'init') if cordIsBrowser
+    if cordIsBrowser
+      pr.patch(window, 'require', 0)
+      window.requirejs = window.require
+
+      pr.patch(browserInit, 'init')
+      pr.patch(router, 'navigate', 0)
+      pr.patch(WidgetRepo.prototype, 'init', 0)
+      pr.patch(WidgetRepo.prototype, 'smartTransitPage', 0)
+      pr.patch(WidgetRepo.prototype, 'transitPage', 0)
+      pr.patch(Widget.prototype, 'browserInit')
+      pr.patch(Widget.prototype, 'initBehaviour')
+      pr.patch(Behaviour.prototype, 'insertChildWidget', 0)
