@@ -5,10 +5,11 @@ define [
   'cord!utils/DomHelper'
   'cord!utils/DomInfo'
   'cord!utils/Future'
+  'cord!utils/profiler'
   'cord!Module'
   'jquery'
   'postal'
-], (errors, Model, Defer, DomHelper, DomInfo, Future, Module, $, postal) ->
+], (errors, Model, Defer, DomHelper, DomInfo, Future, pr, Module, $, postal) ->
 
   checkIsSentenced = (widget, message = '') ->
     ###
@@ -74,7 +75,8 @@ define [
       @initWidgetEvents(@widgetEvents)  if @widgetEvents
       @_callbacks = []
 
-      @init()
+      pr.timer "#{@constructor.name}::init", =>
+        @init()
       if @show?
         @widget.shown().done @getCallback =>
           @show()
@@ -132,9 +134,12 @@ define [
 
 
     delegateEvents: (events) ->
+      if typeof window.zone != 'undefined'
+        tmpZone = window.zone
+        window.zone = tmpZone.constructor.rootZone
       for key, method of events
 
-        method     = @_getEventMethod(method)
+        method     = @_getEventMethod(method, key)
         match      = key.match(/^(\S+)\s*(.*)$/)
         eventName  = match[1]
         selector   = match[2]
@@ -160,6 +165,8 @@ define [
             else
               root = if @el.length == 1 then @el else @$rootEls
               root.on(eventName, selector, method)
+      if typeof window.zone != 'undefined'
+        window.zone = tmpZone
 
 
     initWidgetEvents: (events) ->
@@ -174,10 +181,12 @@ define [
         @_registerModelBinding(@widget.ctx[fieldName], fieldName, onChangeMethod)
 
 
-    _getEventMethod: (method) ->
+    _getEventMethod: (method, eventDesc) ->
       m = @_getHandlerFunction(method)
-      =>
-        m.apply(this, arguments) #if not @widget.isSentenced()
+      that = this
+      ->
+        pr.timer "#{that.constructor.__name}::DOM('#{eventDesc}')", ->
+          m.apply(that, arguments) if not that.widget.isSentenced()
         true
 
 
@@ -288,7 +297,7 @@ define [
           domInfo.setDomRoot($newWidgetRoot)
           widget.browserInit($newWidgetRoot).then ->
             $newWidgetRoot.attr('style', $rootEl.attr('style'))
-            DomHelper.replaceNode($rootEl, $newWidgetRoot)
+            DomHelper.replace($rootEl, $newWidgetRoot)
           .then ->
             domInfo.markShown()
             widget.markShown()
@@ -314,7 +323,7 @@ define [
         domInfo.setDomRoot($newInlineRoot)
         id = @widget.ctx[':inlines'][name].id
         $oldInlineRoot = $('#'+id)
-        DomHelper.replaceNode($oldInlineRoot, $newInlineRoot).then =>
+        DomHelper.replace($oldInlineRoot, $newInlineRoot).then =>
           domInfo.markShown()
           @widget.browserInit()
       .failAloud(@debug('renderInline'))
