@@ -1,6 +1,8 @@
 define [
+  'eventemitter3'
+  'underscore'
   'zone' + (if document? then '' else '.js')
-], (rootZone) ->
+], (EventEmitter, _, rootZone) ->
 
   # private vars
 
@@ -58,7 +60,7 @@ define [
 
 
 
-  pr =
+  pr = _.extend new EventEmitter,
     newRoot: (name, fn) ->
       @timer(name, true, fn)
 
@@ -130,9 +132,15 @@ define [
         if index?
           hint = args[index]
           hint = hint[field] if hint and field?
-          hint = hint.constructor.name if typeof hint == 'object'
+          if typeof hint == 'object'
+            hint =
+              if hint.constructor.name == 'Array'
+                '[' + hint.join(', ') + ']'
+              else
+                hint.constructor.name
         hint = if hint? then "(#{hint})" else ''
-        pr.timer "#{this.constructor.name}::#{fnName}#{hint}", =>
+        className = @constructor.__name ? @constructor.name
+        pr.timer "#{className}::#{fnName}#{hint}", =>
           origFn.apply(this, args)
 
 
@@ -142,6 +150,10 @@ define [
       @param Function cb
       ###
       zone.timer().onFinish = cb
+
+
+    getCompletedRootTimers: ->
+      timersById[0].children.filter (t) -> t.finished
 
 
 
@@ -188,11 +200,11 @@ define [
       @children = []
       @waitDeps = []
       if @parentId == 0
+        # it's important to use rootZone's setTimeout here to avoid including it to the context timer's zone
         @_zoneTimeoutId = rootZone.setTimeout =>
-          console.warn '!!!!!!!===============================!!!!!!!'
           console.warn 'Timer zone timed out!', this.name
-          pr.printTimer(this)
-        , 15000
+          pr.emit('root-timer.timeout', this)
+        , 25000
       @parent().addChild(this)
       @relativeStartTime = fixTimer() if @parentId == 0
 
@@ -214,6 +226,7 @@ define [
       rootZone.clearTimeout(@_zoneTimeoutId)
       delete @_zoneTimeoutId
       @onFinish?(this)
+      pr.emit('root-timer.complete', this) if @parentId == 0
       @parent().completeChild(this)
 
 

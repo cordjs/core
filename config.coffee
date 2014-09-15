@@ -84,6 +84,7 @@ define ->
       'curly':                   'vendor/curly/browser'
       'dustjs-linkedin':         'vendor/dustjs/dustjs-full'
       'dustjs-helpers':          'vendor/dustjs/dustjs-helpers'
+      'eventemitter3':           'vendor/eventemitter3/eventemitter3'
       'jquery':                  'vendor/jquery/jquery'
       'jquery.cookie':           'vendor/jquery/plugins/jquery.cookie'
       'moment':                  'vendor/moment/moment'
@@ -103,6 +104,8 @@ define ->
       'dustjs-helpers':
         deps: ['dustjs-linkedin']
         exports: 'dust'
+      'eventemitter3':
+        exports: 'EventEmitter'
       'jquery.cookie':
         deps: ['jquery']
         exports: 'jQuery'
