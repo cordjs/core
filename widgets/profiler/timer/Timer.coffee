@@ -57,6 +57,7 @@ define [
         isSlowest: !!info.slowest
         overHalf: !!info.overHalf
         overQuarter: !!info.overQuarter
+        isError: !info.finished
         timerInfo: info
         waitDeps: info.waitDeps.join(', ')
 

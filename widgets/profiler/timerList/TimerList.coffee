@@ -51,6 +51,8 @@ define [
         else if tim.totalTime > quarter
           tim.overQuarter = true
 
+        tim.finished = not tim.finished? or tim.finished
+
       @ctx.set timers: timers
 
 
