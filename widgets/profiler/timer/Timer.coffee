@@ -12,7 +12,7 @@ define [
     ###
 
     rootTag: 'li'
-    cssClass: 'b-sdf-profiler-timer'
+    cssClass: 'b-cord-profiler-timer'
     css: true
 
     @initialCtx:

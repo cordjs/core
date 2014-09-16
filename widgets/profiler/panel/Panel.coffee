@@ -4,7 +4,7 @@ define [
 
   class Panel extends Widget
 
-    cssClass: 'b-sdf-profiler-panel'
+    cssClass: 'b-cord-profiler-panel'
     css: true
 
     @initialCtx:
