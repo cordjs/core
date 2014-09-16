@@ -79,4 +79,4 @@ define [
 
 
     _getSlowestTimer: (timers) ->
-      _.max timers, (x) -> x.totalTime
+      _.max(timers, (x) -> x.totalTime)
