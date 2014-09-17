@@ -1546,7 +1546,7 @@ define [
         # _shown is necessary to protect from duplicate recursive calling of markShown() from the future's callbacks
         # this redundancy can be removed when inline-generated widgets will have appropriate detection and separation API
         @_shown = true
-        @_shownPromise.resolve()
+        @_shownPromise?.resolve()
         @emit 'show'
 
 

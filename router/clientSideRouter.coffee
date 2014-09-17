@@ -43,6 +43,9 @@ define [
       if (routeInfo = if not fallback then @matchRoute(newPath) else @matchFallbackRoute(newPath))
         postal.publish('router.process', routeInfo)
 
+        query = @parseGetParameters(newPath)
+        _.extend(routeInfo.params, query)
+
         if routeInfo.route.widget?
           @widgetRepo.smartTransitPage(
             routeInfo.route.widget, routeInfo.params, new PageTransition(@_currentPath, newPath)
@@ -134,6 +137,19 @@ define [
 
     getURLParameter: (name) ->
       (RegExp(name + '=' + '(.+?)(&|$)').exec(location.search)||[null,null])[1]
+
+
+    parseGetParameters: (path) ->
+      params = {}
+
+      questionPos = path.indexOf('?')
+      if questionPos != -1
+        queryString = path.substring(questionPos + 1)
+        queries = queryString.split('&')
+        for paramStr in queries
+          tmp = paramStr.split('=')
+          params[decodeURIComponent(tmp[0])] = decodeURIComponent(tmp[1])
+      params
 
 
     goBack: ->
