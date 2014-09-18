@@ -19,7 +19,7 @@ exports.services = services =
 # Defaulting to standard console.
 # Using javascript here to change global variable.
 global._console = console
-global.cordIsBrowser = false
+global.CORD_IS_BROWSER = false
 
 exports.init = (baseUrl = 'public', configName = 'default', serverPort) ->
 

@@ -1,13 +1,13 @@
 define [
   'cord!Api'
-  if cordIsBrowser then 'cord!Behaviour' else undefined
+  if CORD_IS_BROWSER then 'cord!Behaviour' else undefined
   'cord!ServiceContainer'
   'cord!templateLoader'
   'cord!Widget'
   'cord!WidgetRepo'
-  if cordIsBrowser then 'cord!init/browserInit' else undefined
-  'cord!request/' + if cordIsBrowser then 'BrowserRequest' else 'ServerRequest'
-  'cord!router/' + if cordIsBrowser then 'clientSideRouter' else 'serverSideRouter'
+  if CORD_IS_BROWSER then 'cord!init/browserInit' else undefined
+  'cord!request/' + if CORD_IS_BROWSER then 'BrowserRequest' else 'ServerRequest'
+  'cord!router/' + if CORD_IS_BROWSER then 'clientSideRouter' else 'serverSideRouter'
   'cord!utils/Future'
   'cord!utils/profiler/realProfiler'
   'dustjs-helpers'
@@ -139,7 +139,7 @@ define [
       'subscribeValueChange'
     ]
 
-    patchRequirejsWithZone() if cordIsBrowser
+    patchRequirejsWithZone() if CORD_IS_BROWSER
 
     pr.patch(router, 'process', 0, 'url')
     pr.patch(Request.prototype, 'send', 1)
@@ -150,7 +150,7 @@ define [
     pr.patch(ServiceContainer.prototype, 'injectServices', 0)
     pr.patch(dust, 'render', 0)
     pr.patch(templateLoader, 'loadWidgetTemplate', 0)
-    if cordIsBrowser
+    if CORD_IS_BROWSER
       pr.patch(window, 'require', 0)
       window.requirejs = window.require
 

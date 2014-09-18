@@ -1,5 +1,5 @@
 define [
-  "./#{ if window? and navigator? and document? then 'browser' else 'server' }/Defer"
+  './' + (if CORD_IS_BROWSER then 'browser' else 'server') + '/Defer'
 ], (Defer) ->
   ###
   Wrapper for the efficient nextTick (setTimeout(0)) cross-platform implementation.

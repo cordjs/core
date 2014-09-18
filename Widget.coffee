@@ -15,7 +15,7 @@ define [
   'cord!utils/Future'
 
   'dustjs-helpers'
-  'monologue' + (if document? then '' else '.js')
+  'monologue' + (if CORD_IS_BROWSER then '' else '.js')
   'postal'
   'underscore'
 ], (Collection, Context, cssHelper, errors, TimeoutStubHelper, isBrowser, Model, Module, StructureTemplate,

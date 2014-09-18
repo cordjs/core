@@ -6,7 +6,7 @@ require.config
   baseUrl: if global.config.localFsMode then '' else '/'
   urlArgs: "release=" + global.config.static.release
 
-window.cordIsBrowser = true
+window.CORD_IS_BROWSER = true
 window.CORD_PROFILER_ENABLED = global.config.debug.profiler.enable
 
 require [

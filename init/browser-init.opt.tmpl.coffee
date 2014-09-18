@@ -5,7 +5,7 @@ Some CAPS-named variables are placeholders and should be replaced with the actua
 
 require.config(COMPUTED_REQUIREJS_CONFIG)
 
-window.cordIsBrowser = true
+window.CORD_IS_BROWSER = true
 window.CORD_PROFILER_ENABLED = global.config.debug.profiler.enable
 
 jsGroupMap = JS_GROUP_MAP

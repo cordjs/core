@@ -1,3 +1,6 @@
+# need to set it here because compiler is run without cordjs initialization scripts
+global.CORD_IS_BROWSER = false
+
 define [
   'cord!utils/Future'
   'underscore'

@@ -3,7 +3,7 @@ define [
   'cord!Module'
   'cord!utils/Defer'
   'cord!utils/Future'
-  'monologue' + (if document? then '' else '.js')
+  'monologue' + (if CORD_IS_BROWSER then '' else '.js')
   'underscore'
 ], (isBrowser, Module, Defer, Future, Monologue, _) ->
 

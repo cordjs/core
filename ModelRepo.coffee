@@ -6,7 +6,7 @@ define [
   'cord!utils/Defer'
   'cord!utils/Future'
   'underscore'
-  'monologue' + (if document? then '' else '.js')
+  'monologue' + (if CORD_IS_BROWSER then '' else '.js')
 ], (Collection, Model, Module, isBrowser, Defer, Future, _, Monologue) ->
 
   class ModelRepo extends Module
