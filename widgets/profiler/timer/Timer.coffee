@@ -144,7 +144,7 @@ define [
 
 
     expandSlowestPath: ->
-      if @childByName.childTimers?
+      if @childByName.childTimers
         @childByName.childTimers.expandSlowestPath()
       else
         @ctx.set expandSlowest: true
