@@ -233,18 +233,18 @@ define [
         # setup browser-side behaviour for all loaded widgets
         @_setupBindings().then =>
           # Initializing profiler panel
-          # todo: make this configurable
-          if window.zone?
-            tmpZone = window.zone
-            window.zone = zone.constructor.rootZone
-          topBaseWidget = @_currentExtendList[@_currentExtendList.length - 1]
-          topBaseWidget.injectChildWidget '/cord/core//Profiler',
-            ':context': $('body')
-            ':position': 'append'
-            serverUid: @serverProfilerUid
-          .failAloud()
-          if window.zone?
-            window.zone = tmpZone
+          if CORD_PROFILER_ENABLED
+            if window.zone?
+              tmpZone = window.zone
+              window.zone = zone.constructor.rootZone
+            topBaseWidget = @_currentExtendList[@_currentExtendList.length - 1]
+            topBaseWidget.injectChildWidget '/cord/core//Profiler',
+              ':context': $('body')
+              ':position': 'append'
+              serverUid: @serverProfilerUid
+            .failAloud()
+            if window.zone?
+              window.zone = tmpZone
 
         # for GC
         @_parentPromises = null

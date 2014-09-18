@@ -26,6 +26,8 @@ exports.init = (baseUrl = 'public', configName = 'default', serverPort) ->
   config = loadConfig(configName, serverPort)
   global.appConfig = config
   global.config    = config.node
+  # need to be global because used to conditionally define dependencies throughout the project
+  global.CORD_PROFILER_ENABLED = config.node.debug.profiler.enable
 
 
   requirejs.config
@@ -38,7 +40,7 @@ exports.init = (baseUrl = 'public', configName = 'default', serverPort) ->
     'cord!AppConfigLoader'
     'cord!Console'
     'cord!Rest'
-    'cord!init/profilerInit'
+    if CORD_PROFILER_ENABLED then 'cord!init/profilerInit' else undefined
     'cord!request/xdrProxy'
     'cord!requirejs/statCollector'
     'cord!router/serverSideRouter'
@@ -62,7 +64,7 @@ exports.init = (baseUrl = 'public', configName = 'default', serverPort) ->
     .mapFail ->
       true
 
-    profilerInit()
+    profilerInit() if CORD_PROFILER_ENABLED
 
     AppConfigLoader.ready().zip(biFuture).done (appConfig) ->
       router.addRoutes(appConfig.routes)

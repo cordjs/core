@@ -5,7 +5,7 @@ define [
   'cord!utils/DomHelper'
   'cord!utils/DomInfo'
   'cord!utils/Future'
-  'cord!utils/profiler'
+  'cord!utils/profiler/profiler'
   'cord!Module'
   'jquery'
   'postal'
@@ -185,8 +185,9 @@ define [
       m = @_getHandlerFunction(method)
       that = this
       ->
+        origArgs = arguments
         pr.timer "#{that.constructor.__name}::DOM('#{eventDesc}')", ->
-          m.apply(that, arguments) if not that.widget.isSentenced()
+          m.apply(that, origArgs) if not that.widget.isSentenced()
         true
 
 

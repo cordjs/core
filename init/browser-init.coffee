@@ -7,6 +7,7 @@ require.config
   urlArgs: "release=" + global.config.static.release
 
 window.cordIsBrowser = true
+window.CORD_PROFILER_ENABLED = global.config.debug.profiler.enable
 
 require [
   'bundles/cord/core/requirejs/pathConfig'
@@ -20,8 +21,9 @@ require [
   require configs, (args...) ->
     require.config(config.requirejs) for config in args when config.requirejs
 
-    require ['cord!init/profilerInit'], (profilerInit) ->
-      profilerInit()
-
-      require ['cord!init/browserInit'], (browserInit) ->
-        browserInit.init()
+    require [
+      'cord!init/browserInit'
+      if CORD_PROFILER_ENABLED then 'cord!init/profilerInit' else undefined
+    ], (browserInit, profilerInit) ->
+      profilerInit() if CORD_PROFILER_ENABLED
+      browserInit.init()

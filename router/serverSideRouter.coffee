@@ -5,7 +5,7 @@ define [
   'cord!WidgetRepo'
   'cord!utils/DomInfo'
   'cord!utils/Future'
-  'cord!utils/profiler'
+  'cord!utils/profiler/profiler'
   'cord!utils/sha1'
   'fs'
   'mkdirp'
@@ -180,15 +180,18 @@ define [
       Generates and returns unique ID to link that saved file with the in-browser profiler panel.
       @return String
       ###
-      profilerDumpDir = 'public/assets/p'
-      uid = sha1(Math.random() + (new Date).getTime())
-      pr.onCurrentTimerFinish (timer) ->
-        dst = "#{profilerDumpDir}/#{uid}.json"
-        Future.call(mkdirp, profilerDumpDir).then ->
-          Future.call(fs.writeFile, dst, JSON.stringify(timer, null, 2))
-        .catch (err) ->
-          console.warn "Couldn't save server profiling timer [#{timer.name}]! Reason:", err
-      uid
+      if CORD_PROFILER_ENABLED
+        profilerDumpDir = 'public/assets/p'
+        uid = sha1(Math.random() + (new Date).getTime())
+        pr.onCurrentTimerFinish (timer) ->
+          dst = "#{profilerDumpDir}/#{uid}.json"
+          Future.call(mkdirp, profilerDumpDir).then ->
+            Future.call(fs.writeFile, dst, JSON.stringify(timer, null, 2))
+          .catch (err) ->
+            console.warn "Couldn't save server profiling timer [#{timer.name}]! Reason:", err
+        uid
+      else
+        ''
 
 
 

@@ -9,7 +9,7 @@ define [
   'cord!request/' + if cordIsBrowser then 'BrowserRequest' else 'ServerRequest'
   'cord!router/' + if cordIsBrowser then 'clientSideRouter' else 'serverSideRouter'
   'cord!utils/Future'
-  'cord!utils/profiler'
+  'cord!utils/profiler/realProfiler'
   'dustjs-helpers'
 ], (Api, Behaviour, ServiceContainer, templateLoader, Widget, WidgetRepo,
     browserInit, Request, router, Future, pr, dust) ->

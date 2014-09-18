@@ -1,7 +1,7 @@
 define [
   'cord!Widget'
   'cord!utils/Future'
-  'cord!utils/profiler'
+  'cord!utils/profiler/realProfiler'
   'underscore'
 ], (Widget, Future, pr, _) ->
 
@@ -89,12 +89,13 @@ define [
       ###
       @browser-only
       ###
-      Future.require('jquery').then ($) =>
-        $.getJSON("/assets/p/#{serverUid}.json").then (data) =>
-          newTimers = _.clone(@ctx.timers)
-          @_calculateDerivativeMetrics(data)
-          newTimers.unshift(data)
-          @ctx.set timers: newTimers
+      if serverUid # not empty string
+        Future.require('jquery').then ($) =>
+          $.getJSON("/assets/p/#{serverUid}.json").then (data) =>
+            newTimers = _.clone(@ctx.timers)
+            @_calculateDerivativeMetrics(data)
+            newTimers.unshift(data)
+            @ctx.set timers: newTimers
 
 
     _calculateDerivativeMetrics: (timerData) ->
