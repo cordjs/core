@@ -3,6 +3,7 @@
   z-index: 500
   left: 30%
   top: 0
+  padding: 5px
 
   width: 70%
   max-height: 50%
@@ -10,6 +11,31 @@
 
   background-color: white
   border: 1px solid black
+
+  .e-init-time
+    float: right
+    display: none
+    text-decoration: underline
+    font-family: monospace
+    font-weight: bold
+    font-size: 0.7em
+    line-height: 1.5
+    cursor: pointer
+
+    &:hover
+      color: #FF7E00
+
+  &.minimized
+    right: 0
+    width: auto
+    left: auto
+    overflow: auto
+
+    .e-full-panel
+      display: none
+
+    .e-init-time
+      display: inline
 
   .e-expand-slowest
     font-size: 11px
@@ -22,3 +48,16 @@
     color: #fff
     vertical-align: middle
     margin: 5px
+
+  .e-hide-link
+    float: right
+    border-bottom: 1px dotted #CACACA
+    cursor: pointer
+    font-family: monospace
+    font-size: 11px
+    white-space: nowrap
+    line-height: 16px
+
+    &:hover
+      color: #FF7E00
+      border-bottom-style: solid

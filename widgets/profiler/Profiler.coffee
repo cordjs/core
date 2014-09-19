@@ -52,6 +52,8 @@ define [
 
     @initialCtx:
       timers: []
+      highlightInfo: {}
+      initTime: 0.0
 
     @params:
       serverUid: 'loadServerProfilingData'
@@ -95,7 +97,10 @@ define [
             newTimers = _.clone(@ctx.timers)
             @_calculateDerivativeMetrics(data)
             newTimers.unshift(data)
-            @ctx.set timers: newTimers
+            @ctx.set
+              timers: newTimers
+              initTime: data.totalTime
+
 
 
     _calculateDerivativeMetrics: (timerData) ->

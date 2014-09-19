@@ -24,7 +24,7 @@ define [
         @totalTimeContainer.addClass('wait-deps-highlight-' + data.value) if data.value != 'none'
 
       showChildren: (data) ->
-        if @widget.childByName.childTimers?
+        if @widget.childByName.childTimers
           @$('#'+@widget.childByName.childTimers.ctx.id).toggleClass('hidden', not data.value)
         else
           # if children hasn't been rendered yet, just performing re-render
