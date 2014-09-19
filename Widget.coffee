@@ -900,6 +900,7 @@ define [
       classList.push(@cssClass) if @cssClass
       classList.push(@ctx._modifierClass) if @ctx._modifierClass
       classList.push(dynamicClass) if dynamicClass
+      classList = classList.concat(@ctx.__cord_dyn_classes__) if @ctx.__cord_dyn_classes__?
       classList.join(' ')
 
 
@@ -910,6 +911,21 @@ define [
       @param String class space-separeted list of css class-names
       ###
       @ctx._modifierClass = cls
+
+
+    addDynClass: (cls) ->
+      ###
+      Adds the specified CSS class for the root element(s) of the widget.
+      This class is considered dynamically dependent from the current state of the widget.
+      The list of such classes is preserved separately from the static `cssClass` field in a special context value and
+       can be modified runtime via (add|remove|toggle)Class() methods of the widget's behaviour class.
+      This method should be used only before first widget render (typically in the onShow() method). All later
+       modifications should be done only in behaviour.
+      @param {String} cls Single CSS class name to be added
+      ###
+      if cls
+        @ctx.__cord_dyn_classes__ ?= []
+        @ctx.__cord_dyn_classes__.push(cls) if @ctx.__cord_dyn_classes__.indexOf(cls) == -1
 
 
     _saveContextVersionForBehaviourSubscriptions: ->

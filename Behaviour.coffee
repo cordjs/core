@@ -101,6 +101,80 @@ define [
         $(selector)
 
 
+    addClass: (value) ->
+      ###
+      Adds the specified class(es) to the root element(s) of the widget.
+      This change will be preserved on the widget re-render.
+      @param String value One or more space-separated CSS classes
+      ###
+      @_clsPrepare value, (classes, ctx) ->
+        addClasses = _.difference(classes, ctx.__cord_dyn_classes__)
+        @_clsAdd(addClasses, ctx)
+
+
+    removeClass: (value) ->
+      ###
+      Removes the specified class(es) from the root element(s) of the widget.
+      This change will be preserved on the widget re-render.
+      @param String value One or more space-separated CSS classes
+      ###
+      @_clsPrepare value, (classes, ctx) ->
+        removeClasses = _.intersection(classes, ctx.__cord_dyn_classes__)
+        @_clsRemove(removeClasses, ctx)
+
+
+    toggleClass: (value, state) ->
+      ###
+      Adds or removes one or more classes from the root element(s) of the widget,
+       depending on either the class's presence or the value of the `state` argument.
+      If the state value is not set the given classes existence is inverted.
+      This change will be preserved on the widget re-render.
+      @param String value One or more space-separated CSS classes
+      @param Boolean state A boolean value to determine whether the class should be added or removed
+      ###
+      if state?
+        state = !!state
+        if state
+          @addClass(value)
+        else
+          @removeClass(value)
+      else
+        @_clsPrepare value, (classes, ctx) ->
+          addClasses = _.difference(classes, ctx.__cord_dyn_classes__)
+          removeClasses = _.intersection(classes, ctx.__cord_dyn_classes__)
+          @_clsRemove(removeClasses, ctx)
+          @_clsAdd(addClasses, ctx)
+
+
+    _clsPrepare: (value, cb) ->
+      ###
+      DRY for (add|remove|toggle)Class
+      ###
+      ctx = @widget.ctx
+      ctx.__cord_dyn_classes__ ?= []
+      classes = value.split(/\s/).filter((x) -> x != '')
+      # calling in the context of the behaviour to avoid necessity of using fat arrow
+      cb.call(this, classes, ctx)
+
+
+    _clsAdd: (addClasses, ctx) ->
+      ###
+      DRY for (add|toggle)Class
+      ###
+      ctx.__cord_dyn_classes__ = ctx.__cord_dyn_classes__.concat(addClasses)
+      root = if @el.length == 1 then @el else @$rootEls
+      root.addClass(addClasses.join(' ')) if addClasses.length > 0
+
+
+    _clsRemove: (removeClasses, ctx) ->
+      ###
+      DRY for (remove|toggle)Class
+      ###
+      ctx.__cord_dyn_classes__ = _.difference(ctx.__cord_dyn_classes__, removeClasses)
+      root = if @el.length == 1 then @el else @$rootEls
+      root.removeClass(removeClasses.join(' ')) if removeClasses.length > 0
+
+
     addSubscription: (subscription, callback = null) ->
       if callback and _.isString subscription
         subscription = postal.subscribe
