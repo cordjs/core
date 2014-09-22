@@ -9,7 +9,7 @@ define [
   # index of all timers by id
   timersById = {}
   # timers id generator
-  timerIdCounter = 1
+  timerIdCounter = if CORD_IS_BROWSER then 1000 else 1 # weak protection against ID conflicts
 
   # Synchronous timers "call-stack". Useful to detect wait-dependencies between timers and to prevent double accounting
   syncTimerStack = []
@@ -41,6 +41,8 @@ define [
         syncTimerStack[syncTimerStack.length - 1].decrement = curTaskTime if syncTimerStack.length
         timer.ownTaskCount++
         @_curTaskSyncStart = 0
+      else
+        timer.clearTaskCount++
       timer.counter--
       if timer.counter == 0
         if timer.asyncDetected
@@ -188,6 +190,7 @@ define [
     onFinish: null
     counter: 0
     ownTaskCount: 0
+    clearTaskCount: 0
     waitDeps: null
 
     childCompleteCounter: 0
@@ -241,6 +244,7 @@ define [
         startTime: @startTime
         syncTime: @syncTime
         ownTaskCount: @ownTaskCount
+        clearTaskCount: @clearTaskCount
         waitDeps: @waitDeps
       result.asyncTime = @asyncTime if @asyncTime > 0 and @finished
       result.ownAsyncTime = @ownAsyncTime
