@@ -1,7 +1,7 @@
 define [
   'cord!Widget'
   'cord!utils/Future'
-  'cord!utils/profiler/realProfiler'
+  'cord!utils/profiler/profiler'
   'underscore'
 ], (Widget, Future, pr, _) ->
 

@@ -1,5 +1,6 @@
 # need to set it here because compiler is run without cordjs initialization scripts
 global.CORD_IS_BROWSER = false
+global.CORD_PROFILER_ENABLED = false
 
 define [
   'cord!utils/Future'
