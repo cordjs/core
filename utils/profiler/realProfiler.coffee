@@ -1,7 +1,7 @@
 define [
   'eventemitter3'
   'underscore'
-  'zone' + (if CORD_IS_BROWSER then '' else '.js')
+  'cordjs-zone'
 ], (EventEmitter, _, rootZone) ->
 
   # private vars
