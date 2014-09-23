@@ -100,10 +100,10 @@ define [
         else
           argIndex = 0
 
+        boundZone = if zone.parent and zone.parent.timerId then zone.parent else zone
         if not errback or argIndex == 0
-          delegate.apply(this, zone.constructor.bindArgumentsOnce(arguments))
+          delegate.apply(this, zone.constructor.bindArgumentsOnceWithParentZone(arguments, boundZone))
         else
-          boundZone = zone
           arguments[argIndex] = boundZone.bind ->
             res = callback.apply(this, arguments)
             boundZone.dequeueTask(callback)
@@ -113,7 +113,6 @@ define [
             boundZone.afterTask(true)
             res
 
-          boundZone = zone
           arguments[argIndex + 1] = boundZone.bind ->
             res = errback.apply(this, arguments)
             boundZone.dequeueTask(errback)
@@ -131,8 +130,11 @@ define [
   ->
     patchFutureWithZone()
 
-    # zone-patching of cordjs higher-level functions which use asynchronous unpatched nodejs operations
-    zone.constructor.patchFnWithCallbacks Request.prototype, [
+    # zone-patching of CordJS higher-level functions which use asynchronous non-patched NodeJS functions
+    zone.constructor.patchFnWithParentZoneCallbacks Request.prototype, [
+      'send'
+    ]
+    zone.constructor.patchFnWithParentZoneCallbacks Api.prototype, [
       'send'
     ]
     zone.constructor.patchFnWithCallbacks Widget.prototype, [
@@ -143,6 +145,7 @@ define [
 
     pr.patch(router, 'process', 0, 'url')
     pr.patch(Request.prototype, 'send', 1)
+    pr.patch(Api.prototype, 'send', 1)
     pr.patch(Widget.prototype, 'renderTemplate', 1)
     pr.patch(Widget.prototype, 'resolveParamRefs', 1)
     pr.patch(Widget.prototype, 'getStructTemplate', 1)
