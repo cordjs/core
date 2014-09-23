@@ -21,6 +21,12 @@ define [
       syncTime: 0.0
       startTime: 0.0
       totalTime: 0.0
+      ownPureExecTime: 0.0
+      correctedOwnPureExecTime: 0.0
+      totalPureExecTime: 0.0
+      correctedTotalPureExecTime: 0.0
+      ownTaskCount: 0
+      clearTaskCount: 0
       children: []
       childrenHighlightInfo: {}
       showChildren: false
@@ -51,8 +57,11 @@ define [
         startTime: roundTime(info.startTime)
         totalTime: roundTime(info.totalTime)
         ownPureExecTime: roundTime(info.ownAsyncTime)
+        correctedOwnPureExecTime: roundTime(info.correctedOwnPureExecTime)
         totalPureExecTime: roundTime(info.pureExecTime)
+        correctedTotalPureExecTime: roundTime(info.correctedPureExecTime)
         ownTaskCount: info.ownTaskCount
+        clearTaskCount: info.clearTaskCount
         children: info.children
         isSlowest: !!info.slowest
         overHalf: !!info.overHalf
@@ -64,7 +73,7 @@ define [
       # calculating timeline graph coordinates relatively to the root timer
       root = rootInfo ? info
       rootStart = root.startTime
-      rootTotal = root.totalTime
+      rootTotal = root.totalTime + 1 # +1 prevents from showing too little values too large
 
       leftToPercent = (time) -> (time - rootStart) / rootTotal * 100
       widthToPercent = (time) -> time / rootTotal * 100
