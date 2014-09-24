@@ -19,12 +19,15 @@ exports.services = services =
 # Defaulting to standard console.
 # Using javascript here to change global variable.
 global._console = console
+global.CORD_IS_BROWSER = false
 
 exports.init = (baseUrl = 'public', configName = 'default', serverPort) ->
 
   config = loadConfig(configName, serverPort)
   global.appConfig = config
   global.config    = config.node
+  # need to be global because used to conditionally define dependencies throughout the project
+  global.CORD_PROFILER_ENABLED = config.node.debug.profiler.enable
 
 
   requirejs.config
@@ -37,11 +40,12 @@ exports.init = (baseUrl = 'public', configName = 'default', serverPort) ->
     'cord!AppConfigLoader'
     'cord!Console'
     'cord!Rest'
+    if CORD_PROFILER_ENABLED then 'cord!init/profilerInit' else undefined
     'cord!request/xdrProxy'
     'cord!requirejs/statCollector'
     'cord!router/serverSideRouter'
     'cord!utils/Future'
-  ], (pathUtils, AppConfigLoader, Console, Rest, xdrProxy, statCollector, router, Future) ->
+  ], (pathUtils, AppConfigLoader, Console, Rest, profilerInit, xdrProxy, statCollector, router, Future) ->
     pathUtils.setPublicPrefix(baseUrl)
 
     router.EventEmitter = EventEmitter
@@ -59,6 +63,8 @@ exports.init = (baseUrl = 'public', configName = 'default', serverPort) ->
       global.config.browserInitScriptId = id
     .mapFail ->
       true
+
+    profilerInit() if CORD_PROFILER_ENABLED
 
     AppConfigLoader.ready().zip(biFuture).done (appConfig) ->
       router.addRoutes(appConfig.routes)

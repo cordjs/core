@@ -1,0 +1,10 @@
+  <span class="e-init-time">{initTime}</span>
+{^minimized}
+  <div class="e-full-panel">
+    <button class="e-expand-slowest">slowest path</button>
+    <span class="e-hide-link">Hide »</span>
+    {?timers}
+      {#widget type="//profiler/TimerList" name="timerList" timers="^timers" highlightInfo="^highlightInfo" level=0 /}
+    {/timers}
+  </div>
+{/minimized}

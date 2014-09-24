@@ -15,7 +15,7 @@ define [
   'cord!utils/Future'
 
   'dustjs-helpers'
-  'monologue' + (if document? then '' else '.js')
+  'monologue' + (if CORD_IS_BROWSER then '' else '.js')
   'postal'
   'underscore'
 ], (Collection, Context, cssHelper, errors, TimeoutStubHelper, isBrowser, Model, Module, StructureTemplate,
@@ -332,7 +332,7 @@ define [
 
 
     createPromise: (initialCounter = 0, name = '') ->
-      promise = new Future initialCounter = 0, name = ''
+      promise = new Future initialCounter, name
       @_promises.push promise
 
 
@@ -621,8 +621,10 @@ define [
       if @_structTemplate?
         Future.resolved(@_structTemplate)
       else
-        tmplStructureFile = "bundles/#{ @getTemplatePath() }.struct"
-        Future.require(tmplStructureFile).map (struct) =>
+        if not @constructor._rawStructPromise
+          tmplStructureFile = "bundles/#{ @getTemplatePath() }.struct"
+          @constructor._rawStructPromise = Future.require(tmplStructureFile)
+        @constructor._rawStructPromise.map (struct) =>
           if struct.widgets? and Object.keys(struct.widgets).length > 1
             @_structTemplate = new StructureTemplate(struct, this)
           else
@@ -898,6 +900,7 @@ define [
       classList.push(@cssClass) if @cssClass
       classList.push(@ctx._modifierClass) if @ctx._modifierClass
       classList.push(dynamicClass) if dynamicClass
+      classList = classList.concat(@ctx.__cord_dyn_classes__) if @ctx.__cord_dyn_classes__?
       classList.join(' ')
 
 
@@ -908,6 +911,21 @@ define [
       @param String class space-separeted list of css class-names
       ###
       @ctx._modifierClass = cls
+
+
+    addDynClass: (cls) ->
+      ###
+      Adds the specified CSS class for the root element(s) of the widget.
+      This class is considered dynamically dependent from the current state of the widget.
+      The list of such classes is preserved separately from the static `cssClass` field in a special context value and
+       can be modified runtime via (add|remove|toggle)Class() methods of the widget's behaviour class.
+      This method should be used only before first widget render (typically in the onShow() method). All later
+       modifications should be done only in behaviour.
+      @param {String} cls Single CSS class name to be added
+      ###
+      if cls
+        @ctx.__cord_dyn_classes__ ?= []
+        @ctx.__cord_dyn_classes__.push(cls) if @ctx.__cord_dyn_classes__.indexOf(cls) == -1
 
 
     _saveContextVersionForBehaviourSubscriptions: ->
@@ -1124,7 +1142,7 @@ define [
                   # Inserting placeholder contents to the DOM-tree only after full behaviour initialization of all
                   # included widgets but not inline-blocks. Timeout-stubs are not waited for yet as they have no
                   # any behaviour initialization support yet.
-                  DomHelper.replaceNode($('#'+@_getPlaceholderDomId(name)), $el)
+                  DomHelper.replace($('#'+@_getPlaceholderDomId(name)), $el)
                 .then ->
                   info.widget.markShown() for info in renderInfo when info.type is 'widget'
                   domInfo.markShown()
@@ -1410,6 +1428,23 @@ define [
         child
 
 
+    injectChildWidget: (type, params = {}) ->
+      ###
+      Dynamically creates and injects a new widget as a child of this widget on browser-side.
+      Behaviour is required.
+      This method is mainly necessary for injecting debug tools and other "plugins".
+      @browserOnly
+      @param {String} type widget type in canonical format (absolute or in context of the current widget)
+      @param (optional){Object} params new widget's params and special positioning params
+                                       (see Behaviour::insertChildWidget)
+      @return Future[Array[jQuery, Widget]]
+      ###
+      if @behaviour
+        @behaviour.insertChildWidget(type, params)
+      else
+        Future.rejected(new Error("Injecting child widget into behaviourless widget [#{@debug()}] is not supported!"))
+
+
     browserInit: (stopPropagateWidget, $domRoot) ->
       ###
       Almost copy of widgetRepo::init but for client-side rendering
@@ -1452,6 +1487,9 @@ define [
             selfInitBehaviour = true
 
           @_widgetReadyPromise.when(Future.sequence(readyConditions)).done =>
+            if @_browserInitDebugTimeout
+              clearTimeout(@_browserInitDebugTimeout)
+              @_browserInitDebugTimeout = null
             @emit 'render.complete'
 
           # This code is for debugging puroses: it clarifies if there are some bad situations
@@ -1480,8 +1518,8 @@ define [
                   errorInfo.stuckChildInfo.push childWidget.ready().completed()
                 i++
               _console.warn "#{ @debug 'incompleteBrowserInit:children!' }", errorInfo
-            else
-              _console.warn "#{ @debug 'incompleteBrowserInit!' } css:#{ savedConstructorCssPromise.completed() } child:#{ childWidgetReadyPromise.completed() } selfInit:#{ selfInitBehaviour }" if not savedPromiseForTimeoutCheck.completed()
+            else if not savedPromiseForTimeoutCheck.completed()
+              _console.warn "#{ @debug 'incompleteBrowserInit!' } css:#{ savedConstructorCssPromise.completed() } child:#{ childWidgetReadyPromise.completed() } selfInit:#{ selfInitBehaviour }"
             @_browserInitDebugTimeout = null
           , 5000
       @_widgetReadyPromise

@@ -1,0 +1,152 @@
+.b-cord-profiler-timer
+  clear: both
+  padding-left: 1ex
+  font-family: monospace
+  line-height: 15px
+  position: relative
+
+  >.e-name
+    display: table-cell
+    font-size: 11px
+    font-style: italic
+    word-break: break-all
+    word-wrap break-word
+    cursor: pointer
+    &:hover
+      text-decoration: underline
+      text-decoration-style: dotted
+
+  >.e-time
+    display: table-cell
+    margin-left: 1ex
+    padding-right: 1em
+    font-size: 11px
+    width: 6em
+    text-align: right
+
+    &.wait-deps-highlight-selected
+      border: 2px solid blue
+
+    &.wait-deps-highlight-selected-parent
+      border: 1px dotted blue
+
+    &.wait-deps-highlight-selected-dep-parent
+      border: 2px dashed blue
+
+    &.wait-deps-highlight-dep
+      border: 2px solid orangered
+
+    &.wait-deps-highlight-dep-parent
+      border: 1px dotted orangered
+
+    &.wait-deps-highlight-dep-dep-parent
+      border: 2px dashed orangered
+
+    &.slowest
+      color: #A00 !important
+      font-weight: bold
+
+    &.over-half
+      color: coral !important
+      font-weight: bold
+
+    &.over-quarter
+      color: #df8505 !important
+      font-weight: bold
+
+    &.has-children
+      color: #004099
+
+      span
+        border-bottom: 1px dashed #149bdf
+        cursor: pointer
+
+        &:hover
+          border-bottom: 1px solid black
+          color: #FF7E00
+
+    &.error
+      font-weight: bold
+      background-color: #dd1144
+      color: white
+
+  >.e-timer-desc
+    clearfix()
+    font-size: 11px
+    border: 1px dotted #999
+    margin: 0.5ex 6em
+    padding: 1ex
+    background-color: rgba(255, 255, 255, 0.6)
+
+    li
+      float: left
+      margin-right: 3em
+      font-weight: bold
+
+      i
+        font-weight: normal
+        font-style: normal
+
+    .e-wait-deps
+      cursor: pointer
+      border-bottom: 1px dotted blue
+
+  .timeline-container
+    position: absolute
+    top: 0
+    right: 5px
+    height: 1em
+
+    .e-timeline
+      position: absolute
+      top: 0.33em
+      height: 0.33em
+      border-width: 1px
+      border-style: solid
+      border-color: black
+
+      &.sync
+        background-color: indianred
+      &.async
+        background-color: greenyellow
+      &.exec
+        background-color: #339bb9
+
+    .timeline-guard
+      position: absolute
+      right: 0
+      height: 100%
+      background-color: white
+
+      &.level-color-0
+        background-color: antiquewhite
+        &:before
+          background: linear-gradient(to right, rgba(255,255,255,0) 0%, antiquewhite 70%, antiquewhite 100%)
+      &.level-color-1
+        background-color: cornsilk
+        &:before
+          background: linear-gradient(to right, rgba(255,255,255,0) 0%, cornsilk 70%, cornsilk 100%)
+      &.level-color-2
+        background-color: #d9edf7
+        &:before
+          background: linear-gradient(to right, rgba(255,255,255,0) 0%, #d9edf7 70%, #d9edf7 100%)
+      &.level-color-3
+        background-color: gainsboro
+        &:before
+          background: linear-gradient(to right, rgba(255,255,255,0) 0%, gainsboro 70%, gainsboro 100%)
+      &.level-color-4
+        background-color: lavenderblush
+        &:before
+          background: linear-gradient(to right, rgba(255,255,255,0) 0%, lavenderblush 70%, lavenderblush 100%)
+      &.level-color-5
+        background-color: moccasin
+        &:before
+          background: linear-gradient(to right, rgba(255,255,255,0) 0%, moccasin 70%, moccasin 100%)
+
+      &:before
+        content: " "
+        position: absolute
+        display: block
+        left: -20px
+        width: 20px
+        height: 100%

@@ -28,7 +28,7 @@ define [
       @router.widgetRepo.transitPage(newWidgetPath, params, new PageTransition(tPath, tPath))
 
 
-  -> # browserInit() function
+  init: -> # browserInit() function
     ###
     Initializes cordsjs core on browser-side
     ###
@@ -86,7 +86,7 @@ define [
         _console.error 'Error from requirejs: ', error.toString(), 'Error: ', error
 
 
-    widgetRepo = new WidgetRepo
+    widgetRepo = new WidgetRepo(global.cordServerProfilerUid)
 
     fallback = new ClientFallback(clientSideRouter)
 
