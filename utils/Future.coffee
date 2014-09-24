@@ -73,12 +73,7 @@ define [
       @_alwaysCallbacks = []
       @_name = name
 
-      timeout = global.config?.debug.future.timeout
-      if timeout > 0
-        @_incompleteTimeout = setTimeout =>
-          if @state() == 'pending' and @_counter > 0
-            _console.warn "Future timed out [#{@_name}] (#{timeout/1000} seconds), counter = #{@_counter}"
-        , timeout
+      @_initDebugTimeout() if @_counter > 0
 
 
     fork: ->
@@ -91,6 +86,7 @@ define [
         throw new Error("Trying to use the completed future [#{@_name}]!")
       throw new Error("Trying to fork locked future [#{@_name}]!") if @_locked
       @_counter++
+      @_initDebugTimeout() if @_counter == 1
       this
 
 
@@ -111,10 +107,8 @@ define [
             @_state = 'resolved' if @_locked
             @_runDoneCallbacks() if @_doneCallbacks.length > 0
             @_runAlwaysCallbacks() if @_alwaysCallbacks.length > 0
-            # Clean debug timeout
-            if @_incompleteTimeout?
-              clearTimeout(@_incompleteTimeout)
-              @_incompleteTimeout = null
+            @_clearFailCallbacks() if @_state == 'resolved'
+            @_clearDebugTimeout()
           # not changing state to 'resolved' here because it is possible to call fork() again if done hasn't called yet
       else
         nameStr = if @_name then " (name = #{ @_name})" else ''
@@ -138,6 +132,8 @@ define [
           @_callbackArgs = [err ? new Error("Future[#{@_name}] rejected without error message!")]
           @_runFailCallbacks() if @_failCallbacks.length > 0
           @_runAlwaysCallbacks() if @_alwaysCallbacks.length > 0
+          @_clearDoneCallbacks()
+          @_clearDebugTimeout()
       else
         throw new Error("Future::reject is called more times than Future::fork! [#{@_name}]")
 
@@ -192,7 +188,11 @@ define [
       ###
       if @_state != 'rejected'
         @_doneCallbacks.push(callback)
-        @_runDoneCallbacks() if @_counter == 0
+        if @_counter == 0
+          @_clearDebugTimeout()
+          Defer.nextTick =>
+            @_runDoneCallbacks()
+            @_clearFailCallbacks()
       this
 
 
@@ -205,19 +205,25 @@ define [
       throw new Error("Invalid argument for Future.fail(): #{ callback }. [#{@_name}]") if not _.isFunction(callback)
       if @_state != 'resolved'
         @_failCallbacks.push(callback)
-        @_runFailCallbacks() if @_state == 'rejected'
+        if @_state == 'rejected'
+          @_clearDebugTimeout()
+          Defer.nextTick =>
+            @_runFailCallbacks()
       this
 
 
     finally: (callback) ->
       ###
-      Defines callback funtion to be called when future is completed by any mean.
+      Defines callback function to be called when future is completed by any mean.
       Callback arguments are using popular semantics with first-argument-as-an-error (Left) and other arguments
        are successful results of the future.
       ###
       @_alwaysCallbacks.push(callback)
       if @_counter == 0 or @_state == 'rejected'
-        Defer.nextTick => @_runAlwaysCallbacks()
+        @_clearDebugTimeout()
+        Defer.nextTick =>
+          @_runAlwaysCallbacks()
+          @_clearFailCallbacks() if @_state == 'resolved'
       this
 
 
@@ -238,7 +244,7 @@ define [
       ###
       Generates callback proxy function to be used in return-in-async-callback functions
        which allows to avoid callback-indentation hell by merging callback callback calls
-       of severar such functions into one callback which is called when all async functions
+       of several such functions into one callback which is called when all async functions
        are complete.
 
       All arguments of aggregated callbacks are passed to 'done'-defined callback in order of calling
@@ -545,7 +551,6 @@ define [
       ###
       Fires resulting callback functions defined by done with right list of arguments.
       ###
-      @_failCallbacks = []
       @_state = 'resolved'
       # this is need to avoid duplicate callback calling in case of recursive coming here from callback function
       callbacksCopy = @_doneCallbacks
@@ -557,7 +562,6 @@ define [
       ###
       Fires resulting callback functions defined by fail with right list of arguments.
       ###
-      @_doneCallbacks = []
       # this is need to avoid duplicate callback calling in case of recursive coming here from callback function
       callbacksCopy = @_failCallbacks
       @_failCallbacks = []
@@ -721,17 +725,38 @@ define [
         Future.rejected(err)
 
 
+    _initDebugTimeout: ->
+      timeout = global.config?.debug.future.timeout
+      if timeout > 0
+        @_incompleteTimeout = setTimeout =>
+          if @state() == 'pending' and @_counter > 0
+            _console.warn "Future timed out [#{@_name}] (#{timeout/1000} seconds), counter = #{@_counter}"
+        , timeout
+
+
+    _clearDebugTimeout: ->
+      if @_incompleteTimeout?
+        clearTimeout(@_incompleteTimeout)
+        @_incompleteTimeout = null
+
+
+    _clearDoneCallbacks: ->
+      @_doneCallbacks = []
+
+
+    _clearFailCallbacks: ->
+      @_failCallbacks = []
+
+
     clear: ->
       ###
       Way to eliminate any impact of resolving or rejecting or time-outing of this promise.
       Should be used when actions that are waiting for this promise completion are no more needed.
       ###
-      @_doneCallbacks = []
-      @_failCallbacks = []
+      @_clearDoneCallbacks()
+      @_clearFailCallbacks()
       @_alwaysCallbacks = []
-      if @_incompleteTimeout?
-        clearTimeout(@_incompleteTimeout)
-        @_incompleteTimeout = null
+      @_clearDebugTimeout()
 
 
     # debugging

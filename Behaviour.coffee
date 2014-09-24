@@ -5,10 +5,11 @@ define [
   'cord!utils/DomHelper'
   'cord!utils/DomInfo'
   'cord!utils/Future'
+  'cord!utils/profiler/profiler'
   'cord!Module'
   'jquery'
   'postal'
-], (errors, Model, Defer, DomHelper, DomInfo, Future, Module, $, postal) ->
+], (errors, Model, Defer, DomHelper, DomInfo, Future, pr, Module, $, postal) ->
 
   checkIsSentenced = (widget, message = '') ->
     ###
@@ -74,7 +75,8 @@ define [
       @initWidgetEvents(@widgetEvents)  if @widgetEvents
       @_callbacks = []
 
-      @init()
+      pr.timer "#{@constructor.name}::init", =>
+        @init()
       if @show?
         @widget.shown().done @getCallback =>
           @show()
@@ -97,6 +99,80 @@ define [
         $(selector, @$rootEls)
       else
         $(selector)
+
+
+    addClass: (value) ->
+      ###
+      Adds the specified class(es) to the root element(s) of the widget.
+      This change will be preserved on the widget re-render.
+      @param String value One or more space-separated CSS classes
+      ###
+      @_clsPrepare value, (classes, ctx) ->
+        addClasses = _.difference(classes, ctx.__cord_dyn_classes__)
+        @_clsAdd(addClasses, ctx)
+
+
+    removeClass: (value) ->
+      ###
+      Removes the specified class(es) from the root element(s) of the widget.
+      This change will be preserved on the widget re-render.
+      @param String value One or more space-separated CSS classes
+      ###
+      @_clsPrepare value, (classes, ctx) ->
+        removeClasses = _.intersection(classes, ctx.__cord_dyn_classes__)
+        @_clsRemove(removeClasses, ctx)
+
+
+    toggleClass: (value, state) ->
+      ###
+      Adds or removes one or more classes from the root element(s) of the widget,
+       depending on either the class's presence or the value of the `state` argument.
+      If the state value is not set the given classes existence is inverted.
+      This change will be preserved on the widget re-render.
+      @param String value One or more space-separated CSS classes
+      @param Boolean state A boolean value to determine whether the class should be added or removed
+      ###
+      if state?
+        state = !!state
+        if state
+          @addClass(value)
+        else
+          @removeClass(value)
+      else
+        @_clsPrepare value, (classes, ctx) ->
+          addClasses = _.difference(classes, ctx.__cord_dyn_classes__)
+          removeClasses = _.intersection(classes, ctx.__cord_dyn_classes__)
+          @_clsRemove(removeClasses, ctx)
+          @_clsAdd(addClasses, ctx)
+
+
+    _clsPrepare: (value, cb) ->
+      ###
+      DRY for (add|remove|toggle)Class
+      ###
+      ctx = @widget.ctx
+      ctx.__cord_dyn_classes__ ?= []
+      classes = value.split(/\s/).filter((x) -> x != '')
+      # calling in the context of the behaviour to avoid necessity of using fat arrow
+      cb.call(this, classes, ctx)
+
+
+    _clsAdd: (addClasses, ctx) ->
+      ###
+      DRY for (add|toggle)Class
+      ###
+      ctx.__cord_dyn_classes__ = ctx.__cord_dyn_classes__.concat(addClasses)
+      root = if @el.length == 1 then @el else @$rootEls
+      root.addClass(addClasses.join(' ')) if addClasses.length > 0
+
+
+    _clsRemove: (removeClasses, ctx) ->
+      ###
+      DRY for (remove|toggle)Class
+      ###
+      ctx.__cord_dyn_classes__ = _.difference(ctx.__cord_dyn_classes__, removeClasses)
+      root = if @el.length == 1 then @el else @$rootEls
+      root.removeClass(removeClasses.join(' ')) if removeClasses.length > 0
 
 
     addSubscription: (subscription, callback = null) ->
@@ -132,9 +208,12 @@ define [
 
 
     delegateEvents: (events) ->
+      if typeof window.zone != 'undefined'
+        tmpZone = window.zone
+        window.zone = tmpZone.constructor.rootZone
       for key, method of events
 
-        method     = @_getEventMethod(method)
+        method     = @_getEventMethod(method, key)
         match      = key.match(/^(\S+)\s*(.*)$/)
         eventName  = match[1]
         selector   = match[2]
@@ -160,6 +239,8 @@ define [
             else
               root = if @el.length == 1 then @el else @$rootEls
               root.on(eventName, selector, method)
+      if typeof window.zone != 'undefined'
+        window.zone = tmpZone
 
 
     initWidgetEvents: (events) ->
@@ -174,10 +255,13 @@ define [
         @_registerModelBinding(@widget.ctx[fieldName], fieldName, onChangeMethod)
 
 
-    _getEventMethod: (method) ->
+    _getEventMethod: (method, eventDesc) ->
       m = @_getHandlerFunction(method)
-      =>
-        m.apply(this, arguments) #if not @widget.isSentenced()
+      that = this
+      ->
+        origArgs = arguments
+        pr.timer "#{that.constructor.__name}::DOM('#{eventDesc}')", ->
+          m.apply(that, origArgs) if not that.widget.isSentenced()
         true
 
 
@@ -288,7 +372,7 @@ define [
           domInfo.setDomRoot($newWidgetRoot)
           widget.browserInit($newWidgetRoot).then ->
             $newWidgetRoot.attr('style', $rootEl.attr('style'))
-            DomHelper.replaceNode($rootEl, $newWidgetRoot)
+            DomHelper.replace($rootEl, $newWidgetRoot)
           .then ->
             domInfo.markShown()
             widget.markShown()
@@ -314,7 +398,7 @@ define [
         domInfo.setDomRoot($newInlineRoot)
         id = @widget.ctx[':inlines'][name].id
         $oldInlineRoot = $('#'+id)
-        DomHelper.replaceNode($oldInlineRoot, $newInlineRoot).then =>
+        DomHelper.replace($oldInlineRoot, $newInlineRoot).then =>
           domInfo.markShown()
           @widget.browserInit()
       .failAloud(@debug('renderInline'))

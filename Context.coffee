@@ -78,6 +78,7 @@ define [
         if @[name] == ':deferred'
           # if the current value special :deferred than event should be triggered even if the new value is null
           triggerChange = (newValue != ':deferred')
+          @_clearDeferredDebug(name) if triggerChange
           # stashing should be turned off for modifying from :deferred except the value has become :deferred during
           #  widget template rendering (when stashing is enabled)
           stashChange = @[':internal'].deferredStash?[name]
@@ -256,5 +257,12 @@ define [
         clearTimeout(dt[name]) if dt[name]
         dt[name] = setTimeout =>
           _console.warn '### Deferred timeout', name, @id, @_owner?.constructor.__name if @[name] == ':deferred'
-          dt[name] = null
+          delete dt[name]
         , timeout
+
+
+    _clearDeferredDebug: (name) ->
+      dt = @[':internal'].deferredTimeouts
+      if dt and dt[name]
+        clearTimeout(dt[name])
+        delete dt[name]
