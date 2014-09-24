@@ -227,7 +227,10 @@ define [
       ###
       name = @_name
       @fail (err) ->
-        _console.error "Future(#{name})::failAloud#{ if message then " with message: #{message}" else '' }", err
+        if typeof _console != 'undefined'
+          _console.error "Future(#{name})::failAloud#{ if message then " with message: #{message}" else '' }", err
+        else
+          console.error "Future(#{name})::failAloud#{ if message then " with message: #{message}" else '' }", err
         throw err
 
 

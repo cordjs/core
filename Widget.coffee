@@ -332,7 +332,7 @@ define [
 
 
     createPromise: (initialCounter = 0, name = '') ->
-      promise = new Future initialCounter = 0, name = ''
+      promise = new Future initialCounter, name
       @_promises.push promise
 
 
