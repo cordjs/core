@@ -1,0 +1,39 @@
+.b-cord-profiler-timer-with-toolbar
+  margin: 3px
+  border: 1px solid #ddd
+  background-color: #faebd7
+  padding: 0px
+
+  .toolbar-buttons
+    padding:3px 1ex
+    line-height: 0px
+    border-bottom: 1px solid #ddd
+    background-color: #f2f2f2
+
+    .toolbar-btn
+      line-height: 1.2
+      font-size: 11px
+      font-weight: bold
+      border: 1px solid #ddd
+      border-radius: 3px
+      background-color: #cecece
+      padding: 1px 5px
+      text-transform: lowercase
+      color:  #222
+
+      &:disabled
+        background-color: #eee !important
+        color: #cecece !important
+        border: 1px solid #ddd !important
+
+      &.btn-slowest
+        border: 1px solid #5E966B;
+        background-color: #73ad88
+        color: #FFFFFF
+
+  .toolbar-content-list
+    margin: 5px 0px
+
+    .b-cord-profiler-timer>.e-time
+       text-align: left
+

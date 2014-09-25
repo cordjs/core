@@ -29,7 +29,8 @@ define [
 
 
     expandSlowestPath: ->
-      @childByName.timerList?.expandSlowestPath()
+      console.log @childByName
+      #@childByName.timerList?.expandSlowestPath()
 
 
     toggleFullPanel: (show) ->
