@@ -14,7 +14,6 @@ define [
       initTime: 'onInitTimeChange'
 
     @events:
-      'click .e-expand-slowest': -> @widget.expandSlowestPath()
       'click .e-init-time': -> @widget.toggleFullPanel(true)
       'click .e-hide-link': -> @widget.toggleFullPanel(false)
 

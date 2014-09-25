@@ -9,28 +9,12 @@ define [
 
     @initialCtx:
       timer: null
-      timerName: null
       highlightInfo: {}
 
     @params:
-      timer: 'onTimerParamChange'
+      timer: ':ctx'
       highlightInfo: ':ctx'
 
-
-    onTimerParamChange: (timer) ->
-      maxTime = timer.totalTime
-      half    = maxTime / 2
-      quarter = maxTime / 4
-
-      timer.nameId = 'tim'+timer.id
-      if timer.totalTime >= half
-        timer.overHalf = true
-      else if timer.totalTime > quarter
-        timer.overQuarter = true
-
-      timer.finished = not timer.finished? or timer.finished
-
-      @ctx.set timer: timer
 
     expandSlowestPath: ->
       @childByName.rootTimer?.expandSlowestPath()

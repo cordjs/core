@@ -5,7 +5,6 @@ define [
 
   class TimerList extends Widget
 
-    rootTag: 'ul'
     cssClass: 'b-cord-profiler-timer-list'
     css: true
 

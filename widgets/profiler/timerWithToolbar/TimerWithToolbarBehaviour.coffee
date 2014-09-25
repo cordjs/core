@@ -4,8 +4,5 @@ define [
 
   class TimerWithToolbarBehaviour extends Behaviour
 
-    @elements:
-      '>.toolbar-buttons .btn-slowest': 'btnSlowest'
-
     @events:
-      'click @btnSlowest': -> @widget.expandSlowestPath()
+      'click .btn-slowest': -> @widget.expandSlowestPath()
