@@ -334,10 +334,12 @@ define [
     createPromise: (initialCounter = 0, name = '') ->
       promise = new Future initialCounter, name
       @_promises.push promise
+      promise
 
 
     addPromise: (promise) ->
       @_promises.push promise
+      promise
 
 
     _cleanPromises: ->

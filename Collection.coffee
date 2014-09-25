@@ -1053,6 +1053,15 @@ define [
       ###
       result = Future.single('Collection::getPagingInfo')
 
+      # Workaround for fixed collections
+      if @_fixed
+        result.resolve
+          total: @_models.length
+          pages: if @_models.length then 1 else 0
+          selectedPage: if @_models.length then 1 else 0
+
+        return result
+
       cachePromise = Future.single('Collection::getPagingInfo cachePromise')
       if !@isInitialized() || @_cacheLoaded || not isBrowser || refresh
         cachePromise.resolve()
