@@ -12,8 +12,9 @@ define [
       @param string path - Service name
       @return bool
       ###
-      key = '_box_' + @_resolve(path)
-      !!@[key]
+      path = @_resolve(path)
+      key =
+      !!(@['_box_' + path] || @['_box_val_' + path])
 
 
     reset: (path) ->
