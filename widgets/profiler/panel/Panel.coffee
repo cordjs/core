@@ -16,7 +16,7 @@ define [
       minimized: true
 
     @params:
-      timers: ':ctx'
+      timers: 'onTimersParamChange'
       highlightInfo: ':ctx'
       initTime: (time) -> @ctx.set(initTime: roundTime(time))
 
@@ -24,12 +24,30 @@ define [
       'timerList actions.highlight-wait-deps': (payload) -> @emit 'actions.highlight-wait-deps', payload
 
 
+    onTimersParamChange: (timers) ->
+      redTimer = @_getSlowestTimer(timers)
+
+      maxTime = redTimer.totalTime
+      half = maxTime / 2
+      quarter = maxTime / 4
+
+      # adding relative style indicators to the timers info
+      for tim in timers
+        tim.nameId = 'tim'+tim.id
+        if tim == redTimer
+          tim.slowest = true
+        else if tim.totalTime >= half
+          tim.overHalf = true
+        else if tim.totalTime > quarter
+          tim.overQuarter = true
+
+        tim.finished = not tim.finished? or tim.finished
+
+      @ctx.set timers: timers
+
+
     onShow: ->
       @addDynClass('minimized')
-
-
-    expandSlowestPath: ->
-      @childByName.timerList?.expandSlowestPath()
 
 
     toggleFullPanel: (show) ->
@@ -39,3 +57,7 @@ define [
         else
           not @ctx.minimized
       @ctx.set minimized: newValue
+
+
+    _getSlowestTimer: (timers) ->
+      _.max(timers, (x) -> x.totalTime)

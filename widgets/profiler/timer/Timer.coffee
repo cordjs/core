@@ -11,7 +11,6 @@ define [
     Recursive widget representing one timer with it's children
     ###
 
-    rootTag: 'li'
     cssClass: 'b-cord-profiler-timer'
     css: true
 
