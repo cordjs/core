@@ -1,5 +1,6 @@
 define [
   'cord!Widget'
+  'underscore'
 ], (Widget) ->
 
   roundTime = (x) -> (parseFloat(x) / 1000).toFixed(3)
@@ -11,13 +12,11 @@ define [
 
     @initialCtx:
       timers: []
-      highlightInfo: {}
       initTime: 0.0
       minimized: true
 
     @params:
       timers: 'onTimersParamChange'
-      highlightInfo: ':ctx'
       initTime: (time) -> @ctx.set(initTime: roundTime(time))
 
     @childEvents:

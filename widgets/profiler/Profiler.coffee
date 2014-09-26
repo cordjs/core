@@ -5,43 +5,6 @@ define [
   'underscore'
 ], (Widget, Future, pr, _) ->
 
-  calculateDeepHighlight = (info, timers) ->
-    ###
-    Recursively walks through tree of `timers` and constructs related tree with highlighting info
-     according to the given timer ids in `info`
-    @param Object info dependency timer ids
-    @param Array[Object] timers
-    @return Object
-    ###
-    result =
-      bubbleType: 'none'
-      timers: {}
-    for timer in timers
-      hInfo = type: 'none'
-      if timer.id == info.selectedTimerId
-        hInfo.type = 'selected'
-      else if timer.id in info.depTimerIds
-        hInfo.type = 'dep'
-
-      if timer.children?
-        childRes = calculateDeepHighlight(info, timer.children)
-        hInfo.children = childRes.timers
-        hInfo.type = childRes.bubbleType if hInfo.type == 'none'
-        hInfo.type = 'selected-dep-parent' if hInfo.type == 'selected' and childRes.bubbleType == 'dep-parent'
-        hInfo.type = 'dep-dep-parent' if hInfo.type == 'dep' and childRes.bubbleType == 'dep-parent'
-
-      result.timers[timer.id] = hInfo
-
-      if hInfo.type in ['dep', 'dep-parent', 'dep-dep-parent']
-        result.bubbleType = 'dep-parent'
-      else if hInfo.type in ['selected', 'selected-dep-parent'] and result.bubbleType != 'dep-parent'
-        result.bubbleType = 'selected-parent'
-      else if result.bubbleType == 'none'
-        result.bubbleType = hInfo.type
-
-    result
-
-
   class Profiler extends Widget
     ###
     Controller widget for the profiler debug panel
@@ -52,14 +15,10 @@ define [
 
     @initialCtx:
       timers: []
-      highlightInfo: {}
       initTime: 0.0
 
     @params:
       serverUid: 'loadServerProfilingData'
-
-    @childEvents:
-      'panel actions.highlight-wait-deps': 'highlightWaitDeps'
 
 
     onShow: ->
@@ -83,10 +42,6 @@ define [
         @ctx.set timers: newTimers
 
 
-    highlightWaitDeps: (highlightInfo) ->
-      @ctx.set('highlightInfo', calculateDeepHighlight(highlightInfo, @ctx.timers).timers)
-
-
     loadServerProfilingData: (serverUid) ->
       ###
       @browser-only
@@ -100,7 +55,6 @@ define [
             @ctx.set
               timers: newTimers
               initTime: data.totalTime
-
 
 
     _calculateDerivativeMetrics: (timerData) ->
