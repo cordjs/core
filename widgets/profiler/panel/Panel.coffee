@@ -19,9 +19,6 @@ define [
       timers: 'onTimersParamChange'
       initTime: (time) -> @ctx.set(initTime: roundTime(time))
 
-    @childEvents:
-      'timerList actions.highlight-wait-deps': (payload) -> @emit 'actions.highlight-wait-deps', payload
-
 
     onTimersParamChange: (timers) ->
       redTimer = @_getSlowestTimer(timers)

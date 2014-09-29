@@ -46,21 +46,18 @@ define [
     css: true
 
     @initialCtx:
-      timer: null,
+      timer: null
       isSlowestDisable: true
-      highlightInfo: {}
 
     @params:
-      timer: 'onButtonChangeStatus'
+      timer: 'onTimerParams'
 
     @childEvents:
       'rootTimer actions.highlight-wait-deps': 'highlightWaitDeps'
 
 
-    onButtonChangeStatus: (timer) ->
-      if timer.children
-        @ctx.set isSlowestDisable: false
-      @ctx.set timer: timer
+    onTimerParams: (timer) ->
+      @ctx.set isSlowestDisable: not timer.children
 
 
     expandSlowestPath: ->
@@ -68,5 +65,5 @@ define [
 
 
     highlightWaitDeps: (highlightInfo) ->
-      @ctx.set('highlightInfo', calculateDeepHighlight(highlightInfo, [@ctx.timer]).timers)
-      @childByName.rootTimer.setHighlightInfo(@ctx.highlightInfo[@ctx.timer.id])
+      timersInfo = calculateDeepHighlight(highlightInfo, [@ctx.timer]).timers
+      @childByName.rootTimer.setHighlightInfo(timersInfo[@ctx.timer.id])
