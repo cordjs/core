@@ -105,9 +105,7 @@ exports.stopServer = stopServer = ->
   services.nodeServer.close()
 
 
-# Private functions
-
-loadConfig = (configName, serverPort) ->
+exports.loadConfig = loadConfig = (configName, serverPort) ->
   try
     if configName.charAt(0) != '/'
       configName = pathDir + '/conf/' + configName + '.js'
@@ -135,6 +133,7 @@ loadConfig = (configName, serverPort) ->
     {}
 
 
+# Private functions
 
 timeLog = (message) ->
   console.log "#{(new Date).toLocaleTimeString()} - #{message}"
