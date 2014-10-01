@@ -21,7 +21,7 @@ define [
       @_fieldNames = []
       @_changed = {}
       if (attrs instanceof Model)
-        attrs  = _.clone(attrs).toJSON()
+        attrs  = attrs.toJSON()
 
       @_load(attrs) if attrs
 
