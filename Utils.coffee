@@ -4,13 +4,7 @@ define [
   'underscore'
 ], (moment, isBrowser, _) ->
 
-  if isBrowser
-    momentru = require ['moment-ru'], (ru) =>
-      moment.lang 'ru'
-    timezoneOffset = (new Date()).getTimezoneOffset()
-  else
-    moment.lang 'ru'
-
+  moment.lang 'ru'
 
   class Utils
 

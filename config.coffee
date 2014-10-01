@@ -87,7 +87,6 @@ define ->
       'jquery':                  'vendor/jquery/jquery'
       'jquery.cookie':           'vendor/jquery/plugins/jquery.cookie'
       'moment':                  'vendor/moment/moment'
-      'moment-ru':               'vendor/moment/lang/ru'
       'monologue':               'vendor/postal/monologue'
       'postal':                  'vendor/postal/postal_lite'
       'the-box':                 'vendor/the-box/app'
@@ -107,6 +106,3 @@ define ->
         exports: 'jQuery'
       'underscore':
         exports: '_'
-      'moment-ru':
-        deps: ['moment']
-        exports: 'null'
