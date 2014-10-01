@@ -86,7 +86,6 @@ define ->
       'dustjs-helpers':          'vendor/dustjs/dustjs-helpers'
       'jquery':                  'vendor/jquery/jquery'
       'jquery.cookie':           'vendor/jquery/plugins/jquery.cookie'
-      'moment':                  'vendor/moment/moment'
       'monologue':               'vendor/postal/monologue'
       'postal':                  'vendor/postal/postal_lite'
       'the-box':                 'vendor/the-box/app'
