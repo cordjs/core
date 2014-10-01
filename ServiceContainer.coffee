@@ -13,8 +13,7 @@ define [
       @return bool
       ###
       path = @_resolve(path)
-      key =
-      !!(@['_box_' + path] || @['_box_val_' + path])
+      !!(@['_box_' + path] or  @['_box_val_' + path])
 
 
     reset: (path) ->
