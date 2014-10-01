@@ -1,10 +1,7 @@
 define [
-  'moment'
   'cord!isBrowser'
   'underscore'
-], (moment, isBrowser, _) ->
-
-  moment.lang 'ru'
+], (isBrowser, _) ->
 
   class Utils
 
