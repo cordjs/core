@@ -1,16 +1,7 @@
 define [
-  'moment'
   'cord!isBrowser'
   'underscore'
-], (moment, isBrowser, _) ->
-
-  if isBrowser
-    momentru = require ['moment-ru'], (ru) =>
-      moment.lang 'ru'
-    timezoneOffset = (new Date()).getTimezoneOffset()
-  else
-    moment.lang 'ru'
-
+], (isBrowser, _) ->
 
   class Utils
 
