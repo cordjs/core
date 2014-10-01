@@ -71,10 +71,10 @@ define [
 
         if _.isArray services
           for serviceName in services
-            injectService serviceName,serviceName
+            injectService serviceName, serviceName
         else
-          for serviceAlias,serviceName of services
-            injectService serviceAlias,serviceName
+          for serviceAlias, serviceName of services
+            injectService serviceAlias, serviceName
 
 
       injectPromise
