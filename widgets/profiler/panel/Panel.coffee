@@ -1,7 +1,7 @@
 define [
   'cord!Widget'
   'underscore'
-], (Widget) ->
+], (Widget, _) ->
 
   roundTime = (x) -> (parseFloat(x) / 1000).toFixed(3)
 
