@@ -150,11 +150,12 @@ define [
       ###
       DRY for (add|remove|toggle)Class
       ###
-      ctx = @widget.ctx
-      ctx.__cord_dyn_classes__ ?= []
-      classes = value.split(/\s/).filter((x) -> x != '')
-      # calling in the context of the behaviour to avoid necessity of using fat arrow
-      cb.call(this, classes, ctx)
+      if @widget
+        ctx = @widget.ctx
+        ctx.__cord_dyn_classes__ ?= []
+        classes = value.split(/\s/).filter((x) -> x != '')
+        # calling in the context of the behaviour to avoid necessity of using fat arrow
+        cb.call(this, classes, ctx)
 
 
     _clsAdd: (addClasses, ctx) ->

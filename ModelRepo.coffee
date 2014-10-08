@@ -700,9 +700,8 @@ define [
           else if _.isArray(value) and Model.isSerializedLink(value[0])
             @modelProxy.addArrayLink result, key
 
-      if attrs?.id
-        @_injectModelServices(result)
-        @_injectActionMethods(result)
+      @_injectModelServices(result)
+      @_injectActionMethods(result) if attrs?.id
 
       result
 
@@ -717,9 +716,8 @@ define [
       result = new @model()
       result.set attrs
 
-      if attrs?.id
-        @_injectModelServices(result)
-        @_injectActionMethods(result)
+      @_injectModelServices(result)
+      @_injectActionMethods(result) if attrs?.id
 
       result
 

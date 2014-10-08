@@ -50,14 +50,14 @@ define [
       isSlowestDisable: true
 
     @params:
-      timer: 'onTimerParams'
+      timer: 'onTimerParamChange'
 
     @childEvents:
       'rootTimer actions.highlight-wait-deps': 'highlightWaitDeps'
 
 
-    onTimerParams: (timer) ->
-      @ctx.set isSlowestDisable: not timer.children
+    onTimerParamChange: (timer) ->
+      @ctx.set(isSlowestDisable: not timer.children)
 
 
     expandSlowestPath: ->
