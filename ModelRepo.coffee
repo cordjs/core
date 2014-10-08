@@ -16,6 +16,8 @@ define [
 
     _collections: null
 
+    _collectedTags: null
+
     restResource: ''
 
     predefinedCollections: null
@@ -40,6 +42,8 @@ define [
       throw new Error("'model' property should be set for the repository!") if not @model?
 
       @_collections = {}
+
+      @_collectedTags = {}
 
       @_initPredefinedCollections()
 
@@ -207,6 +211,16 @@ define [
             promise.reject(error)
 
       promise
+
+
+    # Triggers tags actions on all collections
+    # @params tag - string
+    # @params mods - anythings
+    triggerTag: (tag, mods) ->
+      @_collectedTags[tag] = mods
+      Defer.nextTick =>
+        @emit('tags', @_collectedTags) if @_collectedTags.length
+        @_collectedTags = []
 
 
     probeCollectionsForModel: (id, fields) ->

@@ -56,6 +56,35 @@ define [
     #Last time collection was queried from backend
     _lastQueryTime: 0
 
+    # Tags for collection clustering. Used for background refreshing of collections
+    # Tags events are propagated trough appropriate ModelRepo
+    # Tag is a user-defined string, collection reaction on tags defined by parameter 'tagsActions'
+    # There are predefined tags actions:
+    #   'refresh' - immediate refresh loaded parts of the collection
+    #   'liveUpdate' - immediate refresh if collection is alive (has any 'change' subscriptons)
+    #   'clearCache' - clears cache and timeouts
+    # Example:
+    # tags:
+    # 'project.10000': 'liveUpdate'
+    # 'any': 'liveUpdate'
+    _tags: null
+
+    # predefined tags:
+    @_defaultTagsActions =
+      'refresh':
+        action: 'tagsRefresh'
+        level: 0
+      'liveUpdate':
+        action: 'tagLiveUpdate'
+        level: 10
+      'clearCache':
+        action: 'tagClearCache'
+        level: 20
+
+    # default tag action and level for user-defined tags
+    @_defaultTagAction: 'liveUpdate'
+    @_defaultTagLevel: 100
+
 
     @generateName: (options) ->
       ###
@@ -139,6 +168,35 @@ define [
         @_byId = options.models
         @_models = _.values options.models
 
+      # Parser and initialize tags
+      # tags could be set in 3 forms:
+      # - a string of tags divided by coma: 'project.100002, project.1000003'
+      # - an array of tags: ['project.1000002', 'project.100003']
+      # - an object like:
+      #   'project.1000003':
+      #     action: (mods) -> ...
+      #     level: 100
+      @_tags = {}
+      if options.tags
+        if _.isObject(options.tags)
+          for key, value of options.tags
+            @_tags[key] =
+              action: if value.action then value.action else Collection._defaultTagAction
+              level: if not isNaN(Number(value.level)) then Number(value.level) else Collection._defaultTagLevel
+        else if _.isArray(options.tags) or _.isString(options.tags)
+          rawTags =
+            if _.isString(options.tags)
+              _.filter options.tags.split(','), item -> item.trim()
+            else
+              options.tags
+
+          for value in rawTags
+            @_tags[value] =
+              action: Collection._defaultTagAction
+              level: Collection._defaultTagLevel
+        else
+          throw new Error('Unknown \'tags\' option: ' + options.tag)
+
       @_requestParams = options.requestParams ? {}
 
       @_queryQueue =
@@ -150,7 +208,7 @@ define [
 
       # subscribe for model changes to smart-proxy them to the collections model instances
       @repo.on('change', @_handleModelChange).withContext(this)
-
+      @repo.on('tags', @_handleTagBroadcast).withContext(this)
 
 
     euthanize: ->
@@ -479,7 +537,7 @@ define [
       if maxPages < 1
         _console.error('collection.refresh called with wrong parameter maxPages', maxPages, (new Error()).stack)
 
-      return if not (minRefreshInterval >= 0 and @getLastQueryTimeDiff() > minRefreshInterval and @isRefreshAllowed())
+      return if not (minRefreshInterval >= 0 and @isRefreshAllowed() and @getLastQueryTimeDiff() > minRefreshInterval)
 
       @_refreshInProgress = true
 
@@ -1440,6 +1498,29 @@ define [
       @_queryQueue.loadingEnd = @_loadedEnd = end
       #@_loadedStart = start
       #@_loadedEnd = end
+
+
+    # handles tags broadcast
+    # params is an object with array of tags and mods (modificators) which will be passed as param into tagAction
+    # params =
+    #   'project.1000002':
+    #     ifContain: 1000003
+    _handleTagBroadcast: (params) ->
+
+      # Search for mathing tags anf actions
+      lowesLevel = Number.POSITIVE_INFINITY
+      matched = {}
+      for tag, mods of params
+        if @_tags[tag]
+          matched[tag] = mods
+          lowesLevel = min(lowest, @_tags[tag].level)
+
+      for tag, mods in matched
+        if @_tags[tag].level == lowesLevel
+          if _.isFunction(@_tags[tag].action)
+            @_tags[tag].action(mods)
+          else
+            this[@_tags[tag].action](mods)
 
 
     debug: (method) ->
