@@ -200,6 +200,11 @@ define [
 
       return true
 
+
+    clearLastQueryTime: ->
+      @_lastQueryTime = 0
+
+
     getLastQueryTime: ->
       if @_lastQueryTime then @_lastQueryTime else 0
 
@@ -537,7 +542,7 @@ define [
         end = startPage * @_pageSize - 1
 
         # We'll continue refreshing if [start,end] intersects with [@_loadedStart, @_loadedEnd]
-        if (start <= @_loadedStart <= end or start <= @_loadedEnd <= end) and loadedPages + 1 < maxPages
+        if (start <= @_loadedStart <= end or start <= @_loadedEnd <= end) and loadedPages + 1 <= maxPages
           @_enqueueQuery(start, end, true).failAloud().done =>
             @_simplePageRefresh(startPage + 1, maxPages, loadedPages + 1)
         else
