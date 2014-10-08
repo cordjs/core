@@ -798,6 +798,7 @@ define [
       ###
       Defer.nextTick =>
         for name, collection of @_collections
+          collection.clearLastQueryTime()
           collection.checkNewModel(model, false)
 
 
