@@ -997,7 +997,8 @@ define [
       if (model = @_byId[changeInfo.id])?
         # If not excepted model
         if @_selfEmittedChangeModelId != changeInfo.id
-          modelHasReallyChanged = @_recursiveCompareAndChange(changeInfo, model)
+          changeInto = changeInfo.toJSON() if changeInfo?.toJSON
+          modelHasReallyChanged = @_recursiveCompareAndChange(changeInfo, model.toJSON())
           isSourceModel = changeInfo._sourceModel == model
           if isSourceModel or modelHasReallyChanged
             @emit("model.#{ changeInfo.id }.change", model)
@@ -1424,10 +1425,13 @@ define [
       @param Box ioc service container needed to get model repository service by name
       @param Function(Collection) callback "returning" callback
       ###
-      [repoClass, collectionName] = serialized.substr(12).split(':')
-      repoServiceName = repoClass.charAt(0).toLowerCase() + repoClass.slice(1)
-      ioc.eval repoServiceName, (repo) ->
-        callback(repo.getCollection(collectionName))
+      if serialized instanceof Collection
+        callback(serialized)
+      else
+        [repoClass, collectionName] = serialized.substr(12).split(':')
+        repoServiceName = repoClass.charAt(0).toLowerCase() + repoClass.slice(1)
+        ioc.eval repoServiceName, (repo) ->
+          callback(repo.getCollection(collectionName))
 
 
     _setLoadedRange: (start, end) ->
