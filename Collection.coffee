@@ -1210,7 +1210,6 @@ define [
           queryParams.accessPoint = @_accessPoint if @_accessPoint
 
           @updateLastQueryTime()
-
           @repo.query(queryParams)
         .then (models) =>
           # invalidating cached totalCount
