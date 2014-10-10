@@ -72,18 +72,60 @@ define [
     # predefined tags:
     @_defaultTagsActions =
       'refresh':
-        action: 'tagsRefresh'
+        action: 'tagsRefresh' # Immediate refresh of the collection
         level: 0
       'liveUpdate':
-        action: 'tagLiveUpdate'
+        action: 'tagLiveUpdate' # Immediate refresh if collections is active (has subscriptions)
         level: 10
       'clearCache':
-        action: 'tagClearCache'
+        action: 'tagClearCache' # Clear cache and lastUpdateTime
         level: 20
 
     # default tag action and level for user-defined tags
     @_defaultTagAction: 'liveUpdate'
     @_defaultTagLevel: 100
+
+
+    # handles tags broadcast
+    # params is an object with array of tags and mods (modificators) which will be passed as param into tagAction
+    # params =
+    #   'project.1000002':
+    #     ifContain: 1000003
+    _handleTagBroadcast: (params) ->
+
+      # Search for mathing tags anf actions
+      lowestLevel = Number.POSITIVE_INFINITY
+      matched = {}
+      for tag, mods of params
+        if @_tags[tag]
+          matched[tag] = mods
+          lowestLevel = min(lowest, @_tags[tag].level)
+
+      for tag, mods in matched
+        if @_tags[tag].level == lowestLevel
+          if _.isFunction(@_tags[tag].action)
+            @_tags[tag].action(mods)
+          else
+            this[@_tags[tag].action](mods)
+
+
+    @tagsRefresh: (mods) ->
+      startPage = @_loadedStart / @_pageSize + 1
+      @partialRefresh(startPage, 3, 0, true)
+
+
+    @tagLiveUpdate: (mods) ->
+      @_lastQueryTime = 0
+      if @isRefreshAllowed()
+        startPage = @_loadedStart / @_pageSize + 1
+        @partialRefresh(startPage, 3)
+
+
+    @tagClearCache: (mods) ->
+      # Clear last query time, which means the collection could be updated
+      @_lastQueryTime = 0
+      if not @isRefreshAllowed()
+        @euthanizeCollection(this)
 
 
     @generateName: (options) ->
@@ -429,7 +471,7 @@ define [
       # Refresh the collection only if it contains suggested model
       id = parseInt(if _.isObject(model) then model.id else model)
 
-      if id and not isNaN(id) and @_byId[id]
+      if id and not isNaN(id) and @_byId[id] and @isRefreshAllowed()
         @refresh(id)
 
 
@@ -439,8 +481,8 @@ define [
       @param Model model the new model
       ###
       id = parseInt(if _.isObject(model) then model.id else model)
-
-      @refresh(id, 3, 0, emitModelChangeExcept) if not @_id or (not isNaN(id) and parseInt(@_id) == id)
+      if (not @_id or (not isNaN(id) and parseInt(@_id) == id)) and @isRefreshAllowed()
+        @refresh(id, 3, 0, emitModelChangeExcept)
 
 
     _reorderModelsLocal: ->
@@ -487,7 +529,6 @@ define [
       if @_fixed or @_refreshInProgress
         false
       else if not @_hasActiveChangeSubscriptions()
-        @_lastQueryTime = 0
         false
       else
         true
@@ -509,7 +550,7 @@ define [
         maxPages,
         (new Error()).stack)
 
-      if minRefreshInterval >= 0 and @getLastQueryTimeDiff() > minRefreshInterval and @isRefreshAllowed()
+      if minRefreshInterval >= 0 and @getLastQueryTimeDiff() > minRefreshInterval
         @_refreshInProgress = true
         if not @_pageSize
           @_fullReload()
@@ -537,7 +578,7 @@ define [
       if maxPages < 1
         _console.error('collection.refresh called with wrong parameter maxPages', maxPages, (new Error()).stack)
 
-      return if not (minRefreshInterval >= 0 and @isRefreshAllowed() and @getLastQueryTimeDiff() > minRefreshInterval)
+      return if not (minRefreshInterval >= 0 and @getLastQueryTimeDiff() > minRefreshInterval)
 
       @_refreshInProgress = true
 
@@ -1498,30 +1539,6 @@ define [
       @_queryQueue.loadingEnd = @_loadedEnd = end
       #@_loadedStart = start
       #@_loadedEnd = end
-
-
-    # handles tags broadcast
-    # params is an object with array of tags and mods (modificators) which will be passed as param into tagAction
-    # params =
-    #   'project.1000002':
-    #     ifContain: 1000003
-    _handleTagBroadcast: (params) ->
-
-      # Search for mathing tags anf actions
-      lowesLevel = Number.POSITIVE_INFINITY
-      matched = {}
-      for tag, mods of params
-        if @_tags[tag]
-          matched[tag] = mods
-          lowesLevel = min(lowest, @_tags[tag].level)
-
-      for tag, mods in matched
-        if @_tags[tag].level == lowesLevel
-          if _.isFunction(@_tags[tag].action)
-            @_tags[tag].action(mods)
-          else
-            this[@_tags[tag].action](mods)
-
 
     debug: (method) ->
       ###
