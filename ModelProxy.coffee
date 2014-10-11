@@ -30,13 +30,13 @@ define [
 
       for link in @_modelLinks
         promise.fork()
-        Model.unserializeLink item, @container, (model) ->
+        Model.unserializeLink link.object[link.field], @container, (model) ->
           link.object[link.field] = model
           promise.resolve()
 
       for link in @_collectionLinks
         promise.fork()
-        Collection.unserializeLink item, @container, (collection) ->
+        Collection.unserializeLink link.object[link.field], @container, (collection) ->
           link.object[link.field] = collection
           promise.resolve()
 

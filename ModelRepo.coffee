@@ -16,6 +16,8 @@ define [
 
     _collections: null
 
+    _collectedTags: null
+
     restResource: ''
 
     predefinedCollections: null
@@ -40,6 +42,8 @@ define [
       throw new Error("'model' property should be set for the repository!") if not @model?
 
       @_collections = {}
+
+      @_collectedTags = {}
 
       @_initPredefinedCollections()
 
@@ -207,6 +211,16 @@ define [
             promise.reject(error)
 
       promise
+
+
+    # Triggers tags actions on all collections
+    # @params tag - string
+    # @params mods - anythings
+    triggerTag: (tag, mods) ->
+      @_collectedTags[tag] = mods
+      Defer.nextTick =>
+        @emit('tags', @_collectedTags) if @_collectedTags.length
+        @_collectedTags = []
 
 
     probeCollectionsForModel: (id, fields) ->
@@ -798,6 +812,7 @@ define [
       ###
       Defer.nextTick =>
         for name, collection of @_collections
+          collection.clearLastQueryTime()
           collection.checkNewModel(model, false)
 
 
@@ -836,7 +851,10 @@ define [
               @container.eval serviceName, (service) ->
                 _console.log "Container::injectServices -> eval(#{ serviceName }) for model #{ model.constructor.name } finished success" if global.config?.debug.service
 
-                model[serviceAlias] = service
+                Object.defineProperty model, serviceAlias,
+                  value: service
+                  writable: true
+                  enumerable: false
             catch e
               _console.error "Container::injectServices -> eval(#{ serviceName }) for model #{ model.constructor.name } fail: #{ e.message }"
               model[serviceAlias] = undefined

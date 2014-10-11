@@ -56,6 +56,77 @@ define [
     #Last time collection was queried from backend
     _lastQueryTime: 0
 
+    # Tags for collection clustering. Used for background refreshing of collections
+    # Tags events are propagated trough appropriate ModelRepo
+    # Tag is a user-defined string, collection reaction on tags defined by parameter 'tagsActions'
+    # There are predefined tags actions:
+    #   'refresh' - immediate refresh loaded parts of the collection
+    #   'liveUpdate' - immediate refresh if collection is alive (has any 'change' subscriptons)
+    #   'clearCache' - clears cache and timeouts
+    # Example:
+    # tags:
+    # 'project.10000': 'liveUpdate'
+    # 'any': 'liveUpdate'
+    _tags: null
+
+    # predefined tags:
+    @_defaultTagsActions =
+      'refresh':
+        action: 'tagsRefresh' # Immediate refresh of the collection
+        level: 0
+      'liveUpdate':
+        action: 'tagLiveUpdate' # Immediate refresh if collections is active (has subscriptions)
+        level: 10
+      'clearCache':
+        action: 'tagClearCache' # Clear cache and lastUpdateTime
+        level: 20
+
+    # default tag action and level for user-defined tags
+    @_defaultTagAction: 'liveUpdate'
+    @_defaultTagLevel: 100
+
+
+    # handles tags broadcast
+    # params is an object with array of tags and mods (modificators) which will be passed as param into tagAction
+    # params =
+    #   'project.1000002':
+    #     ifContain: 1000003
+    _handleTagBroadcast: (params) ->
+
+      # Search for mathing tags anf actions
+      lowestLevel = Number.POSITIVE_INFINITY
+      matched = {}
+      for tag, mods of params
+        if @_tags[tag]
+          matched[tag] = mods
+          lowestLevel = min(lowest, @_tags[tag].level)
+
+      for tag, mods in matched
+        if @_tags[tag].level == lowestLevel
+          if _.isFunction(@_tags[tag].action)
+            @_tags[tag].action(mods)
+          else
+            this[@_tags[tag].action](mods)
+
+
+    @tagsRefresh: (mods) ->
+      startPage = @_loadedStart / @_pageSize + 1
+      @partialRefresh(startPage, 3, 0, true)
+
+
+    @tagLiveUpdate: (mods) ->
+      @_lastQueryTime = 0
+      if @hasActiveSubscriptions()
+        startPage = @_loadedStart / @_pageSize + 1
+        @partialRefresh(startPage, 3)
+
+
+    @tagClearCache: (mods) ->
+      # Clear last query time, which means the collection could be updated
+      @_lastQueryTime = 0
+      if not @hasActiveSubscriptions()
+        @euthanizeCollection(this)
+
 
     @generateName: (options) ->
       ###
@@ -139,6 +210,35 @@ define [
         @_byId = options.models
         @_models = _.values options.models
 
+      # Parser and initialize tags
+      # tags could be set in 3 forms:
+      # - a string of tags divided by coma: 'project.100002, project.1000003'
+      # - an array of tags: ['project.1000002', 'project.100003']
+      # - an object like:
+      #   'project.1000003':
+      #     action: (mods) -> ...
+      #     level: 100
+      @_tags = {}
+      if options.tags
+        if _.isObject(options.tags)
+          for key, value of options.tags
+            @_tags[key] =
+              action: if value.action then value.action else Collection._defaultTagAction
+              level: if not isNaN(Number(value.level)) then Number(value.level) else Collection._defaultTagLevel
+        else if _.isArray(options.tags) or _.isString(options.tags)
+          rawTags =
+            if _.isString(options.tags)
+              _.filter options.tags.split(','), item -> item.trim()
+            else
+              options.tags
+
+          for value in rawTags
+            @_tags[value] =
+              action: Collection._defaultTagAction
+              level: Collection._defaultTagLevel
+        else
+          throw new Error('Unknown \'tags\' option: ' + options.tag)
+
       @_requestParams = options.requestParams ? {}
 
       @_queryQueue =
@@ -150,7 +250,7 @@ define [
 
       # subscribe for model changes to smart-proxy them to the collections model instances
       @repo.on('change', @_handleModelChange).withContext(this)
-
+      @repo.on('tags', @_handleTagBroadcast).withContext(this)
 
 
     euthanize: ->
@@ -199,6 +299,11 @@ define [
             return false
 
       return true
+
+
+    clearLastQueryTime: ->
+      @_lastQueryTime = 0
+
 
     getLastQueryTime: ->
       if @_lastQueryTime then @_lastQueryTime else 0
@@ -371,7 +476,7 @@ define [
       # Refresh the collection only if it contains suggested model
       id = parseInt(if _.isObject(model) then model.id else model)
 
-      if id and not isNaN(id) and @_byId[id]
+      if id and not isNaN(id) and @_byId[id] and @hasActiveSubscriptions()
         @refresh(id)
 
 
@@ -381,8 +486,8 @@ define [
       @param Model model the new model
       ###
       id = parseInt(if _.isObject(model) then model.id else model)
-
-      @refresh(id, 3, 0, emitModelChangeExcept) if not @_id or (not isNaN(id) and parseInt(@_id) == id)
+      if (not @_id or (not isNaN(id) and parseInt(@_id) == id)) and @hasActiveSubscriptions()
+        @refresh(id, 3, 0, emitModelChangeExcept)
 
 
     _reorderModelsLocal: ->
@@ -419,7 +524,7 @@ define [
           @_byId[m.id] = m
 
 
-    isRefreshAllowed: ->
+    hasActiveSubscriptions: ->
       ###
       Returns true if refresh allowed, which means
       1. there's no other refreshes in progress
@@ -429,7 +534,6 @@ define [
       if @_fixed or @_refreshInProgress
         false
       else if not @_hasActiveChangeSubscriptions()
-        @_lastQueryTime = 0
         false
       else
         true
@@ -451,7 +555,7 @@ define [
         maxPages,
         (new Error()).stack)
 
-      if minRefreshInterval >= 0 and @getLastQueryTimeDiff() > minRefreshInterval and @isRefreshAllowed()
+      if minRefreshInterval >= 0 and @getLastQueryTimeDiff() > minRefreshInterval
         @_refreshInProgress = true
         if not @_pageSize
           @_fullReload()
@@ -479,7 +583,7 @@ define [
       if maxPages < 1
         _console.error('collection.refresh called with wrong parameter maxPages', maxPages, (new Error()).stack)
 
-      return if not (minRefreshInterval >= 0 and @getLastQueryTimeDiff() > minRefreshInterval and @isRefreshAllowed())
+      return if not (minRefreshInterval >= 0 and @getLastQueryTimeDiff() > minRefreshInterval)
 
       @_refreshInProgress = true
 
@@ -537,7 +641,7 @@ define [
         end = startPage * @_pageSize - 1
 
         # We'll continue refreshing if [start,end] intersects with [@_loadedStart, @_loadedEnd]
-        if (start <= @_loadedStart <= end or start <= @_loadedEnd <= end) and loadedPages + 1 < maxPages
+        if (start <= @_loadedStart <= end or start <= @_loadedEnd <= end) and loadedPages + 1 <= maxPages
           @_enqueueQuery(start, end, true).failAloud().done =>
             @_simplePageRefresh(startPage + 1, maxPages, loadedPages + 1)
         else
@@ -992,7 +1096,8 @@ define [
       if (model = @_byId[changeInfo.id])?
         # If not excepted model
         if @_selfEmittedChangeModelId != changeInfo.id
-          modelHasReallyChanged = @_recursiveCompareAndChange(changeInfo, model)
+          changeInto = changeInfo.toJSON() if changeInfo?.toJSON
+          modelHasReallyChanged = @_recursiveCompareAndChange(changeInfo, model.toJSON())
           isSourceModel = changeInfo._sourceModel == model
           if isSourceModel or modelHasReallyChanged
             @emit("model.#{ changeInfo.id }.change", model)
@@ -1214,7 +1319,6 @@ define [
           queryParams.accessPoint = @_accessPoint if @_accessPoint
 
           @updateLastQueryTime()
-
           @repo.query(queryParams)
         .then (models) =>
           # invalidating cached totalCount
@@ -1429,10 +1533,13 @@ define [
       @param Box ioc service container needed to get model repository service by name
       @param Function(Collection) callback "returning" callback
       ###
-      [repoClass, collectionName] = serialized.substr(12).split(':')
-      repoServiceName = repoClass.charAt(0).toLowerCase() + repoClass.slice(1)
-      ioc.eval repoServiceName, (repo) ->
-        callback(repo.getCollection(collectionName))
+      if serialized instanceof Collection
+        callback(serialized)
+      else
+        [repoClass, collectionName] = serialized.substr(12).split(':')
+        repoServiceName = repoClass.charAt(0).toLowerCase() + repoClass.slice(1)
+        ioc.eval repoServiceName, (repo) ->
+          callback(repo.getCollection(collectionName))
 
 
     _setLoadedRange: (start, end) ->
@@ -1440,7 +1547,6 @@ define [
       @_queryQueue.loadingEnd = @_loadedEnd = end
       #@_loadedStart = start
       #@_loadedEnd = end
-
 
     debug: (method) ->
       ###
