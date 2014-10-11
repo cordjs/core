@@ -21,7 +21,7 @@ define [
     request: null
     response: null
 
-    # auxilliary varialbes for widget initialization support on page loading at browser side
+    # auxiliary variables for widget initialization support on page loading at browser side
     _initPromise: null
     _parentPromises: null
     _widgetOrder: null
@@ -337,7 +337,6 @@ define [
     bind: (widgetId) ->
       if @widgets[widgetId]?
         w = @widgets[widgetId].widget
-        w.bindChildEvents()
         w.initBehaviour().andThen ->
           w.markShown(ignoreChildren = true)
       else

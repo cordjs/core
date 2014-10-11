@@ -63,10 +63,6 @@ define [
 
     _modelBindings: null
 
-    _subscribeOnAnyChild: null
-
-    _stashedChildEvents: null
-
     _placeholdersClasses: null
 
     # promise needed to prevent setParams() to be applied while template rendering is performed
@@ -158,6 +154,33 @@ define [
           @_paramRules[name].push rule
 
 
+    @_parseChildEvents: ->
+      ###
+      Converts child widget subscriptions form @childEvents into optimized three-level map:
+       childName -> topic -> callbacks.
+      This map is used later to bind child events when children are attached to the widgets of this type.
+      This conversion is performed only once for the whole widget class.
+      ###
+      @_childEventSubscriptions = {}
+      if @childEvents
+        for eventDef, callback of @childEvents
+          eventDef = eventDef.split(' ')
+          childName = eventDef[0]
+          topic = eventDef[1]
+          if _.isString(callback)
+            if @::[callback]
+              callback = @::[callback]
+            else
+              throw new Error("Child event callback name '#{callback}' is not a member of #{@__name}!")
+          if not _.isFunction(callback)
+            throw new Error("Invalid child widget callback definition: #{@__name}::[#{childName}, #{topic}]!")
+
+          @_childEventSubscriptions[childName] ?= {}
+          @_childEventSubscriptions[childName][topic] ?= []
+          @_childEventSubscriptions[childName][topic].push(callback)
+        @childEvents = undefined
+
+
     @_initCss: (restoreMode) ->
       ###
       Start to load CSS-files immediately when the first instance of the widget is instantiated on dynamically in the
@@ -193,6 +216,7 @@ define [
       ###
       if @params? or @initialCtx? # may be initialCtx is not necessary here
         @_initParamRules()
+      @_parseChildEvents()
       @_initCss(restoreMode) if isBrowser
       @_initialized = @__name
 
@@ -237,7 +261,6 @@ define [
       @_postalSubscriptions = []
       @_tmpSubscriptions = []
       @_placeholdersClasses = {}
-      @_stashedChildEvents = {}
 
       @resetChildren()
 
@@ -587,10 +610,6 @@ define [
 
 
     cleanChildren: ->
-      # clean :any child subscriptions
-      @_subscribeOnAnyChild = null
-      @_stashedChildEvents = {}
-
       if @children.length
         if @_structTemplate? and not @_structTemplate.isEmpty()
           @_structTemplate.unassignWidget(widget) for widget in @children
@@ -1268,7 +1287,7 @@ define [
       @childById[child.ctx.id] = child
       @childByName[name] = child if name?
       @widgetRepo.registerParent child, this
-      @bindChildStashedEvents child, name
+      @_bindChildEvents(child, name)
 
 
     unbindChild: (child) ->
@@ -1314,73 +1333,29 @@ define [
         @widgetRepo.subscribePushBinding @ctx.id, ctxName, widget, paramName
 
 
+    _bindChildEvents: (childWidget, childName) ->
+      ###
+      Subscribes to the child widget's events according to the @childEvents definition of the widget class.
+      This method is called every time new child widget is attached to this widget.
+      Special widget name ":any" is supported and means any child widget with or without any name.
+      @param {Widget} childWidget The child widget to subscribe to
+      @param {String} childName Optional name of the child widget to select proper callbacks from the subscription map
+      ###
+      subs = @constructor._childEventSubscriptions
+      if childName and subs[childName]
+        for topic, callbacks of subs[childName]
+          childWidget.on(topic, cb).withContext(this) for cb in callbacks
+      if subs[':any']
+        for topic, callbacks of subs[':any']
+          childWidget.on(topic, cb).withContext(this) for cb in callbacks
+
+
     getBehaviourClass: ->
       @behaviourClass = "#{ @constructor.__name }Behaviour" if not @behaviourClass?
       if @behaviourClass == false
         null
       else
         @behaviourClass
-
-
-    bindChildEvent: (childName, topic, callback) ->
-      ###
-      Bind specific event for child
-      @param String childName - child widget name
-      @param String event - child event name
-      @param callback
-      ###
-      if _.isString callback
-        if @[callback]
-          name = callback
-          callback =  @[callback]
-          if not _.isFunction callback
-            throw new Error("Callback #{ name } is not a function")
-        else
-          throw new Error("Callback #{ callback } doesn't exist")
-      else if not _.isFunction callback
-        throw new Error("Invalid child widget callback definition: [#{ childName }, #{ topic }]")
-
-      if childName == ':any'
-        @_subscribeOnAnyChild ?= []
-        @_subscribeOnAnyChild.push
-          topic: topic,
-          callback:callback
-
-        for child of @childById
-          @childById[child].on(topic, callback).withContext(this)
-      else
-        if @childByName[childName]?
-          @childByName[childName].on(topic, callback).withContext(this)
-        else
-          if childName?
-            @_stashedChildEvents[childName] = {} if @_stashedChildEvents[childName] == undefined
-            @_stashedChildEvents[childName][topic] = callback
-          else
-            throw new Error("Trying to subscribe for event '#{ topic }' of unexistent child with name '#{ childName }'")
-
-
-    bindChildEvents: ->
-      ###
-      Bind specific events for child
-      Special selector for children ':any' - subscribes on all child widgets
-      ###
-      if @constructor.childEvents?
-        for eventDef, callback of @constructor.childEvents
-          eventDef = eventDef.split ' '
-          childName = eventDef[0]
-          topic = eventDef[1]
-          @bindChildEvent childName, topic, callback
-
-
-    bindChildStashedEvents: (child, name) ->
-      ###
-      Bind specific stashed events for child
-      ###
-      if name? and @_stashedChildEvents[name]
-        for childTopic, childCallback of @_stashedChildEvents[name]
-          child.on(childTopic, childCallback).withContext(this)
-
-        delete @_stashedChildEvents[name]
 
 
     initBehaviour: ($domRoot) ->
@@ -1422,11 +1397,6 @@ define [
       ###
       @widgetRepo.createWidget(type, @getBundle()).then (child) =>
         @registerChild(child, name)
-
-        if @_subscribeOnAnyChild
-          for option in @_subscribeOnAnyChild
-            child.on(option.topic, option.callback).withContext(this)
-
         child
 
 
@@ -1465,8 +1435,6 @@ define [
           stopPropagateWidget = undefined
 
         if this != stopPropagateWidget and not @_delayedRender
-          @bindChildEvents()
-
           for widgetId, bindingMap of @childBindings
             @childById[widgetId].setSubscribedPushBinding(bindingMap)
 
