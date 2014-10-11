@@ -36,7 +36,7 @@ define [
 
       console.log.apply console, arguments if config?.console.log or not config
 
-      # postal?.publish 'log', JSON.stringify(arguments)
+      #postal?.publish 'log', JSON.stringify(arguments)
       return
 
 
@@ -47,13 +47,13 @@ define [
 
       message = Console.stringify arguments
       postal.publish 'logger.log.publish', { tags: ['warning'], params: {warning: message} }
-      # postal?.publish 'log', JSON.stringify(arguments)
+      #postal?.publish 'log', JSON.stringify(arguments)
       return
 
 
     @error: ->
       Console.taggedError ['error'], arguments
-      # postal?.publish 'log', JSON.stringify(arguments)
+      #postal?.publish 'log', JSON.stringify(arguments)
 
     @taggedError: (tags, args...) ->
       config = @getConfig()
