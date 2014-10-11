@@ -300,6 +300,11 @@ define [
 
       return true
 
+
+    clearLastQueryTime: ->
+      @_lastQueryTime = 0
+
+
     getLastQueryTime: ->
       if @_lastQueryTime then @_lastQueryTime else 0
 
@@ -636,7 +641,7 @@ define [
         end = startPage * @_pageSize - 1
 
         # We'll continue refreshing if [start,end] intersects with [@_loadedStart, @_loadedEnd]
-        if (start <= @_loadedStart <= end or start <= @_loadedEnd <= end) and loadedPages + 1 < maxPages
+        if (start <= @_loadedStart <= end or start <= @_loadedEnd <= end) and loadedPages + 1 <= maxPages
           @_enqueueQuery(start, end, true).failAloud().done =>
             @_simplePageRefresh(startPage + 1, maxPages, loadedPages + 1)
         else
@@ -1091,7 +1096,8 @@ define [
       if (model = @_byId[changeInfo.id])?
         # If not excepted model
         if @_selfEmittedChangeModelId != changeInfo.id
-          modelHasReallyChanged = @_recursiveCompareAndChange(changeInfo, model)
+          changeInto = changeInfo.toJSON() if changeInfo?.toJSON
+          modelHasReallyChanged = @_recursiveCompareAndChange(changeInfo, model.toJSON())
           isSourceModel = changeInfo._sourceModel == model
           if isSourceModel or modelHasReallyChanged
             @emit("model.#{ changeInfo.id }.change", model)
@@ -1313,7 +1319,6 @@ define [
           queryParams.accessPoint = @_accessPoint if @_accessPoint
 
           @updateLastQueryTime()
-
           @repo.query(queryParams)
         .then (models) =>
           # invalidating cached totalCount
@@ -1528,10 +1533,13 @@ define [
       @param Box ioc service container needed to get model repository service by name
       @param Function(Collection) callback "returning" callback
       ###
-      [repoClass, collectionName] = serialized.substr(12).split(':')
-      repoServiceName = repoClass.charAt(0).toLowerCase() + repoClass.slice(1)
-      ioc.eval repoServiceName, (repo) ->
-        callback(repo.getCollection(collectionName))
+      if serialized instanceof Collection
+        callback(serialized)
+      else
+        [repoClass, collectionName] = serialized.substr(12).split(':')
+        repoServiceName = repoClass.charAt(0).toLowerCase() + repoClass.slice(1)
+        ioc.eval repoServiceName, (repo) ->
+          callback(repo.getCollection(collectionName))
 
 
     _setLoadedRange: (start, end) ->

@@ -224,6 +224,9 @@ define [
       @param Box ioc service container needed to get model repository service by name
       @param Function(Model) callback "returning" callback
       ###
-      [modelId, serializedCollection] = serialized.substr(7).split('/')
-      Collection.unserializeLink serializedCollection, ioc, (collection) ->
-        callback(collection.get(modelId))
+      if serialized instanceof Model
+        callback(serialized)
+      else
+        [modelId, serializedCollection] = serialized.substr(7).split('/')
+        Collection.unserializeLink serializedCollection, ioc, (collection) ->
+          callback(collection.get(modelId))

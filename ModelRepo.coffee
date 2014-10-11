@@ -812,6 +812,7 @@ define [
       ###
       Defer.nextTick =>
         for name, collection of @_collections
+          collection.clearLastQueryTime()
           collection.checkNewModel(model, false)
 
 
@@ -850,7 +851,10 @@ define [
               @container.eval serviceName, (service) ->
                 _console.log "Container::injectServices -> eval(#{ serviceName }) for model #{ model.constructor.name } finished success" if global.config?.debug.service
 
-                model[serviceAlias] = service
+                Object.defineProperty model, serviceAlias,
+                  value: service
+                  writable: true
+                  enumerable: false
             catch e
               _console.error "Container::injectServices -> eval(#{ serviceName }) for model #{ model.constructor.name } fail: #{ e.message }"
               model[serviceAlias] = undefined
