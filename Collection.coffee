@@ -116,7 +116,7 @@ define [
 
     @tagLiveUpdate: (mods) ->
       @_lastQueryTime = 0
-      if @isRefreshAllowed()
+      if @hasActiveSubscriptions()
         startPage = @_loadedStart / @_pageSize + 1
         @partialRefresh(startPage, 3)
 
@@ -124,7 +124,7 @@ define [
     @tagClearCache: (mods) ->
       # Clear last query time, which means the collection could be updated
       @_lastQueryTime = 0
-      if not @isRefreshAllowed()
+      if not @hasActiveSubscriptions()
         @euthanizeCollection(this)
 
 
@@ -471,7 +471,7 @@ define [
       # Refresh the collection only if it contains suggested model
       id = parseInt(if _.isObject(model) then model.id else model)
 
-      if id and not isNaN(id) and @_byId[id] and @isRefreshAllowed()
+      if id and not isNaN(id) and @_byId[id] and @hasActiveSubscriptions()
         @refresh(id)
 
 
@@ -481,7 +481,7 @@ define [
       @param Model model the new model
       ###
       id = parseInt(if _.isObject(model) then model.id else model)
-      if (not @_id or (not isNaN(id) and parseInt(@_id) == id)) and @isRefreshAllowed()
+      if (not @_id or (not isNaN(id) and parseInt(@_id) == id)) and @hasActiveSubscriptions()
         @refresh(id, 3, 0, emitModelChangeExcept)
 
 
@@ -519,7 +519,7 @@ define [
           @_byId[m.id] = m
 
 
-    isRefreshAllowed: ->
+    hasActiveSubscriptions: ->
       ###
       Returns true if refresh allowed, which means
       1. there's no other refreshes in progress
