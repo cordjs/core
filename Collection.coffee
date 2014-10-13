@@ -997,7 +997,7 @@ define [
       if (model = @_byId[changeInfo.id])?
         # If not excepted model
         if @_selfEmittedChangeModelId != changeInfo.id
-          changeInto = changeInfo.toJSON() if changeInfo?.toJSON
+          changeInfo = changeInfo.toJSON() if changeInfo?.toJSON
           modelHasReallyChanged = @_recursiveCompareAndChange(changeInfo, model.toJSON())
           isSourceModel = changeInfo._sourceModel == model
           if isSourceModel or modelHasReallyChanged
