@@ -28,7 +28,7 @@ define [
           oldElement = $('#'+widget.ctx.id, $contextRoot)
           if oldElement.length == 0
             console.error "Wrong contextRoot in replaceTimeoutStub for #{ widget.debug() }!", $contextRoot
-          DomHelper.replaceNode(oldElement, $newRoot).done ->
+          DomHelper.replace(oldElement, $newRoot).done ->
             domInfo.domInserted().done ->
               widget.markShown()
         .map ->

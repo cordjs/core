@@ -82,15 +82,17 @@ define ->
   requirejs:
     paths:
       'curly':                   'vendor/curly/browser'
+      'cordjs-zone':             'vendor/zone/zone',
       'dustjs-linkedin':         'vendor/dustjs/dustjs-full'
       'dustjs-helpers':          'vendor/dustjs/dustjs-helpers'
+      'eventemitter3':           'vendor/eventemitter3/eventemitter3'
       'jquery':                  'vendor/jquery/jquery'
       'jquery.cookie':           'vendor/jquery/plugins/jquery.cookie'
+      'localforage':             'vendor/localforage/localforage'
       'monologue':               'vendor/postal/monologue'
       'postal':                  'vendor/postal/postal_lite'
       'the-box':                 'vendor/the-box/app'
       'underscore':              'vendor/underscore/underscore'
-      'localforage':             'vendor/localforage/localforage'
     shim:
       'curly':
         deps: ['underscore']
@@ -100,8 +102,12 @@ define ->
       'dustjs-helpers':
         deps: ['dustjs-linkedin']
         exports: 'dust'
+      'eventemitter3':
+        exports: 'EventEmitter'
       'jquery.cookie':
         deps: ['jquery']
         exports: 'jQuery'
       'underscore':
         exports: '_'
+      'zone':
+        exports: 'zone'

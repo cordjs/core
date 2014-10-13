@@ -3,7 +3,7 @@ define [
   'cord!Module'
   'cord!utils/Defer'
   'cord!utils/Future'
-  'monologue' + (if document? then '' else '.js')
+  'monologue' + (if CORD_IS_BROWSER then '' else '.js')
   'underscore'
 ], (isBrowser, Module, Defer, Future, Monologue, _) ->
 
@@ -1057,6 +1057,15 @@ define [
                 selectedPage: Int (1-based number of the page that contains the selected model)
       ###
       result = Future.single('Collection::getPagingInfo')
+
+      # Workaround for fixed collections
+      if @_fixed
+        result.resolve
+          total: @_models.length
+          pages: if @_models.length then 1 else 0
+          selectedPage: if @_models.length then 1 else 0
+
+        return result
 
       cachePromise = Future.single('Collection::getPagingInfo cachePromise')
       if !@isInitialized() || @_cacheLoaded || not isBrowser || refresh

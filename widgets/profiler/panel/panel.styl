@@ -1,0 +1,55 @@
+.b-cord-profiler-panel
+  position: fixed
+  z-index: 500
+  left: 30%
+  top: 0
+  padding: 5px
+  width: 70%
+  max-height: 50%
+  overflow-y: scroll
+
+  background-color: white
+  border: 1px solid black
+
+  .e-init-time
+    float: right
+    display: none
+    text-decoration: underline
+    font-family: monospace
+    font-weight: bold
+    font-size: 0.7em
+    line-height: 1.5
+    cursor: pointer
+
+    &:hover
+      color: #FF7E00
+
+  .e-full-panel
+    padding-top: 20px
+
+  &.minimized
+    right: 0
+    width: auto
+    left: auto
+    overflow: auto
+
+    .e-full-panel
+      display: none
+
+    .e-init-time
+      display: inline
+
+  .e-hide-link
+    position: absolute
+    top: 5px
+    right: 10px
+    border-bottom: 1px dotted #CACACA
+    cursor: pointer
+    font-family: monospace
+    font-size: 11px
+    white-space: nowrap
+    line-height: 16px
+
+    &:hover
+      color: #FF7E00
+      border-bottom-style: solid

@@ -15,7 +15,7 @@ define [
   'cord!utils/Future'
 
   'dustjs-helpers'
-  'monologue' + (if document? then '' else '.js')
+  'monologue' + (if CORD_IS_BROWSER then '' else '.js')
   'postal'
   'underscore'
 ], (Collection, Context, cssHelper, errors, TimeoutStubHelper, isBrowser, Model, Module, StructureTemplate,
@@ -62,10 +62,6 @@ define [
     _baseContext: null
 
     _modelBindings: null
-
-    _subscribeOnAnyChild: null
-
-    _stashedChildEvents: null
 
     _placeholdersClasses: null
 
@@ -158,6 +154,33 @@ define [
           @_paramRules[name].push rule
 
 
+    @_parseChildEvents: ->
+      ###
+      Converts child widget subscriptions form @childEvents into optimized three-level map:
+       childName -> topic -> callbacks.
+      This map is used later to bind child events when children are attached to the widgets of this type.
+      This conversion is performed only once for the whole widget class.
+      ###
+      @_childEventSubscriptions = {}
+      if @childEvents
+        for eventDef, callback of @childEvents
+          eventDef = eventDef.split(' ')
+          childName = eventDef[0]
+          topic = eventDef[1]
+          if _.isString(callback)
+            if @::[callback]
+              callback = @::[callback]
+            else
+              throw new Error("Child event callback name '#{callback}' is not a member of #{@__name}!")
+          if not _.isFunction(callback)
+            throw new Error("Invalid child widget callback definition: #{@__name}::[#{childName}, #{topic}]!")
+
+          @_childEventSubscriptions[childName] ?= {}
+          @_childEventSubscriptions[childName][topic] ?= []
+          @_childEventSubscriptions[childName][topic].push(callback)
+        @childEvents = undefined
+
+
     @_initCss: (restoreMode) ->
       ###
       Start to load CSS-files immediately when the first instance of the widget is instantiated on dynamically in the
@@ -193,6 +216,7 @@ define [
       ###
       if @params? or @initialCtx? # may be initialCtx is not necessary here
         @_initParamRules()
+      @_parseChildEvents()
       @_initCss(restoreMode) if isBrowser
       @_initialized = @__name
 
@@ -237,7 +261,6 @@ define [
       @_postalSubscriptions = []
       @_tmpSubscriptions = []
       @_placeholdersClasses = {}
-      @_stashedChildEvents = {}
 
       @resetChildren()
 
@@ -332,12 +355,14 @@ define [
 
 
     createPromise: (initialCounter = 0, name = '') ->
-      promise = new Future initialCounter = 0, name = ''
+      promise = new Future initialCounter, name
       @_promises.push promise
+      promise
 
 
     addPromise: (promise) ->
       @_promises.push promise
+      promise
 
 
     _cleanPromises: ->
@@ -585,10 +610,6 @@ define [
 
 
     cleanChildren: ->
-      # clean :any child subscriptions
-      @_subscribeOnAnyChild = null
-      @_stashedChildEvents = {}
-
       if @children.length
         if @_structTemplate? and not @_structTemplate.isEmpty()
           @_structTemplate.unassignWidget(widget) for widget in @children
@@ -621,8 +642,10 @@ define [
       if @_structTemplate?
         Future.resolved(@_structTemplate)
       else
-        tmplStructureFile = "bundles/#{ @getTemplatePath() }.struct"
-        Future.require(tmplStructureFile).map (struct) =>
+        if not @constructor._rawStructPromise
+          tmplStructureFile = "bundles/#{ @getTemplatePath() }.struct"
+          @constructor._rawStructPromise = Future.require(tmplStructureFile)
+        @constructor._rawStructPromise.map (struct) =>
           if struct.widgets? and Object.keys(struct.widgets).length > 1
             @_structTemplate = new StructureTemplate(struct, this)
           else
@@ -898,6 +921,7 @@ define [
       classList.push(@cssClass) if @cssClass
       classList.push(@ctx._modifierClass) if @ctx._modifierClass
       classList.push(dynamicClass) if dynamicClass
+      classList = classList.concat(@ctx.__cord_dyn_classes__) if @ctx.__cord_dyn_classes__?
       classList.join(' ')
 
 
@@ -908,6 +932,21 @@ define [
       @param String class space-separeted list of css class-names
       ###
       @ctx._modifierClass = cls
+
+
+    addDynClass: (cls) ->
+      ###
+      Adds the specified CSS class for the root element(s) of the widget.
+      This class is considered dynamically dependent from the current state of the widget.
+      The list of such classes is preserved separately from the static `cssClass` field in a special context value and
+       can be modified runtime via (add|remove|toggle)Class() methods of the widget's behaviour class.
+      This method should be used only before first widget render (typically in the onShow() method). All later
+       modifications should be done only in behaviour.
+      @param {String} cls Single CSS class name to be added
+      ###
+      if cls
+        @ctx.__cord_dyn_classes__ ?= []
+        @ctx.__cord_dyn_classes__.push(cls) if @ctx.__cord_dyn_classes__.indexOf(cls) == -1
 
 
     _saveContextVersionForBehaviourSubscriptions: ->
@@ -1124,7 +1163,7 @@ define [
                   # Inserting placeholder contents to the DOM-tree only after full behaviour initialization of all
                   # included widgets but not inline-blocks. Timeout-stubs are not waited for yet as they have no
                   # any behaviour initialization support yet.
-                  DomHelper.replaceNode($('#'+@_getPlaceholderDomId(name)), $el)
+                  DomHelper.replace($('#'+@_getPlaceholderDomId(name)), $el)
                 .then ->
                   info.widget.markShown() for info in renderInfo when info.type is 'widget'
                   domInfo.markShown()
@@ -1248,7 +1287,7 @@ define [
       @childById[child.ctx.id] = child
       @childByName[name] = child if name?
       @widgetRepo.registerParent child, this
-      @bindChildStashedEvents child, name
+      @_bindChildEvents(child, name)
 
 
     unbindChild: (child) ->
@@ -1294,73 +1333,29 @@ define [
         @widgetRepo.subscribePushBinding @ctx.id, ctxName, widget, paramName
 
 
+    _bindChildEvents: (childWidget, childName) ->
+      ###
+      Subscribes to the child widget's events according to the @childEvents definition of the widget class.
+      This method is called every time new child widget is attached to this widget.
+      Special widget name ":any" is supported and means any child widget with or without any name.
+      @param {Widget} childWidget The child widget to subscribe to
+      @param {String} childName Optional name of the child widget to select proper callbacks from the subscription map
+      ###
+      subs = @constructor._childEventSubscriptions
+      if childName and subs[childName]
+        for topic, callbacks of subs[childName]
+          childWidget.on(topic, cb).withContext(this) for cb in callbacks
+      if subs[':any']
+        for topic, callbacks of subs[':any']
+          childWidget.on(topic, cb).withContext(this) for cb in callbacks
+
+
     getBehaviourClass: ->
       @behaviourClass = "#{ @constructor.__name }Behaviour" if not @behaviourClass?
       if @behaviourClass == false
         null
       else
         @behaviourClass
-
-
-    bindChildEvent: (childName, topic, callback) ->
-      ###
-      Bind specific event for child
-      @param String childName - child widget name
-      @param String event - child event name
-      @param callback
-      ###
-      if _.isString callback
-        if @[callback]
-          name = callback
-          callback =  @[callback]
-          if not _.isFunction callback
-            throw new Error("Callback #{ name } is not a function")
-        else
-          throw new Error("Callback #{ callback } doesn't exist")
-      else if not _.isFunction callback
-        throw new Error("Invalid child widget callback definition: [#{ childName }, #{ topic }]")
-
-      if childName == ':any'
-        @_subscribeOnAnyChild ?= []
-        @_subscribeOnAnyChild.push
-          topic: topic,
-          callback:callback
-
-        for child of @childById
-          @childById[child].on(topic, callback).withContext(this)
-      else
-        if @childByName[childName]?
-          @childByName[childName].on(topic, callback).withContext(this)
-        else
-          if childName?
-            @_stashedChildEvents[childName] = {} if @_stashedChildEvents[childName] == undefined
-            @_stashedChildEvents[childName][topic] = callback
-          else
-            throw new Error("Trying to subscribe for event '#{ topic }' of unexistent child with name '#{ childName }'")
-
-
-    bindChildEvents: ->
-      ###
-      Bind specific events for child
-      Special selector for children ':any' - subscribes on all child widgets
-      ###
-      if @constructor.childEvents?
-        for eventDef, callback of @constructor.childEvents
-          eventDef = eventDef.split ' '
-          childName = eventDef[0]
-          topic = eventDef[1]
-          @bindChildEvent childName, topic, callback
-
-
-    bindChildStashedEvents: (child, name) ->
-      ###
-      Bind specific stashed events for child
-      ###
-      if name? and @_stashedChildEvents[name]
-        for childTopic, childCallback of @_stashedChildEvents[name]
-          child.on(childTopic, childCallback).withContext(this)
-
-        delete @_stashedChildEvents[name]
 
 
     initBehaviour: ($domRoot) ->
@@ -1402,12 +1397,24 @@ define [
       ###
       @widgetRepo.createWidget(type, @getBundle()).then (child) =>
         @registerChild(child, name)
-
-        if @_subscribeOnAnyChild
-          for option in @_subscribeOnAnyChild
-            child.on(option.topic, option.callback).withContext(this)
-
         child
+
+
+    injectChildWidget: (type, params = {}) ->
+      ###
+      Dynamically creates and injects a new widget as a child of this widget on browser-side.
+      Behaviour is required.
+      This method is mainly necessary for injecting debug tools and other "plugins".
+      @browserOnly
+      @param {String} type widget type in canonical format (absolute or in context of the current widget)
+      @param (optional){Object} params new widget's params and special positioning params
+                                       (see Behaviour::insertChildWidget)
+      @return Future[Array[jQuery, Widget]]
+      ###
+      if @behaviour
+        @behaviour.insertChildWidget(type, params)
+      else
+        Future.rejected(new Error("Injecting child widget into behaviourless widget [#{@debug()}] is not supported!"))
 
 
     browserInit: (stopPropagateWidget, $domRoot) ->
@@ -1428,8 +1435,6 @@ define [
           stopPropagateWidget = undefined
 
         if this != stopPropagateWidget and not @_delayedRender
-          @bindChildEvents()
-
           for widgetId, bindingMap of @childBindings
             @childById[widgetId].setSubscribedPushBinding(bindingMap)
 
@@ -1452,6 +1457,9 @@ define [
             selfInitBehaviour = true
 
           @_widgetReadyPromise.when(Future.sequence(readyConditions)).done =>
+            if @_browserInitDebugTimeout
+              clearTimeout(@_browserInitDebugTimeout)
+              @_browserInitDebugTimeout = null
             @emit 'render.complete'
 
           # This code is for debugging puroses: it clarifies if there are some bad situations
@@ -1480,8 +1488,8 @@ define [
                   errorInfo.stuckChildInfo.push childWidget.ready().completed()
                 i++
               _console.warn "#{ @debug 'incompleteBrowserInit:children!' }", errorInfo
-            else
-              _console.warn "#{ @debug 'incompleteBrowserInit!' } css:#{ savedConstructorCssPromise.completed() } child:#{ childWidgetReadyPromise.completed() } selfInit:#{ selfInitBehaviour }" if not savedPromiseForTimeoutCheck.completed()
+            else if not savedPromiseForTimeoutCheck.completed()
+              _console.warn "#{ @debug 'incompleteBrowserInit!' } css:#{ savedConstructorCssPromise.completed() } child:#{ childWidgetReadyPromise.completed() } selfInit:#{ selfInitBehaviour }"
             @_browserInitDebugTimeout = null
           , 5000
       @_widgetReadyPromise

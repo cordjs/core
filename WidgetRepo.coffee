@@ -21,7 +21,7 @@ define [
     request: null
     response: null
 
-    # auxilliary varialbes for widget initialization support on page loading at browser side
+    # auxiliary variables for widget initialization support on page loading at browser side
     _initPromise: null
     _parentPromises: null
     _widgetOrder: null
@@ -35,7 +35,7 @@ define [
     _newExtendList: null
 
 
-    constructor: ->
+    constructor: (@serverProfilerUid = '') ->
       @widgets = {}
       @_widgetOrder = []
       @_pushBindings = {}
@@ -190,6 +190,7 @@ define [
       """
       <script>
         var global = {
+          cordServerProfilerUid: "#{ @serverProfilerUid }",
           config: #{ JSON.stringify(global.appConfig.browser) }
         };
       </script>
@@ -221,6 +222,7 @@ define [
       ###
       Performs final initialization of the transferred from the server-side objects on the browser-side.
       This method is called when all data from the server is loaded.
+      @browser-only
       ###
       configPromise = Future.require('cord!AppConfigLoader').then (AppConfigLoader) ->
         AppConfigLoader.ready()
@@ -229,7 +231,21 @@ define [
         for serviceName, info of appConfig.services
           @serviceContainer.eval(serviceName) if info.autoStart
         # setup browser-side behaviour for all loaded widgets
-        @setupBindings()
+        @_setupBindings().then =>
+          # Initializing profiler panel
+          if CORD_PROFILER_ENABLED
+            if window.zone?
+              tmpZone = window.zone
+              window.zone = zone.constructor.rootZone
+            topBaseWidget = @_currentExtendList[@_currentExtendList.length - 1]
+            topBaseWidget.injectChildWidget '/cord/core//Profiler',
+              ':context': $('body')
+              ':position': 'append'
+              serverUid: @serverProfilerUid
+            .failAloud()
+            if window.zone?
+              window.zone = tmpZone
+
         # for GC
         @_parentPromises = null
         @_initPromise = null
@@ -289,17 +305,18 @@ define [
       .failAloud("WidgetRepo::init:#{widgetPath}:#{ctx.id}")
 
 
-    setupBindings: ->
+    _setupBindings: ->
       # organizing extendList in right order
       for id in @_widgetOrder
         widget = @widgets[id].widget
         if widget._isExtended
           @_currentExtendList.push(widget)
       # initializing DOM bindings of widgets in reverse order (leafs of widget tree - first)
-      futures = (@bind(id) for id in @_widgetOrder.reverse())
+      bindPromises = (@bind(id) for id in @_widgetOrder.reverse())
+      result = Future.sequence(bindPromises)
       @serviceContainer.eval 'cookie', (cookie) =>
         if cookie.get('cord_require_stat_collection_enabled')
-          Future.sequence(futures).done =>
+          result.done =>
             Future.require('jquery', 'cord!css/browserManager').zip(Future.timeout(3000)).done ([$, cssManager]) =>
               keys = Object.keys(require.s.contexts._.defined)
               re = /^cord(-\w)?!/
@@ -314,16 +331,16 @@ define [
                 console.warn "/REQUIRESTAT/collect response", resp
 
       @_widgetOrder = null
+      result
 
 
     bind: (widgetId) ->
       if @widgets[widgetId]?
         w = @widgets[widgetId].widget
-        w.bindChildEvents()
         w.initBehaviour().andThen ->
           w.markShown(ignoreChildren = true)
       else
-        throw "Try to use uninitialized widget with id = #{ widgetId }"
+        Future.rejected(new Error("Try to use uninitialized widget with id = #{widgetId}"))
 
 
     getById: (id) ->
