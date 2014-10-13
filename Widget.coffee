@@ -218,7 +218,8 @@ define [
         @_initParamRules()
       @_parseChildEvents()
       @_initCss(restoreMode) if isBrowser
-      @_initialized = @__name
+      @_rawStructPromise = undefined
+      @_initialized = this
 
 
     constructor: (params) ->
@@ -236,8 +237,7 @@ define [
 
       @param (optional)Object params custom params, accepted by widget
       ###
-
-      @constructor._init(params.restoreMode) if @constructor._initialized != @constructor.__name
+      @constructor._init(params.restoreMode) if @constructor._initialized != @constructor # detects widget inheritance
 
       @_modelBindings = {}
       @_subscibedPushBindings = {}
