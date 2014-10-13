@@ -506,7 +506,6 @@ define [
                 model.resetChangedFields()
                 @emit 'sync', model
                 @suggestNewModelToCollections(model) if !notRefreshCollections
-                @_injectModelServices(model)
                 @_injectActionMethods(model)
                 promise.resolve(response)
       else
@@ -700,7 +699,6 @@ define [
           else if _.isArray(value) and Model.isSerializedLink(value[0])
             @modelProxy.addArrayLink result, key
 
-      @_injectModelServices(result)
       @_injectActionMethods(result) if attrs?.id
 
       result
@@ -716,7 +714,6 @@ define [
       result = new @model()
       result.set attrs
 
-      @_injectModelServices(result)
       @_injectActionMethods(result) if attrs?.id
 
       result
@@ -830,44 +827,6 @@ define [
           do (actionName, method) ->
             model[actionName] = (params) ->
               self.callModelAction(@id, method, actionName, params)
-      model
-
-
-    _injectModelServices: (model) ->
-      ###
-      Dynamically injects model services
-      @param Model model model which is injected with the methods
-      @return Model the incoming model with injected methods
-      ###
-      if model.constructor.inject?
-        if _.isFunction model.constructor.inject
-          services = model.constructor.inject()
-        else
-          services = model.constructor.inject
-
-        injectService = (serviceAlias, serviceName) =>
-          if @container.isDefined(serviceName)
-            try
-              @container.eval serviceName, (service) ->
-                _console.log "Container::injectServices -> eval(#{ serviceName }) for model #{ model.constructor.name } finished success" if global.config?.debug.service
-
-                Object.defineProperty model, serviceAlias,
-                  value: service
-                  writable: true
-                  enumerable: false
-            catch e
-              _console.error "Container::injectServices -> eval(#{ serviceName }) for model #{ model.constructor.name } fail: #{ e.message }"
-              model[serviceAlias] = undefined
-          else
-            _console.warn "Container::injectServices #{ serviceName } for model #{ model.constructor.name } is not defined" if global.config?.debug.service
-
-        if _.isArray services
-          for serviceName in services
-            injectService serviceName, serviceName
-        else
-          for serviceAlias, serviceName of services
-            injectService serviceAlias, serviceName
-
       model
 
 
