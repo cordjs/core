@@ -286,19 +286,15 @@ define [
     clean: ->
       ###
       Kind of destructor.
-
-      Delete all event-subscriptions assosiated with the widget and do this recursively for all child widgets.
+      Deletes all event-subscriptions associated with the widget and do this recursively for all child widgets.
       This have to be called when performing full re-render of some part of the widget tree to avoid double
-      subscriptions left from the dissapered widgets.
+      subscriptions left from the disappeared widgets.
       ###
-
       @_sentenced = true
       @cleanChildren()
       @_cleanBehaviour()
       @cleanSubscriptions()
-      @_postalSubscriptions = []
       @cleanTmpSubscriptions()
-      @_tmpSubscriptions = []
       @cleanModelSubscriptions()
       @_modelBindings = {}
       @_subscibedPushBindings = {}
@@ -794,7 +790,7 @@ define [
             value = value.slice(1) # cut leading ^
             bindings[value] = name
 
-            # if context value is deferred, than waiting asyncronously...
+            # if context value is deferred, than waiting asynchronously...
             if @ctx.isDeferred(value)
               result.fork()
               do (name, value) =>
@@ -802,7 +798,7 @@ define [
                   @widgetRepo.subscribePushBinding(@ctx.id, value, widget, name, @ctx.getVersion()) if isBrowser
                   result.resolve()
 
-            # otherwise just getting it's value syncronously
+            # otherwise just getting it's value synchronously
             else
               # param with name "params" is a special case and we should expand the value as key-value pairs
               # of widget's params
@@ -817,7 +813,6 @@ define [
                 params[name] = @ctx[value]
                 @widgetRepo.subscribePushBinding(@ctx.id, value, widget, name, @ctx.getVersion()) if isBrowser
 
-      # todo: potentially not cross-browser code!
       if Object.keys(bindings).length != 0
         @childBindings[widget.ctx.id] = bindings
 
