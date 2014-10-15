@@ -7,6 +7,8 @@ define [
 
     constructor: (storage) ->
       @storage = storage
+      # Max amount of time to waint until reject @getItem and clear localStorage
+      @_getTimeout = 50
 
 
     saveCollectionInfo: (repoName, collectionName, ttl, info) ->
@@ -123,11 +125,25 @@ define [
       Future-powered proxy key-value get method.
       ###
       result = Future.single("localStorage::_get #{key}")
+      resolved = false
       @storage.getItem key, (value) ->
-        if value?
-          result.resolve(value)
-        else
-          result.reject("Key '#{ key }' doesn't exists in the local storage!")
+        if not resolved
+          resolved = true
+          if value?
+            result.resolve(value)
+          else
+            result.reject("Key '#{ key }' doesn't exists in the local storage!")
+
+      result.then ->
+        resolved = true
+
+      # Protection against localStorage going crazy (because of overflow?), when @storage.getItem never calls callback in Chrome
+      setTimeout =>
+        result.reject('LocalStorage timeouted') if not resolved
+        @storage.clear()
+        resolved = true
+      , @_getTimeout
+
       result
 
 

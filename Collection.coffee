@@ -56,9 +56,10 @@ define [
     #Last time collection was queried from backend
     _lastQueryTime: 0
 
-    # Tags for collection clustering. Used for background refreshing of collections
+    # Tags for collection refreshing and other activities. Used for background refreshing of collections
     # Tags events are propagated trough appropriate ModelRepo
     # Tag is a user-defined string, collection reaction on tags defined by parameter 'tagsActions'
+    # all tag actions are executed within collection context
     # There are predefined tags actions:
     #   'refresh' - immediate refresh loaded parts of the collection
     #   'liveUpdate' - immediate refresh if collection is alive (has any 'change' subscriptons)
@@ -73,59 +74,94 @@ define [
     @_defaultTagsActions =
       'refresh':
         action: 'tagsRefresh' # Immediate refresh of the collection
-        level: 0
-      'liveUpdate':
-        action: 'tagLiveUpdate' # Immediate refresh if collections is active (has subscriptions)
         level: 10
+      'liveUpdate':
+        action: 'tagLiveUpdate' # Immediate refresh if collections is active (has subscriptions), otherwise clear lastUpdateTime
+        level: 20
       'clearCache':
         action: 'tagClearCache' # Clear cache and lastUpdateTime
-        level: 20
+        level: 30
+      # This is special case for collection update if it contains model with particular Id
+      # It has the lowes priority (the biggest level), and happens when no other tags occured
+      # because, triggering this tag not necessarily updates the collection
+      # It updates current collection only if it already has been containing the model and is alive (has active 'change' subscriptions)
+      'refreshIfExists':
+        action: 'tagRefreshIfExists'
+        level: Number.POSITIVE_INFINITY # if no other tags occured
 
     # default tag action and level for user-defined tags
-    @_defaultTagAction: 'liveUpdate'
+    @_defaultTagAction: 'tagLiveUpdate'
     @_defaultTagLevel: 100
 
 
     # handles tags broadcast
-    # params is an object with array of tags and mods (modificators) which will be passed as param into tagAction
+    # params is an object with array of tags and mods (modificators) which wisll be passed as param into tagAction
     # params =
     #   'project.1000002':
     #     ifContain: 1000003
     _handleTagBroadcast: (params) ->
-
       # Search for mathing tags anf actions
       lowestLevel = Number.POSITIVE_INFINITY
       matched = {}
       for tag, mods of params
         if @_tags[tag]
           matched[tag] = mods
-          lowestLevel = min(lowest, @_tags[tag].level)
+          lowestLevel = Math.min(lowestLevel, @_tags[tag].level)
 
-      for tag, mods in matched
+      for tag, mods of matched
         if @_tags[tag].level == lowestLevel
           if _.isFunction(@_tags[tag].action)
-            @_tags[tag].action(mods)
+            if @_tags[tag].action.call(this, mods)
+              break
           else
-            this[@_tags[tag].action](mods)
+            if @[@_tags[tag].action].call(this, mods)
+              break
 
 
-    @tagsRefresh: (mods) ->
+    tagsRefresh: (mods) ->
       startPage = @_loadedStart / @_pageSize + 1
       @partialRefresh(startPage, 3, 0, true)
+      true
 
 
-    @tagLiveUpdate: (mods) ->
+    tagLiveUpdate: (mods) ->
       @_lastQueryTime = 0
       if @hasActiveSubscriptions()
         startPage = @_loadedStart / @_pageSize + 1
         @partialRefresh(startPage, 3)
+        true
+      else
+        false
 
 
-    @tagClearCache: (mods) ->
+    tagClearCache: (mods) ->
       # Clear last query time, which means the collection could be updated
       @_lastQueryTime = 0
       if not @hasActiveSubscriptions()
         @euthanizeCollection(this)
+        true
+      else
+        false
+
+
+    tagRefreshIfExists: (model) ->
+      # Uptade the collection if it already contains the model and has any active 'change' subscriptions
+      id = parseInt(if _.isObject(model) then model.id else model)
+
+      if id and not isNaN(id) and @_byId[id] and @hasActiveSubscriptions()
+        @refresh(id)
+        true
+      else
+        false
+
+
+    hasField: (fieldName) ->
+      ###
+      Detect if collection requests the particular field of part of it
+      ###
+      for fieldName in @_fields
+        return true if fieldName.indexOf(fieldName) == 0
+      false
 
 
     @generateName: (options) ->
@@ -159,6 +195,8 @@ define [
 
       collectionVersion = global.config.static.collection
 
+      tagz = _.keys(options.tags).join('_')
+
       [
         collectionVersion
         clazz
@@ -172,6 +210,7 @@ define [
         id
         requestOptions
         pageSize
+        tagz
       ].join('|').replace(/\:/g, '')
 
 
@@ -210,36 +249,8 @@ define [
         @_byId = options.models
         @_models = _.values options.models
 
-      # Parser and initialize tags
-      # tags could be set in 3 forms:
-      # - a string of tags divided by coma: 'project.100002, project.1000003'
-      # - an array of tags: ['project.1000002', 'project.100003']
-      # - an object like:
-      #   'project.1000003':
-      #     action: (mods) -> ...
-      #     level: 100
-      @_tags = {}
-      if options.tags
-        if _.isObject(options.tags)
-          for key, value of options.tags
-            @_tags[key] =
-              action: if value.action then value.action else Collection._defaultTagAction
-              level: if not isNaN(Number(value.level)) then Number(value.level) else Collection._defaultTagLevel
-        else if _.isArray(options.tags) or _.isString(options.tags)
-          rawTags =
-            if _.isString(options.tags)
-              _.filter options.tags.split(','), item -> item.trim()
-            else
-              options.tags
-
-          for value in rawTags
-            @_tags[value] =
-              action: Collection._defaultTagAction
-              level: Collection._defaultTagLevel
-        else
-          throw new Error('Unknown \'tags\' option: ' + options.tag)
-
       @_requestParams = options.requestParams ? {}
+      @_tags = {}
 
       @_queryQueue =
         loadingStart: @_loadedStart
@@ -251,6 +262,44 @@ define [
       # subscribe for model changes to smart-proxy them to the collections model instances
       @repo.on('change', @_handleModelChange).withContext(this)
       @repo.on('tags', @_handleTagBroadcast).withContext(this)
+
+
+    injectTags: (tags) ->
+      ###
+      inject tags into the collections
+      ###
+
+      # Parser and initialize tags
+      # tags could be set in 3 forms:
+      # - a string of tags divided by coma: 'project.100002, project.1000003'
+      # - an array of tags: ['project.1000002', 'project.100003']
+      # - an object like:
+      #   'project.1000003':
+      #     action: (mods) -> ...
+      #     level: 100
+      @_tags = {}
+      if tags
+        if _.isObject(tags)
+          for key, value of tags
+            @_tags[key] =
+              action: if value.action then value.action else Collection._defaultTagAction
+              level: if not isNaN(Number(value.level)) then Number(value.level) else Collection._defaultTagLevel
+        else if _.isArray(tags) or _.isString(tags)
+          rawTags =
+            if _.isString(tags)
+              _.filter tags.split(','), item -> item.trim()
+            else
+              tags
+
+          for value in rawTags
+            @_tags[value] =
+              action: Collection._defaultTagAction
+              level: Collection._defaultTagLevel
+        else
+          throw new Error('Unknown \'tags\' option: ' + options.tag)
+
+      if not @_tags['id.any']
+        @_tags['id.any'] = Collection._defaultTagsActions.refreshIfExists
 
 
     euthanize: ->
@@ -470,14 +519,6 @@ define [
       @return Boolean
       ###
       @_initialized
-
-
-    checkExistingModel: (model) ->
-      # Refresh the collection only if it contains suggested model
-      id = parseInt(if _.isObject(model) then model.id else model)
-
-      if id and not isNaN(id) and @_byId[id] and @hasActiveSubscriptions()
-        @refresh(id)
 
 
     checkNewModel: (model, emitModelChangeExcept = true) ->

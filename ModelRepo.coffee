@@ -35,6 +35,8 @@ define [
     # @var Object[String -> String]
     actions: null
 
+    tagsCollectingTime: 50
+
     @inject: ['modelProxy']
 
 
@@ -84,6 +86,9 @@ define [
 
         collection = new Collection(this, name, options)
         @_registerCollection(name, collection)
+
+      # We need to reinject tags because some of them could be user-functions
+      collection.injectTags(options.tags)
       collection
 
 
@@ -211,16 +216,6 @@ define [
             promise.reject(error)
 
       promise
-
-
-    # Triggers tags actions on all collections
-    # @params tag - string
-    # @params mods - anythings
-    triggerTag: (tag, mods) ->
-      @_collectedTags[tag] = mods
-      Defer.nextTick =>
-        @emit('tags', @_collectedTags) if @_collectedTags.length
-        @_collectedTags = []
 
 
     probeCollectionsForModel: (id, fields) ->
@@ -481,6 +476,7 @@ define [
             changeInfo = model.getChangedFields()
             # Don't do api request if model isn't change
             if Object.keys(changeInfo).length
+              pureChangeInfo = _.clone(changeInfo)
               changeInfo.id = model.id
               changeInfo._sourceModel = model
               @emit 'change', changeInfo
@@ -492,7 +488,9 @@ define [
                   @cacheCollection(model.collection) if model.collection?
                   model.resetChangedFields()
                   @emit 'sync', model
-                  @suggestNewModelToCollections(model) if !notRefreshCollections
+                  if !notRefreshCollections
+                    @triggerTag('refreshIfExists', model)
+                    @triggerTagsForChanges(pureChangeInfo, model)
                   promise.resolve(response)
             else
               promise.resolve('Nothing to save')
@@ -505,13 +503,49 @@ define [
                 model.id = response.id
                 model.resetChangedFields()
                 @emit 'sync', model
-                @suggestNewModelToCollections(model) if !notRefreshCollections
+                @triggerTagsForNewModel(model) if !notRefreshCollections
                 @_injectModelServices(model)
                 @_injectActionMethods(model)
                 promise.resolve(response)
       else
         promise.reject('Cleaned up')
       promise
+
+
+    triggerTagsForNewModel: (model) ->
+      @triggerTagsForChanges(model)
+
+
+    triggerTagsForChanges: (changeInfo, model) ->
+      ###
+      Analyse changeInfoOrModel and trigger according tags
+      ###
+      model = changeInfo if changeInfo instanceof Model
+
+      @triggerTag("id.any", model)
+      @triggerTag("id.#{model.id}", model)
+
+      for fieldName, value of changeInfo
+        continue if _.isFunction(value)
+        continue if not fieldName or fieldName[0] == '_' # _Ignore _any _private _parts of the object
+        @triggerTag("#{fieldName}.any", model)
+        if _.isObject(value)
+          if value.id
+            @triggerTag("#{fieldName}.#{value.id}", model)
+        else
+          @triggerTag("#{fieldName}.#{value}", model)
+
+
+    # Triggers tags actions on all collections
+    # @params tag - string
+    # @params mods - anythings
+    triggerTag: (tag, mods) ->
+      @_collectedTags[tag] = mods
+      
+      Defer.nextTick =>
+        console.log('Emit tags:', @_collectedTags) if _.size(@_collectedTags) > 0
+        @emit('tags', @_collectedTags) if _.size(@_collectedTags) > 0
+        @_collectedTags = {}
 
 
     paging: (params) ->
@@ -726,9 +760,7 @@ define [
       #Make all collections, containing this model refresh
       #It's cheaper than Collection::checkNewModel and ModelRepo.suggestNewModelToCollections,
       #because mentioned ones make almost all collections refresh
-      Defer.nextTick =>
-        for name, collection of @_collections
-          collection.checkExistingModel model
+      @triggerTag('refreshIfExists', model)
 
 
     refreshAll: ->
