@@ -53,7 +53,8 @@ define [
 
       result.done -> clearTimeout(debugTimeout)
     else
-      Future.rejected(new Error("Illegal arguments for domInserted: #{parentNode}, #{insertingNode.getClassName()}, #{insertingNode.getId()}"))
+      _console.error "Illegal arguments for domInserted:", $parentNode, $insertingNode
+      Future.rejected(new Error("Illegal arguments for domInserted: #{parentNode}, #{insertingNode}"))
 
 
 
