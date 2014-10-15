@@ -92,6 +92,9 @@ exports.startServer = startServer = (callback) ->
               res.end()
       .resume()
   .listen(global.config.server.port)
+
+  require('./wsServer').start(services.nodeServer) if global.config.debug.livereload
+
   callback?()
 
 
