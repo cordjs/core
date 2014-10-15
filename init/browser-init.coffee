@@ -27,3 +27,7 @@ require [
     ], (browserInit, profilerInit) ->
       profilerInit() if CORD_PROFILER_ENABLED
       browserInit.init()
+
+if global.config.debug.livereload
+  require ['bundles/cord/core/init/liveReloader'], (liveReloader) ->
+    liveReloader.init()
