@@ -3,12 +3,9 @@ define ->
   host = location.host
 
   waitAndReload = ->
-    console.log "reopen"
     ws = new WebSocket('ws://' + host)
-    ws.onerror = ->
-      ws.close()
-      setTimeout(waitAndReload, 100)
     ws.onopen = -> location.reload()
+    ws.onclose = -> setTimeout(waitAndReload, 100)
 
 
   init: ->
@@ -17,5 +14,4 @@ define ->
     Once the connection is closed it waits for the server to restart and then reloads the page.
     ###
     ws = new WebSocket('ws://' + host)
-    ws.onclose = (evt) ->
-      waitAndReload()
+    ws.onclose = -> waitAndReload()
