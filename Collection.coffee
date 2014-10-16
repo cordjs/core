@@ -127,7 +127,7 @@ define [
     tagLiveUpdate: (mods) ->
       @_lastQueryTime = 0
       if @hasActiveSubscriptions()
-        startPage = @_loadedStart / @_pageSize + 1
+        startPage = if @_pageSize > 0 then @_loadedStart / @_pageSize + 1 else 1
         @partialRefresh(startPage, 3)
         true
       else
