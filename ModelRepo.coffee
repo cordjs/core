@@ -518,7 +518,7 @@ define [
       ###
       cloneModel = _.clone(model)
       _.extend(cloneModel, response)
-      @triggerTagsForChanges(cloneModel, model)
+      @triggerTagsForChanges(cloneModel, cloneModel) 
 
 
     triggerTagsForChanges: (changeInfo, model) ->
