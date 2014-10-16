@@ -503,7 +503,7 @@ define [
                 model.id = response.id
                 model.resetChangedFields()
                 @emit 'sync', model
-                @triggerTagsForNewModel(model) if !notRefreshCollections
+                @triggerTagsForNewModel(model, response) if !notRefreshCollections
                 @_injectActionMethods(model)
                 promise.resolve(response)
       else
@@ -511,8 +511,14 @@ define [
       promise
 
 
-    triggerTagsForNewModel: (model) ->
-      @triggerTagsForChanges(model)
+    triggerTagsForNewModel: (model, response) ->
+      ###
+      Merger response fields with model and trigger change.
+      Because backend could do anything with the fields values, like put defaults, etc
+      ###
+      cloneModel = _.clone(model)
+      _.extend(cloneModel, response)
+      @triggerTagsForChanges(cloneModel, model)
 
 
     triggerTagsForChanges: (changeInfo, model) ->
