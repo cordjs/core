@@ -504,7 +504,6 @@ define [
                 model.resetChangedFields()
                 @emit 'sync', model
                 @triggerTagsForNewModel(model) if !notRefreshCollections
-                @_injectModelServices(model)
                 @_injectActionMethods(model)
                 promise.resolve(response)
       else
@@ -541,7 +540,7 @@ define [
     # @params mods - anythings
     triggerTag: (tag, mods) ->
       @_collectedTags[tag] = mods
-      
+
       Defer.nextTick =>
         console.log('Emit tags:', @_collectedTags) if _.size(@_collectedTags) > 0
         @emit('tags', @_collectedTags) if _.size(@_collectedTags) > 0
