@@ -188,6 +188,7 @@ define [
         "#{baseUrl}bundles/cord/core/init/browser-init.js?release=" + global.config.static.release
 
       """
+      #{ if global.config.injectCordova then '<script src="cordova.js"></script>' else '' }
       <script>
         var global = {
           cordServerProfilerUid: "#{ @serverProfilerUid }",
