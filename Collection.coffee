@@ -1168,9 +1168,9 @@ define [
 
       slice = =>
         if start? and end?
-          @toArray().slice(start, end + 1)
+          @_models.slice(start, end + 1)
         else
-          @toArray()
+          @_models
 
       promise = Future.single('Collection::getPage')
 
