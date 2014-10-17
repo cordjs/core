@@ -622,7 +622,7 @@ define [
         @cleanSubscriptions()
         @cleanModelSubscriptions()
         @_sentenced = true
-        @_widgetReadyPromise.reject('widget is sentenced!') if not @_browserInitialized
+        @_widgetReadyPromise.reject(new errors.WidgetSentenced('widget is sentenced!')) if not @_browserInitialized
       @sentenceChildrenToDeath()
 
 
@@ -1623,7 +1623,7 @@ define [
                     timeoutDomInfo.setDomRoot($newRoot)
                     @_domInfo.domInserted().done -> timeoutDomInfo.markShown()
                   .catchIf (err) ->
-                    err instanceof errors.WidgetDropped
+                    err instanceof errors.WidgetDropped or err instanceof errors.WidgetSentenced
               .failAloud(@debug("#widget:resolveParamRefs:#{@debug()}"))
 
               if hasTimeout
