@@ -53,8 +53,14 @@ define [
 
     @error: ->
       Console.taggedError ['error'], arguments
-      postal?.publish 'log', JSON.stringify(arguments)
-      
+      args =
+        try
+          JSON.stringify(arguments)
+        catch
+          # TypeError: Converting circular structure to JSON
+          arguments
+      postal?.publish 'log', args
+
 
     @taggedError: (tags, args...) ->
       config = @getConfig()
