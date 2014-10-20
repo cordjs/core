@@ -164,9 +164,7 @@ define [
       @_childEventSubscriptions = {}
       if @childEvents
         for eventDef, callback of @childEvents
-          eventDef = eventDef.split(' ')
-          childName = eventDef[0]
-          topic = eventDef[1]
+          [childName, topic] = eventDef.split(' ')
           if _.isString(callback)
             if @::[callback]
               callback = @::[callback]
