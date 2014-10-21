@@ -13,38 +13,7 @@ define [
 
   class Future
     ###
-    Simple aggregative future/promise class.
-
-    Two scenarios are supported:
-    1. Do something when all async actions in loop are complete.
-    2. Aggregate several typical async-callback functions result into one callback call.
-
-    Example of 1:
-      promise = new Future
-      result = []
-      for i in [1..10]
-        do (i) =>
-          promise.fork()
-          setTimeout ->
-            result.push(i)
-            promise.resolve()
-          , 1000
-      promise.done ->
-        _console.log result.join(', ')
-
-    Example of 2:
-      asyncGetter = (key, callback) ->
-        obj =
-          test: [1, 2, 3, 4, 5]
-        setTimeout ->
-          callback(obj[key])
-        , 500
-
-      promise = new Future
-      require ['jquery', 'underscore'], promise.callback()
-      asyncGetter 'test', promise.callback()
-      promise.done ($, _, testVal) ->
-        $('body').html("Even vals of 'test' = #{ _.filter(testVal, (num) -> num % 2 == 0) }")
+    Home-grown promise implementation (reinvented the wheel)
     ###
 
     # empty function to be used as stub callback in some situations
@@ -340,7 +309,6 @@ define [
             if result.completed()
               throw err
             else
-              #console.error "Error in Future.then", err, err.stack
               result.reject(err)
       else
         @done (args...) -> result.resolve.apply(result, args)
@@ -358,7 +326,6 @@ define [
             if result.completed()
               throw err1
             else
-              #console.error "Error in Future.then", err, err.stack
               result.reject(err1)
       else
         @fail (err) -> result.reject(err)
@@ -415,7 +382,6 @@ define [
           if result.completed()
             throw err
           else
-            #console.error "Error in Future.map", err, err.stack
             result.reject(err)
       @fail (err) -> result.reject(err)
       result
@@ -438,7 +404,6 @@ define [
           if result.completed()
             throw err
           else
-            #console.error "Error in Future.flatMap", err, err.stack
             result.reject(err)
       @fail (err) -> result.reject(err)
       result
@@ -720,8 +685,8 @@ define [
         catch err
           # this catch is needed to prevent require's error callbacks to fire when error is caused
           # by th result's callbacks. Otherwise we'll try to reject already resolved promise two lines below.
-          console.error "Got exception in Future.require() callbacks for [#{result._name}]: #{err}", err
-          console.log err.stack
+          cons.error "Got exception in Future.require() callbacks for [#{result._name}]: #{err}", err
+          cons.log err.stack
       , (err) ->
         result.reject(err)
       result
@@ -750,7 +715,7 @@ define [
       if timeout > 0
         @_incompleteTimeout = setTimeout =>
           if @state() == 'pending' and @_counter > 0
-            _console.warn "Future timed out [#{@_name}] (#{timeout/1000} seconds), counter = #{@_counter}"
+            cons.warn "Future timed out [#{@_name}] (#{timeout/1000} seconds), counter = #{@_counter}"
         , timeout
 
 
@@ -806,13 +771,13 @@ define [
       Can emphasise futures with desired names by using console.warn.
       ###
       if @_name.indexOf('desired search in name') != -1
-        fn = _console.warn
+        fn = cons.warn
       else
-        fn = _console.log
+        fn = cons.log
       args.unshift(@_name)
       args.unshift(@_doneCallbacks.length)
       args.unshift(@_counter)
-      fn.apply(_console, args)
+      fn.apply(cons, args)
 
 
 
