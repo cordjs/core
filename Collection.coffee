@@ -195,7 +195,7 @@ define [
 
       collectionVersion = global.config.static.collection
 
-      tagz = _.keys(options.tags).join('_')
+      tagz = if options.tags? then _.keys(options.tags).join('_') else ''
 
       [
         collectionVersion
