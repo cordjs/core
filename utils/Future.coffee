@@ -3,6 +3,14 @@ define [
   'cord!utils/Defer'
 ], (_, Defer) ->
 
+  # unhandled tracking settings
+  unhandledTrackingEnabled = false
+  unhandledSoftTracking = false
+  unhandledMap = null
+
+  # environment-dependent console object
+  cons = if typeof _console != 'undefined' then _console else console
+
   class Future
     ###
     Simple aggregative future/promise class.
@@ -39,6 +47,9 @@ define [
         $('body').html("Even vals of 'test' = #{ _.filter(testVal, (num) -> num % 2 == 0) }")
     ###
 
+    # empty function to be used as stub callback in some situations
+    @noop: ->
+
     _counter: 0
     _doneCallbacks: null
     _failCallbacks: null
@@ -74,6 +85,7 @@ define [
       @_name = name
 
       @_initDebugTimeout() if @_counter > 0
+      @_initUnhandledTracking() if unhandledTrackingEnabled
 
 
     fork: ->
@@ -105,14 +117,15 @@ define [
           if @_counter == 0
             # For the cases when there is no done function
             @_state = 'resolved' if @_locked
+            @_clearUnhandledTracking() if unhandledSoftTracking and @_locked
             @_runDoneCallbacks() if @_doneCallbacks.length > 0
             @_runAlwaysCallbacks() if @_alwaysCallbacks.length > 0
             @_clearFailCallbacks() if @_state == 'resolved'
             @_clearDebugTimeout()
           # not changing state to 'resolved' here because it is possible to call fork() again if done hasn't called yet
       else
-        nameStr = if @_name then " (name = #{ @_name})" else ''
-        throw new Error("Future::resolve() is called more times than Future::fork!#{ nameStr }")
+        nameStr = if @_name then " (name = #{@_name})" else ''
+        throw new Error("Future::resolve() is called more times than Future::fork!#{nameStr}")
 
       this
 
@@ -209,6 +222,7 @@ define [
           @_clearDebugTimeout()
           Defer.nextTick =>
             @_runFailCallbacks()
+      @_clearUnhandledTracking() if unhandledTrackingEnabled
       this
 
 
@@ -224,20 +238,25 @@ define [
         Defer.nextTick =>
           @_runAlwaysCallbacks()
           @_clearFailCallbacks() if @_state == 'resolved'
+      @_clearUnhandledTracking() if unhandledTrackingEnabled
       this
 
 
     failAloud: (message) ->
       ###
-      Adds often-used scenario of fail that just throws exception with the error
+      Adds often-used scenario of fail that just loudly reports the error
       ###
       name = @_name
       @fail (err) ->
-        if typeof _console != 'undefined'
-          _console.error "Future(#{name})::failAloud#{ if message then " with message: #{message}" else '' }", err
-        else
-          console.error "Future(#{name})::failAloud#{ if message then " with message: #{message}" else '' }", err
-        throw err
+        cons.error "Future(#{name})::failAloud#{ if message then " with message: #{message}" else '' }", err, err.stack
+
+
+    failOk: ->
+      ###
+      Registers empty fail handler for the Future to prevent it to be reported in unhandled failure tracking.
+      This method is useful when the failure result is expected and it's OK not to handle it.
+      ###
+      @fail(@constructor.noop)
 
 
     callback: (neededArgs...) ->
@@ -552,6 +571,7 @@ define [
       Fires resulting callback functions defined by done with right list of arguments.
       ###
       @_state = 'resolved'
+      @_clearUnhandledTracking() if unhandledSoftTracking and not @_locked
       # this is need to avoid duplicate callback calling in case of recursive coming here from callback function
       callbacksCopy = @_doneCallbacks
       @_doneCallbacks = []
@@ -757,13 +777,32 @@ define [
       @_clearFailCallbacks()
       @_alwaysCallbacks = []
       @_clearDebugTimeout()
+      @_clearUnhandledTracking() if unhandledTrackingEnabled
 
 
     # debugging
 
+    _initUnhandledTracking: ->
+      ###
+      Registers the promise to the unhandled failure tracking map.
+      ###
+      @_trackId = _.uniqueId()
+      unhandledMap[@_trackId] =
+        startTime: (new Date).getTime()
+        promise: this
+
+
+    _clearUnhandledTracking: ->
+      ###
+      Removes the promise from the unhandled failure tracking map.
+      Should be called when failure handling callback is registered.
+      ###
+      delete unhandledMap[@_trackId]
+
+
     _debug: (args...) ->
       ###
-      Debug logging method, which logs future's name, counter, callback lenght, and given arguments.
+      Debug logging method, which logs future's name, counter, callback length, and given arguments.
       Can emphasise futures with desired names by using console.warn.
       ###
       if @_name.indexOf('desired search in name') != -1
@@ -774,3 +813,38 @@ define [
       args.unshift(@_doneCallbacks.length)
       args.unshift(@_counter)
       fn.apply(_console, args)
+
+
+
+  initUnhandledTracker = ->
+    ###
+    Initializes infinite checking of promises with unhandled failure result.
+    ###
+    unhandledSoftTracking = !!global.config?.debug.future.trackUnhandled.soft
+    interval = global.config?.debug.future.trackUnhandled.interval
+    timeout = global.config?.debug.future.trackUnhandled.timeout
+    unhandledMap = {}
+    setInterval =>
+      curTime = (new Date).getTime()
+      for id, info of unhandledMap
+        if curTime - info.startTime > timeout
+          state = info.promise.state()
+          reportArgs = [
+            "Unhandled rejection detected for Future[#{info.promise._name}] " +
+              "after #{(curTime - info.startTime) / 1000 } seconds!"
+            state
+          ]
+          if state == 'rejected'
+            err = info.promise._callbackArgs[0]
+            reportArgs.push(err)
+            reportArgs.push(err.stack) if err.stack
+          cons.warn.apply(cons, reportArgs)
+          delete unhandledMap[id]
+    , interval
+
+
+  unhandledTrackingEnabled = !!global.config?.debug.future.trackUnhandled.enable
+  initUnhandledTracker() if unhandledTrackingEnabled
+
+
+  Future
