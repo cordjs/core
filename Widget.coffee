@@ -185,12 +185,13 @@ define [
        browser.
       @browser-only
       ###
-      @_cssPromise = new Future(0, "#{@__name}::_cssPromise")
-      if not restoreMode
-        @_cssPromise.fork()
-        require ['cord!css/browserManager'], (cssManager) =>
-          @_cssPromise.when(cssManager.load(cssFile)) for cssFile in @::getCssFiles()
-          @_cssPromise.resolve()
+      @_cssPromise =
+        if not restoreMode
+          Future.require('cord!css/browserManager').then (cssManager) =>
+            promises = (cssManager.load(cssFile) for cssFile in @::getCssFiles())
+            Future.sequence(promises)
+        else
+          Future.resolved()
 
 
     getPath: ->
@@ -1431,18 +1432,16 @@ define [
           for widgetId, bindingMap of @childBindings
             @childById[widgetId].setSubscribedPushBinding(bindingMap)
 
-          readyConditions = [ @constructor._cssPromise ]
-
-          childWidgetReadyPromise = new Future('browserInit::childWidgetReadyPromise')
-          childWidgetReadyPromise.fork()
+          readyConditions = []
 
           for childWidget in @children
             # we should not wait for readiness of the child widget if it is going to render later (with timeout-stub)
             if not childWidget._delayedRender
               readyConditions.push(childWidget.browserInit(stopPropagateWidget, $domRoot))
-              childWidgetReadyPromise.when(childWidget.ready())
 
-          childWidgetReadyPromise.resolve()
+          childWidgetsReadyPromise = Future.sequence(readyConditions)
+
+          readyConditions.push(@constructor._cssPromise)
 
           selfInitBehaviour = false
           readyConditions.push @initBehaviour($domRoot).done =>
@@ -1460,9 +1459,9 @@ define [
           savedPromiseForTimeoutCheck = @_widgetReadyPromise
           savedConstructorCssPromise = @constructor._cssPromise
           @_browserInitDebugTimeout = setTimeout =>
-            if not childWidgetReadyPromise.completed()
+            if not childWidgetsReadyPromise.completed()
               errorInfo =
-                futureCounter: childWidgetReadyPromise._counter
+                futureCounter: childWidgetsReadyPromise._counter
                 childCount: @children.length
                 isSentenced: @isSentenced()
                 stuckChildInfo: []
@@ -1482,7 +1481,7 @@ define [
                 i++
               _console.warn "#{ @debug 'incompleteBrowserInit:children!' }", errorInfo
             else if not savedPromiseForTimeoutCheck.completed()
-              _console.warn "#{ @debug 'incompleteBrowserInit!' } css:#{ savedConstructorCssPromise.completed() } child:#{ childWidgetReadyPromise.completed() } selfInit:#{ selfInitBehaviour }"
+              _console.warn "#{ @debug 'incompleteBrowserInit!' } css:#{ savedConstructorCssPromise.completed() } child:#{ childWidgetsReadyPromise.completed() } selfInit:#{ selfInitBehaviour }"
             @_browserInitDebugTimeout = null
           , 5000
       @_widgetReadyPromise
