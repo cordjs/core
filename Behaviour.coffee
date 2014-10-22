@@ -262,7 +262,7 @@ define [
       ->
         origArgs = arguments
         pr.timer "#{that.constructor.__name}::DOM('#{eventDesc}')", ->
-          m.apply(that, origArgs) if not that.widget.isSentenced()
+          m.apply(that, origArgs) if that.widget and not that.widget.isSentenced()
         true
 
 

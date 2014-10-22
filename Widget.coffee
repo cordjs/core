@@ -164,9 +164,7 @@ define [
       @_childEventSubscriptions = {}
       if @childEvents
         for eventDef, callback of @childEvents
-          eventDef = eventDef.split(' ')
-          childName = eventDef[0]
-          topic = eventDef[1]
+          [childName, topic] = eventDef.split(' ')
           if _.isString(callback)
             if @::[callback]
               callback = @::[callback]
@@ -187,12 +185,13 @@ define [
        browser.
       @browser-only
       ###
-      @_cssPromise = new Future(0, "#{@__name}::_cssPromise")
-      if not restoreMode
-        @_cssPromise.fork()
-        require ['cord!css/browserManager'], (cssManager) =>
-          @_cssPromise.when(cssManager.load(cssFile)) for cssFile in @::getCssFiles()
-          @_cssPromise.resolve()
+      @_cssPromise =
+        if not restoreMode
+          Future.require('cord!css/browserManager').then (cssManager) =>
+            promises = (cssManager.load(cssFile) for cssFile in @::getCssFiles())
+            Future.sequence(promises)
+        else
+          Future.resolved()
 
 
     getPath: ->
@@ -622,7 +621,7 @@ define [
         @cleanSubscriptions()
         @cleanModelSubscriptions()
         @_sentenced = true
-        @_widgetReadyPromise.reject(new Error('widget is sentenced!')) if not @_browserInitialized
+        @_widgetReadyPromise.reject(new errors.WidgetSentenced('widget is sentenced!')) if not @_browserInitialized
       @sentenceChildrenToDeath()
 
 
@@ -1433,18 +1432,16 @@ define [
           for widgetId, bindingMap of @childBindings
             @childById[widgetId].setSubscribedPushBinding(bindingMap)
 
-          readyConditions = [ @constructor._cssPromise ]
-
-          childWidgetReadyPromise = new Future('browserInit::childWidgetReadyPromise')
-          childWidgetReadyPromise.fork()
+          readyConditions = []
 
           for childWidget in @children
             # we should not wait for readiness of the child widget if it is going to render later (with timeout-stub)
             if not childWidget._delayedRender
               readyConditions.push(childWidget.browserInit(stopPropagateWidget, $domRoot))
-              childWidgetReadyPromise.when(childWidget.ready())
 
-          childWidgetReadyPromise.resolve()
+          childWidgetsReadyPromise = Future.sequence(readyConditions)
+
+          readyConditions.push(@constructor._cssPromise)
 
           selfInitBehaviour = false
           readyConditions.push @initBehaviour($domRoot).done =>
@@ -1462,9 +1459,9 @@ define [
           savedPromiseForTimeoutCheck = @_widgetReadyPromise
           savedConstructorCssPromise = @constructor._cssPromise
           @_browserInitDebugTimeout = setTimeout =>
-            if not childWidgetReadyPromise.completed()
+            if not childWidgetsReadyPromise.completed()
               errorInfo =
-                futureCounter: childWidgetReadyPromise._counter
+                futureCounter: childWidgetsReadyPromise._counter
                 childCount: @children.length
                 isSentenced: @isSentenced()
                 stuckChildInfo: []
@@ -1484,7 +1481,7 @@ define [
                 i++
               _console.warn "#{ @debug 'incompleteBrowserInit:children!' }", errorInfo
             else if not savedPromiseForTimeoutCheck.completed()
-              _console.warn "#{ @debug 'incompleteBrowserInit!' } css:#{ savedConstructorCssPromise.completed() } child:#{ childWidgetReadyPromise.completed() } selfInit:#{ selfInitBehaviour }"
+              _console.warn "#{ @debug 'incompleteBrowserInit!' } css:#{ savedConstructorCssPromise.completed() } child:#{ childWidgetsReadyPromise.completed() } selfInit:#{ selfInitBehaviour }"
             @_browserInitDebugTimeout = null
           , 5000
       @_widgetReadyPromise
@@ -1599,9 +1596,9 @@ define [
               if tmpl.isEmpty() or not normalizedName
                 @widgetRepo.createWidget(params.type, @getBundle())
               else if normalizedName
-                tmpl.getWidgetByName(normalizedName).map (widget) ->
+                tmpl.getWidgetByName(normalizedName).then (widget) ->
                   [widget, tmpl.getWidgetInfoByName(normalizedName).timeoutTemplate]
-                .recoverWith =>
+                .catch =>
                   @widgetRepo.createWidget(params.type, @getBundle())
               # else impossible
 
@@ -1623,7 +1620,7 @@ define [
                     timeoutDomInfo.setDomRoot($newRoot)
                     @_domInfo.domInserted().done -> timeoutDomInfo.markShown()
                   .catchIf (err) ->
-                    err instanceof errors.WidgetDropped
+                    err instanceof errors.WidgetDropped or err instanceof errors.WidgetSentenced
               .failAloud(@debug("#widget:resolveParamRefs:#{@debug()}"))
 
               if hasTimeout

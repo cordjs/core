@@ -3,41 +3,21 @@ define [
   'cord!utils/Defer'
 ], (_, Defer) ->
 
+  # unhandled tracking settings
+  unhandledTrackingEnabled = false
+  unhandledSoftTracking = false
+  unhandledMap = null
+
+  # environment-dependent console object
+  cons = if typeof _console != 'undefined' then _console else console
+
   class Future
     ###
-    Simple aggregative future/promise class.
-
-    Two scenarios are supported:
-    1. Do something when all async actions in loop are complete.
-    2. Aggregate several typical async-callback functions result into one callback call.
-
-    Example of 1:
-      promise = new Future
-      result = []
-      for i in [1..10]
-        do (i) =>
-          promise.fork()
-          setTimeout ->
-            result.push(i)
-            promise.resolve()
-          , 1000
-      promise.done ->
-        _console.log result.join(', ')
-
-    Example of 2:
-      asyncGetter = (key, callback) ->
-        obj =
-          test: [1, 2, 3, 4, 5]
-        setTimeout ->
-          callback(obj[key])
-        , 500
-
-      promise = new Future
-      require ['jquery', 'underscore'], promise.callback()
-      asyncGetter 'test', promise.callback()
-      promise.done ($, _, testVal) ->
-        $('body').html("Even vals of 'test' = #{ _.filter(testVal, (num) -> num % 2 == 0) }")
+    Home-grown promise implementation (reinvented the wheel)
     ###
+
+    # empty function to be used as stub callback in some situations
+    @noop: ->
 
     _counter: 0
     _doneCallbacks: null
@@ -74,6 +54,7 @@ define [
       @_name = name
 
       @_initDebugTimeout() if @_counter > 0
+      @_initUnhandledTracking() if unhandledTrackingEnabled
 
 
     fork: ->
@@ -105,14 +86,15 @@ define [
           if @_counter == 0
             # For the cases when there is no done function
             @_state = 'resolved' if @_locked
+            @_clearUnhandledTracking() if unhandledSoftTracking and @_locked
             @_runDoneCallbacks() if @_doneCallbacks.length > 0
             @_runAlwaysCallbacks() if @_alwaysCallbacks.length > 0
             @_clearFailCallbacks() if @_state == 'resolved'
             @_clearDebugTimeout()
           # not changing state to 'resolved' here because it is possible to call fork() again if done hasn't called yet
       else
-        nameStr = if @_name then " (name = #{ @_name})" else ''
-        throw new Error("Future::resolve() is called more times than Future::fork!#{ nameStr }")
+        nameStr = if @_name then " (name = #{@_name})" else ''
+        throw new Error("Future::resolve() is called more times than Future::fork!#{nameStr}")
 
       this
 
@@ -153,18 +135,19 @@ define [
         @resolve.apply(this, args)
 
 
-    when: (args...) ->
+    when: ->
       ###
       Adds another future(promise)(s) as a condition of completion of this future
       Can be called multiple times.
       @param (variable)Future args another future which'll be waited
       @return Future self
       ###
-      for promise in args
+      self = this
+      for promise in arguments
         @fork() if not @_locked
         promise
-          .done((args...) => @resolve.apply(this, args))
-          .fail((args...) => @reject.apply(this, args))
+          .done(-> self.resolve.apply(self, arguments))
+          .fail(-> self.reject.apply(self, arguments))
       this
 
 
@@ -209,6 +192,7 @@ define [
           @_clearDebugTimeout()
           Defer.nextTick =>
             @_runFailCallbacks()
+      @_clearUnhandledTracking() if unhandledTrackingEnabled
       this
 
 
@@ -224,20 +208,25 @@ define [
         Defer.nextTick =>
           @_runAlwaysCallbacks()
           @_clearFailCallbacks() if @_state == 'resolved'
+      @_clearUnhandledTracking() if unhandledTrackingEnabled
       this
 
 
     failAloud: (message) ->
       ###
-      Adds often-used scenario of fail that just throws exception with the error
+      Adds often-used scenario of fail that just loudly reports the error
       ###
       name = @_name
       @fail (err) ->
-        if typeof _console != 'undefined'
-          _console.error "Future(#{name})::failAloud#{ if message then " with message: #{message}" else '' }", err
-        else
-          console.error "Future(#{name})::failAloud#{ if message then " with message: #{message}" else '' }", err
-        throw err
+        cons.error "Future(#{name})::failAloud#{ if message then " with message: #{message}" else '' }", err, err.stack
+
+
+    failOk: ->
+      ###
+      Registers empty fail handler for the Future to prevent it to be reported in unhandled failure tracking.
+      This method is useful when the failure result is expected and it's OK not to handle it.
+      ###
+      @fail(@constructor.noop)
 
 
     callback: (neededArgs...) ->
@@ -291,7 +280,7 @@ define [
 
     then: (onResolved, onRejected) ->
       ###
-      Implements 'then'-samantics to be compatible with standard JS Promise.
+      Implements 'then'-semantics to be compatible with standard JS Promise.
       Both arguments are optional but at least on of them must be defined!
       @param (optional)Function onResolved callback to be evaluated in case of successful resolving of the promise
                                            This is the same as using of combination of map() or flatMap()
@@ -301,16 +290,16 @@ define [
                                            If exception is thrown then it's wrapped into rejected Future and returned.
                                            Any other return value is just returned wrappend into resulting Future.
       @param (optional)Function onRejected callback to be evaluated in case of the promise rejection
-                                           This is the same as using recover() method.
+                                           This is the same as using catch() method.
                                            Return value behaviour is the same as for `onResolved` callback
       @return Future[A]
       ###
       throw new Error("No callback given for Future.then (name = #{@_name})!") if not onResolved? and not onRejected?
       result = Future.single("#{@_name} -> then")
       if onResolved?
-        @done (args...) ->
+        @done ->
           try
-            res = onResolved.apply(null, args)
+            res = onResolved.apply(null, arguments)
             if res instanceof Future
               result.when(res)
             else if _.isArray(res)
@@ -321,10 +310,9 @@ define [
             if result.completed()
               throw err
             else
-              #console.error "Error in Future.then", err, err.stack
               result.reject(err)
       else
-        @done (args...) -> result.resolve.apply(result, args)
+        @done -> result.resolve.apply(result, arguments)
       if onRejected?
         @fail (err) ->
           try
@@ -339,7 +327,6 @@ define [
             if result.completed()
               throw err1
             else
-              #console.error "Error in Future.then", err, err.stack
               result.reject(err1)
       else
         @fail (err) -> result.reject(err)
@@ -348,7 +335,7 @@ define [
 
     catch: (callback) ->
       ###
-      Implements 'catch'-samantics to be compatible with standard JS Promise.
+      Implements 'catch'-semantics to be compatible with standard JS Promise.
       Shortcut for promise.then(undefined, callback)
       @see then()
       @param Function callback function to be evaluated in case of the promise rejection
@@ -385,9 +372,9 @@ define [
       If this Future is rejected than the resulting Future will contain the same error.
       ###
       result = Future.single("#{@_name} -> map")
-      @done (args...) ->
+      @done ->
         try
-          mapRes = callback.apply(null, args)
+          mapRes = callback.apply(null, arguments)
           if _.isArray(mapRes)
             result.resolve.apply(result, mapRes)
           else
@@ -396,7 +383,6 @@ define [
           if result.completed()
             throw err
           else
-            #console.error "Error in Future.map", err, err.stack
             result.reject(err)
       @fail (err) -> result.reject(err)
       result
@@ -412,14 +398,13 @@ define [
       @return Future(A)
       ###
       result = Future.single("#{@_name} -> flatMap")
-      @done (args...) ->
+      @done ->
         try
-          result.when(callback.apply(null, args))
+          result.when(callback.apply(null, arguments))
         catch err
           if result.completed()
             throw err
           else
-            #console.error "Error in Future.flatMap", err, err.stack
             result.reject(err)
       @fail (err) -> result.reject(err)
       result
@@ -435,59 +420,10 @@ define [
       @return Future(this.result)
       ###
       result = Future.single("#{@_name} -> andThen")
-      this.finally (args...) ->
-        callback.apply(null, args)
-        result.complete.apply(result, args)
+      this.finally ->
+        callback.apply(null, arguments)
+        result.complete.apply(result, arguments)
       result
-
-
-    recover: (callback) ->
-      ###
-      Returns new future which completes with the result of this future if it's successful or with the result
-       of the given callback if this future is failed. Error of the fail result is passed to the callback.
-      This method is helpful when it's necessary to convert error of this future to the meaningful successful result.
-      @param Function(err -> A) callback
-      @return Future[A]
-      ###
-      result = Future.single("#{@_name} -> recover")
-      @done (args...) -> result.resolve.apply(result, args)
-      @fail (err) ->
-        mapRes = callback.call(null, err)
-        if _.isArray(mapRes)
-          result.resolve.apply(result, mapRes)
-        else
-          result.resolve(mapRes)
-      result
-
-
-    mapFail: (callback) ->
-      ###
-      Old alias for `recover`
-      @deprecated
-      ###
-      @recover(callback)
-
-
-    recoverWith: (callback) ->
-      ###
-      Returns new future which completes with the result of this future if it's successful or with the future-result
-       of the given callback if this future is failed. Error of the fail result is passed to the callback.
-      Callback must return a Future, and resulting Future is completed when the callback-returned future is completed.
-      This method is helpful when it's necessary to convert error of this future to the meaningful successful result.
-      @param Function(err -> Future(A)) callback
-      @return Future[A]
-      ###
-      result = Future.single("#{@_name} -> recoverWith")
-      @done (args...) -> result.resolve.apply(result, args)
-      @fail (err)     -> result.when(callback.call(null, err))
-      result
-
-    flatMapFail: (callback) ->
-      ###
-      Old alias for `recoverWith`
-      @deprecated
-      ###
-      @recoverWith(callback)
 
 
     zip: (those...) ->
@@ -511,9 +447,9 @@ define [
       for f, i in futureList
         do (i) ->
           promise.fork()
-          f.done (res...) ->
-            result[i] = switch res.length
-              when 1 then res[0]
+          f.done ->
+            result[i] = switch arguments.length
+              when 1 then arguments[0]
               when 0 then undefined
               else res
             promise.resolve()
@@ -552,6 +488,7 @@ define [
       Fires resulting callback functions defined by done with right list of arguments.
       ###
       @_state = 'resolved'
+      @_clearUnhandledTracking() if unhandledSoftTracking and not @_locked
       # this is need to avoid duplicate callback calling in case of recursive coming here from callback function
       callbacksCopy = @_doneCallbacks
       @_doneCallbacks = []
@@ -622,13 +559,13 @@ define [
       (new Future(1, name)).lock()
 
 
-    @resolved: (args...) ->
+    @resolved: ->
       ###
       Returns the future already resolved with the given arguments.
       @return Future
       ###
       result = @single(':resolved:')
-      result.resolve.apply(result, args)
+      result.resolve.apply(result, arguments)
       result
 
 
@@ -661,8 +598,8 @@ define [
       @return Future[A]
       ###
       result = @single(":call:(#{fn.name})")
-      args.push (callbackArgs...) ->
-        result.complete.apply(result, callbackArgs)
+      args.push ->
+        result.complete.apply(result, arguments)
       try
         if _.isArray(fn)
           fn[0][fn[1]].apply(fn[0], args)
@@ -694,14 +631,14 @@ define [
       ###
       paths = paths[0] if paths.length == 1 and _.isArray(paths[0])
       result = @single(':require:('+ paths.join(', ') + ')')
-      require paths, (modules...) ->
+      require paths, ->
         try
-          result.resolve.apply(result, modules)
+          result.resolve.apply(result, arguments)
         catch err
           # this catch is needed to prevent require's error callbacks to fire when error is caused
           # by th result's callbacks. Otherwise we'll try to reject already resolved promise two lines below.
-          console.error "Got exception in Future.require() callbacks for [#{result._name}]: #{err}", err
-          console.log err.stack
+          cons.error "Got exception in Future.require() callbacks for [#{result._name}]: #{err}", err
+          cons.log err.stack
       , (err) ->
         result.reject(err)
       result
@@ -730,7 +667,7 @@ define [
       if timeout > 0
         @_incompleteTimeout = setTimeout =>
           if @state() == 'pending' and @_counter > 0
-            _console.warn "Future timed out [#{@_name}] (#{timeout/1000} seconds), counter = #{@_counter}"
+            cons.warn "Future timed out [#{@_name}] (#{timeout/1000} seconds), counter = #{@_counter}"
         , timeout
 
 
@@ -757,20 +694,74 @@ define [
       @_clearFailCallbacks()
       @_alwaysCallbacks = []
       @_clearDebugTimeout()
+      @_clearUnhandledTracking() if unhandledTrackingEnabled
 
 
     # debugging
 
+    _initUnhandledTracking: ->
+      ###
+      Registers the promise to the unhandled failure tracking map.
+      ###
+      @_trackId = _.uniqueId()
+      unhandledMap[@_trackId] =
+        startTime: (new Date).getTime()
+        promise: this
+
+
+    _clearUnhandledTracking: ->
+      ###
+      Removes the promise from the unhandled failure tracking map.
+      Should be called when failure handling callback is registered.
+      ###
+      delete unhandledMap[@_trackId]
+
+
     _debug: (args...) ->
       ###
-      Debug logging method, which logs future's name, counter, callback lenght, and given arguments.
+      Debug logging method, which logs future's name, counter, callback length, and given arguments.
       Can emphasise futures with desired names by using console.warn.
       ###
       if @_name.indexOf('desired search in name') != -1
-        fn = _console.warn
+        fn = cons.warn
       else
-        fn = _console.log
+        fn = cons.log
       args.unshift(@_name)
       args.unshift(@_doneCallbacks.length)
       args.unshift(@_counter)
-      fn.apply(_console, args)
+      fn.apply(cons, args)
+
+
+
+  initUnhandledTracker = ->
+    ###
+    Initializes infinite checking of promises with unhandled failure result.
+    ###
+    unhandledSoftTracking = !!global.config?.debug.future.trackUnhandled.soft
+    interval = global.config?.debug.future.trackUnhandled.interval
+    timeout = global.config?.debug.future.trackUnhandled.timeout
+    unhandledMap = {}
+    setInterval =>
+      curTime = (new Date).getTime()
+      for id, info of unhandledMap
+        if curTime - info.startTime > timeout
+          state = info.promise.state()
+          reportArgs = [
+            "Unhandled rejection detected for Future[#{info.promise._name}] " +
+              "after #{(curTime - info.startTime) / 1000 } seconds!"
+            state
+          ]
+          if state == 'rejected'
+            err = info.promise._callbackArgs[0]
+            reportArgs.push(err)
+            reportArgs.push(err.stack) if err.stack
+          cons.warn.apply(cons, reportArgs)
+          delete unhandledMap[id]
+    , interval
+
+
+  unhandledTrackingEnabled = !!global.config?.debug.future.trackUnhandled.enable
+  initUnhandledTracker() if unhandledTrackingEnabled
+
+
+  Future

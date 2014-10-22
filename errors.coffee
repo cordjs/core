@@ -9,6 +9,14 @@ define ->
       Error.call(this, @message)
       Error.captureStackTrace?(this, arguments.callee)
 
+
+  WidgetSentenced: class WidgetSentenced extends Error
+    constructor: (@message) ->
+      @name = 'WidgetSentenced'
+      Error.call(this, @message)
+      Error.captureStackTrace?(this, arguments.callee)
+
+
   WidgetParamsRace: class WidgetParamsRace extends Error
     constructor: (@message) ->
       @name = 'WidgetParamsRace'

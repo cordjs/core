@@ -518,7 +518,7 @@ define [
       ###
       cloneModel = _.clone(model)
       _.extend(cloneModel, response)
-      @triggerTagsForChanges(cloneModel, cloneModel) 
+      @triggerTagsForChanges(cloneModel, cloneModel)
 
 
     triggerTagsForChanges: (changeInfo, model) ->
@@ -707,19 +707,15 @@ define [
       @param Scalar id the model id
       @param String action the API action name on the model
       @param Object params additional key-value params for the action request (will be sent by POST)
-      @return Future(response|error)
+      @return Future[response]
       ###
-      result = new Future(1, 'ModelRepo::callModelAction result')
       if @container
+        result = Future.single('ModelRepo::callModelAction result')
         @container.eval 'api', (api) =>
-          api[method] "#{ @restResource }/#{ id }/#{ action }", params, (response, error) ->
-            if error
-              result.reject(error)
-            else
-              result.resolve(response)
+          api[method]("#{ @restResource }/#{ id }/#{ action }", params).link(result)
+        result
       else
-        result.reject('Cleaned up')
-      result
+        Future.rejected(new Error('Service container is cleaned up!'))
 
 
     buildModel: (attrs) ->
@@ -876,30 +872,33 @@ define [
 
 
     cacheCollection: (collection) ->
+      ###
+      Stores the given collection in the browser's local storage
+      @param {Collection} collection
+      @return {Future[Bool]} true if collection cached successfully, false otherwise
+      ###
       name = collection.name
-      result = new Future(1, 'ModelRepo::cacheCollection')
+      result = new Future.single('ModelRepo::cacheCollection')
       if isBrowser
         @container.eval 'localStorage', (storage) =>
-          f = storage.saveCollectionInfo @constructor.__name, name, collection.getTtl(),
+          # prepare models for cache
+          models = []
+          models[key] = model.toJSON() for key, model of collection.toArray()
+
+          storage.saveCollectionInfo @constructor.__name, name, collection.getTtl(),
             totalCount: collection._totalCount
             start: collection._loadedStart
             end: collection._loadedEnd
             hasLimits: collection._hasLimits
             fields: collection._fields
-          result.when(f)
-
-          # prepare models for cache
-          models = []
-          models[key] = model.toJSON() for key, model of collection.toArray()
-
-          result.when storage.saveCollection(@constructor.__name, name, models)
-
-          result.resolve()
-
-          result.fail (error) ->
-            _console.error "cacheCollection failed: ", error
+          .zip(storage.saveCollection(@constructor.__name, name, models))
+          .then -> true
+          .catch (err) ->
+            _console.error "#{@constructor.__name}::cacheCollection() failed:", err, err.stack
+            false
+          .link(result)
       else
-        result.reject("ModelRepo::cacheCollection is not applicable on server-side!")
+        result.resolve(false)
 
       result
 
