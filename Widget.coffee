@@ -1596,9 +1596,9 @@ define [
               if tmpl.isEmpty() or not normalizedName
                 @widgetRepo.createWidget(params.type, @getBundle())
               else if normalizedName
-                tmpl.getWidgetByName(normalizedName).map (widget) ->
+                tmpl.getWidgetByName(normalizedName).then (widget) ->
                   [widget, tmpl.getWidgetInfoByName(normalizedName).timeoutTemplate]
-                .recoverWith =>
+                .catch =>
                   @widgetRepo.createWidget(params.type, @getBundle())
               # else impossible
 

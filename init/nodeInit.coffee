@@ -59,9 +59,9 @@ exports.init = (baseUrl = 'public', configName = 'default', serverPort) ->
     Rest.host = global.config.server.host
     Rest.port = global.config.server.port
 
-    biFuture = Future.call(fs.readFile, path.join(baseUrl, 'assets/z/browser-init.id'), 'utf8').map (id) ->
+    biFuture = Future.call(fs.readFile, path.join(baseUrl, 'assets/z/browser-init.id'), 'utf8').then (id) ->
       global.config.browserInitScriptId = id
-    .mapFail ->
+    .catch ->
       true
 
     profilerInit() if CORD_PROFILER_ENABLED

@@ -289,7 +289,7 @@ define [
                                            If exception is thrown then it's wrapped into rejected Future and returned.
                                            Any other return value is just returned wrappend into resulting Future.
       @param (optional)Function onRejected callback to be evaluated in case of the promise rejection
-                                           This is the same as using recover() method.
+                                           This is the same as using catch() method.
                                            Return value behaviour is the same as for `onResolved` callback
       @return Future[A]
       ###
@@ -334,7 +334,7 @@ define [
 
     catch: (callback) ->
       ###
-      Implements 'catch'-samantics to be compatible with standard JS Promise.
+      Implements 'catch'-semantics to be compatible with standard JS Promise.
       Shortcut for promise.then(undefined, callback)
       @see then()
       @param Function callback function to be evaluated in case of the promise rejection
@@ -423,55 +423,6 @@ define [
         callback.apply(null, args)
         result.complete.apply(result, args)
       result
-
-
-    recover: (callback) ->
-      ###
-      Returns new future which completes with the result of this future if it's successful or with the result
-       of the given callback if this future is failed. Error of the fail result is passed to the callback.
-      This method is helpful when it's necessary to convert error of this future to the meaningful successful result.
-      @param Function(err -> A) callback
-      @return Future[A]
-      ###
-      result = Future.single("#{@_name} -> recover")
-      @done (args...) -> result.resolve.apply(result, args)
-      @fail (err) ->
-        mapRes = callback.call(null, err)
-        if _.isArray(mapRes)
-          result.resolve.apply(result, mapRes)
-        else
-          result.resolve(mapRes)
-      result
-
-
-    mapFail: (callback) ->
-      ###
-      Old alias for `recover`
-      @deprecated
-      ###
-      @recover(callback)
-
-
-    recoverWith: (callback) ->
-      ###
-      Returns new future which completes with the result of this future if it's successful or with the future-result
-       of the given callback if this future is failed. Error of the fail result is passed to the callback.
-      Callback must return a Future, and resulting Future is completed when the callback-returned future is completed.
-      This method is helpful when it's necessary to convert error of this future to the meaningful successful result.
-      @param Function(err -> Future(A)) callback
-      @return Future[A]
-      ###
-      result = Future.single("#{@_name} -> recoverWith")
-      @done (args...) -> result.resolve.apply(result, args)
-      @fail (err)     -> result.when(callback.call(null, err))
-      result
-
-    flatMapFail: (callback) ->
-      ###
-      Old alias for `recoverWith`
-      @deprecated
-      ###
-      @recoverWith(callback)
 
 
     zip: (those...) ->
