@@ -1703,6 +1703,20 @@ define [
             chunk.write(text)
 
 
+        url: (chunk, context, bodies, params) =>
+          ###
+          {#url routeId="" [param1=""...] /}
+          ###
+          routeId = params.routeId
+          if not routeId
+            throw new Error @debug("RouteId is require for #url")
+
+          delete(params.routeId)
+
+          @widgetRepo.getServiceContainer().eval 'router', (router) ->
+            chunk.write(router.urlTo(routeId, params))
+
+
         #
         # Widget initialization script generator
         #

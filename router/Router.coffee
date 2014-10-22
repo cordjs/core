@@ -7,6 +7,7 @@ define ['underscore'], (_) ->
 
     constructor: ->
       @routes = []
+      @reRoutes = {}
       @fallbackRoutes = []
 
 
@@ -16,7 +17,14 @@ define ['underscore'], (_) ->
       @param Map[path -> definition] routes map of route definitions
       ###
       for path, definition of routes
-        @routes.push(new Route(path, definition))
+        route = new Route(path, definition)
+        @routes.push(route)
+
+        if definition.routeId
+          if definition.shim
+            for oldKey, newKey of definition.shim
+              path = path.replace ':' + oldKey, ':' + newKey
+          @reRoutes[definition.routeId] = path
 
 
     addFallbackRoutes: (routes) ->
@@ -70,6 +78,17 @@ define ['underscore'], (_) ->
       ###
       @_currentPath
 
+
+    urlTo: (routeId, params = {}) ->
+      if @reRoutes[routeId]
+        url = @reRoutes[routeId]
+
+        for param, value of params
+          url = url.replace(':' + param, value)
+
+        url
+      else
+        throw new Error "Route with id #{routeId} is undefined"
 
 
   namedParam = /:([\w\d]+)/g
