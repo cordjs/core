@@ -70,29 +70,9 @@ define [
     # 'any': 'liveUpdate'
     _tags: null
 
-    # predefined tags:
-    @_defaultTagsActions =
-      'refresh':
-        action: 'tagsRefresh' # Immediate refresh of the collection
-        level: 10
-      'liveUpdate':
-        action: 'tagLiveUpdate' # Immediate refresh if collections is active (has subscriptions), otherwise clear lastUpdateTime
-        level: 20
-      'clearCache':
-        action: 'tagClearCache' # Clear cache and lastUpdateTime
-        level: 30
-      # This is special case for collection update if it contains model with particular Id
-      # It has the lowes priority (the biggest level), and happens when no other tags occured
-      # because, triggering this tag not necessarily updates the collection
-      # It updates current collection only if it already has been containing the model and is alive (has active 'change' subscriptions)
-      'refreshIfExists':
-        action: 'tagRefreshIfExists'
-        level: Number.POSITIVE_INFINITY # if no other tags occured
-
-    # default tag action and level for user-defined tags
+    # default tag action and proirity for user-defined tags
     @_defaultTagAction: 'tagLiveUpdate'
-    @_defaultTagLevel: 100
-
+    @_defaultTagPriority: 100
 
     # handles tags broadcast
     # params is an object with array of tags and mods (modificators) which wisll be passed as param into tagAction
@@ -101,20 +81,18 @@ define [
     #     ifContain: 1000003
     _handleTagBroadcast: (params) ->
       # Search for mathing tags anf actions
-      lowestLevel = Number.POSITIVE_INFINITY
-      matched = {}
-      for tag, mods of params
-        if @_tags[tag]
-          matched[tag] = mods
-          lowestLevel = Math.min(lowestLevel, @_tags[tag].level)
+      return if not _.isArray(@_sortedTags)
 
-      for tag, mods of matched
-        if @_tags[tag].level == lowestLevel
-          if _.isFunction(@_tags[tag].action)
-            if @_tags[tag].action.call(this, mods)
+      for tagObject in @_sortedTags
+        tag = tagObject.tag
+        tagValue = tagObject.value
+
+        if params[tag] != undefined
+          if _.isFunction(tagValue.action)
+            if tagValue.action.call(this, params[tag])
               break
           else
-            if @[@_tags[tag].action].call(this, mods)
+            if @[tagValue.action].call(this, params[tag])
               break
 
 
@@ -276,14 +254,14 @@ define [
       # - an object like:
       #   'project.1000003':
       #     action: (mods) -> ...
-      #     level: 100
+      #     proiroty: 100
       @_tags = {}
       if tags
         if _.isObject(tags)
           for key, value of tags
             @_tags[key] =
               action: if value.action then value.action else Collection._defaultTagAction
-              level: if not isNaN(Number(value.level)) then Number(value.level) else Collection._defaultTagLevel
+              priority: if not isNaN(Number(value.priority)) then Number(value.priority) else Collection._defaultTagPriority
         else if _.isArray(tags) or _.isString(tags)
           rawTags =
             if _.isString(tags)
@@ -294,12 +272,22 @@ define [
           for value in rawTags
             @_tags[value] =
               action: Collection._defaultTagAction
-              level: Collection._defaultTagLevel
+              priority: Collection._defaultTagPriority
         else
           throw new Error('Unknown \'tags\' option: ' + options.tag)
 
       if not @_tags['id.any']
-        @_tags['id.any'] = Collection._defaultTagsActions.refreshIfExists
+        @_tags['id.any'] =
+          action: 'tagRefreshIfExists'
+          priority: Number.POSITIVE_INFINITY # if no other tags occured
+
+      arrayOfTags = []
+      for key, value of @_tags
+        arrayOfTags.push
+          tag: key
+          value: value
+
+      @_sortedTags = _.sortBy arrayOfTags, (tagObject) -> tagObject.value.priority
 
 
     euthanize: ->
