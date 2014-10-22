@@ -8,7 +8,7 @@ define [
     constructor: (storage) ->
       @storage = storage
       # Max amount of time to waint until reject @getItem and clear localStorage
-      @_getTimeout = 50
+      @_getTimeout = 300
 
 
     saveCollectionInfo: (repoName, collectionName, ttl, info) ->
@@ -139,9 +139,11 @@ define [
 
       # Protection against localStorage going crazy (because of overflow?), when @storage.getItem never calls callback in Chrome
       setTimeout =>
-        result.reject('LocalStorage timeouted') if not resolved
-        @storage.clear()
-        resolved = true
+        if not resolved
+          result.reject('LocalStorage timeouted')
+          _console.error('LocalStorage timeouted ', @_getTimeout, 'on', key)
+          @storage.clear()
+          resolved = true
       , @_getTimeout
 
       result
