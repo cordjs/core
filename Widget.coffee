@@ -621,7 +621,8 @@ define [
         @cleanSubscriptions()
         @cleanModelSubscriptions()
         @_sentenced = true
-        @_widgetReadyPromise.reject(new errors.WidgetSentenced('widget is sentenced!')) if not @_browserInitialized
+        if not @_browserInitialized and not @_widgetReadyPromise.completed()
+          @_widgetReadyPromise.reject(new errors.WidgetSentenced('widget is sentenced!'))
       @sentenceChildrenToDeath()
 
 
