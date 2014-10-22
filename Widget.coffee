@@ -1390,8 +1390,12 @@ define [
       @return Future[Widget] new child widget
       ###
       @widgetRepo.createWidget(type, @getBundle()).then (child) =>
-        @registerChild(child, name)
-        child
+        if not @_sentenced
+          @registerChild(child, name)
+          child
+        else
+          @widgetRepo.dropWidget(child.ctx.id)
+          throw new Error("Child widget (#{type}, '#{name}') creation is canceled because parent is sentenced!")
 
 
     injectChildWidget: (type, params = {}) ->
