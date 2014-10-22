@@ -53,7 +53,7 @@ define [
 
     @fake: ->
       result = new DomInfo('fake')
-      result._domRootPromise.reject("DOM root from fake DomInfo should not be used!")
+      result._domRootPromise.reject(new Error("DOM root from fake DomInfo should not be used!")).failOk()
       result.markShown()
       result
 

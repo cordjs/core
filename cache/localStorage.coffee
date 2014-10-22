@@ -125,25 +125,18 @@ define [
       Future-powered proxy key-value get method.
       ###
       result = Future.single("localStorage::_get #{key}")
-      resolved = false
       @storage.getItem key, (value) ->
-        if not resolved
-          resolved = true
+        if result.state() == 'pending'
           if value?
             result.resolve(value)
           else
-            result.reject("Key '#{ key }' doesn't exists in the local storage!")
-
-      result.then ->
-        resolved = true
+            result.reject(new Error("Key '#{key}' doesn't exists in the local storage!"))
 
       # Protection against localStorage going crazy (because of overflow?), when @storage.getItem never calls callback in Chrome
       setTimeout =>
-        if not resolved
-          result.reject('LocalStorage timeouted')
-          _console.error('LocalStorage timeouted ', @_getTimeout, 'on', key)
+        if result.state() == 'pending'
           @storage.clear()
-          resolved = true
+          result.reject(new Error('LocalStorage timeouted!'))
       , @_getTimeout
 
       result

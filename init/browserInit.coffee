@@ -37,7 +37,7 @@ define [
 
     window._console = _console
 
-    configInitFuture = AppConfigLoader.ready().map (appConfig) ->
+    configInitFuture = AppConfigLoader.ready().then (appConfig) ->
       clientSideRouter.addRoutes(appConfig.routes)
       clientSideRouter.addFallbackRoutes(appConfig.fallbackRoutes)
       for serviceName, info of appConfig.services
@@ -66,11 +66,11 @@ define [
       serviceContainer.eval 'localStorage', (localStorage) ->
         currentVersion = window.global.config.static.collection
         localStorage.getItem('collectionsVersion')
-          .done (localVersion) =>
+          .done (localVersion) ->
             if currentVersion != localVersion
               localStorage.clear()
               localStorage.setItem 'collectionsVersion', currentVersion
-          .fail =>
+          .fail ->
             localStorage.setItem 'collectionsVersion', currentVersion
 
 
@@ -99,4 +99,6 @@ define [
     clientSideRouter.setWidgetRepo(widgetRepo)
     $ ->
       cssManager.registerLoadedCssFiles()
-      configInitFuture.done -> cordcorewidgetinitializerbrowser?(widgetRepo)
+      configInitFuture.then ->
+        cordcorewidgetinitializerbrowser?(widgetRepo)
+      .failAloud()
