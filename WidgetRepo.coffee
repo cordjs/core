@@ -126,7 +126,7 @@ define [
       @rootWidget
 
 
-    _unserializeModelBindings: (serializedBindings, callback) ->
+    _unserializeModelBindings: (serializedBindings) ->
       ###
       Simply replaces serialized links to models and collections to the actual restored instances of those
        models and collections in the given map.
@@ -148,8 +148,7 @@ define [
               result[key] = model: model
               promise.resolve()
 
-      promise.done ->
-        callback(result)
+      promise.then -> result
 
 
     initRepo: (repoServiceName, collections, promise) ->
@@ -269,12 +268,12 @@ define [
 
       @_parentPromises[ctx.id] = Future.single("WidgetRepo::parentPromise(#{widgetPath}, #{ctx.id})")
 
-      callbackPromise = new Future("WidgetRepo::init callbackPromise(#{widgetPath}, #{ctx.id})")
-      require ["cord-w!#{ widgetPath }"],       callbackPromise.callback()
-      Context.fromJSON ctx, @serviceContainer,  callbackPromise.callback()
-      @_unserializeModelBindings modelBindings, callbackPromise.callback()
-
-      callbackPromise.then (WidgetClass, ctx, modelBindings) =>
+      Future.sequence [
+        Future.require("cord-w!#{ widgetPath }")
+        Context.fromJSON(ctx, @serviceContainer)
+        @_unserializeModelBindings(modelBindings)
+      ]
+      .spread (WidgetClass, ctx, modelBindings) =>
 
         widget = new WidgetClass
           context: ctx
