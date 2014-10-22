@@ -447,9 +447,9 @@ define [
       for f, i in futureList
         do (i) ->
           promise.fork()
-          f.done ->
-            result[i] = switch arguments.length
-              when 1 then arguments[0]
+          f.done (res...) ->
+            result[i] = switch res.length
+              when 1 then res[0]
               when 0 then undefined
               else res
             promise.resolve()
