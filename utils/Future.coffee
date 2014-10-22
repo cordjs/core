@@ -135,18 +135,19 @@ define [
         @resolve.apply(this, args)
 
 
-    when: (args...) ->
+    when: ->
       ###
       Adds another future(promise)(s) as a condition of completion of this future
       Can be called multiple times.
       @param (variable)Future args another future which'll be waited
       @return Future self
       ###
-      for promise in args
+      self = this
+      for promise in arguments
         @fork() if not @_locked
         promise
-          .done((args...) => @resolve.apply(this, args))
-          .fail((args...) => @reject.apply(this, args))
+          .done(-> self.resolve.apply(self, arguments))
+          .fail(-> self.reject.apply(self, arguments))
       this
 
 
@@ -279,7 +280,7 @@ define [
 
     then: (onResolved, onRejected) ->
       ###
-      Implements 'then'-samantics to be compatible with standard JS Promise.
+      Implements 'then'-semantics to be compatible with standard JS Promise.
       Both arguments are optional but at least on of them must be defined!
       @param (optional)Function onResolved callback to be evaluated in case of successful resolving of the promise
                                            This is the same as using of combination of map() or flatMap()
@@ -296,9 +297,9 @@ define [
       throw new Error("No callback given for Future.then (name = #{@_name})!") if not onResolved? and not onRejected?
       result = Future.single("#{@_name} -> then")
       if onResolved?
-        @done (args...) ->
+        @done ->
           try
-            res = onResolved.apply(null, args)
+            res = onResolved.apply(null, arguments)
             if res instanceof Future
               result.when(res)
             else if _.isArray(res)
@@ -311,7 +312,7 @@ define [
             else
               result.reject(err)
       else
-        @done (args...) -> result.resolve.apply(result, args)
+        @done -> result.resolve.apply(result, arguments)
       if onRejected?
         @fail (err) ->
           try
@@ -371,9 +372,9 @@ define [
       If this Future is rejected than the resulting Future will contain the same error.
       ###
       result = Future.single("#{@_name} -> map")
-      @done (args...) ->
+      @done ->
         try
-          mapRes = callback.apply(null, args)
+          mapRes = callback.apply(null, arguments)
           if _.isArray(mapRes)
             result.resolve.apply(result, mapRes)
           else
@@ -397,9 +398,9 @@ define [
       @return Future(A)
       ###
       result = Future.single("#{@_name} -> flatMap")
-      @done (args...) ->
+      @done ->
         try
-          result.when(callback.apply(null, args))
+          result.when(callback.apply(null, arguments))
         catch err
           if result.completed()
             throw err
@@ -419,9 +420,9 @@ define [
       @return Future(this.result)
       ###
       result = Future.single("#{@_name} -> andThen")
-      this.finally (args...) ->
-        callback.apply(null, args)
-        result.complete.apply(result, args)
+      this.finally ->
+        callback.apply(null, arguments)
+        result.complete.apply(result, arguments)
       result
 
 
@@ -446,9 +447,9 @@ define [
       for f, i in futureList
         do (i) ->
           promise.fork()
-          f.done (res...) ->
-            result[i] = switch res.length
-              when 1 then res[0]
+          f.done ->
+            result[i] = switch arguments.length
+              when 1 then arguments[0]
               when 0 then undefined
               else res
             promise.resolve()
@@ -558,13 +559,13 @@ define [
       (new Future(1, name)).lock()
 
 
-    @resolved: (args...) ->
+    @resolved: ->
       ###
       Returns the future already resolved with the given arguments.
       @return Future
       ###
       result = @single(':resolved:')
-      result.resolve.apply(result, args)
+      result.resolve.apply(result, arguments)
       result
 
 
@@ -597,8 +598,8 @@ define [
       @return Future[A]
       ###
       result = @single(":call:(#{fn.name})")
-      args.push (callbackArgs...) ->
-        result.complete.apply(result, callbackArgs)
+      args.push ->
+        result.complete.apply(result, arguments)
       try
         if _.isArray(fn)
           fn[0][fn[1]].apply(fn[0], args)
@@ -630,9 +631,9 @@ define [
       ###
       paths = paths[0] if paths.length == 1 and _.isArray(paths[0])
       result = @single(':require:('+ paths.join(', ') + ')')
-      require paths, (modules...) ->
+      require paths, ->
         try
-          result.resolve.apply(result, modules)
+          result.resolve.apply(result, arguments)
         catch err
           # this catch is needed to prevent require's error callbacks to fire when error is caused
           # by th result's callbacks. Otherwise we'll try to reject already resolved promise two lines below.
