@@ -58,7 +58,7 @@ define [
           if not (backPath.indexOf(loginUrl) >= 0 or backPath.indexOf(logoutUrl) >= 0)
             # in SPA mode window.location doesn't make sense
             backUrl = clientSideRouter.getCurrentPath() or window.location.pathname
-            clientSideRouter.forceNavigate("#{loginUrl}?back=#{backUrl}")
+            clientSideRouter.redirect("#{loginUrl}?back=#{backUrl}")
           true
         config
 

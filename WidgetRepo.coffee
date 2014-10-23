@@ -187,7 +187,7 @@ define [
         "#{baseUrl}bundles/cord/core/init/browser-init.js?release=" + global.config.static.release
 
       """
-      #{ if global.config.injectCordova then '<script src="cordova.js"></script>' else '' }
+      #{ if global.config.injectCordova then "<script src=\"#{baseUrl}cordova.js\"></script>" else '' }
       <script>
         var global = {
           cordServerProfilerUid: "#{ @serverProfilerUid }",
@@ -393,6 +393,10 @@ define [
       subscription
 
 
+    getActiveTransition: ->
+      @_activeTransitionPromise
+
+
     resetSmartTransition: ->
       ###
       Resets current transition state to avoid deadlock when router.navigate is called during current smart transition.
@@ -415,18 +419,23 @@ define [
       ###
       if not @_inTransition
         @_inTransition = true
-        @_currentTransition = @transitPage(newRootWidgetPath, params, transition).andThen =>
-          @_inTransition = false
+        @_activeTransitionPromise = thisTransitionPromise = Future.single("smartTransitPage -> #{newRootWidgetPath}")
+        promise = @transitPage(newRootWidgetPath, params, transition).finally =>
+          # the promise may be completed by the clientSideRouter.redirect() method, so this guard is necessary
+          if not thisTransitionPromise.completed() and @_activeTransitionPromise == thisTransitionPromise
+            @_inTransition = false
+            thisTransitionPromise.when(promise)
+        thisTransitionPromise
       else
         if not @_nextTransitionCallback?
-          @_nextTransition = @_currentTransition.then =>
+          thisTransitionPromise = @_activeTransitionPromise.then =>
             @_nextTransitionCallback()
           .catch =>
             @_nextTransitionCallback()
         @_nextTransitionCallback = =>
           @_nextTransitionCalback = null
           @smartTransitPage(newRootWidgetPath, params, transition)
-        @_nextTransition
+        thisTransitionPromise
 
 
     transitPage: (newRootWidgetPath, params, transition) ->
