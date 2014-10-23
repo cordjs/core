@@ -8,7 +8,7 @@ define [
   'cord!utils/profiler/profiler'
   'cord!utils/sha1'
   'fs'
-  'mkdirp'
+  if CORD_PROFILER_ENABLED then 'mkdirp' else undefined
   'underscore'
   'url'
 ], (AppConfigLoader, Router, ServiceContainer, WidgetRepo, DomInfo, Future, pr, sha1, fs, mkdirp, _, url) ->
