@@ -425,17 +425,26 @@ define [
           if not thisTransitionPromise.completed() and @_activeTransitionPromise == thisTransitionPromise
             @_inTransition = false
             thisTransitionPromise.when(promise)
-        thisTransitionPromise
+        # avoiding infinite hanging of navigation due to never-completing transition promise
+        thisTransitionTimeout = setTimeout ->
+          if not thisTransitionPromise.completed()
+            @_inTransition = false
+            thisTransitionPromise.reject(new Error("Transition to '#{newRootWidgetPath}' timed out!"))
+        , 15000
+        thisTransitionPromise.finally ->
+          clearTimeout(thisTransitionTimeout)
       else
         if not @_nextTransitionCallback?
-          thisTransitionPromise = @_activeTransitionPromise.then =>
+          @_nextTransitionPromise = @_activeTransitionPromise.then =>
             @_nextTransitionCallback()
           .catch =>
             @_nextTransitionCallback()
+        # overriding previously set callback to skip intermediate navigation trials performed during active navigation
         @_nextTransitionCallback = =>
-          @_nextTransitionCalback = null
+          @_inTransition = false # do not remove to avoid infinite loop!
+          @_nextTransitionCallback = null
           @smartTransitPage(newRootWidgetPath, params, transition)
-        thisTransitionPromise
+        @_nextTransitionPromise
 
 
     transitPage: (newRootWidgetPath, params, transition) ->

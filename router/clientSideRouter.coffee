@@ -53,7 +53,7 @@ define [
           @_currentPath = newPath
           true
         else
-          return false
+          false
       else
         false
 
