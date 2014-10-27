@@ -238,8 +238,8 @@ define [
       @_accessPoint = options.accessPoint ? null
 
       # subscribe for model changes to smart-proxy them to the collections model instances
-      @repo.on('change', @_handleModelChange).withContext(this)
-      @repo.on('tags', @_handleTagBroadcast).withContext(this)
+      @_changeSubscription = @repo.on('change', @_handleModelChange).withContext(this)
+      @_tagsSubscription = @repo.on('tags', @_handleTagBroadcast).withContext(this)
 
 
     injectTags: (tags) ->
@@ -294,6 +294,8 @@ define [
       ###
       Remove collection from Repo and cache
       ###
+      @_changeSubscription.unsubscribe() if @_changeSubscription
+      @_tagsSubscription.unsubscribe() if @_tagsSubscription
       @repo.euthanizeCollection(this)
 
 
