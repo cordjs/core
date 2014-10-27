@@ -11,6 +11,7 @@ define ->
       @firefox = false
       @safari = false
       @opera = false
+      @mobile = false
 
       @agents = []
 
@@ -20,6 +21,7 @@ define ->
       @agents['firefox'] = @firefox = /Firefox/.test @userAgentText
       @agents['safari'] = @safari = (/Safari/.test(@userAgentText) and not (/Chrome/.test(@userAgentText) or /Chromium/.test(@userAgentText)))
       @agents['opera'] = @opera = /Opera/.test @userAgentText
+      @agents['mobile'] = @mobile = /(iPad|iPhone|Android)/.test @userAgentText
 
 
     toString: ->
