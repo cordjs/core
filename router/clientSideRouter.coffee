@@ -47,13 +47,13 @@ define [
         _.extend(routeInfo.params, query)
 
         if routeInfo.route.widget?
-          @widgetRepo.smartTransitPage(
+          @_lastTransitionPromise = @widgetRepo.smartTransitPage(
             routeInfo.route.widget, routeInfo.params, new PageTransition(@_currentPath, newPath)
           )
           @_currentPath = newPath
           true
         else
-          return false
+          false
       else
         false
 
@@ -61,7 +61,8 @@ define [
     navigate: (newPath) ->
       ###
       Initiates url changing and related client-side page transition.
-      @param String newPath path to navigate to
+      @param {String} newPath path to navigate to
+      @return {Future[undefined]} resolved when page transition is completed
       ###
       _console.clear() if global.config.console.clear
 
@@ -74,19 +75,34 @@ define [
         return
 
       if @_noPageReload
-        @process(newPath)
-        history.pushState({}, document.title, @_currentPath) if historySupport
+        if @process(newPath)
+          history.pushState({}, document.title, @_currentPath) if historySupport
+          @_lastTransitionPromise.then =>
+            # defining navigation completion as when the new root widget is shown in DOM
+            @widgetRepo.getRootWidget().shown()
+        else
+          Future.rejected(new Error("There is no matching route for the url '#{newPath}'"))
       else
         window.location.href = newPath
+        # the page will be reloaded so returning uncompleted promise
+        Future.single()
 
 
-    forceNavigate: (newPath) ->
+    redirect: (newPath) ->
       ###
-      Enforce immediate navigation even if current page transition is in progress.
-      This function is necessary to avoid transition deadlocks in certain situations.
+      Interrupts current active page transition (if any) and navigates the application to the given path.
+      The promise of the interrupted transition is linked to the new transition so it'll be completed when the new
+       transition is completed. This is helpful to correctly detect the transition completion in case when
+       authentication redirect is performed during navigation to the page.
+      @param {String} newPath
+      @return {Future[undefined]}
       ###
+      activeTransitionPromise = @widgetRepo.getActiveTransition()
       @widgetRepo.resetSmartTransition()
-      @navigate newPath
+      newTransition = @navigate(newPath)
+      if activeTransitionPromise and not activeTransitionPromise.completed()
+        activeTransitionPromise.when(newTransition)
+      newTransition
 
 
     _initHistoryNavigate: ->

@@ -211,7 +211,7 @@ define [
       result
 
 
-    @fromJSON: (obj, ioc, callback) ->
+    @fromJSON: (obj, ioc) ->
       promise = new Future('Context::fromJSON')
       for key, value of obj
         do (key, value) ->
@@ -235,8 +235,7 @@ define [
           else
             obj[key] = value
 
-      promise.done =>
-        callback(new this(obj))
+      promise.then => new this(obj)
 
 
     clearDeferredTimeouts: ->

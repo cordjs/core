@@ -497,7 +497,7 @@ define [
       @param Object params changed params
       @return Future
       ###
-      if @_renderPromise.completed()
+      if @_renderPromise.completed() or not isBrowser
         if @_sentenced
           Future.rejected(new errors.WidgetParamsRace("#{ @debug 'setParamsSafe' } is called for sentenced widget!"))
         else
@@ -621,7 +621,8 @@ define [
         @cleanSubscriptions()
         @cleanModelSubscriptions()
         @_sentenced = true
-        @_widgetReadyPromise.reject(new errors.WidgetSentenced('widget is sentenced!')) if not @_browserInitialized
+        if not @_browserInitialized and not @_widgetReadyPromise.completed()
+          @_widgetReadyPromise.reject(new errors.WidgetSentenced('widget is sentenced!'))
       @sentenceChildrenToDeath()
 
 
@@ -794,7 +795,7 @@ define [
               result.fork()
               do (name, value) =>
                 @subscribeValueChange params, name, value, =>
-                  @widgetRepo.subscribePushBinding(@ctx.id, value, widget, name, @ctx.getVersion()) if isBrowser
+                  @widgetRepo.subscribePushBinding(@ctx.id, value, widget, name, @ctx.getVersion())
                   result.resolve()
 
             # otherwise just getting it's value synchronously
@@ -805,12 +806,12 @@ define [
                 if _.isObject @ctx[value]
                   for subName, subValue of @ctx[value]
                     params[subName] = subValue
-                  @widgetRepo.subscribePushBinding(@ctx.id, value, widget, 'params', @ctx.getVersion()) if isBrowser
+                  @widgetRepo.subscribePushBinding(@ctx.id, value, widget, 'params', @ctx.getVersion())
                 else
                   # todo: warning?
               else
                 params[name] = @ctx[value]
-                @widgetRepo.subscribePushBinding(@ctx.id, value, widget, name, @ctx.getVersion()) if isBrowser
+                @widgetRepo.subscribePushBinding(@ctx.id, value, widget, name, @ctx.getVersion())
 
       if Object.keys(bindings).length != 0
         @childBindings[widget.ctx.id] = bindings
@@ -1390,8 +1391,12 @@ define [
       @return Future[Widget] new child widget
       ###
       @widgetRepo.createWidget(type, @getBundle()).then (child) =>
-        @registerChild(child, name)
-        child
+        if not @_sentenced
+          @registerChild(child, name)
+          child
+        else
+          @widgetRepo.dropWidget(child.ctx.id)
+          throw new Error("Child widget (#{type}, '#{name}') creation is canceled because parent is sentenced!")
 
 
     injectChildWidget: (type, params = {}) ->
@@ -1698,6 +1703,20 @@ define [
             chunk.write(@ctx.i18nHelper(text, params))
           else
             chunk.write(text)
+
+
+        url: (chunk, context, bodies, params) =>
+          ###
+          {#url routeId="" [param1=""...] /}
+          ###
+          routeId = params.routeId
+          if not routeId
+            throw new Error @debug("RouteId is require for #url")
+
+          delete(params.routeId)
+
+          @widgetRepo.getServiceContainer().eval 'router', (router) ->
+            chunk.write(router.urlTo(routeId, params))
 
 
         #

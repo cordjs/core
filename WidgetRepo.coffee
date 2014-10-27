@@ -126,7 +126,7 @@ define [
       @rootWidget
 
 
-    _unserializeModelBindings: (serializedBindings, callback) ->
+    _unserializeModelBindings: (serializedBindings) ->
       ###
       Simply replaces serialized links to models and collections to the actual restored instances of those
        models and collections in the given map.
@@ -148,8 +148,7 @@ define [
               result[key] = model: model
               promise.resolve()
 
-      promise.done ->
-        callback(result)
+      promise.then -> result
 
 
     initRepo: (repoServiceName, collections, promise) ->
@@ -188,7 +187,7 @@ define [
         "#{baseUrl}bundles/cord/core/init/browser-init.js?release=" + global.config.static.release
 
       """
-      #{ if global.config.injectCordova then '<script src="cordova.js"></script>' else '' }
+      #{ if global.config.injectCordova then "<script src=\"#{baseUrl}cordova.js\"></script>" else '' }
       <script>
         var global = {
           cordServerProfilerUid: "#{ @serverProfilerUid }",
@@ -269,12 +268,12 @@ define [
 
       @_parentPromises[ctx.id] = Future.single("WidgetRepo::parentPromise(#{widgetPath}, #{ctx.id})")
 
-      callbackPromise = new Future("WidgetRepo::init callbackPromise(#{widgetPath}, #{ctx.id})")
-      require ["cord-w!#{ widgetPath }"],       callbackPromise.callback()
-      Context.fromJSON ctx, @serviceContainer,  callbackPromise.callback()
-      @_unserializeModelBindings modelBindings, callbackPromise.callback()
-
-      callbackPromise.then (WidgetClass, ctx, modelBindings) =>
+      Future.sequence [
+        Future.require("cord-w!#{ widgetPath }")
+        Context.fromJSON(ctx, @serviceContainer)
+        @_unserializeModelBindings(modelBindings)
+      ]
+      .spread (WidgetClass, ctx, modelBindings) =>
 
         widget = new WidgetClass
           context: ctx
@@ -394,6 +393,10 @@ define [
       subscription
 
 
+    getActiveTransition: ->
+      @_activeTransitionPromise
+
+
     resetSmartTransition: ->
       ###
       Resets current transition state to avoid deadlock when router.navigate is called during current smart transition.
@@ -416,18 +419,32 @@ define [
       ###
       if not @_inTransition
         @_inTransition = true
-        @_currentTransition = @transitPage(newRootWidgetPath, params, transition).andThen =>
-          @_inTransition = false
+        @_activeTransitionPromise = thisTransitionPromise = Future.single("smartTransitPage -> #{newRootWidgetPath}")
+        promise = @transitPage(newRootWidgetPath, params, transition).finally =>
+          # the promise may be completed by the clientSideRouter.redirect() method, so this guard is necessary
+          if not thisTransitionPromise.completed() and @_activeTransitionPromise == thisTransitionPromise
+            @_inTransition = false
+            thisTransitionPromise.when(promise)
+        # avoiding infinite hanging of navigation due to never-completing transition promise
+        thisTransitionTimeout = setTimeout ->
+          if not thisTransitionPromise.completed()
+            @_inTransition = false
+            thisTransitionPromise.reject(new Error("Transition to '#{newRootWidgetPath}' timed out!"))
+        , 15000
+        thisTransitionPromise.finally ->
+          clearTimeout(thisTransitionTimeout)
       else
         if not @_nextTransitionCallback?
-          @_nextTransition = @_currentTransition.then =>
+          @_nextTransitionPromise = @_activeTransitionPromise.then =>
             @_nextTransitionCallback()
           .catch =>
             @_nextTransitionCallback()
+        # overriding previously set callback to skip intermediate navigation trials performed during active navigation
         @_nextTransitionCallback = =>
-          @_nextTransitionCalback = null
+          @_inTransition = false # do not remove to avoid infinite loop!
+          @_nextTransitionCallback = null
           @smartTransitPage(newRootWidgetPath, params, transition)
-        @_nextTransition
+        @_nextTransitionPromise
 
 
     transitPage: (newRootWidgetPath, params, transition) ->
