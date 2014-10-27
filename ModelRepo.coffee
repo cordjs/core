@@ -489,7 +489,6 @@ define [
                   model.resetChangedFields()
                   @emit 'sync', model
                   if !notRefreshCollections
-                    @triggerTag('refreshIfExists', model)
                     @triggerTagsForChanges(pureChangeInfo, model)
                   promise.resolve(response)
             else
@@ -759,7 +758,8 @@ define [
       #Make all collections, containing this model refresh
       #It's cheaper than Collection::checkNewModel and ModelRepo.suggestNewModelToCollections,
       #because mentioned ones make almost all collections refresh
-      @triggerTag('refreshIfExists', model)
+      @triggerTag('id.any', model)
+      @triggerTag("id.#{ model.id }", model)
 
 
     refreshAll: ->
