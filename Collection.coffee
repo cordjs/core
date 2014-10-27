@@ -116,7 +116,7 @@ define [
       # Clear last query time, which means the collection could be updated
       @_lastQueryTime = 0
       if not @hasActiveSubscriptions()
-        @euthanizeCollection(this)
+        @euthanize()
         true
       else
         false
