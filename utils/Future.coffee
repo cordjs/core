@@ -57,6 +57,20 @@ define [
       @_initUnhandledTracking() if unhandledTrackingEnabled
 
 
+    name: (nameSuffix) ->
+      ###
+      Appends name suffix to this promise's name. Useful for debugging when there is no API to set name another way.
+      Returns this promise, so can be used in call-chains.
+      @param {String} nameSuffix
+      @return {Future} this
+      ###
+      if @_name == '' or @_name == ':noname:'
+        @_name = nameSuffix
+      else
+        @_name += " [#{nameSuffix}]"
+      this
+
+
     fork: ->
       ###
       Adds one more value to wait.
@@ -94,7 +108,9 @@ define [
           # not changing state to 'resolved' here because it is possible to call fork() again if done hasn't called yet
       else
         nameStr = if @_name then " (name = #{@_name})" else ''
-        throw new Error("Future::resolve() is called more times than Future::fork!#{nameStr}")
+        throw new Error(
+          "Future::resolve() is called more times than Future::fork!#{nameStr} state = #{@_state}, [#{@_callbackArgs}]"
+        )
 
       this
 
@@ -117,7 +133,9 @@ define [
           @_clearDoneCallbacks()
           @_clearDebugTimeout()
       else
-        throw new Error("Future::reject is called more times than Future::fork! [#{@_name}]")
+        throw new Error(
+          "Future::reject is called more times than Future::fork! [#{@_name}], state = #{@_state}, [#{@_callbackArgs}]"
+        )
 
       this
 
@@ -599,14 +617,14 @@ define [
       ###
       result = @single(":call:(#{fn.name})")
       args.push ->
-        result.complete.apply(result, arguments)
+        result.complete.apply(result, arguments) if not result.completed()
       try
         if _.isArray(fn)
           fn[0][fn[1]].apply(fn[0], args)
         else
           fn.apply(null, args)
       catch err
-        result.reject(err)
+        result.reject(err) if not result.completed()
       result
 
 
