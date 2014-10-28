@@ -101,7 +101,10 @@ define [
       @widgetRepo.resetSmartTransition()
       newTransition = @navigate(newPath)
       if activeTransitionPromise and not activeTransitionPromise.completed()
-        activeTransitionPromise.when(newTransition)
+        # transition timeout can reject the promise before here, so need to be checked
+        newTransition
+          .then (res)  -> activeTransitionPromise.resolve(res) if not activeTransitionPromise.completed()
+          .catch (err) -> activeTransitionPromise.reject(err)  if not activeTransitionPromise.completed()
       newTransition
 
 
