@@ -96,12 +96,13 @@ define [
 
 
     dropWidget: (id) ->
-      if @widgets[id]?
-        @widgets[id].widget.clean()
-        @widgets[id].widget = null
+      if info = @widgets[id]
+        info.parent.unbindChild(info.widget) if info.parent
+        info.widget.clean()
+        info.widget = null
         delete @widgets[id]
       else
-        throw new Error("Try to drop unknown widget with id = #{ id }")
+        _console.warn "Trying to drop unknown widget with id = #{ id }"
 
 
     registerParent: (childWidget, parentWidget) ->
@@ -109,9 +110,24 @@ define [
       Register child-parent relationship in the repo
       ###
       info = @widgets[childWidget.ctx.id]
-      if info != undefined and info.parent? and info.parent != parentWidget
-        info.parent.unbindChild childWidget
-      info.parent = parentWidget
+      if info?
+        info.parent.unbindChild(childWidget) if info.parent? and info.parent != parentWidget
+        info.parent = parentWidget
+      return
+
+
+    unregisterParent: (childWidget) ->
+      @widgets[childWidget.ctx.id].parent = null
+
+
+    detachWidget: (childWidget, exceptParentWidget) ->
+      ###
+      Detaches the given childWidget from it's parent (if there is) except if the parent is the given one.
+      ###
+      info = @widgets[childWidget.ctx.id]
+      if info and info.parent and info.parent != exceptParentWidget
+        info.parent.unbindChild(childWidget)
+      return
 
 
     setRootWidget: (widget) ->
@@ -124,6 +140,38 @@ define [
 
     getRootWidget: ->
       @rootWidget
+
+
+    gcWidgets: ->
+      ###
+      Collects all registered widgets that are not the current root widget's children and drop them after some timeout.
+      WARNING: this method of GC is known to be buggy and causing serious problems with the stability of application.
+       So this is just a matter for the further investigation and not used yet.
+      ###
+      root = @rootWidget
+      okWidgetIds = []
+      recCollectIds = (widget) =>
+        okWidgetIds.push(widget.ctx.id)
+        recCollectIds(child) for child in widget.children
+
+      recCollectIds(root)
+
+      gcIds = _.difference(Object.keys(@widgets), okWidgetIds)
+
+      console.warn "GC widgets for widget", root, gcIds.map (id) =>
+        if @widgets[id].widget.constructor.__name == 'Main'
+          console.error "<<<<<< Going to kill Main! >>>>>"
+          console.log 'extend list', @_currentExtendList
+          console.log 'root children', @getRootWidget().children
+          console.log 'root', @getRootWidget()
+        @widgets[id].widget.debug()
+
+      if gcIds.length
+        setTimeout =>
+          @dropWidget(id) for id in gcIds when @widgets[id]
+        , 30000
+#        , 120000
+      gcIds
 
 
     _unserializeModelBindings: (serializedBindings) ->
@@ -433,12 +481,20 @@ define [
         , 15000
         thisTransitionPromise.finally ->
           clearTimeout(thisTransitionTimeout)
+#        .then =>
+#          @rootWidget.shown().done =>
+#            console.log "GC after transition to #{newRootWidgetPath}..."
+#            @gcWidgets()
       else
         if not @_nextTransitionCallback?
           @_nextTransitionPromise = @_activeTransitionPromise.then =>
             @_nextTransitionCallback()
-          .catch =>
-            @_nextTransitionCallback()
+          .catch (err) =>
+            # check if error ocurred in then-callback above
+            if @_nextTransitionCallback
+              @_nextTransitionCallback()
+            else
+              throw err
         # overriding previously set callback to skip intermediate navigation trials performed during active navigation
         @_nextTransitionCallback = =>
           @_inTransition = false # do not remove to avoid infinite loop!
@@ -482,10 +538,7 @@ define [
           .then ->
             extendWidget.setParamsSafe(params)
           .then =>
-            try
-              @dropWidget(_oldRootWidget.ctx.id)
-            catch err
-              console.error "Inconsistent widget drop in transitPage(1): #{err}", err, _oldRootWidget.constructor.__name, _oldRootWidget
+            @dropWidget(_oldRootWidget.ctx.id)
             # todo: this browserInit may be always redundant. To be removed after check
             if not @rootWidget._browserInitialized
               @rootWidget.browserInit(extendWidget)
@@ -502,11 +555,8 @@ define [
         # down to the base widget (containing <html> tag)
         @createWidget(newRootWidgetPath).then (widget) =>
           @setRootWidget widget
-          widget.inject(params, transition).done (commonBaseWidget) =>
-            try
-              @dropWidget(_oldRootWidget.ctx.id) if _oldRootWidget && commonBaseWidget != _oldRootWidget
-            catch err
-              console.error "Inconsistent widget drop in transitPage(2): #{err}", err, _oldRootWidget.constructor.__name, _oldRootWidget
+          widget.inject(params, transition).then (commonBaseWidget) =>
+            @dropWidget(_oldRootWidget.ctx.id) if _oldRootWidget and commonBaseWidget != _oldRootWidget
             @rootWidget.shown().done -> transition.complete()
         .failAloud("WidgetRepo::transitPage:#{newRootWidgetPath}:createWidget")
 

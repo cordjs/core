@@ -108,13 +108,13 @@ define [
             do (item) =>
               resultPromise.fork()
               if item.widget?
-                @getWidget(item.widget).done (widget) =>
+                @getWidget(item.widget).then (widget) =>
                   @ownerWidget.registerChild widget, item.name
 
                   complete = false
                   timeoutPromise = null
 
-                  @ownerWidget.resolveParamRefs(widget, item.params).done (params) =>
+                  @ownerWidget.resolveParamRefs(widget, item.params).then (params) =>
                     if not complete
                       complete = true
                       resolvedPlaceholders[name].push
@@ -128,7 +128,8 @@ define [
                       resultPromise.resolve()
                     else
                       timeoutPromise.resolve(params)
-                  .failAloud(@ownerWidget.debug('StructureTemplate:_resolvePlaceholders:resolveParamsRefs'))
+                    return
+                  .catch (err) -> resultPromise.reject(err)
 
                   if isBrowser and item.timeout? and item.timeout >= 0
                     setTimeout =>
@@ -145,10 +146,10 @@ define [
                           timeoutPromise: timeoutPromise
                         resultPromise.resolve()
                     , item.timeout
-                .failAloud(@ownerWidget.debug("StructureTemplate:_resolvePlaceholders:getWidget(#{item.widget})"))
+                .catch (err) -> resultPromise.reject(err)
 
               else if item.inline?
-                @getWidget(item.inline).done (widget) ->
+                @getWidget(item.inline).then (widget) ->
                   resolvedPlaceholders[name].push
                     type: 'inline'
                     widget: widget.ctx.id
@@ -157,19 +158,21 @@ define [
                     tag: item.tag
                     class: item.class
                   resultPromise.resolve()
-                .failAloud(@ownerWidget.debug("StructureTemplate:_resolvePlaceholders:getInlineWidget(#{item.inline})"))
+                  return
+                .catch (err) -> resultPromise.reject(err)
 
               else if item.placeholder?
-                @getWidget(item.placeholder).done (widget) ->
+                @getWidget(item.placeholder).then (widget) ->
                   resolvedPlaceholders[name].push
                     type: 'placeholder'
                     widget: widget.ctx.id
                     name: item.name
                     class: item.class
                   resultPromise.resolve()
-                .failAloud(@ownerWidget.debug("StructureTemplate:_resolvePlaceholders:getPlaceholderWidget(#{item.placeholder})"))
+                  return
+                .catch (err) -> resultPromise.reject(err)
 
-      resultPromise.map -> resolvedPlaceholders
+      resultPromise.then -> resolvedPlaceholders
 
 
     replacePlaceholders: (widgetRefUid, currentPlaceholders, transition) ->
