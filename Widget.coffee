@@ -295,8 +295,8 @@ define [
       @cleanSubscriptions()
       @cleanTmpSubscriptions()
       @cleanModelSubscriptions()
-      @_modelBindings = {}
-      @_subscibedPushBindings = {}
+      @_modelBindings = null
+      @_subscibedPushBindings = null
       @clearCallbacks()
       @off() #clean monologue subscriptions
       @_cleanPromises()
@@ -304,8 +304,14 @@ define [
         @_shownPromise.clear()
         @_shownPromise = null
       @ctx.clearDeferredTimeouts()
-      if @_widgetReadyPromise and not @_browserInitialized and not @_widgetReadyPromise.completed()
-        @_widgetReadyPromise.reject(new errors.WidgetDropped('widget is cleaned!'))
+      if @_widgetReadyPromise
+        if not @_browserInitialized and not @_widgetReadyPromise.completed()
+          @_widgetReadyPromise.reject(new errors.WidgetDropped("Widget #{@constructor.__name} is cleaned!"))
+          @_widgetReadyPromise.clear()
+        else
+          @_widgetReadyPromise.clear()
+          @_widgetReadyPromise = Future.rejected(new errors.WidgetDropped('widget is cleaned!'))
+          @_widgetReadyPromise.clear()
 
 
     _cleanBehaviour: ->
@@ -608,7 +614,8 @@ define [
       if @children.length
         if @_structTemplate? and not @_structTemplate.isEmpty()
           @_structTemplate.unassignWidget(widget) for widget in @children
-        widget.drop() for widget in @children
+        # widget.drop will mutate @children indirectly so it's better to work with clone
+        widget.drop() for widget in _.clone(@children)
         @resetChildren()
 
 
@@ -622,7 +629,7 @@ define [
         @cleanModelSubscriptions()
         @_sentenced = true
         if not @_browserInitialized and not @_widgetReadyPromise.completed()
-          @_widgetReadyPromise.reject(new errors.WidgetSentenced('widget is sentenced!'))
+          @_widgetReadyPromise.reject(new errors.WidgetSentenced("Widget #{@constructor.__name} is sentenced!"))
       @sentenceChildrenToDeath()
 
 
@@ -997,10 +1004,12 @@ define [
 
           processTimeoutStub = ->
             widget._delayedRender = true
-            TimeoutStubHelper.getTimeoutHtml(timeoutTemplateOwner, info.timeoutTemplate, widget).done (out) ->
+            TimeoutStubHelper.getTimeoutHtml(timeoutTemplateOwner, info.timeoutTemplate, widget).then (out) ->
               placeholderOut[placeholderOrder[widgetId]] = widget.renderRootTag(out)
               renderInfo.push(type: 'timeout-stub', widget: widget)
               promise.resolve()
+              return
+            .catch (err) -> promise.reject(err)
 
           replaceTimeoutStub = (out, timeoutDomInfo) ->
             ###
@@ -1045,7 +1054,7 @@ define [
                 complete = true # should be here to avoid returning `promise` (above) and locking to it
               else
                 replaceTimeoutStub(out, timeoutDomInfo)
-            .failAloud(@debug("_renderPlaceholder:show:#{widget.debug()}"))
+            .catch (err) -> promise.reject(err)
 
           else if info.type == 'timeouted-widget'
             placeholderOrder[widgetId] = i
@@ -1054,6 +1063,7 @@ define [
               widget.show(params, timeoutDomInfo)
             .zip(processTimeoutStub()).then (out) ->
               replaceTimeoutStub(out, timeoutDomInfo)
+            # not catching here because the promise should be fulfilled in processTimeoutStub()
             .failAloud(@debug("_renderPlaceholder:timeouted-widget:#{widget.debug()}"))
 
           else if info.type == 'inline'
@@ -1072,21 +1082,22 @@ define [
               placeholderOut[placeholderOrder[info.template]] = wrappedOut
               renderInfo.push(type: 'inline', name: info.name, widget: widget)
               promise.resolve()
-              undefined
-            .failAloud(@debug("_renderPlaceholder:renderInline:#{info.name}:#{widget.debug()}"))
+              return
+            .catch (err) -> promise.reject(err)
 
           else # if info.type == 'placeholder'
             orderId = 'placeholder-' + info.name
             placeholderOrder[orderId] = i
-            widget._renderPlaceholder(info.name, domInfo).done (out) ->
+            widget._renderPlaceholder(info.name, domInfo).then (out) ->
               widget._placeholdersClasses[info.name] = info.class if info.class
               placeholderOut[placeholderOrder[orderId]] = widget.renderPlaceholderTag(info.name, out)
               promise.resolve()
-            .failAloud(@debug("_renderPlaceholder:placeholder:#{info.name}:#{widget.debug()}"))
+              return
+            .catch (err) -> promise.reject(err)
 
           i++
 
-      promise.map =>
+      promise.then =>
         @_placeholdersRenderInfo.push(info) for info in renderInfo # collecting render info for the future usage by the enclosing widget
         [placeholderOut.join(''), renderInfo]
 
@@ -1158,7 +1169,12 @@ define [
                   # Inserting placeholder contents to the DOM-tree only after full behaviour initialization of all
                   # included widgets but not inline-blocks. Timeout-stubs are not waited for yet as they have no
                   # any behaviour initialization support yet.
-                  DomHelper.replace($('#'+@_getPlaceholderDomId(name)), $el)
+                  if not @_sentenced
+                    DomHelper.replace($('#'+@_getPlaceholderDomId(name)), $el)
+                  else
+                    throw new errors.WidgetSentenced(
+                      "Couldn't replace placeholder #{name} because widget #{@constructor.__name} is sentenced!"
+                    )
                 .then ->
                   info.widget.markShown() for info in renderInfo when info.type is 'widget'
                   domInfo.markShown()
@@ -1278,11 +1294,17 @@ define [
 
 
     registerChild: (child, name) ->
-      @children.push child
-      @childById[child.ctx.id] = child
-      @childByName[name] = child if name?
-      @widgetRepo.registerParent child, this
-      @_bindChildEvents(child, name)
+      @widgetRepo.detachWidget(child, this)
+      if not @_sentenced
+        @children.push child
+        @childById[child.ctx.id] = child
+        @childByName[name] = child if name?
+        @widgetRepo.registerParent child, this
+        @_bindChildEvents(child, name)
+      else
+        throw new errors.WidgetSentenced(
+          "Couldn't register child #{child.constructor.__name} because parent #{@constructor.__name} is sentenced!"
+        )
 
 
     unbindChild: (child) ->
@@ -1290,16 +1312,22 @@ define [
       Removes the given widget from the list of children on the current widget
       @param Widget child child widget object
       ###
-      index = @children.indexOf child
+      index = @children.indexOf(child)
       if index != -1
         @children.splice index, 1
         delete @childById[child.ctx.id]
         delete @childBindings[child.ctx.id]
 
+        childName = null
         for name, widget of @childByName
           if widget == child
+            childName = name
             delete @childByName[name]
             break
+
+        @_unbindChildEvents(child, childName)
+
+        @widgetRepo.unregisterParent(child)
       else
         throw new Error("Trying to remove unexistent child of widget #{ @constructor.__name }(#{ @ctx.id }), " +
                         "child: #{ child.constructor.__name }(#{ child.ctx.id })")
@@ -1313,19 +1341,6 @@ define [
       childWidget = @childById[childId]
       @unbindChild(childWidget)
       childWidget.drop()
-
-
-    appendChild: (widget, name) ->
-      ###
-      Append widget as a child
-      @param String widget - appended widget
-      @param String name - append widget with such name
-      ###
-      @registerChild(widget, name)
-      widget.cleanSubscriptions()
-      # subscribe widget needed push bindings
-      for ctxName, paramName of widget._subscibedPushBindings
-        @widgetRepo.subscribePushBinding @ctx.id, ctxName, widget, paramName
 
 
     _bindChildEvents: (childWidget, childName) ->
@@ -1343,6 +1358,21 @@ define [
       if subs[':any']
         for topic, callbacks of subs[':any']
           childWidget.on(topic, cb).withContext(this) for cb in callbacks
+
+
+    _unbindChildEvents: (childWidget, childName) ->
+      ###
+      Unsubscribes from the given child widget's events
+      @param {Widget} childWidget The child widget to subscribe to
+      @param {String} childName Optional name of the child widget to select proper callbacks from the subscription map
+      ###
+      subs = @constructor._childEventSubscriptions
+      if childName and subs[childName]
+        for topic of subs[childName]
+          childWidget.off(topic, this)
+      if subs[':any']
+        for topic of subs[':any']
+          childWidget.off(topic, this)
 
 
     getBehaviourClass: ->
@@ -1391,12 +1421,12 @@ define [
       @return Future[Widget] new child widget
       ###
       @widgetRepo.createWidget(type, @getBundle()).then (child) =>
-        if not @_sentenced
+        try
           @registerChild(child, name)
           child
-        else
+        catch err
           @widgetRepo.dropWidget(child.ctx.id)
-          throw new Error("Child widget (#{type}, '#{name}') creation is canceled because parent is sentenced!")
+          throw err
 
 
     injectChildWidget: (type, params = {}) ->
@@ -1607,7 +1637,7 @@ define [
                   @widgetRepo.createWidget(params.type, @getBundle())
               # else impossible
 
-            .done (widget, timeoutTemplate) =>
+            .then (widget, timeoutTemplate) =>
               complete = false
 
               @registerChild(widget, normalizedName)
@@ -1626,7 +1656,8 @@ define [
                     @_domInfo.domInserted().done -> timeoutDomInfo.markShown()
                   .catchIf (err) ->
                     err instanceof errors.WidgetDropped or err instanceof errors.WidgetSentenced
-              .failAloud(@debug("#widget:resolveParamRefs:#{@debug()}"))
+              .catch (err) ->
+                chunk.setError(err)
 
               if hasTimeout
                 setTimeout =>
@@ -1634,12 +1665,14 @@ define [
                   if not complete
                     complete = true
                     widget._delayedRender = true
-                    TimeoutStubHelper.getTimeoutHtml(this, timeoutTemplate, widget).done (out) =>
+                    TimeoutStubHelper.getTimeoutHtml(this, timeoutTemplate, widget).then (out) =>
                       @childWidgetComplete()
                       chunk.end(widget.renderRootTag(out))
-                    .failAloud(@debug("#widget:getTimeoutHtml:#{widget.debug()}"))
+                    .catch (err) ->
+                      chunk.setError(err)
                 , timeout
-            .failAloud(@debug("#widget:getStructTemplate:#{params.type}"))
+            .catch (err) ->
+              chunk.setError(err)
 
 
         deferred: (chunk, context, bodies, params) =>
@@ -1686,10 +1719,11 @@ define [
             if params and params.class
               @_placeholdersClasses[name] = params.class
 
-            @_renderPlaceholder(name, @_domInfo).done (out) =>
+            @_renderPlaceholder(name, @_domInfo).then (out) =>
               @childWidgetComplete()
               chunk.end(@renderPlaceholderTag(name, out))
-            .failAloud(@debug("#placeholder:#{name}"))
+            .catch (err) ->
+              chunk.setError(err)
 
 
         i18n: (chunk, context, bodies, params) =>
