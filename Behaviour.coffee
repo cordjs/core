@@ -19,9 +19,9 @@ define [
     @throws Error
     ###
     if widget.isSentenced()
-      err = new Error("Widget #{widget.debug()} is sentenced!#{ if message then " (#{message})" else ''}")
-      err.sentenced = true
-      throw err
+      throw new errors.WidgetSentenced(
+        "Widget #{widget.debug()} is sentenced!#{ if message then " (#{message})" else ''}"
+      )
 
 
   class Behaviour extends Module
@@ -469,6 +469,8 @@ define [
                                                     default - root element of this widget
       @return Future[Array[jQuery, Widget]]
       ###
+      result = Future.single(@debug("insertChildWidget -> #{type}"))
+
       widgetParams = {}
       name = undefined
       insertPosition = 'append'
@@ -492,6 +494,13 @@ define [
         ).then ->
           newWidget.markShown()
           [[$el, newWidget]]
+      .then (res) -> result.resolve(res)
+      .catch (err) ->
+        result.reject(err)
+        # preventing reporting of unhandled rejection in case of fast page switching
+        result.failOk() if err instanceof errors.WidgetSentenced
+
+      result
 
 
     dropChildWidget: (widget) ->
