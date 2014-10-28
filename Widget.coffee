@@ -795,7 +795,7 @@ define [
               result.fork()
               do (name, value) =>
                 @subscribeValueChange params, name, value, =>
-                  @widgetRepo.subscribePushBinding(@ctx.id, value, widget, name, @ctx.getVersion())
+                  @widgetRepo.subscribePushBinding(@ctx.id, value, widget, name, @ctx.getVersion()) if isBrowser
                   result.resolve()
 
             # otherwise just getting it's value synchronously
@@ -806,12 +806,12 @@ define [
                 if _.isObject @ctx[value]
                   for subName, subValue of @ctx[value]
                     params[subName] = subValue
-                  @widgetRepo.subscribePushBinding(@ctx.id, value, widget, 'params', @ctx.getVersion())
+                  @widgetRepo.subscribePushBinding(@ctx.id, value, widget, 'params', @ctx.getVersion()) if isBrowser
                 else
                   # todo: warning?
               else
                 params[name] = @ctx[value]
-                @widgetRepo.subscribePushBinding(@ctx.id, value, widget, name, @ctx.getVersion())
+                @widgetRepo.subscribePushBinding(@ctx.id, value, widget, name, @ctx.getVersion()) if isBrowser
 
       if Object.keys(bindings).length != 0
         @childBindings[widget.ctx.id] = bindings
