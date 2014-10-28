@@ -1,0 +1,9 @@
+<span class="e-init-time">{initTime}</span>
+{^minimized}
+  <div class="e-full-panel">
+    <span class="e-hide-link">Hide »</span>
+    {#timers}
+      {#widget type="//profiler/TimerWithToolbar" timer=. /}
+    {/timers}
+  </div>
+{/minimized}

@@ -263,7 +263,7 @@ define [
                     # если есть доппараметры у ошибки - добавим их
                     if response._params?
                       @fallbackErrors[errorCode].params.contentParams = {} if @fallbackErrors[errorCode].params.contentParams == undefined
-                      @fallbackErrors[errorCode].params.contentParams['params'] = response._params
+                      @fallbackErrors[errorCode].params.contentParams['params'] = response._params if response._params != undefined
                     @serviceContainer.get('fallback').fallback @fallbackErrors[errorCode].widget, @fallbackErrors[errorCode].params
 
               else

@@ -4,9 +4,14 @@ define [
   'cord!ServiceContainer'
   'cord!WidgetRepo'
   'cord!utils/DomInfo'
+  'cord!utils/Future'
+  'cord!utils/profiler/profiler'
+  'cord!utils/sha1'
+  'fs'
+  'mkdirp'
   'underscore'
   'url'
-], (AppConfigLoader, Router, ServiceContainer, WidgetRepo, DomInfo, _, url) ->
+], (AppConfigLoader, Router, ServiceContainer, WidgetRepo, DomInfo, Future, pr, sha1, fs, mkdirp, _, url) ->
 
   class ServerSideFallback
 
@@ -14,7 +19,7 @@ define [
 
 
     defaultFallback: ->
-      # If we dont need to push params into fallback widget, use default, defined in fallbackRoutes
+      # If we don't need to push params into fallback widget, use default, defined in fallbackRoutes
       routeInfo = @router.matchFallbackRoute(@router.getCurrentPath())
       if routeInfo?.route?.widget?
         @fallback(routeInfo.route.widget, routeInfo.route.params)
@@ -37,7 +42,10 @@ define [
 
       @_currentPath = req.url
 
-      if (routeInfo = @matchRoute(path.pathname))
+      routeInfo = pr.call(this, 'matchRoute', path.pathname) # timer name is constructed automatically
+
+      if routeInfo
+        serverProfilerUid = @_initProfilerDump()
 
         rootWidgetPath = routeInfo.route.widget
         routeCallback = routeInfo.route.callback
@@ -60,7 +68,7 @@ define [
         global.appConfig.browser.calculateByRequest?(req)
         global.appConfig.node.calculateByRequest?(req)
 
-        widgetRepo = new WidgetRepo
+        widgetRepo = new WidgetRepo(serverProfilerUid)
 
         clear = =>
           if serviceContainer?
@@ -99,27 +107,29 @@ define [
         serviceContainer.set 'fallback', fallback
 
         AppConfigLoader.ready().done (appConfig) ->
-          for serviceName, info of appConfig.services
-            do (info) ->
-              serviceContainer.def serviceName, info.deps, (get, done) ->
-                info.factory.call(serviceContainer, get, done)
+          pr.timer 'ServerSideRouter::defineServices', =>
+            for serviceName, info of appConfig.services
+              do (info) ->
+                serviceContainer.def serviceName, info.deps, (get, done) ->
+                  info.factory.call(serviceContainer, get, done)
 
           previousProcess = {}
 
           processWidget = (rootWidgetPath, params) =>
-            widgetRepo.createWidget(rootWidgetPath).then (rootWidget) ->
-              rootWidget._isExtended = true
-              widgetRepo.setRootWidget(rootWidget)
-              previousProcess.showPromise = rootWidget.show(params, DomInfo.fake())
-              previousProcess.showPromise.done (out) ->
-                eventEmitter.removeAllListeners('fallback')
-                # prevent browser to use the same connection
-                res.shouldKeepAlive = false
-                res.writeHead 200, 'Content-Type': 'text/html'
-                res.end(out)
-                # todo: may be need some cleanup before?
-                clear()
-            .failAloud("ServerSideRouter::processWidget:#{rootWidgetPath}")
+            pr.timer 'ServerSideRouter::showWidget', ->
+              widgetRepo.createWidget(rootWidgetPath).then (rootWidget) ->
+                rootWidget._isExtended = true
+                widgetRepo.setRootWidget(rootWidget)
+                previousProcess.showPromise = rootWidget.show(params, DomInfo.fake())
+                previousProcess.showPromise.done (out) ->
+                  eventEmitter.removeAllListeners('fallback')
+                  # prevent browser to use the same connection
+                  res.shouldKeepAlive = false
+                  res.writeHead 200, 'Content-Type': 'text/html'
+                  res.end(out)
+                  # todo: may be need some cleanup before?
+                  clear()
+              .failAloud("ServerSideRouter::processWidget:#{rootWidgetPath}")
 
           eventEmitter.once 'fallback', (args) =>
             if previousProcess.showPromise
@@ -133,7 +143,6 @@ define [
 
           if rootWidgetPath?
             processWidget rootWidgetPath, params
-
 
           else if routeCallback?
             routeCallback
@@ -162,6 +171,27 @@ define [
           "Pragma": "no-cache"
           "Expires": 0
         response.end()
+
+
+    _initProfilerDump: ->
+      ###
+      Subscribes to current request root-timer finish to save profiling data to file to be able to transfer it
+       to browser later.
+      Generates and returns unique ID to link that saved file with the in-browser profiler panel.
+      @return String
+      ###
+      if CORD_PROFILER_ENABLED
+        profilerDumpDir = 'public/assets/p'
+        uid = sha1(Math.random() + (new Date).getTime())
+        pr.onCurrentTimerFinish (timer) ->
+          dst = "#{profilerDumpDir}/#{uid}.json"
+          Future.call(mkdirp, profilerDumpDir).then ->
+            Future.call(fs.writeFile, dst, JSON.stringify(timer, null, 2))
+          .catch (err) ->
+            console.warn "Couldn't save server profiling timer [#{timer.name}]! Reason:", err
+        uid
+      else
+        ''
 
 
 
