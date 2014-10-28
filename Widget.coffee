@@ -497,7 +497,7 @@ define [
       @param Object params changed params
       @return Future
       ###
-      if @_renderPromise.completed() or not isBrowser
+      if @_renderPromise.completed()
         if @_sentenced
           Future.rejected(new errors.WidgetParamsRace("#{ @debug 'setParamsSafe' } is called for sentenced widget!"))
         else
