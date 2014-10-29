@@ -145,9 +145,12 @@ define [
     gcWidgets: ->
       ###
       Collects all registered widgets that are not the current root widget's children and drop them after some timeout.
-      WARNING: this method of GC is known to be buggy and causing serious problems with the stability of application.
-       So this is just a matter for the further investigation and not used yet.
+      WARNING: this method of GC can be buggy and causing serious problems with the stability of application.
+       Should be disabled if dropping of unexpected widgets start to appear.
+      @return {Boolean} true if any widgets has been scheduled to be dropped
       ###
+      return false if @_gcTimeout # schedule only one GC task at a time
+
       root = @rootWidget
       okWidgetIds = []
       recCollectIds = (widget) =>
@@ -158,20 +161,20 @@ define [
 
       gcIds = _.difference(Object.keys(@widgets), okWidgetIds)
 
-      console.warn "GC widgets for widget", root, gcIds.map (id) =>
-        if @widgets[id].widget.constructor.__name == 'Main'
-          console.error "<<<<<< Going to kill Main! >>>>>"
-          console.log 'extend list', @_currentExtendList
-          console.log 'root children', @getRootWidget().children
-          console.log 'root', @getRootWidget()
-        @widgets[id].widget.debug()
-
       if gcIds.length
-        setTimeout =>
+        @_gcTimeout = setTimeout =>
+          _console.warn "GC widgets for widget", root, gcIds.map (id) =>
+            if @widgets[id]
+              # debugging very bad situation when wrong widget is going to be dropped
+              if @widgets[id].widget.constructor.__name == 'Main'
+                _console.error "<<<<<< Going to kill Main! >>>>>"
+                _console.log 'extend list', @_currentExtendList
+                _console.log 'root children', root.children
+              @widgets[id].widget.debug()
           @dropWidget(id) for id in gcIds when @widgets[id]
-        , 30000
-#        , 120000
-      gcIds
+          @_gcTimeout = null
+        , 120000
+      return gcIds.length > 0
 
 
     _unserializeModelBindings: (serializedBindings) ->
@@ -466,13 +469,22 @@ define [
       @return Future
       ###
       if not @_inTransition
+        prevRoot = @rootWidget
         @_inTransition = true
         @_activeTransitionPromise = thisTransitionPromise = Future.single("smartTransitPage -> #{newRootWidgetPath}")
-        promise = @transitPage(newRootWidgetPath, params, transition).finally =>
+        @transitPage(newRootWidgetPath, params, transition).then (res) =>
           # the promise may be completed by the clientSideRouter.redirect() method, so this guard is necessary
           if not thisTransitionPromise.completed() and @_activeTransitionPromise == thisTransitionPromise
             @_inTransition = false
-            thisTransitionPromise.when(promise)
+            thisTransitionPromise.resolve(res)
+            # activate GC only if no transtition is waiting to be processed
+            # also don't GC if the root widget type hasn't changed (known to cause wrong widgets to be collected)
+            @gcWidgets() if not @_nextTransitionCallback and prevRoot.constructor != @rootWidget.constructor
+          return
+        .catch (err) =>
+          if not thisTransitionPromise.completed() and @_activeTransitionPromise == thisTransitionPromise
+            @_inTransition = false
+            thisTransitionPromise.reject(err)
         # avoiding infinite hanging of navigation due to never-completing transition promise
         thisTransitionTimeout = setTimeout ->
           if not thisTransitionPromise.completed()
@@ -481,10 +493,6 @@ define [
         , 15000
         thisTransitionPromise.finally ->
           clearTimeout(thisTransitionTimeout)
-#        .then =>
-#          @rootWidget.shown().done =>
-#            console.log "GC after transition to #{newRootWidgetPath}..."
-#            @gcWidgets()
       else
         if not @_nextTransitionCallback?
           @_nextTransitionPromise = @_activeTransitionPromise.then =>
