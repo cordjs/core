@@ -416,11 +416,11 @@ define [
       @widgetRepo = repo
 
 
-    setServiceContainer: (serviceContainer) =>
+    setServiceContainer: (serviceContainer) ->
       @container = serviceContainer
 
 
-    getServiceContainer: =>
+    getServiceContainer: ->
       @container
 
 

@@ -46,27 +46,27 @@ define [
         @_parentPromises = {}
 
 
-    setServiceContainer: (serviceContainer) =>
+    setServiceContainer: (serviceContainer) ->
       @serviceContainer = serviceContainer
 
 
-    getServiceContainer: =>
+    getServiceContainer: ->
       @serviceContainer
 
 
-    setRequest: (request) =>
+    setRequest: (request) ->
       @request = request
 
 
-    getRequest: =>
+    getRequest: ->
       @request
 
 
-    setResponse: (response) =>
+    setResponse: (response) ->
       @response = response
 
 
-    getResponse: =>
+    getResponse: ->
       @response
 
 
