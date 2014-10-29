@@ -185,7 +185,7 @@ define [
       subscription
 
 
-    getCallback: (callback) =>
+    getCallback: (callback) ->
       ###
       Register callback and clear it in case of object destruction or clearCallbacks invocation
       Need to be used, when reference to the widget object (@) is used inside a callback, for instance:
