@@ -97,12 +97,6 @@ define [
           callback @accessToken, @refreshToken
 
 
-    getTokenByAuthorizationCode: (code, callback) ->
-      @serviceContainer.eval 'oauth2', (oauth2) =>
-        oauth2.grantAccessTokenByAuhorizationCode code, (accessToken, refreshToken) =>
-          @onAccessTokenGranted(accessToken, refreshToken, callback)
-
-
     getTokensByUsernamePassword: (username, password, callback) ->
       @serviceContainer.eval 'oauth2', (oauth2) =>
         oauth2.grantAccessTokenByPassword username, password, @getScope(), (accessToken, refreshToken) =>
@@ -120,6 +114,34 @@ define [
       postal.publish 'auth.tokens.ready',
         accessToken: accessToken
         refreshToken: refreshToken
+
+
+    doAuthCodeLoginByPassword: (login, password) ->
+      promise = Future.single('Api::doAuthCodeLoginByPassword promise')
+      @serviceContainer.eval 'oauth2', (oauth2) =>
+        oauth2.getAuthCodeByPassword(login, password)
+        .then (code) =>
+          oauth2.grantAccessTokenByAuhorizationCode(code)
+        .then (accessToken, refreshToken) =>
+          @onAccessTokenGranted(accessToken, refreshToken)
+          promise.resolve()
+        .catch (e) ->
+          promise.reject(new Error('Login by password failed. '+e.message))
+      promise
+
+
+    doAuthCodeLoginWithoutPassword: ->
+      promise = Future.single('Api::doAuthCodeLoginWithoutPassword promise')
+      @serviceContainer.eval 'oauth2', (oauth2) =>
+        oauth2.getAuthCodeWithoutPassword()
+        .then (code) =>
+          oauth2.grantAccessTokenByAuhorizationCode(code)
+        .then (accessToken, refreshToken) =>
+          @onAccessTokenGranted(accessToken, refreshToken)
+          promise.resolve
+        .catch (e) ->
+          promise.reject(new Error('Login without password failed. Error: '+JSON.stringify(e)))
+      promise
 
 
     authenticateUser: ->
@@ -232,6 +254,7 @@ define [
                   e.statusCode = error.statusCode
                   e.statusText = error.statusText
                   e.originalError = error
+                  e.response = response
                   result.reject(e)
 
               if not skipAuth and (response?.error == 'invalid_grant' || response?.error == 'invalid_request')
