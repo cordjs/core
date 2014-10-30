@@ -744,7 +744,13 @@ define [
       @return Model
       ###
       result = new @model()
-      result.set attrs
+
+      # Clear functions
+      safeAttrs = {}
+      for key, value of attrs
+        safeAttrs[key] = value if not _.isFunction(value)
+
+      result.set safeAttrs
 
       @_injectActionMethods(result) if attrs?.id
 

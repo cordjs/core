@@ -175,7 +175,7 @@ define [
 
       collectionVersion = global.config.static.collection
 
-      tagz = _.keys(options.tags).join('_')
+      tagz = if options.tags then _.keys(options.tags).sort().join('_') else ''
 
       [
         collectionVersion
@@ -564,7 +564,7 @@ define [
       2. the collection is not fixed
       3. the collection has at least one 'change' subscription
       ###
-      if @_fixed or @_refreshInProgress
+      if @_fixed #or @_refreshInProgress
         false
       else if not @_hasActiveChangeSubscriptions()
         false
