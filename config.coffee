@@ -93,6 +93,7 @@ define ->
       'postal':                  'vendor/postal/postal_lite'
       'the-box':                 'vendor/the-box/app'
       'underscore':              'vendor/underscore/underscore'
+      'bcryptjs':                'vendor/bcryptjs/bcryptjs'
     shim:
       'curly':
         deps: ['underscore']
