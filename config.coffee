@@ -86,6 +86,7 @@ define ->
       'dustjs-linkedin':         'vendor/dustjs/dustjs-full'
       'dustjs-helpers':          'vendor/dustjs/dustjs-helpers'
       'eventemitter3':           'vendor/eventemitter3/eventemitter3'
+      'he':                      'vendor/he/he'
       'jquery':                  'vendor/jquery/jquery'
       'jquery.cookie':           'vendor/jquery/plugins/jquery.cookie'
       'localforage':             'vendor/localforage/localforage'
