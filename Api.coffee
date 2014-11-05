@@ -81,6 +81,8 @@ define [
     restoreTokens: (callback) ->
       # Возвращаем из локального кеша
       if !isBrowser and @accessToken and @refreshToken
+      # Временная правка для обхода бага Хрома когда не срабатывает document.cookie =
+      # if @accessToken and @refreshToken
         _console.log "Restore tokens from local cache: #{@accessToken}, #{@refreshToken}" if global.config.debug.oauth2
         callback @accessToken, @refreshToken
       else
