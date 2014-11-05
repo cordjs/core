@@ -2,8 +2,7 @@ define [
   'underscore'
   'cord!isBrowser'
   'cord!utils/Future'
-  'cord!utils/PasswordEncoder'
-], (_, isBrowser, Future, PasswordEncoder) ->
+], (_, isBrowser, Future) ->
 
   class OAuth2
 
@@ -156,55 +155,28 @@ define [
       promise = Future.single('Api::getAuthCodeByPassword promise')
       if !isBrowser
         promise.reject(new Error('It is only possible to get auth code at client side'))
-      @getAuthEncoderByLogin(login).then (encoderData) =>
-        Future.require('jquery').then ($) ->
-          params =
-            response_type: 'code'
-            client_id: global.config.oauth2.clientId
-            redirect_uri: global.config.oauth2.endpoints.redirectUri
-            login: login
-            password: PasswordEncoder.encode(password, encoderData.algo, encoderData.salt, encoderData.clientSalt, encoderData.options)
-            format: 'json'
-          $.ajax
-            dataType: 'json',
-            url: global.config.oauth2.endpoints.authCode
-            data: params
-            xhrFields:
-              withCredentials: true
-            success: (data) =>
-              if data and data.code
-                promise.resolve(data.code)
-              else
-                if data.error is 'access_denied' and data.error_description is 'Not authorized'
-                  promise.reject(new Error('Wrong login or password'))
-                else
-                  promise.reject(new Error('No auth code recieved. Response:'+JSON.stringify(data)))
-            error: (data) =>
-              promise.reject(new Error('Ajax request for auth code failed: ' + data.responseText))
-      .catch (e) ->
-        promise.reject(new Error('Failed to get authEncoder. '+e.message))
-      promise
-
-
-    getAuthEncoderByLogin: (login) ->
-      promise = Future.single('Api::getAuthEncoder promise')
-      if !isBrowser
-        promise.reject(new Error('It is only possible to get authEncoder at client side'))
-      clientSalt = ''
-      clientSalt += Math.random().toString(36).slice(-8) for i in [0 .. 3]
       Future.require('jquery').then ($) ->
+        params =
+          response_type: 'code'
+          client_id: global.config.oauth2.clientId
+          redirect_uri: global.config.oauth2.endpoints.redirectUri
+          login: login
+          password: password
+          format: 'json'
         $.ajax
-          url: global.config.oauth2.endpoints.authEncoder.replace('{login}', login).replace('{salt}', clientSalt)
+          dataType: 'json',
+          url: global.config.oauth2.endpoints.authCode
+          data: params
           xhrFields:
             withCredentials: true
           success: (data) =>
-            if not data.algo
-              promise.reject(new Error('No encode algo received'))
-            else if not data.salt
-              promise.reject(new Error('No encode salt received'))
+            if data and data.code
+              promise.resolve(data.code)
             else
-              promise.resolve({algo: data.algo, salt: data.salt, clientSalt: clientSalt, options: data.options || {}})
+              if data.error is 'access_denied' and data.error_description is 'Not authorized'
+                promise.reject(new Error('Wrong login or password'))
+              else
+                promise.reject(new Error('No auth code recieved. Response:'+JSON.stringify(data)))
           error: (data) =>
-            promise.reject(new Error('Ajax request for auth salt failed'+JSON.stringify(data)))
+            promise.reject(new Error('Ajax request for auth code failed: ' + data.responseText))
       promise
-
