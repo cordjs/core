@@ -55,7 +55,6 @@ define [
 
     storeTokens: (accessToken, refreshToken, callback) ->
       # Кеширование токенов
-
       if @accessToken == accessToken && @refreshToken == refreshToken
         return callback? @accessToken, @refreshToken
 
@@ -156,14 +155,20 @@ define [
       @return Future(String, String) - eventually completed with access- and refresh-tokens.
       ###
       result = Future.single('Api::authenticateUser')
-      if @options.authenticateUserCallback()
-        subscription = postal.subscribe
-          topic: 'auth.tokens.ready'
-          callback: (tokens) =>
-            subscription.unsubscribe()
-            result.resolve(tokens.accessToken, tokens.refreshToken)
-      else
-        result.reject('Callback is not applicable in this case.')
+      @serviceContainer.eval 'cookie', (cookie) =>
+        # Clear Cookies
+        cookie.set('accessToken')
+        cookie.set('refreshToken')
+        cookie.set('oauthScope')
+        if @options.authenticateUserCallback()
+          subscription = postal.subscribe
+            topic: 'auth.tokens.ready'
+            callback: (tokens) =>
+              subscription.unsubscribe()
+              result.resolve(tokens.accessToken, tokens.refreshToken)
+        else
+          result.reject('Callback is not applicable in this case.')
+
       result
 
 
