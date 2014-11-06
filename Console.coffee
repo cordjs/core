@@ -36,7 +36,7 @@ define [
 
       console.log.apply console, arguments if config?.console.log or not config
 
-      postal?.publish 'log', JSON.stringify(arguments)
+      # postal?.publish 'log', JSON.stringify(arguments)
       return
 
 
@@ -47,7 +47,7 @@ define [
 
       message = Console.stringify arguments
       postal.publish 'logger.log.publish', { tags: ['warning'], params: {warning: message} }
-      postal?.publish 'log', JSON.stringify(arguments)
+      # postal?.publish 'log', JSON.stringify(arguments)
       return
 
 
@@ -59,7 +59,8 @@ define [
         catch
           # TypeError: Converting circular structure to JSON
           arguments
-      postal?.publish 'log', args
+          
+      # postal?.publish 'log', args
 
 
     @taggedError: (tags, args...) ->
