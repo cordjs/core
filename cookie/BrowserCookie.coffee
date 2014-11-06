@@ -33,9 +33,7 @@ define [
 
 
       set: (name, value, params) ->
-        # Chrome does not like / path for local ip
-        # _params = path: '/'
-        _params = {}
+        _params = path: '/'
         _.extend(_params, params) if params
         $.cookie name, value, _params
         true
