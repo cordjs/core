@@ -1,7 +1,7 @@
 define [
   '../vtree/vtree'
   'he'
-], (vtree, he)->
+], (vtree, he) ->
 
   encode = he.encode
 #  validProps = require("./attributes")
