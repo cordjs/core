@@ -242,7 +242,7 @@ define [
       <script>
         var global = {
           cordServerProfilerUid: "#{ @serverProfilerUid }",
-          config: #{ JSON.stringify(global.appConfig.browser) }
+          config: #{ JSON.stringify(@serviceContainer.get('appConfig').browser) }
         };
       </script>
       <script data-main="#{initUrl}" src="#{baseUrl}vendor/requirejs/require.js?release=#{global.config.static.release}"></script>
