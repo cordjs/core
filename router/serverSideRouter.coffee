@@ -96,6 +96,7 @@ define [
           false
 
         serviceContainer.set 'config', config
+        serviceContainer.set 'appConfig', appConfig
 
         serviceContainer.set 'widgetRepo', widgetRepo
         widgetRepo.setServiceContainer(serviceContainer)
