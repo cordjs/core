@@ -65,8 +65,10 @@ define [
         ###
           Конфиги
         ###
-        global.appConfig.browser.calculateByRequest?(req)
-        global.appConfig.node.calculateByRequest?(req)
+        appConfig = _.clone(global.appConfig)
+
+        appConfig.browser.calculateByRequest?(req)
+        appConfig.node.calculateByRequest?(req)
 
         widgetRepo = new WidgetRepo(serverProfilerUid)
 
@@ -81,7 +83,7 @@ define [
             serviceContainer = null
           widgetRepo = null
 
-        config = global.config
+        config = appConfig.node
         loginUrl = config.api.loginUrl or 'user/login'
         logoutUrl = config.api.logoutUrl or 'user/logout'
         config.api.authenticateUserCallback = =>
