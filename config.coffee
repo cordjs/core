@@ -30,6 +30,14 @@ define ->
           get('container').injectServices(modelProxy).done ->
             done null, modelProxy
 
+    redirector:
+      deps: ['container']
+      factory: (get, done) ->
+        require ['cord!/cord/core/router/Redirector'], (Redirector) ->
+          redirector = new Redirector()
+          get('container').injectServices(redirector).done ->
+            done null, redirector
+
     ':server':
       request:
         deps: ['container']
