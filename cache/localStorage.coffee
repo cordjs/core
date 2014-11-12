@@ -82,9 +82,14 @@ define [
 
     clear: ->
       ###
-      Clear local storage
+      Future-powered clear local storage
       ###
-      @storage.clear()
+
+      result = Future.single("localStorage::clear")
+
+      @storage.clear -> result.resolve()
+
+      result
 
 
     _removeItem: (key) ->
