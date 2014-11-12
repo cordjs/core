@@ -319,12 +319,11 @@ define [
 
       @_parentPromises[ctx.id] = Future.single("WidgetRepo::parentPromise(#{widgetPath}, #{ctx.id})")
 
-      Future.sequence [
+      Future.sequence([
         Future.require("cord-w!#{ widgetPath }")
         Context.fromJSON(ctx, @serviceContainer)
         @_unserializeModelBindings(modelBindings)
-      ]
-      .spread (WidgetClass, ctx, modelBindings) =>
+      ]).spread (WidgetClass, ctx, modelBindings) =>
 
         widget = new WidgetClass
           context: ctx
