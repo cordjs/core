@@ -1617,6 +1617,10 @@ define [
           {#widget/} block handling
           ###
           @childWidgetAdd()
+
+          if params.type.substr(0, 2) == './'
+            params.type = "//#{@constructor.relativeDir}#{params.type.substr(1)}"
+
           chunk.map (chunk) =>
             normalizedName = if params.name then params.name.trim() else undefined
             normalizedName = undefined if not normalizedName

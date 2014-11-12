@@ -328,6 +328,9 @@ define [
           ###
           {#widget/} block (compile mode)
           ###
+          if params.type.substr(0, 2) == './'
+            params.type = "//#{@widget.constructor.relativeDir}#{params.type.substr(1)}"
+
           chunk.map (chunk) =>
             Future.require("cord-w!#{ params.type }@#{ @widget.getBundle() }").then (WidgetClass) =>
               widget = new WidgetClass(compileMode: true)
