@@ -66,6 +66,9 @@ define [
           Конфиги
         ###
         appConfig = _.clone(global.appConfig)
+        # second level crutch
+        appConfig.browser = _.clone(global.appConfig.browser)
+        appConfig.node = _.clone(global.appConfig.node)
 
         appConfig.browser.calculateByRequest?(req)
         appConfig.node.calculateByRequest?(req)
