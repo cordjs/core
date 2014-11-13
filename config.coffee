@@ -40,10 +40,9 @@ define ->
 
     ':server':
       request:
-        deps: ['container']
         factory: (get, done) ->
           require ['cord!/cord/core/request/ServerRequest'], (Request) =>
-            done null, new Request(get('container'))
+            done(null, new Request)
 
       cookie:
         deps: ['container']
@@ -58,10 +57,9 @@ define ->
 
     ':browser':
       request:
-        deps: ['container']
         factory: (get, done) ->
-          require ['cord!/cord/core/request/BrowserRequest'], (Request) =>
-            done null, new Request(get('container'))
+          require ['cord!/cord/core/request/BrowserRequest'], (Request) ->
+            done(null, new Request)
 
       cookie:
         deps: ['container']
