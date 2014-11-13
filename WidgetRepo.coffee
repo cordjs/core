@@ -231,6 +231,7 @@ define [
 
     getTemplateCode: ->
       baseUrl = if global.config.localFsMode then '' else '/'
+      config = if global.config.localFsMode then global.appConfig else @serviceContainer.get('appConfig')
 
       initUrl = if global.config.browserInitScriptId
         "#{baseUrl}assets/z/#{global.config.browserInitScriptId}.js"
@@ -242,7 +243,7 @@ define [
       <script>
         var global = {
           cordServerProfilerUid: "#{ @serverProfilerUid }",
-          config: #{ JSON.stringify(@serviceContainer.get('appConfig').browser) }
+          config: #{ JSON.stringify(config.browser) }
         };
       </script>
       <script data-main="#{initUrl}" src="#{baseUrl}vendor/requirejs/require.js?release=#{global.config.static.release}"></script>
