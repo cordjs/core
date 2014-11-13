@@ -20,5 +20,5 @@ define [
         return false
       else
         @cookies.response.shouldKeepAlive = false
-        @cookies.set name, value
+        @cookies.set name, value, httpOnly: false
       true

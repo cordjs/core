@@ -1,5 +1,5 @@
 define [
-  'vendor/the-box/app'
+  'the-box'
   'cord!utils/Future'
   'underscore'
 ], (Container, Future, _) ->

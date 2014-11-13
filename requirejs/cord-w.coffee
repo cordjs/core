@@ -20,6 +20,7 @@ define ['pathUtils'], (pathUtils) ->
     className: widgetClassName
     dirName: dirName
     canonicalPath: "#{ bundleSpec }//#{ relativePath }"
+    relativeDir: relativeDir
     relativeDirPath: relativeDirPath
     relativeFilePath: "#{ relativeDirPath }/#{ widgetClassName }"
 
@@ -34,4 +35,5 @@ define ['pathUtils'], (pathUtils) ->
       WidgetClass.bundle = info.bundle
       WidgetClass.relativeDirPath = info.relativeDirPath
       WidgetClass.dirName = info.dirName
+      WidgetClass.relativeDir = info.relativeDir
       load WidgetClass

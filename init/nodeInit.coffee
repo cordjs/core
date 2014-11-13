@@ -1,4 +1,4 @@
-`if (typeof define !== 'function') { define = require('amdefine')(module) }`
+`if (typeof define !== 'function') { var define = require('amdefine')(module) }`
 
 fs            = require 'fs'
 path          = require 'path'

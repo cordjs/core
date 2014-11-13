@@ -19,11 +19,10 @@ define [
       ###
 
       @_fieldNames = []
-      @_changed = {}
       if (attrs instanceof Model)
         attrs  = attrs.toJSON()
-
       @_load(attrs) if attrs
+      @_changed = {}
 
 
     _load: (attrs) ->

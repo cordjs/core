@@ -7,12 +7,11 @@ define [
 
   class ServerRequest
 
-    constructor: (serviceContainer, options) ->
+    constructor: (options) ->
       defaultOptions =
         json: true
 
       @options = _.extend defaultOptions, options
-      @serviceContainer = serviceContainer
       @METHODS = ['get', 'post', 'put', 'del']
 
       for method in @METHODS

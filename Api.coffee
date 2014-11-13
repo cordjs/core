@@ -10,6 +10,8 @@ define [
 
   class Api
 
+    @inject: ['oauth2']
+
     accessToken: false
     refreshToken: false
 
@@ -55,7 +57,6 @@ define [
 
     storeTokens: (accessToken, refreshToken, callback) ->
       # Кеширование токенов
-
       if @accessToken == accessToken && @refreshToken == refreshToken
         return callback? @accessToken, @refreshToken
 
@@ -81,6 +82,8 @@ define [
     restoreTokens: (callback) ->
       # Возвращаем из локального кеша
       if !isBrowser and @accessToken and @refreshToken
+      # Временная правка для обхода бага Хрома когда не срабатывает document.cookie =
+      # if @accessToken and @refreshToken
         _console.log "Restore tokens from local cache: #{@accessToken}, #{@refreshToken}" if global.config.debug.oauth2
         callback @accessToken, @refreshToken
       else
@@ -97,16 +100,20 @@ define [
           callback @accessToken, @refreshToken
 
 
-    getTokenByAuthorizationCode: (code, callback) ->
-      @serviceContainer.eval 'oauth2', (oauth2) =>
-        oauth2.grantAccessTokenByAuhorizationCode code, (accessToken, refreshToken) =>
-          @onAccessTokenGranted(accessToken, refreshToken, callback)
-
-
-    getTokensByUsernamePassword: (username, password, callback) ->
-      @serviceContainer.eval 'oauth2', (oauth2) =>
-        oauth2.grantAccessTokenByPassword username, password, @getScope(), (accessToken, refreshToken) =>
-          @onAccessTokenGranted(accessToken, refreshToken, callback)
+    getTokensByUsernamePassword: (username, password, cb) ->
+      ###
+      Requests and returns OAuth2 tokens by username and password.
+      @param {String} username
+      @param {String} password
+      @param (deprecated, optional){Function} cb old-style callback
+      @return {Future[[String, String]] [access token, refresh token]
+      ###
+      result = Future.single('getTokensByUsernamePassword')
+      @oauth2.grantAccessTokenByPassword username, password, @getScope(), (accessToken, refreshToken) =>
+        @onAccessTokenGranted accessToken, refreshToken, ->
+          result.resolve([accessToken, refreshToken])
+          cb?(accessToken, refreshToken)
+      result
 
 
     getTokensByExtensions: (url, params, callback) ->
@@ -122,6 +129,34 @@ define [
         refreshToken: refreshToken
 
 
+    doAuthCodeLoginByPassword: (login, password) ->
+      promise = Future.single('Api::doAuthCodeLoginByPassword promise')
+      @serviceContainer.eval 'oauth2', (oauth2) =>
+        oauth2.getAuthCodeByPassword(login, password)
+        .then (code) =>
+          oauth2.grantAccessTokenByAuhorizationCode(code)
+        .then (accessToken, refreshToken) =>
+          @onAccessTokenGranted(accessToken, refreshToken)
+          promise.resolve()
+        .catch (e) ->
+          promise.reject(new Error('Login by password failed. '+e.message))
+      promise
+
+
+    doAuthCodeLoginWithoutPassword: ->
+      promise = Future.single('Api::doAuthCodeLoginWithoutPassword promise')
+      @serviceContainer.eval 'oauth2', (oauth2) =>
+        oauth2.getAuthCodeWithoutPassword()
+        .then (code) =>
+          oauth2.grantAccessTokenByAuhorizationCode(code)
+        .then (accessToken, refreshToken) =>
+          @onAccessTokenGranted(accessToken, refreshToken)
+          promise.resolve
+        .catch (e) ->
+          promise.reject(new Error('Login without password failed. Error: '+JSON.stringify(e)))
+      promise
+
+
     authenticateUser: ->
       ###
       Initiates pluggable via authenticateUserCallback-option authentication of the user and waits for the global
@@ -132,14 +167,20 @@ define [
       @return Future(String, String) - eventually completed with access- and refresh-tokens.
       ###
       result = Future.single('Api::authenticateUser')
-      if @options.authenticateUserCallback()
-        subscription = postal.subscribe
-          topic: 'auth.tokens.ready'
-          callback: (tokens) =>
-            subscription.unsubscribe()
-            result.resolve(tokens.accessToken, tokens.refreshToken)
-      else
-        result.reject('Callback is not applicable in this case.')
+      @serviceContainer.eval 'cookie', (cookie) =>
+        # Clear Cookies
+        cookie.set('accessToken')
+        cookie.set('refreshToken')
+        cookie.set('oauthScope')
+        if @options.authenticateUserCallback()
+          subscription = postal.subscribe
+            topic: 'auth.tokens.ready'
+            callback: (tokens) =>
+              subscription.unsubscribe()
+              result.resolve(tokens.accessToken, tokens.refreshToken)
+        else
+          result.reject('Callback is not applicable in this case.')
+
       result
 
 
@@ -232,6 +273,7 @@ define [
                   e.statusCode = error.statusCode
                   e.statusText = error.statusText
                   e.originalError = error
+                  e.response = response
                   result.reject(e)
 
               if not skipAuth and (response?.error == 'invalid_grant' || response?.error == 'invalid_request')

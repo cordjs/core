@@ -23,6 +23,8 @@ define [
     _filterParams: null # params for filter
     _filterFunction: null
 
+    _defaultRefreshPages: 3 #default amount of pages to refresh
+
     _orderBy: null
     _fields: null
 
@@ -98,7 +100,7 @@ define [
 
     tagsRefresh: (mods) ->
       startPage = @_loadedStart / @_pageSize + 1
-      @partialRefresh(startPage, 3, 0, true)
+      @partialRefresh(startPage, @_defaultRefreshPages, 0, true)
       true
 
 
@@ -106,7 +108,7 @@ define [
       @_lastQueryTime = 0
       if @hasActiveSubscriptions()
         startPage = if @_pageSize > 0 then @_loadedStart / @_pageSize + 1 else 1
-        @partialRefresh(startPage, 3)
+        @partialRefresh(startPage, @_defaultRefreshPages)
         true
       else
         false
@@ -173,7 +175,7 @@ define [
 
       collectionVersion = global.config.static.collection
 
-      tagz = _.keys(options.tags).join('_')
+      tagz = if options.tags then _.keys(options.tags).sort().join('_') else ''
 
       [
         collectionVersion
@@ -518,7 +520,7 @@ define [
       ###
       id = parseInt(if _.isObject(model) then model.id else model)
       if (not @_id or (not isNaN(id) and parseInt(@_id) == id)) and @hasActiveSubscriptions()
-        @refresh(id, 3, 0, emitModelChangeExcept)
+        @refresh(id, @_defaultRefreshPages, 0, emitModelChangeExcept)
 
 
     _reorderModelsLocal: ->
@@ -562,7 +564,7 @@ define [
       2. the collection is not fixed
       3. the collection has at least one 'change' subscription
       ###
-      if @_fixed or @_refreshInProgress
+      if @_fixed #or @_refreshInProgress
         false
       else if not @_hasActiveChangeSubscriptions()
         false
@@ -594,7 +596,7 @@ define [
           @_simplePageRefresh(startPage, maxPages)
 
 
-    refresh: (currentId, maxPages = 3, minRefreshInterval = 0, emitModelChangeExcept = true) ->
+    refresh: (currentId, maxPages = @_defaultRefreshPages, minRefreshInterval = 0, emitModelChangeExcept = true) ->
       ###
       Reloads currently loaded part of collection from the backend.
       By the way triggers change events for every changed model and for the collection if there are any changes.
@@ -679,7 +681,7 @@ define [
           @_refreshInProgress = false
 
 
-    _sophisticatedRefreshPage: (page, startPage, endPage, maxPages = 3, direction = 'down', loadedPages = 0) ->
+    _sophisticatedRefreshPage: (page, startPage, endPage, maxPages = @_defaultRefreshPages, direction = 'down', loadedPages = 0) ->
       # _console.log "#{ @repo.restResource } _sophisticatedRefreshPage: (page=#{page}, startPage=#{startPage}, endPage=#{endPage}, maxPages=#{maxPages}, direction=#{direction}, loadedPages=#{loadedPages})"
 
       start = (page - 1) * @_pageSize

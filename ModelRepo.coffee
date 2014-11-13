@@ -35,8 +35,6 @@ define [
     # @var Object[String -> String]
     actions: null
 
-    tagsCollectingTime: 50
-
     @inject: ['modelProxy']
 
 
@@ -488,7 +486,7 @@ define [
                   @cacheCollection(model.collection) if model.collection?
                   model.resetChangedFields()
                   @emit 'sync', model
-                  if !notRefreshCollections
+                  if not notRefreshCollections
                     @triggerTagsForChanges(pureChangeInfo, model)
                   promise.resolve(response)
             else
@@ -502,7 +500,7 @@ define [
                 model.id = response.id
                 model.resetChangedFields()
                 @emit 'sync', model
-                @triggerTagsForNewModel(model, response) if !notRefreshCollections
+                @triggerTagsForNewModel(model, response) if not notRefreshCollections
                 @_injectActionMethods(model)
                 promise.resolve(response)
       else
@@ -530,8 +528,7 @@ define [
       @triggerTag("id.#{model.id}", model)
 
       for fieldName, value of changeInfo
-        continue if _.isFunction(value)
-        continue if not fieldName or fieldName[0] == '_' # _Ignore _any _private _parts of the object
+        continue if _.isFunction(value) or not fieldName or fieldName[0] == '_' # _Ignore _any _private _parts of the object
         @triggerTag("#{fieldName}.any", model)
         if _.isObject(value)
           if value.id
@@ -547,7 +544,7 @@ define [
       @_collectedTags[tag] = mods
 
       Defer.nextTick =>
-        console.log('Emit tags:', @_collectedTags) if _.size(@_collectedTags) > 0
+        _console.log('Emit tags:', @_collectedTags) if _.size(@_collectedTags) > 0
         @emit('tags', @_collectedTags) if _.size(@_collectedTags) > 0
         @_collectedTags = {}
 
@@ -747,7 +744,13 @@ define [
       @return Model
       ###
       result = new @model()
-      result.set attrs
+
+      # Clear functions
+      safeAttrs = {}
+      for key, value of attrs
+        safeAttrs[key] = value if not _.isFunction(value)
+
+      result.set safeAttrs
 
       @_injectActionMethods(result) if attrs?.id
 

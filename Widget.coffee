@@ -327,7 +327,7 @@ define [
         @_browserInitDebugTimeout = null
 
 
-    getCallback: (callback) =>
+    getCallback: (callback) ->
       ###
       Register callback and clear it in case of object destruction or clearCallbacks invocation
       Need to be used, when reference to the widget object (@) is used inside a callback, for instance:
@@ -416,11 +416,11 @@ define [
       @widgetRepo = repo
 
 
-    setServiceContainer: (serviceContainer) =>
+    setServiceContainer: (serviceContainer) ->
       @container = serviceContainer
 
 
-    getServiceContainer: =>
+    getServiceContainer: ->
       @container
 
 
@@ -1617,6 +1617,10 @@ define [
           {#widget/} block handling
           ###
           @childWidgetAdd()
+
+          if params.type.substr(0, 2) == './'
+            params.type = "//#{@constructor.relativeDir}#{params.type.substr(1)}"
+
           chunk.map (chunk) =>
             normalizedName = if params.name then params.name.trim() else undefined
             normalizedName = undefined if not normalizedName

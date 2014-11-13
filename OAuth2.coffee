@@ -1,6 +1,8 @@
 define [
   'underscore'
-], (_) ->
+  'cord!isBrowser'
+  'cord!utils/Future'
+], (_, isBrowser, Future) ->
 
   class OAuth2
 
@@ -18,24 +20,25 @@ define [
       @serviceContainer = serviceContainer
 
 
-    grantAccessTokenByAuhorizationCode: (code, callback) =>
+    grantAccessTokenByAuhorizationCode: (code) =>
       ###
       Получает токены по коду авторизации, ранее выданному авторизационным сервером
       ###
-      params =
-        grant_type: 'authorization_code'
-        code: code
-        client_id: @options.clientId
-        client_secret: @options.secretKey
-        format: 'json'
-        redirect_uri: @options.endpoints.redirectUri
-
+      promise = Future.single('OAuth2::grantAccessTokenByAuthorizationCode promise')
       @serviceContainer.eval 'request', (request) =>
+        params =
+          grant_type: 'authorization_code'
+          code: code
+          client_id: @options.clientId
+          client_secret: @options.secretKey
+          format: 'json'
+          redirect_uri: @options.endpoints.redirectUri
         request.get @options.endpoints.accessToken, params, (result) =>
-          if result
-            callback result.access_token, result.refresh_token
+          if result and result.access_token and result.refresh_token
+            promise.resolve(result.access_token, result.refresh_token)
           else
-            callback null, null
+            promise.reject(new Error('No response from authorization server'))
+      promise
 
 
     ## Получение токена по grant_type = password (логин и пароль)
@@ -118,3 +121,62 @@ define [
               @grantAccessTokenByRefreshToken refreshToken
             , 500
 
+
+    getAuthCodeWithoutPassword: ->
+      promise = Future.single('Api::getAuthCodeWithoutPassword promise')
+      if !isBrowser
+        promise.reject(new Error('It is only possible to get auth code at client side'))
+      Future.require('jquery').then ($) ->
+        params =
+          response_type: 'code'
+          client_id: global.config.oauth2.clientId
+          redirect_uri: global.config.oauth2.endpoints.redirectUri
+          format: 'json'
+        $.ajax
+          dataType: 'json',
+          url: global.config.oauth2.endpoints.authCodeWithoutLogin
+          data: params
+          xhrFields:
+            withCredentials: true
+          success: (data) =>
+            if data.code
+              promise.resolve(data.code)
+            else
+              if data.error is 'access_denied' and data.error_description is 'Not authorized'
+                promise.reject(new Error('Client is not authorized in authorization server'))
+              else
+                promise.reject(new Error('No auth code recieved. Response: '+JSON.stringify(data)))
+          error: (data) =>
+            promise.reject(new Error('Ajax request for auth code failed: ' + data.responseText))
+      promise
+
+
+    getAuthCodeByPassword: (login, password) ->
+      promise = Future.single('Api::getAuthCodeByPassword promise')
+      if !isBrowser
+        promise.reject(new Error('It is only possible to get auth code at client side'))
+      Future.require('jquery').then ($) ->
+        params =
+          response_type: 'code'
+          client_id: global.config.oauth2.clientId
+          redirect_uri: global.config.oauth2.endpoints.redirectUri
+          login: login
+          password: password
+          format: 'json'
+        $.ajax
+          dataType: 'json',
+          url: global.config.oauth2.endpoints.authCode
+          data: params
+          xhrFields:
+            withCredentials: true
+          success: (data) =>
+            if data and data.code
+              promise.resolve(data.code)
+            else
+              if data.error is 'access_denied' and data.error_description is 'Not authorized'
+                promise.reject(new Error('Wrong login or password'))
+              else
+                promise.reject(new Error('No auth code recieved. Response:'+JSON.stringify(data)))
+          error: (data) =>
+            promise.reject(new Error('Ajax request for auth code failed: ' + data.responseText))
+      promise

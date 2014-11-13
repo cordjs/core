@@ -4,8 +4,10 @@ define ->
     api:
       deps: ['config', 'container']
       factory: (get, done) ->
-        require ['cord!/cord/core/Api'], (Api) =>
-          done null, new Api(get('container'), get('config').api)
+        require ['cord!/cord/core/Api'], (Api) ->
+          api = new Api(get('container'), get('config').api)
+          get('container').injectServices(api).done ->
+            done null, api
 
     oauth2:
       deps: ['config', 'container']
@@ -30,12 +32,19 @@ define ->
           get('container').injectServices(modelProxy).done ->
             done null, modelProxy
 
+    redirector:
+      deps: ['container']
+      factory: (get, done) ->
+        require ['cord!/cord/core/router/Redirector'], (Redirector) ->
+          redirector = new Redirector()
+          get('container').injectServices(redirector).done ->
+            done null, redirector
+
     ':server':
       request:
-        deps: ['container']
         factory: (get, done) ->
           require ['cord!/cord/core/request/ServerRequest'], (Request) =>
-            done null, new Request(get('container'))
+            done(null, new Request)
 
       cookie:
         deps: ['container']
@@ -50,10 +59,9 @@ define ->
 
     ':browser':
       request:
-        deps: ['container']
         factory: (get, done) ->
-          require ['cord!/cord/core/request/BrowserRequest'], (Request) =>
-            done null, new Request(get('container'))
+          require ['cord!/cord/core/request/BrowserRequest'], (Request) ->
+            done(null, new Request)
 
       cookie:
         deps: ['container']
@@ -74,6 +82,13 @@ define ->
               done null, new LocalStorage(localForage)
             .catch (err) ->
               _console.error "FATAL: error while initializing localforage with localStorage fallback: #{err.message}!", err
+
+      persistentStorage:
+        deps: ['localStorage']
+        factory: (get, done) ->
+          require ['cord!cache/persistentStorage'], (PersistentStorage) ->
+            done null, new PersistentStorage(get('localStorage'))
+
 
   routes:
     '/REQUIRESTAT/optimizer':
