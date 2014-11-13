@@ -4,8 +4,10 @@ define ->
     api:
       deps: ['config', 'container']
       factory: (get, done) ->
-        require ['cord!/cord/core/Api'], (Api) =>
-          done null, new Api(get('container'), get('config').api)
+        require ['cord!/cord/core/Api'], (Api) ->
+          api = new Api(get('container'), get('config').api)
+          get('container').injectServices(api).done ->
+            done null, api
 
     oauth2:
       deps: ['config', 'container']

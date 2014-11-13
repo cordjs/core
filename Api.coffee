@@ -10,6 +10,8 @@ define [
 
   class Api
 
+    @inject: ['oauth2']
+
     accessToken: false
     refreshToken: false
 
@@ -98,10 +100,20 @@ define [
           callback @accessToken, @refreshToken
 
 
-    getTokensByUsernamePassword: (username, password, callback) ->
-      @serviceContainer.eval 'oauth2', (oauth2) =>
-        oauth2.grantAccessTokenByPassword username, password, @getScope(), (accessToken, refreshToken) =>
-          @onAccessTokenGranted(accessToken, refreshToken, callback)
+    getTokensByUsernamePassword: (username, password, cb) ->
+      ###
+      Requests and returns OAuth2 tokens by username and password.
+      @param {String} username
+      @param {String} password
+      @param (deprecated, optional){Function} cb old-style callback
+      @return {Future[[String, String]] [access token, refresh token]
+      ###
+      result = Future.single('getTokensByUsernamePassword')
+      @oauth2.grantAccessTokenByPassword username, password, @getScope(), (accessToken, refreshToken) =>
+        @onAccessTokenGranted accessToken, refreshToken, ->
+          result.resolve([accessToken, refreshToken])
+          cb?(accessToken, refreshToken)
+      result
 
 
     getTokensByExtensions: (url, params, callback) ->
