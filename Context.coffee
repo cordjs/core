@@ -255,7 +255,8 @@ define [
         dt = @[':internal'].deferredTimeouts
         clearTimeout(dt[name]) if dt[name]
         dt[name] = setTimeout =>
-          _console.warn '### Deferred timeout', name, @id, @_owner?.constructor.__name if @[name] == ':deferred'
+          if @[name] == ':deferred'
+            _console.warn "### Deferred timeout for #{@_owner?.constructor.__name}(#{@id}) ctx.#{name}"
           delete dt[name]
         , timeout
 
