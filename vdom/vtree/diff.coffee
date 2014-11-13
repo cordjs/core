@@ -1,9 +1,9 @@
 define [
 #  './handleThunk'
-  './Vpatch'
+  './VPatch'
   './vtree'
   'underscore'
-], (Vpatch, vtree, _) ->
+], (VPatch, vtree, _) ->
 
   diff = (a, b) ->
     patch = a: a
