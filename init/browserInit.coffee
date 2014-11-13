@@ -63,15 +63,13 @@ define [
         config
 
       # Clear localStorage in case of changing collections' release number
-      serviceContainer.eval 'localStorage', (localStorage) ->
+      serviceContainer.eval 'persistentStorage', (persistentStorage) ->
         currentVersion = window.global.config.static.collection
-        localStorage.getItem('collectionsVersion')
-          .done (localVersion) ->
-            if currentVersion != localVersion
-              localStorage.clear()
-              localStorage.setItem 'collectionsVersion', currentVersion
-          .fail ->
-            localStorage.setItem 'collectionsVersion', currentVersion
+        persistentStorage.get('collectionsVersion').then (localVersion) ->
+          if currentVersion != localVersion
+            serviceContainer.eval 'localStorage', (localStorage) ->
+              localStorage.clear().then ->
+                persistentStorage.set('collectionsVersion', currentVersion)
 
 
     ###

@@ -75,6 +75,13 @@ define ->
             .catch (err) ->
               _console.error "FATAL: error while initializing localforage with localStorage fallback: #{err.message}!", err
 
+      persistentStorage:
+        deps: ['localStorage']
+        factory: (get, done) ->
+          require ['cord!cache/persistentStorage'], (PersistentStorage) ->
+            done null, new PersistentStorage(get('localStorage'))
+
+
   routes:
     '/REQUIRESTAT/optimizer':
       widget: '//Optimizer'
