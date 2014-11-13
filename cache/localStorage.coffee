@@ -5,6 +5,8 @@ define [
 
   class LocalStorage
 
+    persistentKey: 'storage.persistent'
+
     constructor: (storage) ->
       @storage = storage
       # Max amount of time to waint until reject @getItem and clear localStorage
@@ -63,6 +65,9 @@ define [
       ###
       getItem wrapper
       ###
+
+      return if key == @persistentKey
+
       @_get key
 
 
@@ -70,6 +75,9 @@ define [
       ###
       setItem wrapper
       ###
+
+      return if key == @persistentKey
+
       @_set key, value
 
 
@@ -77,14 +85,23 @@ define [
       ###
       removeItem wrapper
       ###
+
+      return if key == @persistentKey
+
       @_removeItem key
 
 
     clear: ->
       ###
-      Clear local storage
+      Future-powered clear local storage
       ###
-      @storage.clear()
+
+      @_get(@persistentKey).then (persistentValues) =>
+        @storage.clear =>
+          if persistentValues
+            @_set(@persistentKey, persistentValues)
+      .catch =>
+        @storage.clear()
 
 
     _removeItem: (key) ->
@@ -135,8 +152,8 @@ define [
       # Protection against localStorage going crazy (because of overflow?), when @storage.getItem never calls callback in Chrome
       setTimeout =>
         if result.state() == 'pending'
-          @storage.clear()
-          result.reject(new Error('LocalStorage timeouted!'))
+          @clear()
+          result.reject(new Error("LocalStorage timeouted with key #{key}!"))
       , @_getTimeout
 
       result
