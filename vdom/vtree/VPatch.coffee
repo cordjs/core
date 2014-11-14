@@ -4,6 +4,7 @@ define ->
     @type = Number(type)
     @vNode = vNode
     @patch = patch
+    return
 
 
   VPatch.type = 'VPatch'
