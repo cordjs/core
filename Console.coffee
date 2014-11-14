@@ -1,6 +1,7 @@
 define [
   'postal'
-], (postal) ->
+  'underscore'
+], (postal, _) ->
 
   class Console
     ###
@@ -31,10 +32,18 @@ define [
       return result
 
 
+    @addPrefix: (args) ->
+      if not _.isArray(args)
+        args = if args then [args] else []
+
+      args.unshift(new Date())
+      args
+
+
     @log: ->
       config = @getConfig()
 
-      console.log.apply console, arguments if config?.console.log or not config
+      console.log.apply console, @addPrefix(arguments) if config?.console.log or not config
 
       # postal?.publish 'log', JSON.stringify(arguments)
       return
@@ -43,7 +52,7 @@ define [
     @warn: ->
       config = @getConfig()
 
-      console.warn.apply console, arguments if config?.console.warn or not config
+      console.warn.apply console, @addPrefix(arguments) if config?.console.warn or not config
 
       message = Console.stringify arguments
       postal.publish 'logger.log.publish', { tags: ['warning'], params: {warning: message} }
@@ -59,14 +68,14 @@ define [
         catch
           # TypeError: Converting circular structure to JSON
           arguments
-          
+
       # postal?.publish 'log', args
 
 
     @taggedError: (tags, args...) ->
       config = @getConfig()
 
-      console.error.apply console, arguments if config?.console.error or not config
+      console.error.apply console, @addPrefix(arguments) if config?.console.error or not config
 
       message = Console.stringify args
       postal.publish 'error.notify.publish', { message: 'Произошла ошибка', link: '', details: message }
