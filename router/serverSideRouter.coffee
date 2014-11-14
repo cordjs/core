@@ -80,7 +80,7 @@ define [
             for serviceName in serviceContainer.getNames()
               if serviceContainer.isReady(serviceName)
                 serviceContainer.eval serviceName, (service) ->
-                  service.clear?()
+                  service.clear?() if _.isObject(service)
 
             serviceContainer.set 'router', null
             serviceContainer = null
