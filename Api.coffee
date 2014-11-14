@@ -10,7 +10,7 @@ define [
 
   class Api
 
-    @inject: ['oauth2']
+    @inject: ['oauth2', 'cookie']
 
     accessToken: false
     refreshToken: false
@@ -20,20 +20,7 @@ define [
 
     constructor: (serviceContainer, options) ->
       @fallbackErrors = {}
-
-      ### Дефолтные настройки ###
-      defaultOptions =
-        protocol: 'https'
-        host: 'megaplan.megaplan.ru'
-        urlPrefix: ''
-        params: {}
-        authenticateUserCallback: -> false # @see authenticateUser() method
-      @options = _.extend defaultOptions, options
-
-      # если в конфиге у нас заданы параметры автовхода, то надо логиниться по ним
-      if @options.autoLogin != undefined and @options.autoLogin? and @options.autoPassword != undefined and @options.autoPassword?
-        @options.authenticateUserCallback = =>
-          @getTokensByUsernamePassword @options.autoLogin, @options.autoPassword
+      @updateOptions(options)
 
       # заберем настройки для fallbackErrors
       AppConfigLoader.ready().done (appConfig) =>
@@ -42,6 +29,28 @@ define [
       @serviceContainer = serviceContainer
       @accessToken = ''
       @restoreToken = ''
+
+
+    updateOptions: (options) ->
+      ###
+      Updates API endpoint options, like host, protocol etc.
+      This method is need to be called when configuration is changed.
+      ###
+      defaultOptions =
+        protocol: 'https'
+        host: 'localhost'
+        urlPrefix: ''
+        params: {}
+        authenticateUserCallback: -> false # @see authenticateUser() method
+
+      @options = _.extend(defaultOptions, options)
+
+      # если в конфиге у нас заданы параметры автовхода, то надо логиниться по ним
+      if @options.autoLogin? and @options.autoPassword?
+        @options.authenticateUserCallback = =>
+          @getTokensByUsernamePassword @options.autoLogin, @options.autoPassword
+
+      return
 
 
     getScope: ->
@@ -79,6 +88,18 @@ define [
         callback? @accessToken, @refreshToken if success
 
 
+    authTokensAvailable: ->
+      ###
+      Checks if there are stored auth tokens that can be used for authenticated request.
+      @return {Boolean}
+      ###
+      accessToken = refreshToken = null
+      @restoreTokens (at, rt) -> # this method is synchronous
+        accessToken = at
+        refreshToken = rt
+      accessToken and refreshToken
+
+
     restoreTokens: (callback) ->
       # Возвращаем из локального кеша
       if !isBrowser and @accessToken and @refreshToken
@@ -87,17 +108,12 @@ define [
         _console.log "Restore tokens from local cache: #{@accessToken}, #{@refreshToken}" if global.config.debug.oauth2
         callback @accessToken, @refreshToken
       else
-        @serviceContainer.eval 'cookie', (cookie) =>
-          accessToken = cookie.get 'accessToken'
-          refreshToken = cookie.get 'refreshToken'
-          scope = cookie.get 'oauthScope'
+        @accessToken  = @cookie.get('accessToken')
+        @refreshToken = @cookie.get('refreshToken')
+        @scope        = @cookie.get('oauthScope')
 
-          @accessToken = accessToken
-          @refreshToken = refreshToken
-          @scope = scope
-
-          _console.log "Restore tokens: #{accessToken}, #{refreshToken}" if global.config.debug.oauth2
-          callback @accessToken, @refreshToken
+        _console.log "Restore tokens: #{@accessToken}, #{@refreshToken}" if global.config.debug.oauth2
+        callback @accessToken, @refreshToken
 
 
     getTokensByUsernamePassword: (username, password, cb) ->
