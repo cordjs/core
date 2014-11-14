@@ -55,7 +55,7 @@ define [
   diffProps = (a, b, hooks) ->
     diff = undefined
     for aKey, aValue of a
-      if not aKey of b
+      if not (aKey of b)
         diff or= {}
         diff[aKey] = undefined
 
