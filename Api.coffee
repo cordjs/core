@@ -5,10 +5,11 @@ define [
   'postal'
   'cord!isBrowser'
   'cord!AppConfigLoader'
-], (Utils, Future, _, postal, isBrowser, AppConfigLoader) ->
+  'eventemitter3'
+], (Utils, Future, _, postal, isBrowser, AppConfigLoader, EventEmitter) ->
 
 
-  class Api
+  class Api extends EventEmitter
 
     @inject: ['oauth2', 'cookie']
 
@@ -140,7 +141,7 @@ define [
 
     onAccessTokenGranted: (accessToken, refreshToken, callback) ->
       @storeTokens(accessToken, refreshToken, callback)
-      postal.publish 'auth.tokens.ready',
+      @emit 'auth.tokens.ready',
         accessToken: accessToken
         refreshToken: refreshToken
 
@@ -183,19 +184,16 @@ define [
       @return Future(String, String) - eventually completed with access- and refresh-tokens.
       ###
       result = Future.single('Api::authenticateUser')
-      @serviceContainer.eval 'cookie', (cookie) =>
-        # Clear Cookies
-        cookie.set('accessToken')
-        cookie.set('refreshToken')
-        cookie.set('oauthScope')
-        if @options.authenticateUserCallback()
-          subscription = postal.subscribe
-            topic: 'auth.tokens.ready'
-            callback: (tokens) =>
-              subscription.unsubscribe()
-              result.resolve(tokens.accessToken, tokens.refreshToken)
-        else
-          result.reject('Callback is not applicable in this case.')
+
+      # Clear Cookies
+      @cookie.set('accessToken')
+      @cookie.set('refreshToken')
+      @cookie.set('oauthScope')
+      if @options.authenticateUserCallback()
+        @once 'auth.tokens.ready', (tokens) ->
+          result.resolve(tokens.accessToken, tokens.refreshTokens)
+      else
+        result.reject(new Error('Callback is not applicable in this case.'))
 
       result
 
