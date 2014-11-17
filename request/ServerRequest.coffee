@@ -53,7 +53,7 @@ define [
         if not error? and response.statusCode != 200
           error =
             statusCode: response.statusCode
-            statusText: response.body._message
+            statusText: response.body?._message
 
         if global.config.debug.request
           stopRequest = new Date()
