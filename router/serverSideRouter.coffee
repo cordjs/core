@@ -124,17 +124,18 @@ define [
           processWidget = (rootWidgetPath, params) =>
             pr.timer 'ServerSideRouter::showWidget', ->
               widgetRepo.createWidget(rootWidgetPath).then (rootWidget) ->
-                rootWidget._isExtended = true
-                widgetRepo.setRootWidget(rootWidget)
-                previousProcess.showPromise = rootWidget.show(params, DomInfo.fake())
-                previousProcess.showPromise.done (out) ->
-                  eventEmitter.removeAllListeners('fallback')
-                  # prevent browser to use the same connection
-                  res.shouldKeepAlive = false
-                  res.writeHead 200, 'Content-Type': 'text/html'
-                  res.end(out)
-                  # todo: may be need some cleanup before?
-                  clear()
+                if widgetRepo
+                  rootWidget._isExtended = true
+                  widgetRepo.setRootWidget(rootWidget)
+                  previousProcess.showPromise = rootWidget.show(params, DomInfo.fake())
+                  previousProcess.showPromise.done (out) ->
+                    eventEmitter.removeAllListeners('fallback')
+                    # prevent browser to use the same connection
+                    res.shouldKeepAlive = false
+                    res.writeHead 200, 'Content-Type': 'text/html'
+                    res.end(out)
+                    # todo: may be need some cleanup before?
+                    clear()
               .failAloud("ServerSideRouter::processWidget:#{rootWidgetPath}")
 
           eventEmitter.once 'fallback', (args) =>
