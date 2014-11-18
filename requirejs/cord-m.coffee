@@ -11,7 +11,7 @@ define ['pathUtils'], (pathUtils) ->
     nameParts = relativePath.split '/'
     className = nameParts.pop()
     if not @classNameFormat.test(className)
-      throw new Error("Model(repo) class name should start with CAP letter: #{ className }!")
+      throw new Error("Model(repo) class name should start with CAP letter: #{className}! Parsed name: #{name}.")
 
     relativeDir = nameParts.join('/')
     relativeDirPath = "#{ bundleSpec.substr(1) }/models#{ if relativeDir.length > 0 then '/' + relativeDir else '' }"
@@ -24,8 +24,11 @@ define ['pathUtils'], (pathUtils) ->
 
 
   load: (name, req, load, config) ->
-    info = @getFullInfo name
-    req ["#{ config.paths.bundles }/#{ info.relativeFilePath }"], (ModelClass) ->
-      ModelClass.path = info.canonicalPath
-      ModelClass.bundle = info.bundle
-      load ModelClass
+    try
+      info = @getFullInfo(name)
+      req ["#{ config.paths.bundles }/#{ info.relativeFilePath }"], (ModelClass) ->
+        ModelClass.path = info.canonicalPath
+        ModelClass.bundle = info.bundle
+        load ModelClass
+    catch err
+      load.error(err)
