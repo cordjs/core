@@ -94,7 +94,7 @@ define [
       @restoreTokens (at, rt) -> # this method is synchronous
         accessToken = at
         refreshToken = rt
-      accessToken and refreshToken
+      !!(accessToken and refreshToken)
 
 
     restoreTokens: (callback) ->
