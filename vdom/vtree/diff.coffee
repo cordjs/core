@@ -53,36 +53,36 @@ define [
 
 
   diffProps = (a, b, hooks) ->
-    diff = undefined
+    result = undefined
     for aKey, aValue of a
       if not (aKey of b)
-        diff or= {}
-        diff[aKey] = undefined
+        result or= {}
+        result[aKey] = undefined
 
       bValue = b[aKey]
       if hooks and (aKey of hooks)
-        diff or= {}
-        diff[aKey] = bValue
+        result or= {}
+        result[aKey] = bValue
       else
         if _.isObject(aValue) and _.isObject(bValue)
           if getPrototype(bValue) != getPrototype(aValue)
-            diff or= {}
-            diff[aKey] = bValue
+            result or= {}
+            result[aKey] = bValue
           else
             objectDiff = diffProps(aValue, bValue)
             if objectDiff
-              diff or= {}
-              diff[aKey] = objectDiff
+              result or= {}
+              result[aKey] = objectDiff
         else if aValue != bValue
-          diff or= {}
-          diff[aKey] = bValue
+          result or= {}
+          result[aKey] = bValue
 
     for bKey of b
       if not (bKey of a)
-        diff or= {}
-        diff[bKey] = b[bKey]
+        result or= {}
+        result[bKey] = b[bKey]
 
-    diff
+    result
 
 
   getPrototype = (value) ->
