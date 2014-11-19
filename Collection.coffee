@@ -791,6 +791,11 @@ define [
       changedModels = {}
       changedModels[model.id] = model
 
+      if @_loadedStart > @_loadedEnd
+        @_loadedStart = @_loadedEnd = 0
+      else
+        @_loadedEnd++
+
       @emit 'change', {firstPage: modelPage, lastPage: modelPage, models: changedModels}
 
 
