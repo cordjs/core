@@ -280,8 +280,8 @@ define [
         AppConfigLoader.ready()
       @_initPromise.zip(configPromise).done (any, appConfig) =>
         # start services registered with autostart option
-        for serviceName, info of appConfig.services
-          @serviceContainer.eval(serviceName) if info.autoStart
+        for serviceName, info of appConfig.services when info.autoStart
+          @serviceContainer.eval(serviceName)
         # setup browser-side behaviour for all loaded widgets
         @_setupBindings().then =>
           # Initializing profiler panel
