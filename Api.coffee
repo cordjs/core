@@ -97,6 +97,20 @@ define [
       !!(accessToken and refreshToken)
 
 
+    authTokensReady: ->
+      ###
+      Returns a promise that completes when auth tokens are available and authenticated requests can be done
+      @return {Future[undefined]}
+      ###
+      if @authTokensAvailable()
+        Future.resolved()
+      else
+        result = Future.single('authTokensReady')
+        @once 'auth.tokens.ready', ->
+          result.resolve()
+        result
+
+
     restoreTokens: (callback) ->
       # Возвращаем из локального кеша
       if !isBrowser and @accessToken and @refreshToken
@@ -178,6 +192,7 @@ define [
         @once 'auth.tokens.ready', (tokens) ->
           result.resolve(tokens.accessToken, tokens.refreshTokens)
       else
+        console.trace 'auth'
         result.reject(new Error('Callback is not applicable in this case.'))
 
       result
