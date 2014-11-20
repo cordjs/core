@@ -71,7 +71,7 @@ define [
 
       if options.collectionClass
         throw new Error("Extended collections should be created using ModelRepo::createExtendedCollection() method!")
-      name = Collection.generateName(options)
+      name = options.collectionName or Collection.generateName(options)
       if @_collections[name]? and @_collections[name].isConsistent()
         collection = @_collections[name]
       else
@@ -281,6 +281,15 @@ define [
         fields: requiredFields
 
       new Collection(this, 'fixed', options)
+
+
+    collectionExists: (name) ->
+      ###
+      Checks if a collection with the given name is already registered in this repo
+      @param {String} name
+      @return {Boolean}
+      ###
+      @_collections[name]?
 
 
     getCollection: (name, returnMode, callback) ->
