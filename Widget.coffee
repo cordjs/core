@@ -1394,14 +1394,17 @@ define [
       behaviourClass = @getBehaviourClass()
 
       if behaviourClass
-        Future.require("cord!/#{ @getDir() }/#{ behaviourClass }", 'cord!Behaviour').map (BehaviourClass, Behaviour) =>
+        Future.require("cord!/#{ @getDir() }/#{ behaviourClass }", 'cord!Behaviour').then (BehaviourClass, Behaviour) =>
           if not @_sentenced
             # TODO: move this check to the build phase
             if BehaviourClass.prototype instanceof Behaviour
               @behaviour = new BehaviourClass(this, $domRoot)
+              @container.injectServices(@behaviour).then =>
+                @behaviour.init()
+                return
             else
               throw new Error("WRONG BEHAVIOUR CLASS: #{behaviourClass}")
-        .fail (err) =>
+        .catch (err) =>
           _console.error "#{ @debug 'initBehaviour' } --> error occurred while loading behaviour:", err
           postal.publish 'error.notify.publish',
             link: ''
@@ -1409,6 +1412,7 @@ define [
             details: String(err)
             error: true
             timeOut: 30000
+          throw err
       else
         Future.resolved()
 

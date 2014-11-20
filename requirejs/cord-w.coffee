@@ -10,7 +10,7 @@ define ['pathUtils'], (pathUtils) ->
     nameParts = relativePath.split '/'
     widgetClassName = nameParts.pop()
     if not @classNameFormat.test(widgetClassName)
-      throw new Error("Widget class name should start with CAP letter: #{ widgetClassName }!")
+      throw new Error("Widget class name should start with CAP letter: #{widgetClassName}! Parsed name: #{name}.")
     dirName = widgetClassName.charAt(0).toLowerCase() + widgetClassName.slice(1)
     nameParts.push(dirName)
     relativeDir = nameParts.join('/')
@@ -26,14 +26,20 @@ define ['pathUtils'], (pathUtils) ->
 
 
   load: (name, req, load, config) ->
-    info = @getFullInfo name
-    req ["#{ config.paths.bundles }/#{ info.relativeFilePath }"], (WidgetClass) ->
-      if !WidgetClass
-        throw new Error("Cannot determine WidgetClass: #{name}! Required url: " +
-          "#{ config.paths.bundles }/#{ info.relativeFilePath }")
-      WidgetClass.path = info.canonicalPath
-      WidgetClass.bundle = info.bundle
-      WidgetClass.relativeDirPath = info.relativeDirPath
-      WidgetClass.dirName = info.dirName
-      WidgetClass.relativeDir = info.relativeDir
-      load WidgetClass
+    try
+      info = @getFullInfo(name)
+      req ["#{ config.paths.bundles }/#{ info.relativeFilePath }"], (WidgetClass) ->
+        if WidgetClass
+          WidgetClass.path = info.canonicalPath
+          WidgetClass.bundle = info.bundle
+          WidgetClass.relativeDirPath = info.relativeDirPath
+          WidgetClass.dirName = info.dirName
+          WidgetClass.relativeDir = info.relativeDir
+          load WidgetClass
+        else
+          load.error(new Error(
+            "Invalid WidgetClass for #{name}: #{WidgetClass}! " +
+              "Required path: #{ config.paths.bundles }/#{ info.relativeFilePath }"
+          ))
+    catch err
+      load.error(err)

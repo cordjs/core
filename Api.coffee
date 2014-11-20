@@ -5,12 +5,13 @@ define [
   'postal'
   'cord!isBrowser'
   'cord!AppConfigLoader'
-], (Utils, Future, _, postal, isBrowser, AppConfigLoader) ->
+  'eventemitter3'
+], (Utils, Future, _, postal, isBrowser, AppConfigLoader, EventEmitter) ->
 
 
-  class Api
+  class Api extends EventEmitter
 
-    @inject: ['oauth2', 'cookie']
+    @inject: ['cookie', 'oauth2', 'request']
 
     accessToken: false
     refreshToken: false
@@ -73,19 +74,15 @@ define [
       @refreshToken = refreshToken
       @scope = @getScope()
 
-      @serviceContainer.eval 'cookie', (cookie) =>
-        #Protection from late callback from closed connections.
-        #TODO, refactor OAuth module, so dead callback will be deleted
-        success = cookie.set 'accessToken', @accessToken,
-          expires: 15
-        success &= cookie.set 'refreshToken', @refreshToken,
-          expires: 15
-        success &= cookie.set 'oauthScope', @getScope(),
-          expires: 15
+      #Protection from late callback from closed connections.
+      #TODO, refactor OAuth module, so dead callback will be deleted
+      success = @cookie.set('accessToken', @accessToken, expires: 15)
+      success &= @cookie.set('refreshToken', @refreshToken, expires: 15)
+      success &= @cookie.set('oauthScope', @getScope(), expires: 15)
 
-        _console.log "Store tokens: #{accessToken}, #{refreshToken}"
+      _console.log "Store tokens: #{accessToken}, #{refreshToken}"  if global.config.debug.oauth2
 
-        callback? @accessToken, @refreshToken if success
+      callback?(@accessToken, @refreshToken) if success
 
 
     authTokensAvailable: ->
@@ -97,7 +94,21 @@ define [
       @restoreTokens (at, rt) -> # this method is synchronous
         accessToken = at
         refreshToken = rt
-      accessToken and refreshToken
+      !!(accessToken and refreshToken)
+
+
+    authTokensReady: ->
+      ###
+      Returns a promise that completes when auth tokens are available and authenticated requests can be done
+      @return {Future[undefined]}
+      ###
+      if @authTokensAvailable()
+        Future.resolved()
+      else
+        result = Future.single('authTokensReady')
+        @once 'auth.tokens.ready', ->
+          result.resolve()
+        result
 
 
     restoreTokens: (callback) ->
@@ -133,44 +144,33 @@ define [
 
 
     getTokensByExtensions: (url, params, callback) ->
-      @serviceContainer.eval 'oauth2', (oauth2) =>
-        oauth2.grantAccessTokenByExtensions url, params, @getScope(), (accessToken, refreshToken) =>
-          @onAccessTokenGranted(accessToken, refreshToken, callback)
+      @oauth2.grantAccessTokenByExtensions url, params, @getScope(), (accessToken, refreshToken) =>
+        @onAccessTokenGranted(accessToken, refreshToken, callback)
 
 
     onAccessTokenGranted: (accessToken, refreshToken, callback) ->
       @storeTokens(accessToken, refreshToken, callback)
-      postal.publish 'auth.tokens.ready',
+      @emit 'auth.tokens.ready',
         accessToken: accessToken
         refreshToken: refreshToken
 
 
     doAuthCodeLoginByPassword: (login, password) ->
-      promise = Future.single('Api::doAuthCodeLoginByPassword promise')
-      @serviceContainer.eval 'oauth2', (oauth2) =>
-        oauth2.getAuthCodeByPassword(login, password)
+      @oauth2.getAuthCodeByPassword(login, password).name('Api::doAuthCodeLoginByPassword')
         .then (code) =>
-          oauth2.grantAccessTokenByAuhorizationCode(code)
+          @oauth2.grantAccessTokenByAuhorizationCode(code)
         .then (accessToken, refreshToken) =>
           @onAccessTokenGranted(accessToken, refreshToken)
-          promise.resolve()
-        .catch (e) ->
-          promise.reject(new Error('Login by password failed. '+e.message))
-      promise
+          return
 
 
     doAuthCodeLoginWithoutPassword: ->
-      promise = Future.single('Api::doAuthCodeLoginWithoutPassword promise')
-      @serviceContainer.eval 'oauth2', (oauth2) =>
-        oauth2.getAuthCodeWithoutPassword()
+      @oauth2.getAuthCodeWithoutPassword().name('Api::doAuthCodeLoginWithoutPassword')
         .then (code) =>
-          oauth2.grantAccessTokenByAuhorizationCode(code)
+          @oauth2.grantAccessTokenByAuhorizationCode(code)
         .then (accessToken, refreshToken) =>
           @onAccessTokenGranted(accessToken, refreshToken)
-          promise.resolve
-        .catch (e) ->
-          promise.reject(new Error('Login without password failed. Error: '+JSON.stringify(e)))
-      promise
+          return
 
 
     authenticateUser: ->
@@ -183,37 +183,33 @@ define [
       @return Future(String, String) - eventually completed with access- and refresh-tokens.
       ###
       result = Future.single('Api::authenticateUser')
-      @serviceContainer.eval 'cookie', (cookie) =>
-        # Clear Cookies
-        cookie.set('accessToken')
-        cookie.set('refreshToken')
-        cookie.set('oauthScope')
-        if @options.authenticateUserCallback()
-          subscription = postal.subscribe
-            topic: 'auth.tokens.ready'
-            callback: (tokens) =>
-              subscription.unsubscribe()
-              result.resolve(tokens.accessToken, tokens.refreshToken)
-        else
-          result.reject('Callback is not applicable in this case.')
+
+      # Clear Cookies
+      @cookie.set('accessToken')
+      @cookie.set('refreshToken')
+      @cookie.set('oauthScope')
+      if @options.authenticateUserCallback()
+        @once 'auth.tokens.ready', (tokens) ->
+          result.resolve(tokens.accessToken, tokens.refreshTokens)
+      else
+        result.reject(new Error('Callback is not applicable in this case.'))
 
       result
 
 
     getTokensByRefreshToken: (refreshToken, callback, silently = false) ->
-      @serviceContainer.eval 'oauth2', (oauth2) =>
-        oauth2.grantAccessTokenByRefreshToken refreshToken, @getScope(), (grantedAccessToken, grantedRefreshToken) =>
-          if grantedAccessToken and grantedRefreshToken
-            @storeTokens grantedAccessToken, grantedRefreshToken, callback
-            return true #continue processing other deferred callbacks in oauth
-          else
-            #in case of fail dont call callback - it wont be able to solve the problem,
-            #but might run into everlasting loop
-            if !silently
-              @authenticateUser().done(callback).fail (message) ->
-                _console.warn(message)
+      @oauth2.grantAccessTokenByRefreshToken refreshToken, @getScope(), (grantedAccessToken, grantedRefreshToken) =>
+        if grantedAccessToken and grantedRefreshToken
+          @storeTokens grantedAccessToken, grantedRefreshToken, callback
+          true #continue processing other deferred callbacks in oauth
+        else
+          # in case of fail dont call callback - it wont be able to solve the problem,
+          # but might run into everlasting loop
+          if not silently
+            @authenticateUser().done(callback).fail (message) ->
+              _console.warn(message)
 
-            return false #stop processing other deferred callbacks in oauth
+          false #stop processing other deferred callbacks in oauth
 
 
     getTokensByAllMeans: (accessToken, refreshToken, callback) ->
@@ -272,74 +268,73 @@ define [
         defaultParams = _.clone @options.params
         requestParams = _.extend defaultParams, args.params
 
-        @serviceContainer.eval 'request', (request) =>
-          doRequest = =>
-            request[method] requestUrl, requestParams, (response, error) =>
+        doRequest = =>
+          @request[method] requestUrl, requestParams, (response, error) =>
 
-              complete = ->
-                args.callback?(response, error)
+            complete = ->
+              args.callback?(response, error)
 
-                if not error
-                  result.resolve(response)
-                else
-                  e = new Error(error.message)
-                  e.url = requestUrl
-                  e.method = method
-                  e.params = requestParams
-                  e.statusCode = error.statusCode
-                  e.statusText = error.statusText
-                  e.originalError = error
-                  e.response = response
-                  result.reject(e)
-
-              if not skipAuth and (response?.error == 'invalid_grant' || response?.error == 'invalid_request')
-                return processRequest null, refreshToken
-
-              if (error && (error.statusCode || error.message))
-                message = error.message if error.message
-                message = error.statusText if error.statusText
-
-                # Post could make duplicates
-                if method == 'get' && requestParams.reconnect && (!error.statusCode || error.statusCode == 500) && requestParams.deepCounter < 10
-                  requestParams.deepCounter = if ! requestParams.deepCounter then 1 else requestParams.deepCounter + 1
-
-                  _console.log requestParams.deepCounter + " Repeat request in 0.5s", requestUrl
-
-                  setTimeout doRequest, 500
-                else
-                  message = 'Ошибка ' + (if error.statusCode != undefined then (' ' + error.statusCode)) + ': ' + message
-
-                  postal.publish 'error.notify.publish', {link:'', message: message, error:true, timeOut: 30000 }
-
-                  complete()
-
-                # надо посмотреть в конфигах как реагировать на ту или иную ошибку
-                errorCode = response?._code
-                errorCode = error.statusCode if errorCode == undefined
-                if errorCode != undefined and @fallbackErrors != undefined
-                  if @fallbackErrors[errorCode] != undefined
-                    # если есть доппараметры у ошибки - добавим их
-                    if response._params?
-                      @fallbackErrors[errorCode].params.contentParams = {} if @fallbackErrors[errorCode].params.contentParams == undefined
-                      @fallbackErrors[errorCode].params.contentParams['params'] = response._params if response._params != undefined
-                    @serviceContainer.get('fallback').fallback @fallbackErrors[errorCode].widget, @fallbackErrors[errorCode].params
-
+              if not error
+                result.resolve(response)
               else
+                e = new Error(error.message)
+                e.url = requestUrl
+                e.method = method
+                e.params = requestParams
+                e.statusCode = error.statusCode
+                e.statusText = error.statusText
+                e.originalError = error
+                e.response = response
+                result.reject(e)
+
+            if not skipAuth and (response?.error == 'invalid_grant' || response?.error == 'invalid_request')
+              return processRequest null, refreshToken
+
+            if (error && (error.statusCode || error.message))
+              message = error.message if error.message
+              message = error.statusText if error.statusText
+
+              # Post could make duplicates
+              if method == 'get' && requestParams.reconnect && (!error.statusCode || error.statusCode == 500) && requestParams.deepCounter < 10
+                requestParams.deepCounter = if ! requestParams.deepCounter then 1 else requestParams.deepCounter + 1
+
+                _console.log requestParams.deepCounter + " Repeat request in 0.5s", requestUrl
+
+                setTimeout doRequest, 500
+              else
+                message = 'Ошибка ' + (if error.statusCode != undefined then (' ' + error.statusCode)) + ': ' + message
+
+                postal.publish 'error.notify.publish', {link:'', message: message, error:true, timeOut: 30000 }
+
                 complete()
 
-          if noAuthTokens
+              # надо посмотреть в конфигах как реагировать на ту или иную ошибку
+              errorCode = response?._code
+              errorCode = error.statusCode if errorCode == undefined
+              if errorCode != undefined and @fallbackErrors != undefined
+                if @fallbackErrors[errorCode] != undefined
+                  # если есть доппараметры у ошибки - добавим их
+                  if response._params?
+                    @fallbackErrors[errorCode].params.contentParams = {} if @fallbackErrors[errorCode].params.contentParams == undefined
+                    @fallbackErrors[errorCode].params.contentParams['params'] = response._params if response._params != undefined
+                  @serviceContainer.get('fallback').fallback @fallbackErrors[errorCode].widget, @fallbackErrors[errorCode].params
+
+            else
+              complete()
+
+        if noAuthTokens
+          doRequest()
+        else
+          if skipAuth
+            requestUrl += ( if requestUrl.lastIndexOf("?") == -1 then "?" else "&" ) + "access_token=#{accessToken}"
+            requestParams.access_token = accessToken
             doRequest()
           else
-            if skipAuth
+            @getTokensByAllMeans accessToken, refreshToken, (accessToken, refreshToken) =>
               requestUrl += ( if requestUrl.lastIndexOf("?") == -1 then "?" else "&" ) + "access_token=#{accessToken}"
               requestParams.access_token = accessToken
-              doRequest()
-            else
-              @getTokensByAllMeans accessToken, refreshToken, (accessToken, refreshToken) =>
-                requestUrl += ( if requestUrl.lastIndexOf("?") == -1 then "?" else "&" ) + "access_token=#{accessToken}"
-                requestParams.access_token = accessToken
 
-                doRequest()
+              doRequest()
 
       if noAuthTokens
         processRequest()

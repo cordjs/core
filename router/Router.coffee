@@ -83,9 +83,18 @@ define ['underscore'], (_) ->
       if @reRoutes[routeId]
         url = @reRoutes[routeId]
 
-        for param, value of params
-          url = url.replace(':' + param, value)
+        getParams = ''
 
+        for param, value of params
+          if url.indexOf(':' + param) != -1
+            url = url.replace(':' + param, value)
+          else
+            getParams += "&#{encodeURIComponent(param)}=#{encodeURIComponent(value)}"
+
+        if getParams
+          if url.indexOf('?') == -1
+            getParams = '?' + getParams.substr(1)
+          url += getParams
         url
       else
         throw new Error "Route with id #{routeId} is undefined"

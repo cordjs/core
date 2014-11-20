@@ -118,6 +118,9 @@ define [
               do (info) ->
                 serviceContainer.def serviceName, info.deps, (get, done) ->
                   info.factory.call(serviceContainer, get, done)
+            # autostart
+            for serviceName, info of appConfig.services when info.autoStart
+              serviceContainer.eval(serviceName)
 
           previousProcess = {}
 

@@ -75,8 +75,6 @@ define [
       @initWidgetEvents(@widgetEvents)  if @widgetEvents
       @_callbacks = []
 
-      pr.timer "#{@constructor.name}::init", =>
-        @init()
       if @show?
         @widget.shown().done @getCallback =>
           @show()
