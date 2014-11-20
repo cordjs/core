@@ -92,8 +92,8 @@ define ['underscore'], (_) ->
             getParams += "&#{encodeURIComponent(param)}=#{encodeURIComponent(value)}"
 
         if getParams
-          if url.indexOf('?') != -1
-            getParams = '&' + getParams.substr(1)
+          if url.indexOf('?') == -1
+            getParams = '?' + getParams.substr(1)
           url += getParams
         url
       else
