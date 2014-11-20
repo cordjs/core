@@ -192,7 +192,6 @@ define [
         @once 'auth.tokens.ready', (tokens) ->
           result.resolve(tokens.accessToken, tokens.refreshTokens)
       else
-        console.trace 'auth'
         result.reject(new Error('Callback is not applicable in this case.'))
 
       result
