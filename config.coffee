@@ -12,8 +12,10 @@ define ->
     oauth2:
       deps: ['config', 'container']
       factory: (get, done) ->
-        require ['cord!/cord/core/OAuth2'], (OAuth2) =>
-          done null, new OAuth2(get('container'), get('config').oauth2)
+        require ['cord!/cord/core/OAuth2'], (OAuth2) ->
+          oauth2 = new OAuth2(get('config').oauth2)
+          get('container').injectServices(oauth2).done ->
+            done null, oauth2
 
     userAgent:
       deps: ['container']

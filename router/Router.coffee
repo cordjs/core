@@ -92,8 +92,8 @@ define ['underscore'], (_) ->
             getParams += "&#{encodeURIComponent(param)}=#{encodeURIComponent(value)}"
 
         if getParams
-          if url.indexOf('?') != -1
-            getParams = '&' + getParams.substr(1)
+          if url.indexOf('?') == -1
+            getParams = '?' + getParams.substr(1)
           url += getParams
         url
       else
@@ -136,8 +136,9 @@ define ['underscore'], (_) ->
                    .replace(splatParam, '(.*?)')
 
 
-        if path.charAt(path.length - 1) == '/'
-          path += '?'
+        if path.charAt(path.length - 1) != '/'
+          path += '/'
+        path += '?'
 
         @route = new RegExp('^' + path + if not fallback then '$' else '')
       else
