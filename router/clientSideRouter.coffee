@@ -1,9 +1,10 @@
 define [
   './Router'
   'cord!PageTransition'
+  'cord!utils/Future'
   'jquery'
   'postal'
-], (Router, PageTransition, $, postal) ->
+], (Router, PageTransition, Future, $, postal) ->
 
   # detecting private settings from configuration and environment
   # should
