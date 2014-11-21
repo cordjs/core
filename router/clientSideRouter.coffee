@@ -112,7 +112,7 @@ define [
       ###
       Setups client-side navigating history event handler.
       ###
-      $(window).bind 'popstate', =>
+      window.addEventListener 'popstate', =>
         newPath = @getActualPath()
         @process(newPath) if newPath != @_currentPath
 
