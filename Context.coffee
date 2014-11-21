@@ -66,13 +66,25 @@ define [
 
     setSingle: (name, newValue, callbackPromise) ->
       ###
-      Sets single context param's value
+      Sets single context param's value.
+      If value type is Future then automatically sets to deferred and then to the resolved value
+       when the promise completes.
       @deprecated Use Context::set() instead
       @param String name param name
       @param Any newValue param value
       @param (optional)Future callbackPromise promise to support setWithCallback() method functionality
       @return Boolean true if the change event was triggered (the value was changed)
       ###
+      if newValue instanceof Future
+        triggerChange = @setSingle(name, ':deferred')
+        newValue.then (resolvedValue) =>
+          resolvedValue = null if resolvedValue == undefined
+          @setSingle name, resolvedValue
+        .catch (err) =>
+          _console.error "Context.set promise failed with error: #{err}! Setting value to null...", err, err.stack
+          @setSingle name, null
+        return triggerChange
+
       stashChange = true
       if newValue != undefined
         if @[name] == ':deferred'
