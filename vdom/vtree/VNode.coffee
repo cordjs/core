@@ -15,7 +15,7 @@ define [
 
     count = (children and children.length) or 0
     descendants = 0
-    hasWidgets = false
+    hasAlienWidgets = false
     descendantHooks = false
     hooks = null
 
@@ -29,17 +29,17 @@ define [
     if count
       for child in children
         if vtree.isVNode(child)
-          descendants += child.count || 0
-          hasWidgets = true if not hasWidgets and child.hasWidgets
+          descendants += child.count or 0
+          hasAlienWidgets = true if not hasAlienWidgets and child.hasAlienWidgets
 
           if not descendantHooks and (child.hooks or child.descendantHooks)
             descendantHooks = true
 
-        else if not hasWidgets and vtree.isWidget(child)
-          hasWidgets = true if typeof child.destroy == 'function'
+        else if not hasAlienWidgets and vtree.isAlienWidget(child)
+          hasAlienWidgets = true if typeof child.destroy == 'function'
 
     @count = count + descendants
-    @hasWidgets = hasWidgets
+    @hasAlienWidgets = hasAlienWidgets
     @hooks = hooks
     @descendantHooks = descendantHooks
 

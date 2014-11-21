@@ -10,7 +10,7 @@ define [
 
     vnode = handleThunk(vnode).a
 
-    if vtree.isWidget(vnode)
+    if vtree.isAlienWidget(vnode)
       return vnode.init()
     else if vtree.isVText(vnode)
       return doc.createTextNode(vnode.text)

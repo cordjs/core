@@ -23,7 +23,7 @@ define [
 
     if not b?
       apply = appendPatch(apply, new VPatch(VPatch.REMOVE, a, b))
-      destroyWidgets a, patch, index
+      destroyAlienWidgets a, patch, index
 #    else if vtree.isThunk(a) or vtree.isThunk(b)
 #      thunks a, b, patch, index
     else if vtree.isVNode(b)
@@ -34,19 +34,19 @@ define [
           apply = diffChildren(a, b, patch, apply, index)
         else
           apply = appendPatch(apply, new VPatch(VPatch.VNODE, a, b))
-          destroyWidgets a, patch, index
+          destroyAlienWidgets a, patch, index
       else
         apply = appendPatch(apply, new VPatch(VPatch.VNODE, a, b))
-        destroyWidgets a, patch, index
+        destroyAlienWidgets a, patch, index
     else if vtree.isVText(b)
       if not vtree.isVText(a)
         apply = appendPatch(apply, new VPatch(VPatch.VTEXT, a, b))
-        destroyWidgets a, patch, index
+        destroyAlienWidgets a, patch, index
       else if a.text != b.text
         apply = appendPatch(apply, new VPatch(VPatch.VTEXT, a, b))
-    else if vtree.isWidget(b)
-      apply = appendPatch(apply, new VPatch(VPatch.WIDGET, a, b))
-      destroyWidgets(a, patch, index)  if not vtree.isWidget(a)
+    else if vtree.isAlienWidget(b)
+      apply = appendPatch(apply, new VPatch(VPatch.ALIEN_WIDGET, a, b))
+      destroyAlienWidgets(a, patch, index)  if not vtree.isAlienWidget(a)
 
     patch[index] = apply  if apply
     return
@@ -113,7 +113,7 @@ define [
         if leftNode
           # Excess nodes in a need to be removed
           patch[index] = new VPatch(VPatch.REMOVE, leftNode, null)
-          destroyWidgets leftNode, patch, index
+          destroyAlienWidgets leftNode, patch, index
       else
         walk leftNode, rightNode, patch, index
 
@@ -128,13 +128,13 @@ define [
 
   # Patch records for all destroyed widgets must be added because we need
   # a DOM node reference for the destroy function
-  destroyWidgets = (vNode, patch, index) ->
-    if vtree.isWidget(vNode)
+  destroyAlienWidgets = (vNode, patch, index) ->
+    if vtree.isAlienWidget(vNode)
       patch[index] = new VPatch(VPatch.REMOVE, vNode, null)  if typeof vNode.destroy == 'function'
-    else if vtree.isVNode(vNode) and vNode.hasWidgets
+    else if vtree.isVNode(vNode) and vNode.hasAlienWidgets
       for child in vNode.children
         index += 1
-        destroyWidgets child, patch, index
+        destroyAlienWidgets child, patch, index
         index += child.count  if vtree.isVNode(child) and child.count
     return
 

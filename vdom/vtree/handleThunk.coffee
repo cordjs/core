@@ -17,7 +17,7 @@ define [
     renderedThunk = thunk.vnode
     renderedThunk = thunk.vnode = thunk.render(previous)  if not renderedThunk
 
-    if not (vtree.isVNode(renderedThunk) or vtree.isVText(renderedThunk) or vtree.isWidget(renderedThunk))
+    if not (vtree.isVNode(renderedThunk) or vtree.isVText(renderedThunk) or vtree.isAlienWidget(renderedThunk))
       throw new Error('thunk did not return a valid node')
 
     renderedThunk

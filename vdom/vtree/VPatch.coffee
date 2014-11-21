@@ -12,7 +12,7 @@ define ->
   VPatch.NONE = 0
   VPatch.VTEXT = 1
   VPatch.VNODE = 2
-  VPatch.WIDGET = 3
+  VPatch.ALIEN_WIDGET = 3
   VPatch.PROPS = 4
   VPatch.ORDER = 5
   VPatch.INSERT = 6

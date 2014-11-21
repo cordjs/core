@@ -73,7 +73,7 @@ define [
 
 
   isChild = (x) ->
-    vtree.isVNode(x) or vtree.isVText(x) or vtree.isWidget(x) or vtree.isThunk(x)
+    vtree.isVNode(x) or vtree.isVText(x) or vtree.isAlienWidget(x) or vtree.isThunk(x)
 
 
   isChildren = (x) ->

@@ -12,8 +12,8 @@ define ->
     hook and typeof hook.hook == 'function' and not hook.hasOwnProperty('hook')
 
 
-  isWidget: (w) ->
-    w and w.type == 'Widget'
+  isAlienWidget: (w) ->
+    w and w.type == 'AlienWidget'
 
 
   isHook: (hook) ->

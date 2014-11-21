@@ -1,10 +1,10 @@
 define [
   './applyProperties'
   './createElement'
-  './updateWidget'
+  './updateAlienWidget'
   '../vtree/vtree'
   '../vtree/VPatch'
-], (applyProperties, render, updateWidget, vtree, VPatch) ->
+], (applyProperties, render, updateAlienWidget, vtree, VPatch) ->
 
   applyPatch = (vpatch, domNode, renderOptions) ->
     type = vpatch.type
@@ -17,8 +17,8 @@ define [
         insertNode domNode, patch, renderOptions
       when VPatch.VTEXT
         stringPatch domNode, vNode, patch, renderOptions
-      when VPatch.WIDGET
-        widgetPatch domNode, vNode, patch, renderOptions
+      when VPatch.ALIEN_WIDGET
+        alienWidgetPatch domNode, vNode, patch, renderOptions
       when VPatch.VNODE
         vNodePatch domNode, vNode, patch, renderOptions
       when VPatch.ORDER
@@ -36,7 +36,7 @@ define [
   removeNode = (domNode, vNode) ->
     parentNode = domNode.parentNode
     parentNode.removeChild(domNode)  if parentNode
-    destroyWidget domNode, vNode
+    destroyAlienWidget domNode, vNode
     null
 
 
@@ -54,16 +54,16 @@ define [
       parentNode = domNode.parentNode
       newNode = render(vText, renderOptions)
       parentNode.replaceChild(newNode, domNode)  if parentNode
-    destroyWidget domNode, leftVNode
+    destroyAlienWidget domNode, leftVNode
     newNode
 
 
-  widgetPatch = (domNode, leftVNode, widget, renderOptions) ->
-    return widget.update(leftVNode, domNode) or domNode  if updateWidget(leftVNode, widget)
+  alienWidgetPatch = (domNode, leftVNode, widget, renderOptions) ->
+    return widget.update(leftVNode, domNode) or domNode  if updateAlienWidget(leftVNode, widget)
     parentNode = domNode.parentNode
     newWidget = render(widget, renderOptions)
     parentNode.replaceChild(newWidget, domNode)  if parentNode
-    destroyWidget domNode, leftVNode
+    destroyAlienWidget domNode, leftVNode
     newWidget
 
 
@@ -71,12 +71,12 @@ define [
     parentNode = domNode.parentNode
     newNode = render(vNode, renderOptions)
     parentNode.replaceChild(newNode, domNode)  if parentNode
-    destroyWidget domNode, leftVNode
+    destroyAlienWidget domNode, leftVNode
     newNode
 
 
-  destroyWidget = (domNode, w) ->
-    w.destroy(domNode)  if typeof w.destroy == 'function' and vtree.isWidget(w)
+  destroyAlienWidget = (domNode, w) ->
+    w.destroy(domNode)  if typeof w.destroy == 'function' and vtree.isAlienWidget(w)
     return
 
 
