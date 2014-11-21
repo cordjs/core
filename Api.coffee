@@ -106,8 +106,8 @@ define [
         Future.resolved()
       else
         result = Future.single('authTokensReady')
-        @once 'auth.tokens.ready', ->
-          result.resolve()
+        @once 'auth.tokens.ready', =>
+          result.when(@authTokensReady()) # recursively checking if auth tokens actually valid
         result
 
 
