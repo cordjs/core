@@ -136,8 +136,9 @@ define ['underscore'], (_) ->
                    .replace(splatParam, '(.*?)')
 
 
-        if path.charAt(path.length - 1) == '/'
-          path += '?'
+        if path.charAt(path.length - 1) != '/'
+          path += '/'
+        path += '?'
 
         @route = new RegExp('^' + path + if not fallback then '$' else '')
       else
