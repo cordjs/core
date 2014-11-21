@@ -6,7 +6,9 @@ define [
 
   class OAuth2
 
-    constructor: (serviceContainer, options) ->
+    @inject: ['request']
+
+    constructor: (options) ->
       @deferredRefreshTokenCallbacks = []
       @refreshTokenRequested = false
 
@@ -16,33 +18,31 @@ define [
         endpoints:
           authorize: '/oauth/authorize'
           accessToken: '/oauth/access_token'
-      @options = _.extend  defaultOptions, options
-      @serviceContainer = serviceContainer
+      @options = _.extend defaultOptions, options
 
 
-    grantAccessTokenByAuhorizationCode: (code) =>
+    grantAccessTokenByAuhorizationCode: (code) ->
       ###
       Получает токены по коду авторизации, ранее выданному авторизационным сервером
       ###
       promise = Future.single('OAuth2::grantAccessTokenByAuthorizationCode promise')
-      @serviceContainer.eval 'request', (request) =>
-        params =
-          grant_type: 'authorization_code'
-          code: code
-          client_id: @options.clientId
-          client_secret: @options.secretKey
-          format: 'json'
-          redirect_uri: @options.endpoints.redirectUri
-        request.get @options.endpoints.accessToken, params, (result) =>
-          if result and result.access_token and result.refresh_token
-            promise.resolve(result.access_token, result.refresh_token)
-          else
-            promise.reject(new Error('No response from authorization server'))
+      params =
+        grant_type: 'authorization_code'
+        code: code
+        client_id: @options.clientId
+        client_secret: @options.secretKey
+        format: 'json'
+        redirect_uri: @options.endpoints.redirectUri
+      @request.get @options.endpoints.accessToken, params, (result) =>
+        if result and result.access_token and result.refresh_token
+          promise.resolve(result.access_token, result.refresh_token)
+        else
+          promise.reject(new Error('No response from authorization server'))
       promise
 
 
     ## Получение токена по grant_type = password (логин и пароль)
-    grantAccessTokenByPassword: (user, password, scope, callback) =>
+    grantAccessTokenByPassword: (user, password, scope, callback) ->
       params =
         grant_type: 'password'
         username: user
@@ -51,16 +51,15 @@ define [
         scope: scope
         json: true
 
-      @serviceContainer.eval 'request', (request) =>
-        request.get @options.endpoints.accessToken, params, (result) =>
-          if result
-            callback result.access_token, result.refresh_token
-          else
-            callback null, null
+      @request.get @options.endpoints.accessToken, params, (result) =>
+        if result
+          callback result.access_token, result.refresh_token
+        else
+          callback null, null
 
 
     ## Получение токена по grant_type = extension (например, одноразовый ключ)
-    grantAccessTokenByExtensions: (url, params, scope, callback) =>
+    grantAccessTokenByExtensions: (url, params, scope, callback) ->
       requestParams =
         grant_type: url
         client_id: @options.clientId
@@ -69,12 +68,11 @@ define [
 
       requestParams = _.extend params, requestParams
 
-      @serviceContainer.eval 'request', (request) =>
-        request.get @options.endpoints.accessToken, requestParams, (result) =>
-          if result
-            callback result.access_token, result.refresh_token
-          else
-            callback null, null
+      @request.get @options.endpoints.accessToken, requestParams, (result) =>
+        if result
+          callback result.access_token, result.refresh_token
+        else
+          callback null, null
 
 
     clear: ->
@@ -100,26 +98,25 @@ define [
 
       @refreshTokenRequested = true
 
-      @serviceContainer.eval 'request', (request) =>
-        request.get @options.endpoints.accessToken, params, (result) =>
-          # Если порвалась связь, то не считаем протухшим рефреш токен
-          @refreshTokenRequested = false
+      @request.get @options.endpoints.accessToken, params, (result) =>
+        # Если порвалась связь, то не считаем протухшим рефреш токен
+        @refreshTokenRequested = false
 
-          if result && (result.access_token || result.error)
-            # Рефреш токен протух
-            callbackResult = true
-            for callback in @deferredRefreshTokenCallbacks
-              #Protection from multiple redirections
-              callbackResult &= callback result.access_token, result.refresh_token if callbackResult
+        if result && (result.access_token || result.error)
+          # Рефреш токен протух
+          callbackResult = true
+          for callback in @deferredRefreshTokenCallbacks
+            #Protection from multiple redirections
+            callbackResult &= callback result.access_token, result.refresh_token if callbackResult
 
-            @deferredRefreshTokenCallbacks = []
+          @deferredRefreshTokenCallbacks = []
 
-          else
-            _console.log 'Cannot refresh token (('
-            setTimeout =>
-              _console.log 'Recall refresh token'
-              @grantAccessTokenByRefreshToken refreshToken
-            , 500
+        else
+          _console.log 'Cannot refresh token (('
+          setTimeout =>
+            _console.log 'Recall refresh token'
+            @grantAccessTokenByRefreshToken refreshToken
+          , 500
 
 
     getAuthCodeWithoutPassword: ->
