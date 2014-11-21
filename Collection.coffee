@@ -1054,7 +1054,6 @@ define [
       @param Int level internal counter of recursion level
       @return Boolean true if the destination object was changed
       ###
-
       result = false
 
       for key, val of src
@@ -1082,7 +1081,8 @@ define [
           if @_recursiveCompareAndChange(val, dst[key], level + 1)
             result = true
 
-        else if typeof val == typeof dst[key] and not _.isEqual(val, dst[key])
+        # typeof null == typeof {}, but we dont want it
+        else if typeof val == typeof dst[key] and val != null and dst[key] != null and not _.isEqual(val, dst[key])
           dst[key] = _.clone(val)
           result = true
 
