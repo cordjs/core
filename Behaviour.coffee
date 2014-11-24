@@ -351,7 +351,7 @@ define [
             @_renderAggregatePromise = null
         @_renderAggregatePromise
       .catchIf (err) ->
-        err instanceof errors.WidgetDropped
+        err instanceof errors.WidgetDropped or err instanceof errors.BehaviourCleaned
       .failAloud(@debug('render'))
 
 
@@ -382,7 +382,7 @@ define [
             widget.emit 're-render.complete'
             widget.behaviour
       else
-        Future.rejected(new Error("Behaviour [#{@constructor.__name}] is already cleaned!"))
+        Future.rejected(new BehaviourCleaned("Behaviour [#{@constructor.__name}] is already cleaned!"))
 
 
     renderInline: (name) ->
