@@ -765,16 +765,17 @@ define [
         for id, info of unhandledMap
           if curTime - info.startTime > timeout
             state = info.promise.state()
-            reportArgs = [
-              "Unhandled rejection detected for Future[#{info.promise._name}] " +
-                "after #{(curTime - info.startTime) / 1000 } seconds!"
-              state
-            ]
-            if state == 'rejected'
-              err = info.promise._callbackArgs[0]
-              reportArgs.push(err)
-              reportArgs.push(err.stack) if err.stack
-            cons.warn.apply(cons, reportArgs)
+            if state != 'pending'
+              reportArgs = [
+                "Unhandled rejection detected for Future[#{info.promise._name}] " +
+                  "after #{(curTime - info.startTime) / 1000 } seconds!"
+                state
+              ]
+              if state == 'rejected'
+                err = info.promise._callbackArgs[0]
+                reportArgs.push(err)
+                reportArgs.push(err.stack) if err.stack
+              cons.warn.apply(cons, reportArgs)
             delete unhandledMap[id]
       , interval
 
