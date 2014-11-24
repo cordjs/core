@@ -2,18 +2,18 @@ define [
   '../vtree/vtree'
   '../vtree/VNode'
   '../vtree/VText'
+  '../vtree/VWidget'
   './parseTag'
   './hooks/DataSetHook'
   './hooks/EvHook'
   './hooks/SoftSetHook'
   'underscore'
-], (vtree, VNode, VText, parseTag, DataSetHook, EvHook, SoftSetHook, _) ->
+], (vtree, VNode, VText, VWidget, parseTag, DataSetHook, EvHook, SoftSetHook, _) ->
+
+  noProps = {}
 
   h = (tagName, properties, children) ->
-    childNodes = []
-    tag = undefined
     props = undefined
-    key = undefined
     namespace = undefined
     if not children and isChildren(properties)
       children = properties
@@ -44,9 +44,26 @@ define [
       # add ev-foo support
       props[propName] = new EvHook(value)  if propName.substr(0, 3) == 'ev-'
 
+    childNodes = []
     addChild(children, childNodes, tag, props)  if children?
-    node = new VNode(tag, props, childNodes, key, namespace)
-    node
+    new VNode(tag, props, childNodes, key, namespace)
+
+
+  h.w = (type, props, slotContents) ->
+    if not slotContents and isChildren(props)
+      slotContents = props
+      props = noProps
+    props or= noProps
+
+    # support keys
+    if 'key' of props
+      key = props.key
+      props.key = undefined
+
+    if slotContents?
+      slotNodes = []
+      addChild(slotContents, slotNodes, type, props)
+    new VWidget(type, props, slotNodes, key)
 
 
   addChild = (c, childNodes, tag, props) ->
@@ -73,7 +90,7 @@ define [
 
 
   isChild = (x) ->
-    vtree.isVNode(x) or vtree.isVText(x) or vtree.isAlienWidget(x) or vtree.isThunk(x)
+    vtree.isVNode(x) or vtree.isVText(x) or vtree.isWidget(x) or vtree.isAlienWidget(x) or vtree.isThunk(x)
 
 
   isChildren = (x) ->
