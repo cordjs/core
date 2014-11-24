@@ -75,7 +75,7 @@ define [
       @param (optional)Future callbackPromise promise to support setWithCallback() method functionality
       @return Boolean true if the change event was triggered (the value was changed)
       ###
-      if newValue instanceof Future
+      if newValue instanceof Future and name.substr(-7) != 'Promise' # workaround pageTitlePromise problem
         triggerChange = @setSingle(name, ':deferred')
         newValue.then (resolvedValue) =>
           resolvedValue = null if resolvedValue == undefined
