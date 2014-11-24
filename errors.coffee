@@ -17,6 +17,13 @@ define ->
       Error.captureStackTrace?(this, arguments.callee)
 
 
+  BehaviourCleaned: class BehaviourCleaned extends Error
+    constructor: (@message) ->
+      @name = 'BehaviourCleaned'
+      Error.call(this, @message)
+      Error.captureStackTrace?(this, arguments.callee)
+
+
   WidgetParamsRace: class WidgetParamsRace extends Error
     constructor: (@message) ->
       @name = 'WidgetParamsRace'
