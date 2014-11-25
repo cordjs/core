@@ -5,13 +5,13 @@ define ->
       deps: ['config', 'container']
       factory: (get, done) ->
         require ['cord!/cord/core/Api'], (Api) =>
-          done null, new Api(get('container'), get('config').api)
+          done(null, new Api(get('container'), get('config').api))
 
     oauth2:
       deps: ['config', 'container']
       factory: (get, done) ->
         require ['cord!/cord/core/OAuth2'], (OAuth2) =>
-          done null, new OAuth2(get('container'), get('config').oauth2)
+          done(null, new OAuth2(get('container'), get('config').oauth2))
 
     userAgent:
       deps: ['container']
@@ -20,7 +20,7 @@ define ->
           userAgent = new UserAgent
           get('container').injectServices(userAgent).done ->
             userAgent.calculate()
-            done null, userAgent
+            done(null, userAgent)
 
     modelProxy:
       deps: ['container']
@@ -28,50 +28,50 @@ define ->
         require ['cord!/cord/core/ModelProxy'], (ModelProxy) =>
           modelProxy = new ModelProxy
           get('container').injectServices(modelProxy).done ->
-            done null, modelProxy
+            done(null, modelProxy)
 
     ':server':
       request:
         deps: ['container']
         factory: (get, done) ->
           require ['cord!/cord/core/request/ServerRequest'], (Request) =>
-            done null, new Request(get('container'))
+            done(null, new Request(get('container')))
 
       cookie:
         deps: ['container']
         factory: (get, done) ->
           require ['cord!/cord/core/cookie/ServerCookie'], (Cookie) =>
-            done null, new Cookie(get('container'))
+            done(null, new Cookie(get('container')))
 
       userAgentText:
         deps: ['serverRequest']
         factory: (get, done) ->
-          done null, get('serverRequest').headers['user-agent']
+          done(null, get('serverRequest')).headers['user-agent']
 
     ':browser':
       request:
         deps: ['container']
         factory: (get, done) ->
           require ['cord!/cord/core/request/BrowserRequest'], (Request) =>
-            done null, new Request(get('container'))
+            done(null, new Request(get('container')))
 
       cookie:
         deps: ['container']
         factory: (get, done) ->
           require ['cord!/cord/core/cookie/BrowserCookie'], (Cookie) =>
-            done null, new Cookie(get('container'))
+            done(null, new Cookie(get('container')))
 
       userAgentText: (get, done) ->
-        done null, navigator.userAgent
+        done(null, navigator.userAgent)
 
       localStorage: (get, done) ->
         require ['cord!cache/localStorage', 'localforage'], (LocalStorage, localForage) ->
           localForage.ready().then ->
-            done null, new LocalStorage(localForage)
+            done(null, new LocalStorage(localForage))
           .catch (err) ->
             _console.error "ERROR while initializing localforage: #{err.message}! Driver: #{localForage.driver()}", err
             localForage.setDriver(localForage.LOCALSTORAGE).then ->
-              done null, new LocalStorage(localForage)
+              done(null, new LocalStorage(localForage))
             .catch (err) ->
               _console.error "FATAL: error while initializing localforage with localStorage fallback: #{err.message}!", err
 
@@ -79,7 +79,7 @@ define ->
         deps: ['localStorage']
         factory: (get, done) ->
           require ['cord!cache/persistentStorage'], (PersistentStorage) ->
-            done null, new PersistentStorage(get('localStorage'))
+            done(null, new PersistentStorage(get('localStorage')))
 
 
   routes:

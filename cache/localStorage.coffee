@@ -65,37 +65,27 @@ define [
       ###
       getItem wrapper
       ###
-
-      return if key == @persistentKey
-
-      @_get key
+      @_get(key) if key != @persistentKey
 
 
     setItem: (key, value) ->
       ###
       setItem wrapper
       ###
-
-      return if key == @persistentKey
-
-      @_set key, value
+      @_set(key, value) if key != @persistentKey
 
 
     removeItem: (key) ->
       ###
       removeItem wrapper
       ###
-
-      return if key == @persistentKey
-
-      @_removeItem key
+      @_removeItem(key) if key != @persistentKey
 
 
     clear: ->
       ###
       Future-powered clear local storage
       ###
-
       @_get(@persistentKey).then (persistentValues) =>
         @storage.clear =>
           if persistentValues
