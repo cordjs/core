@@ -46,7 +46,7 @@ define ->
       userAgentText:
         deps: ['serverRequest']
         factory: (get, done) ->
-          done(null, get('serverRequest')).headers['user-agent']
+          done(null, get('serverRequest').headers?['user-agent'])
 
     ':browser':
       request:
