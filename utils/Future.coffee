@@ -16,9 +16,6 @@ define [
     Home-grown promise implementation (reinvented the wheel)
     ###
 
-    # empty function to be used as stub callback in some situations
-    @noop: ->
-
     _counter: 0
     _doneCallbacks: null
     _failCallbacks: null
@@ -244,7 +241,7 @@ define [
       Registers empty fail handler for the Future to prevent it to be reported in unhandled failure tracking.
       This method is useful when the failure result is expected and it's OK not to handle it.
       ###
-      @fail(@constructor.noop)
+      @fail(_.noop)
 
 
     callback: (neededArgs...) ->

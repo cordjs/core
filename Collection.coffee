@@ -1220,7 +1220,7 @@ define [
         localCalculated = false
         if @_totalCount? && @_totalCount > 0
           if selectedId
-            if (m = @_byId[selectedId])?
+            if (m = @_byId[selectedId])? or @_totalCount == 0 # Empty collection is a valid collection as well
               index = @_models.indexOf(m)
               result.resolve
                 total: @_totalCount
