@@ -4,14 +4,18 @@ define ->
     api:
       deps: ['config', 'container']
       factory: (get, done) ->
-        require ['cord!/cord/core/Api'], (Api) =>
-          done(null, new Api(get('container'), get('config').api))
+        require ['cord!/cord/core/Api'], (Api) ->
+          api = new Api(get('container'), get('config').api)
+          get('container').injectServices(api).done ->
+            done(null, api)
 
     oauth2:
       deps: ['config', 'container']
       factory: (get, done) ->
-        require ['cord!/cord/core/OAuth2'], (OAuth2) =>
-          done(null, new OAuth2(get('container'), get('config').oauth2))
+        require ['cord!/cord/core/OAuth2'], (OAuth2) ->
+          oauth2 = new OAuth2(get('config').oauth2)
+          get('container').injectServices(oauth2).done ->
+            done(null, oauth2)
 
     userAgent:
       deps: ['container']
@@ -36,13 +40,13 @@ define ->
         require ['cord!/cord/core/router/Redirector'], (Redirector) ->
           redirector = new Redirector()
           get('container').injectServices(redirector).done ->
-            done null, redirector
+            done(null, redirector)
 
     ':server':
       request:
         factory: (get, done) ->
           require ['cord!/cord/core/request/ServerRequest'], (Request) =>
-            done(null, new Request(get('container')))
+            done(null, new Request)
 
       cookie:
         deps: ['container']
@@ -58,8 +62,8 @@ define ->
     ':browser':
       request:
         factory: (get, done) ->
-          require ['cord!/cord/core/request/BrowserRequest'], (Request) =>
-            done(null, new Request(get('container')))
+          require ['cord!/cord/core/request/BrowserRequest'], (Request) ->
+            done(null, new Request)
 
       cookie:
         deps: ['container']
