@@ -384,7 +384,7 @@ define [
             widget.emit 're-render.complete'
             widget.behaviour
       else
-        Future.rejected(new BehaviourCleaned("Behaviour [#{@constructor.__name}] is already cleaned!"))
+        Future.rejected(new errors.BehaviourCleaned("Behaviour [#{@constructor.__name}] is already cleaned!"))
 
 
     renderInline: (name) ->
