@@ -213,7 +213,7 @@ define [
       Initializes some class-wide propreties and actions that must be done once for the widget class.
       @param Boolean restoreMode indicates that widget is re-creating on the browser after passing from the server
       ###
-      if @params? or @initialCtx? # may be initialCtx is not necessary here
+      if @params?
         @_initParamRules()
       @_parseChildEvents()
       @_initCss(restoreMode) if isBrowser
@@ -540,7 +540,7 @@ define [
       @throws validation errors
       ###
       _console.log "#{ @debug 'setParams' } -> ", params if global.config.debug.widget
-      if @constructor.params? or @constructor.initialCtx?
+      if @constructor.params?
         rules = @constructor._paramRules
         processedRules = {}
         specialParams = ['match', 'history', 'shim', 'trigger', 'params']
