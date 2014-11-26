@@ -48,7 +48,7 @@ define [
       @return Future[Widget]
       ###
       info = @struct.widgets[widgetRefId]
-      @ownerWidget.widgetRepo.createWidget(info.path, @ownerWidget.getBundle()).then (widget) =>
+      @ownerWidget.widgetRepo.createWidget(info.path, @ownerWidget, info.name, @ownerWidget.getBundle()).then (widget) =>
         @_resolvePlaceholders(info.placeholders).then (resolvedPlaceholders) ->
           widget.definePlaceholders(resolvedPlaceholders)
           widget

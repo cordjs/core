@@ -70,18 +70,19 @@ define [
       @response
 
 
-    createWidget: (path, contextBundle) ->
+    createWidget: (path, parentWidget, name, contextBundle) ->
       ###
       Main widget factory.
       All widgets should be created through this call.
-
-      @param String path canonical path of the widget
+      @param {String} path canonical path of the widget
+      @param (optional){Widget} parentWidget parent widget in which the new widget should be registered as child
+      @param (optional){String} name name of the created widget in the parent's widget namespace (childByName)
       @param (optional)String contextBundle calling context bundle to expand relative widget paths
-      @return Future[Widget]
+      @return {Future[Widget]}
       ###
       bundleSpec = if contextBundle then "@#{ contextBundle }" else ''
 
-      Future.require("cord-w!#{ path }#{ bundleSpec }").flatMap (WidgetClass) =>
+      Future.require("cord-w!#{ path }#{ bundleSpec }").then (WidgetClass) =>
         widget = new WidgetClass
           repo: this
           serviceContainer: @serviceContainer
@@ -92,7 +93,13 @@ define [
         @widgets[widget.ctx.id] =
           widget: widget
 
-        @serviceContainer.injectServices(widget).map -> widget
+        Future.try =>
+          parentWidget.registerChild(widget, name) if parentWidget
+
+          @serviceContainer.injectServices(widget).then -> widget
+        .catch (err) =>
+          @dropWidget(widget.ctx.id)
+          throw err
 
 
     dropWidget: (id) ->

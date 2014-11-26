@@ -686,7 +686,7 @@ define [
             readyPromise = new Future(@debug('_injectRender:readyPromise'))
             @_inlinesRuntimeInfo = []
 
-            @registerChild extendWidget
+            @registerChild(extendWidget, extendWidgetInfo.name)
             extendWidget.cleanSubscriptions() # clean up supscriptions to the old parent's context change
             @resolveParamRefs(extendWidget, extendWidgetInfo.params).then (params) ->
               extendWidget.setParamsSafe(params)
@@ -717,7 +717,6 @@ define [
           # if not extendsWidget? (if it's a new widget in extend tree)
           else
             tmpl.getWidget(extendWidgetInfo.widget).then (extendWidget) =>
-              @registerChild extendWidget
               @resolveParamRefs(extendWidget, extendWidgetInfo.params).then (params) =>
                 extendWidget.inject(params, transition)
               .then (commonBaseWidget) =>
@@ -837,7 +836,6 @@ define [
 
       tmpl.getWidget(extendWidgetInfo.widget).then (extendWidget) =>
         extendWidget._isExtended = true if @_isExtended
-        @registerChild extendWidget, extendWidgetInfo.name
         @resolveParamRefs(extendWidget, extendWidgetInfo.params).then (params) ->
           extendWidget.show(params, domInfo)
 
@@ -1294,13 +1292,28 @@ define [
 
 
     registerChild: (child, name) ->
+      ###
+      Registers given `child` widget in the internal structures of this widget
+      @param {Widget} child The child widget to be registered
+      @param (optional){String} name If given the child widget will be added to the `childByName` map
+      ###
       @widgetRepo.detachWidget(child, this)
       if not @_sentenced
-        @children.push child
-        @childById[child.ctx.id] = child
+        # debugging impossible
+        if child == this
+          _console.error "ERROR: Self child binding detected for #{@debug()}! This should be impossible! Ignoring..."
+          return
+
+        # check if this is duplicate call
+        if not @childById[child.ctx.id]
+          @children.push(child)
+          @childById[child.ctx.id] = child
+          @widgetRepo.registerParent child, this
+          @_bindChildEvents(child, name)
+
+        # may be the child was firstly registered without name and then re-resitered with name
         @childByName[name] = child if name?
-        @widgetRepo.registerParent child, this
-        @_bindChildEvents(child, name)
+        return
       else
         throw new errors.WidgetSentenced(
           "Couldn't register child #{child.constructor.__name} because parent #{@constructor.__name} is sentenced!"
@@ -1424,13 +1437,7 @@ define [
       @param (optional)String name optional name for the new widget
       @return Future[Widget] new child widget
       ###
-      @widgetRepo.createWidget(type, @getBundle()).then (child) =>
-        try
-          @registerChild(child, name)
-          child
-        catch err
-          @widgetRepo.dropWidget(child.ctx.id)
-          throw err
+      @widgetRepo.createWidget(type, this, name, @getBundle())
 
 
     injectChildWidget: (type, params = {}) ->
@@ -1637,18 +1644,17 @@ define [
               # creating widget from the structured template or not depending on it's existence and name
               # btw getting and pushing futher timeout template name from the structure template if there is one
               if tmpl.isEmpty() or not normalizedName
-                @widgetRepo.createWidget(params.type, @getBundle())
+                @widgetRepo.createWidget(params.type, this, normalizedName, @getBundle())
               else if normalizedName
                 tmpl.getWidgetByName(normalizedName).then (widget) ->
                   [widget, tmpl.getWidgetInfoByName(normalizedName).timeoutTemplate]
                 .catch =>
-                  @widgetRepo.createWidget(params.type, @getBundle())
+                  @widgetRepo.createWidget(params.type, this, normalizedName, @getBundle())
               # else impossible
 
             .then (widget, timeoutTemplate) =>
               complete = false
 
-              @registerChild(widget, normalizedName)
               @resolveParamRefs(widget, params).then (resolvedParams) =>
                 widget.setModifierClass(params.class)
                 widget.show(resolvedParams, timeoutDomInfo)
