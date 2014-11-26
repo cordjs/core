@@ -479,7 +479,9 @@ define [
             thisTransitionPromise.resolve(res)
             # activate GC only if no transtition is waiting to be processed
             # also don't GC if the root widget type hasn't changed (known to cause wrong widgets to be collected)
-            @gcWidgets() if not @_nextTransitionCallback and prevRoot.constructor != @rootWidget.constructor
+
+            # Temporary turned off to fix
+            # @gcWidgets() if not @_nextTransitionCallback and prevRoot.constructor != @rootWidget.constructor
           return
         .catch (err) =>
           if not thisTransitionPromise.completed() and @_activeTransitionPromise == thisTransitionPromise

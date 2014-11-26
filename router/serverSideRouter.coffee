@@ -67,8 +67,15 @@ define [
         ###
         appConfig = _.clone(global.appConfig)
         # second level crutch
-        appConfig.browser = _.clone(global.appConfig.browser)
-        appConfig.node = _.clone(global.appConfig.node)
+        appConfig.browser = _.clone(appConfig.browser)
+        appConfig.browser.api = _.clone(appConfig.browser.api)
+        appConfig.browser.oauth2 = _.clone(appConfig.browser.oauth2)
+        appConfig.browser.oauth2.endpoints = _.clone(appConfig.browser.oauth2.endpoints)
+
+        appConfig.node = _.clone(appConfig.node)
+        appConfig.node.api = _.clone(appConfig.node.api)
+        appConfig.node.oauth2 = _.clone(appConfig.node.oauth2)
+        appConfig.node.oauth2.endpoints = _.clone(appConfig.node.oauth2.endpoints)
 
         appConfig.browser.calculateByRequest?(req)
         appConfig.node.calculateByRequest?(req)
