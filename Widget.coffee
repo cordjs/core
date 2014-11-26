@@ -503,7 +503,7 @@ define [
       @param Object params changed params
       @return Future
       ###
-      if @_renderPromise.completed()
+      if @_renderPromise.completed() or not isBrowser
         if @_sentenced
           Future.rejected(new errors.WidgetParamsRace("#{ @debug 'setParamsSafe' } is called for sentenced widget!"))
         else
@@ -802,7 +802,7 @@ define [
               result.fork()
               do (name, value) =>
                 @subscribeValueChange params, name, value, =>
-                  @widgetRepo.subscribePushBinding(@ctx.id, value, widget, name, @ctx.getVersion()) if isBrowser
+                  @widgetRepo.subscribePushBinding(@ctx.id, value, widget, name, @ctx.getVersion())
                   result.resolve()
 
             # otherwise just getting it's value synchronously
@@ -813,12 +813,12 @@ define [
                 if _.isObject @ctx[value]
                   for subName, subValue of @ctx[value]
                     params[subName] = subValue
-                  @widgetRepo.subscribePushBinding(@ctx.id, value, widget, 'params', @ctx.getVersion()) if isBrowser
+                  @widgetRepo.subscribePushBinding(@ctx.id, value, widget, 'params', @ctx.getVersion())
                 else
                   # todo: warning?
               else
                 params[name] = @ctx[value]
-                @widgetRepo.subscribePushBinding(@ctx.id, value, widget, name, @ctx.getVersion()) if isBrowser
+                @widgetRepo.subscribePushBinding(@ctx.id, value, widget, name, @ctx.getVersion())
 
       if Object.keys(bindings).length != 0
         @childBindings[widget.ctx.id] = bindings
