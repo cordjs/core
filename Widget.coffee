@@ -569,7 +569,7 @@ define [
                   when ':ignore'
                   else
                     throw new Error("Invalid param rule type: '#{ rule.type }'")
-          else if specialParams.indexOf(name) == -1
+          else if specialParams.indexOf(name) == -1 and global.config.strictWidgetParams
             throw new Error("Widget #{ @getPath() } is not accepting param with name #{ name }!")
       else
         for key in params
