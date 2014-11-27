@@ -121,30 +121,31 @@ define [
 
     getAuthCodeWithoutPassword: ->
       promise = Future.single('Api::getAuthCodeWithoutPassword promise')
-      if !isBrowser
+      if not isBrowser
         promise.reject(new Error('It is only possible to get auth code at client side'))
-      Future.require('jquery').then ($) ->
-        params =
-          response_type: 'code'
-          client_id: global.config.oauth2.clientId
-          redirect_uri: global.config.oauth2.endpoints.redirectUri
-          format: 'json'
-        $.ajax
-          dataType: 'json',
-          url: global.config.oauth2.endpoints.authCodeWithoutLogin
-          data: params
-          xhrFields:
-            withCredentials: true
-          success: (data) =>
-            if data.code
-              promise.resolve(data.code)
-            else
-              if data.error is 'access_denied' and data.error_description is 'Not authorized'
-                promise.reject(new Error('Client is not authorized in authorization server'))
+      else
+        Future.require('jquery').then ($) ->
+          params =
+            response_type: 'code'
+            client_id: global.config.oauth2.clientId
+            redirect_uri: global.config.oauth2.endpoints.redirectUri
+            format: 'json'
+          $.ajax
+            dataType: 'json',
+            url: global.config.oauth2.endpoints.authCodeWithoutLogin
+            data: params
+            xhrFields:
+              withCredentials: true
+            success: (data) ->
+              if data.code
+                promise.resolve(data.code)
               else
-                promise.reject(new Error('No auth code recieved. Response: '+JSON.stringify(data)))
-          error: (data) =>
-            promise.reject(new Error('Ajax request for auth code failed: ' + data.responseText))
+                if data.error == 'access_denied' and data.error_description == 'Not authorized'
+                  promise.reject(new Error('Client is not authorized in authorization server'))
+                else
+                  promise.reject(new Error('No auth code recieved. Response: '+JSON.stringify(data)))
+            error: (data) ->
+              promise.reject(new Error('Ajax request for auth code failed: ' + data.responseText))
       promise
 
 
@@ -152,28 +153,29 @@ define [
       promise = Future.single('Api::getAuthCodeByPassword promise')
       if !isBrowser
         promise.reject(new Error('It is only possible to get auth code at client side'))
-      Future.require('jquery').then ($) ->
-        params =
-          response_type: 'code'
-          client_id: global.config.oauth2.clientId
-          redirect_uri: global.config.oauth2.endpoints.redirectUri
-          login: login
-          password: password
-          format: 'json'
-        $.ajax
-          dataType: 'json',
-          url: global.config.oauth2.endpoints.authCode
-          data: params
-          xhrFields:
-            withCredentials: true
-          success: (data) =>
-            if data and data.code
-              promise.resolve(data.code)
-            else
-              if data.error is 'access_denied' and data.error_description is 'Not authorized'
-                promise.reject(new Error('Wrong login or password'))
+      else
+        Future.require('jquery').then ($) ->
+          params =
+            response_type: 'code'
+            client_id: global.config.oauth2.clientId
+            redirect_uri: global.config.oauth2.endpoints.redirectUri
+            login: login
+            password: password
+            format: 'json'
+          $.ajax
+            dataType: 'json',
+            url: global.config.oauth2.endpoints.authCode
+            data: params
+            xhrFields:
+              withCredentials: true
+            success: (data) ->
+              if data and data.code
+                promise.resolve(data.code)
               else
-                promise.reject(new Error('No auth code recieved. Response:'+JSON.stringify(data)))
-          error: (data) =>
-            promise.reject(new Error('Ajax request for auth code failed: ' + data.responseText))
+                if data.error == 'access_denied' and data.error_description == 'Not authorized'
+                  promise.reject(new Error('Wrong login or password'))
+                else
+                  promise.reject(new Error('No auth code recieved. Response:'+JSON.stringify(data)))
+            error: (data) ->
+              promise.reject(new Error('Ajax request for auth code failed: ' + data.responseText))
       promise
