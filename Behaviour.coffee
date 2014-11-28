@@ -234,7 +234,10 @@ define [
             if eventName == 'scroll'
               # scroll event is not bubbling up, so it have to be bound without event delegation feature
               # right to the element
-              $(selector, @$rootEls).on(eventName, method)
+              if @$rootEls.length
+                $(selector, @$rootEls).on(eventName, method)
+              else
+                $(selector).on(eventName, method)
             else
               root = if @el.length == 1 then @el else @$rootEls
               root.on(eventName, selector, method)
