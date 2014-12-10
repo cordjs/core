@@ -70,9 +70,13 @@ define [
       @widgetEvents = @constructor.widgetEvents unless @widgetEvents
       @widgetEvents = @widgetEvents() if _.isFunction @widgetEvents
 
+      @customEvents = @constructor.customEvents if not @customEvents
+      @customEvents = @customEvents() if _.isFunction(@customEvents)
+
       @refreshElements()                if @elements
       @delegateEvents(@events)          if @events
       @initWidgetEvents(@widgetEvents)  if @widgetEvents
+      @initCustomEvents(@customEvents)  if @customEvents
       @_callbacks = []
 
       if @show?
@@ -255,6 +259,13 @@ define [
         @_widgetSubscriptions.push(subscription)
 
         @_registerModelBinding(@widget.ctx[fieldName], fieldName, onChangeMethod)
+
+
+    _initCustomEvents: (events) ->
+      for eventName, method of events
+        method = @_getHandlerFunction(method)
+        subscription = @widget.on eventName, => method.apply(this, arguments)
+        @_widgetSubscriptions.push(subscription)
 
 
     _getEventMethod: (method, eventDesc) ->
