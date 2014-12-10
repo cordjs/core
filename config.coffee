@@ -68,7 +68,8 @@ define ->
       cookie:
         deps: ['container']
         factory: (get, done) ->
-          require ['cord!/cord/core/cookie/BrowserCookie'], (Cookie) =>
+          cookieImpl = if global.config.localFsMode then 'Local' else 'Browser'
+          require ["cord!/cord/core/cookie/#{cookieImpl}Cookie"], (Cookie) ->
             done(null, new Cookie(get('container')))
 
       userAgentText: (get, done) ->
