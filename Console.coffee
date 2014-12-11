@@ -40,19 +40,19 @@ define [
       args
 
 
-    @log: ->
+    @log: (args...)->
       config = @getConfig()
 
-      console.log.apply console, @addPrefix(arguments) if config?.console.log or not config
+      console.log.apply console, @addPrefix(args) if config?.console.log or not config
 
       # postal?.publish 'log', JSON.stringify(arguments)
       return
 
 
-    @warn: ->
+    @warn: (args...)->
       config = @getConfig()
 
-      console.warn.apply console, @addPrefix(arguments) if config?.console.warn or not config
+      console.warn.apply console, @addPrefix(args) if config?.console.warn or not config
 
       message = Console.stringify arguments
       postal.publish 'logger.log.publish', { tags: ['warning'], params: {warning: message} }
@@ -60,11 +60,11 @@ define [
       return
 
 
-    @error: ->
+    @error: (args...)->
       Console.taggedError ['error'], arguments
       args =
         try
-          JSON.stringify(arguments)
+          JSON.stringify(args)
         catch
           # TypeError: Converting circular structure to JSON
           arguments
