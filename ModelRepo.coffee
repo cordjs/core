@@ -122,6 +122,9 @@ define [
           collection.browserInit?() if isBrowser
           result.resolve(collection)
 
+      # We need to reinject tags because some of them could be user-functions
+      @_collections[name].injectTags(options.tags)
+
       result
 
 
