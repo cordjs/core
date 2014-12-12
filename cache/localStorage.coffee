@@ -132,7 +132,7 @@ define [
       Future-powered proxy key-value get method.
       ###
       result = Future.single("localStorage::_get #{key}")
-      @storage.getItem key, (value) =>
+      @storage.getItem key, (value) ->
         if result.state() == 'pending'
           if value?
             result.resolve(value)
