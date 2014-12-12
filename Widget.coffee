@@ -867,18 +867,17 @@ define [
       ###
       classString = @_buildClassString()
       classAttr = if classString.length then ' class="' + classString + '"' else ''
-      classAttrName = @getClassName()
-      "<#{ @rootTag } id=\"#{ @ctx.id }\"#{ classAttr }#{ classAttrName }>#{ content }</#{ @rootTag }>"
+      "<#{ @rootTag } id=\"#{ @ctx.id }\"#{ classAttr }#{ @_getWidgetDebugAttrs() }>#{ content }</#{ @rootTag }>"
 
 
-    getClassName: ->
+    _getWidgetDebugAttrs: ->
       ###
-      Вовзращает имя класса и путь для использования в атрибуте корневого тега виджета с учетом флага конфигурации
+      Вовзращает имя класса и путь в атрибутах корневого тега виджета с учетом флага конфигурации
       @return String  widget class name
       ###
-      if global.config.debug.widgetName? and global.config.debug.widgetName is true
+      if global.config.debug.widgetName
         return " widget-class-name=\"#{@constructor.__name}\" widget-class-path=\"#{@getPath()}\""
-      return '';
+      ''
 
 
     renderPlaceholderTag: (name, content) ->
