@@ -50,7 +50,7 @@ define [
 
 
     error: (args...) ->
-      console.log x.stack for x in arguments when x.stack
+      #console.log x.stack for x in arguments when x and x.stack # advanced debugging
       self.taggedError.apply(self, [['error']].concat(args))
 
 
