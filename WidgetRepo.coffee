@@ -4,13 +4,14 @@ define [
   'cord!Context'
   'cord!css/helper'
   'cord!deferAggregator'
+  'cord!errors'
   'cord!isBrowser'
   'cord!Model'
   'cord!ModelRepo'
   'cord!utils/Future'
   'postal'
   'underscore'
-], (Api, Collection, Context, cssHelper, deferAggregator, isBrowser, Model, ModelRepo, Future, postal, _) ->
+], (Api, Collection, Context, cssHelper, deferAggregator, errors, isBrowser, Model, ModelRepo, Future, postal, _) ->
 
   class WidgetRepo
 
@@ -30,9 +31,6 @@ define [
     # list of widgets which build main hierarchy of widget's via #extend template calls
     # begins from the most specific widget (leaf) and ends with most common (root) which doesn't extend another widget
     _currentExtendList: null
-    # temporary list of new widgets which are meant to replace several widgets at the beginnign of extend list during
-    # page switching process (processing new route)
-    _newExtendList: null
 
 
     constructor: (@serverProfilerUid = '') ->
@@ -40,7 +38,6 @@ define [
       @_widgetOrder = []
       @_pushBindings = {}
       @_currentExtendList = []
-      @_newExtendList = []
       if isBrowser
         @_initPromise = new Future('WidgetRepo::_initPromise')
         @_parentPromises = {}
@@ -173,7 +170,7 @@ define [
           _console.warn "GC widgets for widget", root, gcIds.map (id) =>
             if @widgets[id]
               # debugging very bad situation when wrong widget is going to be dropped
-              if @widgets[id].widget.constructor.__name == 'Main'
+              if @widgets[id].widget.constructor.__name in ['Main', 'Base']
                 _console.error "<<<<<< Going to kill Main! >>>>>"
                 _console.log 'extend list', @_currentExtendList
                 _console.log 'root children', root.children
@@ -287,8 +284,7 @@ define [
         AppConfigLoader.ready()
       @_initPromise.zip(configPromise).done (any, appConfig) =>
         # start services registered with autostart option
-        for serviceName, info of appConfig.services when info.autoStart
-          @serviceContainer.eval(serviceName)
+        @serviceContainer.autoStartServices(appConfig.services)
         # setup browser-side behaviour for all loaded widgets
         @_setupBindings().then =>
           # Initializing profiler panel
@@ -412,7 +408,7 @@ define [
       if @widgets[id]?
         @widgets[id].widget
       else
-        throw "Try to get uninitialized widget with id = #{ id }"
+        throw new Error("Try to get uninitialized widget with id = #{id}")
 
 
     subscribePushBinding: (parentWidgetId, ctxName, childWidget, paramName, ctxVersionBorder) ->
@@ -537,72 +533,104 @@ define [
 #      @_curTransition.interrupt() if @_curTransition? and @_curTransition.isActive()
 #      @_curTransition = transition
 
-      _oldRootWidget = @rootWidget
-      # finding out if the new root widget is already exists in the current page structure
-      extendWidget = @findAndCutMatchingExtendWidget(newRootWidgetPath)
-      if extendWidget?
-        if _oldRootWidget != extendWidget
-          # if the new root widget exists in the current structure but it's not a root widget, than we need
-          # to unbind it from the old (parent) root widget, eliminate impact of the old root widget to the placeholders
-          # of the new root (because the old root extends from the new one directly or indirectly)
-          # and push new params into the new root widget
-          @setRootWidget extendWidget
-          extendWidget.getStructTemplate().then (tmpl) =>
-            tmpl.assignWidget(tmpl.struct.ownerWidget, extendWidget)
-            tmpl.replacePlaceholders(tmpl.struct.ownerWidget, extendWidget.ctx[':placeholders'], transition)
-          .then ->
-            extendWidget.setParamsSafe(params)
-          .then =>
-            @dropWidget(_oldRootWidget.ctx.id)
-            # todo: this browserInit may be always redundant. To be removed after check
-            if not @rootWidget._browserInitialized
-              @rootWidget.browserInit(extendWidget)
-              console.warn "Strange #{ extendWidget.debug('browserInit') } is not redundant!!!"
-            transition.complete()
-          .failAloud("WidgetRepo::transitPage:#{newRootWidgetPath}:getStructTemplate")
+      oldRootWidget = @rootWidget
+
+      @_rebuildExtendTree(newRootWidgetPath).spread (newRootWidget, commonExistingWidget) =>
+        # if the new root widget is already exists in the current page structure
+        if newRootWidget == commonExistingWidget
+          if oldRootWidget != newRootWidget
+            # if the new root widget exists in the current structure but it's not a root widget, than we need
+            # to unbind it from the old (parent) root widget, eliminate impact of the old root widget to the placeholders
+            # of the new root (because the old root extends from the new one directly or indirectly)
+            # and push new params into the new root widget
+            newRootWidget.getStructTemplate().then (tmpl) =>
+              tmpl.assignWidget(tmpl.struct.ownerWidget, newRootWidget)
+              tmpl.replacePlaceholders(tmpl.struct.ownerWidget, newRootWidget.ctx[':placeholders'], transition)
+            .then ->
+              newRootWidget.setParamsSafe(params)
+            .then =>
+              @dropWidget(oldRootWidget.ctx.id)
+              transition.complete()
+            .failAloud("WidgetRepo::transitPage:#{newRootWidgetPath}:getStructTemplate")
+          else
+            # if the new widget is the same as the current root, than this is just params change and we should only push
+            # new params to the root widget
+            newRootWidget.setParamsSafe(params)
         else
-          # if the new widget is the same as the current root, than this is just params change and we should only push
-          # new params to the root widget
-          extendWidget.setParamsSafe(params)
+          # if the new root widget doesn't exists in the current page structure, than we need to create it,
+          # inject to the top of the page structure and recursively find the common widget from the extend list
+          # down to the base widget (containing <html> tag)
+          newRootWidget.inject(params, commonExistingWidget, transition).then (commonBaseWidget) =>
+            @dropWidget(oldRootWidget.ctx.id) if oldRootWidget and commonBaseWidget != oldRootWidget
+            newRootWidget.shown().done -> transition.complete()
+          .failAloud("WidgetRepo::transitPage:#{newRootWidgetPath}:inject")
+      .catch (err) ->
+        if err instanceof errors.MustReloadPage
+          location.reload()
+        else
+          throw err
+
+
+    _rebuildExtendTree: (newRootWidgetPath) ->
+      ###
+      Smartly reconstructs page's widget extend tree based on given new root widget path.
+      Btw created new extend tree widgets, set new root widget.
+      @param {String} newRootWidgetPath
+      @return {Future[Tuple[Widget, Widget]]} new root widget and common base widget (between old and new page)
+      ###
+      oldRootWidget = @rootWidget
+      @_calculateNewExtendTree(newRootWidgetPath).spread (newWidgetsList, commonExistingWidget, commonWidgetName) =>
+        newRootWidget =
+          if newWidgetsList.length
+            newWidgetsList[0]
+          else
+            commonExistingWidget
+
+        if oldRootWidget != newRootWidget
+          keepFrom = @_currentExtendList.indexOf(commonExistingWidget)
+          @_currentExtendList = newWidgetsList.concat(@_currentExtendList.slice(keepFrom))
+
+          @setRootWidget(newRootWidget)
+          newWidgetsList[newWidgetsList.length - 1].registerChild(commonExistingWidget, commonWidgetName)
+
+        [[newRootWidget, commonExistingWidget]]
+
+
+    _calculateNewExtendTree: (extendWidgetPath) ->
+      ###
+      Initiates recursive search of common extend widget for the given widget path.
+      @param {String} extendWidgetPath
+      @return {Future[Tuple[Array[Widget], Widget, String]]} newly added extend widget list,
+                                                             common existing widget and it's name
+      ###
+      existingWidget = _.find @_currentExtendList, (x) -> x.getPath() == extendWidgetPath
+      if existingWidget
+        Future.resolved([[], existingWidget])
       else
-        # if the new root widget doesn't exists in the current page structure, than we need to create it,
-        # inject to the top of the page structure and recursively find the common widget from the extend list
-        # down to the base widget (containing <html> tag)
-        @createWidget(newRootWidgetPath).then (widget) =>
-          @setRootWidget widget
-          widget.inject(params, transition).then (commonBaseWidget) =>
-            @dropWidget(_oldRootWidget.ctx.id) if _oldRootWidget and commonBaseWidget != _oldRootWidget
-            @rootWidget.shown().done -> transition.complete()
-        .failAloud("WidgetRepo::transitPage:#{newRootWidgetPath}:createWidget")
+        @createWidget(extendWidgetPath).then (widget) =>
+          widget.getStructTemplate().then (tmpl) =>
+            if not tmpl.isEmpty() and tmpl.struct.extend
+              @_recScanExtendTree(tmpl).spread (newWidgetsList, commonExistingWidget, commonWidgetName) ->
+                [[[widget].concat(newWidgetsList), commonExistingWidget, commonWidgetName]]
+            else
+              throw new errors.MustReloadPage
 
 
-    findAndCutMatchingExtendWidget: (widgetPath) ->
+    _recScanExtendTree: (structTmpl) ->
       ###
-      Finds common point and reorganizes extend list.
-      Finds if the target widget is already somewhere in the current extend list.
-      If there is - removes all widgets before it from extend list and adds new ones (if there are) instead of them.
+      As _calculateNewExtendTree but accepts prepared structure template.
       ###
-      result = null
-      counter = 0
-      for extendWidget in @_currentExtendList
-        if widgetPath == extendWidget.getPath()
-          # removing all extend tree below found widget
-          @_currentExtendList.shift() while counter--
-          # ... and prepending extend tree with the new widgets
-          @_newExtendList.reverse()
-          @_currentExtendList.unshift(wdt) for wdt in @_newExtendList
-          @_newExtendList = []
-
-          result = extendWidget
-          break
-        counter++
-      result
-
-
-    registerNewExtendWidget: (widget) ->
-      @_newExtendList.push widget
-
-
-    replaceExtendTree: ->
-      @_currentExtendList = @_newExtendList
-      @_newExtendList = []
+      extendWidgetRefId = structTmpl.struct.extend.widget
+      extendWidgetInfo = structTmpl.struct.widgets[extendWidgetRefId]
+      extendWidgetPath = extendWidgetInfo.path
+      existingWidget = _.find @_currentExtendList, (x) -> x.getPath() == extendWidgetPath
+      if existingWidget
+        Future.resolved([[], existingWidget, extendWidgetInfo.name])
+      else
+        structTmpl.createWidgetByRefId(extendWidgetRefId).then (widget) =>
+          widget.getStructTemplate().then (tmpl) =>
+            if not tmpl.isEmpty() and tmpl.struct.extend
+              @_recScanExtendTree(tmpl).spread (newWidgetsList, commonExistingWidget, commonWidgetName) ->
+                [[[widget].concat(newWidgetsList), commonExistingWidget, commonWidgetName]]
+            else
+              throw new errors.MustReloadPage
