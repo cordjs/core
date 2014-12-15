@@ -500,6 +500,7 @@ define [
         result.reject(err)
         # preventing reporting of unhandled rejection in case of fast page switching
         result.failOk() if err instanceof errors.WidgetSentenced
+        return
 
       result
 
