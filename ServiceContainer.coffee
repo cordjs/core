@@ -22,7 +22,7 @@ define [
       ###
       p = @._resolve(path)
       @['_box_val_' + p] = null
-      @
+      this
 
 
     getNames: ->
@@ -56,15 +56,23 @@ define [
           if @isDefined(serviceName)
             injectPromise.fork()
             try
-              @eval serviceName, (service) ->
-                _console.log "Container::injectServices -> eval(#{ serviceName }) for target #{ target.constructor.name } finished success" if global.config?.debug.service
+              @eval serviceName, (service) =>
+                if service instanceof Error
+                  _console.error "Container::injectServices::eval(#{serviceName}) for target #{target.constructor.name}" +
+                                 " failed with error: #{ service }", service
+                  injectPromise.reject(service)
+                  # resetting failed service to give it a chance next time (mainly for auth-related purposes)
+                  @reset(serviceName)
+                else
+                  _console.log "Container::injectServices -> eval(#{ serviceName }) for target #{ target.constructor.name } finished success" if global.config?.debug.service
 
-                target[serviceAlias] = service
-                injectPromise.resolve()
+                  target[serviceAlias] = service
+                  injectPromise.resolve()
             catch e
               _console.error "Container::injectServices -> eval(#{ serviceName }) for target #{ target.constructor.name } fail: #{ e.message }"
               target[serviceAlias] = undefined
-              injectPromise.resolve()
+              injectPromise.reject(e)
+              @reset(serviceName)
           else
             _console.warn "Container::injectServices #{ serviceName } for target #{ target.constructor.name } is not defined" if global.config?.debug.service
 
@@ -77,3 +85,22 @@ define [
 
 
       injectPromise
+
+
+    autoStartServices: (services) ->
+      ###
+      Auto-starts services from the given list which has `autoStart` flag enabled.
+      Returns immediately, doesn't wait for the services.
+      @param {Object} services Service description map from the bundle configs.
+      ###
+      for serviceName, info of services when info.autoStart
+        do (serviceName) =>
+          @eval serviceName, (service) =>
+            if service instanceof Error
+              _console.warn "Container::autoStartServices::eval(#{serviceName}) " +
+                             " failed with error: #{ service }", service
+              # resetting failed service to give it a chance next time (mainly for auth-related purposes)
+              @reset(serviceName)
+      return
+
+
