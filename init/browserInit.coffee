@@ -54,12 +54,12 @@ define [
         loginUrl = config.loginUrl or 'user/login/'
         logoutUrl = config.logoutUrl or 'user/logout/'
         config.api.authenticateUserCallback = ->
-          backPath = window.location.pathname
+          backPath = clientSideRouter.getCurrentPath()
           if not (backPath.indexOf(loginUrl) >= 0 or backPath.indexOf(logoutUrl) >= 0)
             # in SPA mode window.location doesn't make sense
             backUrl = clientSideRouter.getCurrentPath() or window.location.pathname
             clientSideRouter.redirect("#{loginUrl}?back=#{backUrl}").failAloud('Auth redirect failed!')
-          true
+          false
         config
 
       # Clear localStorage in case of changing collections' release number

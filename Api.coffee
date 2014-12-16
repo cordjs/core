@@ -58,31 +58,32 @@ define [
       ###
       Generates random scope for every browser (client) to prevent access-token auto-deletion when someone logging in
        from different computers (browsers) (e.g. at work and at home)
+      @return {String}
       ###
-      if @scope
-        return @scope
-      @scope = Math.round(Math.random()*10000000)
-      return @scope
+      if not @scope
+        @scope = Math.round(Math.random() * 10000000)
+      @scope
 
 
-    storeTokens: (accessToken, refreshToken, callback) ->
-      # Кеширование токенов
-      if @accessToken == accessToken && @refreshToken == refreshToken
-        return callback? @accessToken, @refreshToken
+    storeTokens: (accessToken, refreshToken) ->
+      ###
+      Stores oauth tokens to cookies to be available after page refresh.
+      @param {String} accessToken
+      @param {String} refreshToken
+      ###
+      return if @accessToken == accessToken and @refreshToken == refreshToken
 
       @accessToken = accessToken
       @refreshToken = refreshToken
       @scope = @getScope()
 
-      #Protection from late callback from closed connections.
-      #TODO, refactor OAuth module, so dead callback will be deleted
-      success = @cookie.set('accessToken', @accessToken, expires: 15)
-      success &= @cookie.set('refreshToken', @refreshToken, expires: 15)
-      success &= @cookie.set('oauthScope', @getScope(), expires: 15)
+      @cookie.set('accessToken', @accessToken, expires: 15)
+      @cookie.set('refreshToken', @refreshToken, expires: 15)
+      @cookie.set('oauthScope', @scope, expires: 15)
 
       _console.log "Store tokens: #{accessToken}, #{refreshToken}"  if global.config.debug.oauth2
 
-      callback?(@accessToken, @refreshToken) if success
+      return
 
 
     authTokensAvailable: ->
@@ -90,11 +91,8 @@ define [
       Checks if there are stored auth tokens that can be used for authenticated request.
       @return {Boolean}
       ###
-      accessToken = refreshToken = null
-      @restoreTokens (at, rt) -> # this method is synchronous
-        accessToken = at
-        refreshToken = rt
-      !!(accessToken and refreshToken)
+      @restoreTokens()
+      !!(@accessToken and @refreshToken)
 
 
     authTokensReady: ->
@@ -111,20 +109,30 @@ define [
         result
 
 
-    restoreTokens: (callback) ->
-      # Возвращаем из локального кеша
-      if !isBrowser and @accessToken and @refreshToken
-      # Временная правка для обхода бага Хрома когда не срабатывает document.cookie =
-      # if @accessToken and @refreshToken
-        _console.log "Restore tokens from local cache: #{@accessToken}, #{@refreshToken}" if global.config.debug.oauth2
-        callback @accessToken, @refreshToken
-      else
+    restoreTokens: ->
+      ###
+      Loads saved tokens from cookies
+      ###
+      if not (@accessToken and @refreshToken)
         @accessToken  = @cookie.get('accessToken')
         @refreshToken = @cookie.get('refreshToken')
         @scope        = @cookie.get('oauthScope')
+      return
 
-        _console.log "Restore tokens: #{@accessToken}, #{@refreshToken}" if global.config.debug.oauth2
-        callback @accessToken, @refreshToken
+
+    getCurrentAccessToken: ->
+      ###
+      Gives public access to the current access token.
+      @return {String}
+      ###
+      @restoreTokens()
+      @accessToken
+
+
+    _invalidateAccessToken: ->
+      @accessToken = null
+      @cookie.set('accessToken')
+      return
 
 
     getTokensByUsernamePassword: (username, password, cb) ->
@@ -133,23 +141,24 @@ define [
       @param {String} username
       @param {String} password
       @param (deprecated, optional){Function} cb old-style callback
-      @return {Future[[String, String]] [access token, refresh token]
+      @return {Future[Tuple[String, String]]} [access token, refresh token]
       ###
       result = Future.single('getTokensByUsernamePassword')
       @oauth2.grantAccessTokenByPassword username, password, @getScope(), (accessToken, refreshToken) =>
-        @onAccessTokenGranted accessToken, refreshToken, ->
-          result.resolve([accessToken, refreshToken])
-          cb?(accessToken, refreshToken)
+        @onAccessTokenGranted(accessToken, refreshToken)
+        result.resolve([accessToken, refreshToken])
+        cb?(accessToken, refreshToken)
       result
 
 
     getTokensByExtensions: (url, params, callback) ->
       @oauth2.grantAccessTokenByExtensions url, params, @getScope(), (accessToken, refreshToken) =>
-        @onAccessTokenGranted(accessToken, refreshToken, callback)
+        @onAccessTokenGranted(accessToken, refreshToken)
+        callback?(accessToken, refreshToken)
 
 
-    onAccessTokenGranted: (accessToken, refreshToken, callback) ->
-      @storeTokens(accessToken, refreshToken, callback)
+    onAccessTokenGranted: (accessToken, refreshToken) ->
+      @storeTokens(accessToken, refreshToken)
       @emit 'auth.tokens.ready',
         accessToken: accessToken
         refreshToken: refreshToken
@@ -177,10 +186,10 @@ define [
       ###
       Initiates pluggable via authenticateUserCallback-option authentication of the user and waits for the global
        event with the auth-tokens which must be triggered by that procedure.
-      Callback-function-option authenticateUserCallback must return boolean 'true' if it's supposed to trigger
-       'auth.tokens.ready' event eventually, or boolean 'false' if it's not (for example, there will be some kind
-       of page refresh and callback is not applicable.
-      @return Future(String, String) - eventually completed with access- and refresh-tokens.
+      Callback-function-option authenticateUserCallback must return boolean 'true' if authentication can be performed
+       without user interaction, or boolean 'false' if user interaction is required (for example, login form submission)
+       and authentication wait time is not determined.
+      @return {Future[Tuple[String, String]]} access- and refresh-tokens.
       ###
       result = Future.single('Api::authenticateUser')
 
@@ -188,42 +197,46 @@ define [
       @cookie.set('accessToken')
       @cookie.set('refreshToken')
       @cookie.set('oauthScope')
-      if @options.authenticateUserCallback()
+
+      if @options.authenticateUserCallback() # true means possibility of auto-login without user-interaction
         @once 'auth.tokens.ready', (tokens) ->
-          result.resolve(tokens.accessToken, tokens.refreshTokens)
+          result.resolve([tokens.accessToken, tokens.refreshToken])
       else
-        result.reject(new Error('Callback is not applicable in this case.'))
+        result.reject(new Error('Auto-login is not available!'))
 
       result
 
 
-    getTokensByRefreshToken: (refreshToken, callback, silently = false) ->
-      @oauth2.grantAccessTokenByRefreshToken refreshToken, @getScope(), (grantedAccessToken, grantedRefreshToken) =>
+    getTokensByRefreshToken: ->
+      ###
+      Refreshes auth tokens pair by the existing refresh token.
+      @return {Future[Tuple[String, String]]} new access and refresh tokens
+      ###
+      @oauth2.grantAccessTokenByRefreshToken(@refreshToken, @getScope()).spread (grantedAccessToken, grantedRefreshToken) =>
         if grantedAccessToken and grantedRefreshToken
-          @storeTokens grantedAccessToken, grantedRefreshToken, callback
-          true #continue processing other deferred callbacks in oauth
+          @storeTokens grantedAccessToken, grantedRefreshToken
+          [[grantedAccessToken, grantedRefreshToken]]
         else
-          # in case of fail dont call callback - it wont be able to solve the problem,
-          # but might run into everlasting loop
-          if not silently
-            @authenticateUser().done(callback).fail (message) ->
-              _console.warn(message)
-
-          false #stop processing other deferred callbacks in oauth
+          throw new Error('Failed to get auth token by refresh token: refresh token is outdated!')
 
 
-    getTokensByAllMeans: (accessToken, refreshToken, callback) ->
-      if not accessToken
-        if refreshToken
-          @getTokensByRefreshToken refreshToken, callback
+    _getTokensByAllMeans: ->
+      ###
+      Tries to get auth tokens from different sources in this order:
+      1. Local cache (cookies)
+      2. Get new tokens by refresh token
+      3. Initiate pluggable user authentication process.
+      @return {Future[Tuple[String, String]]} access and refresh tokens
+      ###
+      @restoreTokens()
+      if not @accessToken
+        if @refreshToken
+          @getTokensByRefreshToken().catch (err) =>
+            @authenticateUser()
         else
-          #in case of fail dont call callback - it wont be able to solve the problem,
-          #but might run into everlasting loop
-          @authenticateUser().done(callback).fail (message) ->
-            _console.warn(message)
-
+          @authenticateUser()
       else
-        callback accessToken, refreshToken
+        Future.resolved([@accessToken, @refreshToken])
 
 
     get: (url, params, callback) ->
@@ -251,94 +264,143 @@ define [
       @send 'del', url, params, callback
 
 
-    send: ->
-      method = arguments[0]
-      args = Utils.parseArguments arguments,
+    send: (args...) ->
+      ###
+      High level API request method. Smartly prepares and performs API request.
+      @param {String} method HTTP method
+      @param {String} url Request URL (without protocol, host and prefix)
+      @param {Object} params Request params
+      @param {Function[response, error]} callback Callback to be called when request finished (deprecated)
+      @return {Future[Object]} response
+      ###
+      validatedArgs = Utils.parseArguments args.slice(1),
         url: 'string'
         params: 'object'
         callback: 'function'
+      validatedArgs.method = args[0]
 
-      result = Future.single("Api::send(#{args.url})")
+      @_prepareRequestArgs(validatedArgs).then (preparedArgs) =>
+        @_doRequest(preparedArgs.method, preparedArgs.url, preparedArgs.params, preparedArgs.params.retryCount ? 5)
+      .done (response) ->
+        validatedArgs.callback?(response)
+      .fail (err) ->
+        validatedArgs.callback?(err.response, err)
 
-      noAuthTokens = (args.params and args.params.noAuthTokens == true)
-      skipAuth = (args.params and args.params.skipAuth == true)
 
-      processRequest = (accessToken, refreshToken) =>
-        requestUrl = "#{@options.protocol}://#{@options.host}/#{@options.urlPrefix}#{args.url}"
-        defaultParams = _.clone @options.params
-        requestParams = _.extend defaultParams, args.params
+    _prepareRequestArgs: (args) ->
+      ###
+      Prepares request params for the _doRequest method, according to the current API settings.
+      @param {Object} args
+      @return {Future[Object]}
+      ###
+      @_injectAuthParams(args.url, args.params).spread (url, params) =>
+        method: args.method
+        url:    "#{@options.protocol}://#{@options.host}/#{@options.urlPrefix}#{url}"
+        params: _.extend({ originalArgs: args }, @options.params, params)
 
-        doRequest = =>
-          @request[method] requestUrl, requestParams, (response, error) =>
 
-            complete = ->
-              args.callback?(response, error)
+    _doRequest: (method, url, params, retryCount = 5) ->
+      ###
+      Performs actual HTTP request with the given params.
+      Smartly handles different edge cases (i.e. auth errors) - tries to fix them and repeats recursively.
+      @param {String} method HTTP method - get, post, put, delete
+      @param {String} url Fully-qualified URL
+      @param {Object} params Request params according to the curly spec
+      @param {Int} retryCount Maximum number of retries before give up in case of errors (where applicable)
+      @return {Future[Object]} response object like in curly
+      ###
+      resultPromise = Future.single("Api::_doRequest(#{method}, #{url})")
+      requestParams = _.clone(params)
+      delete requestParams.originalArgs
+      @request[method] url, requestParams, (response, error) =>
+        Future.try =>
+          # if auth failed
+          if not params.skipAuth and
+             (response?.error == 'invalid_grant' or response?.error == 'invalid_request') and
+             retryCount > 0
 
-              if not error
-                result.resolve(response)
-              else
-                e = new Error(error.message)
-                e.url = requestUrl
-                e.method = method
-                e.params = requestParams
-                e.statusCode = error.statusCode
-                e.statusText = error.statusText
-                e.originalError = error
-                e.response = response
-                result.reject(e)
+            @_invalidateAccessToken()
+            # try to get new access token using refresh token and retry request
+            # need to use originalArgs here to workaround situation when API host is changed during request
+            @_prepareRequestArgs(params.originalArgs).then (preparedArgs) =>
+              @_doRequest(preparedArgs.method, preparedArgs.url, preparedArgs.params, retryCount - 1)
 
-            if not skipAuth and (response?.error == 'invalid_grant' || response?.error == 'invalid_request')
-              return processRequest null, refreshToken
-
-            if (error && (error.statusCode || error.message))
+          # if request failed in other cases
+          else if error
+            if error.statusCode or error.message
               message = error.message if error.message
               message = error.statusText if error.statusText
 
               # Post could make duplicates
-              if method == 'get' && requestParams.reconnect && (!error.statusCode || error.statusCode == 500) && requestParams.deepCounter < 10
-                requestParams.deepCounter = if ! requestParams.deepCounter then 1 else requestParams.deepCounter + 1
+              if method == 'get' and params.reconnect and
+                 (not error.statusCode or error.statusCode == 500) and
+                 retryCount > 0
 
-                _console.log requestParams.deepCounter + " Repeat request in 0.5s", requestUrl
+                _console.warn "WARNING: request to #{url} failed! Retrying after 0.5s..."
 
-                setTimeout doRequest, 500
+                Future.timeout(500).then =>
+                  @_doRequest(method, url, params, retryCount - 1)
+
               else
-                message = 'Ошибка ' + (if error.statusCode != undefined then (' ' + error.statusCode)) + ': ' + message
-
-                postal.publish 'error.notify.publish', {link:'', message: message, error:true, timeOut: 30000 }
-
-                complete()
-
-              # надо посмотреть в конфигах как реагировать на ту или иную ошибку
-              errorCode = response?._code
-              errorCode = error.statusCode if errorCode == undefined
-              if errorCode != undefined and @fallbackErrors != undefined
-                if @fallbackErrors[errorCode] != undefined
+                # handle API errors fallback behaviour if configured
+                errorCode = response?._code ? error.statusCode
+                if errorCode? and @fallbackErrors and @fallbackErrors[errorCode]
+                  fallbackInfo = _.clone(@fallbackErrors[errorCode])
+                  fallbackInfo.params = _.clone(fallbackInfo.params)
                   # если есть доппараметры у ошибки - добавим их
                   if response._params?
-                    @fallbackErrors[errorCode].params.contentParams = {} if @fallbackErrors[errorCode].params.contentParams == undefined
-                    @fallbackErrors[errorCode].params.contentParams['params'] = response._params if response._params != undefined
-                  @serviceContainer.get('fallback').fallback @fallbackErrors[errorCode].widget, @fallbackErrors[errorCode].params
+                    fallbackInfo.params.contentParams =
+                      if not fallbackInfo.params.contentParams?
+                        {}
+                      else
+                        _.clone(fallbackInfo.params.contentParams)
+                    fallbackInfo.params.contentParams['params'] = response._params
 
-            else
-              complete()
+                  @serviceContainer.get('fallback').fallback(fallbackInfo.widget, fallbackInfo.params)
 
-        if noAuthTokens
-          doRequest()
-        else
-          if skipAuth
-            requestUrl += ( if requestUrl.lastIndexOf("?") == -1 then "?" else "&" ) + "access_token=#{accessToken}"
-            requestParams.access_token = accessToken
-            doRequest()
+                # otherwise just notify the user
+                else
+                  message = 'Ошибка ' + (if error.statusCode != undefined then (' ' + error.statusCode)) + ': ' + message
+                  postal.publish 'error.notify.publish',
+                    link: ''
+                    message: message
+                    error: true
+                    timeOut: 30000
+
+            e = new Error(error.message)
+            e.url = url
+            e.method = method
+            e.params = params
+            e.statusCode = error.statusCode
+            e.statusText = error.statusText
+            e.originalError = error
+            e.response = response
+            throw e
+
+          # if everything is all right
           else
-            @getTokensByAllMeans accessToken, refreshToken, (accessToken, refreshToken) =>
-              requestUrl += ( if requestUrl.lastIndexOf("?") == -1 then "?" else "&" ) + "access_token=#{accessToken}"
-              requestParams.access_token = accessToken
+            response
 
-              doRequest()
+        .link(resultPromise)
 
-      if noAuthTokens
-        processRequest()
+      resultPromise
+
+
+    _injectAuthParams: (url, params) ->
+      ###
+      Adds to the given URL and params oauth access token if needed and returns them.
+      @param {String} url
+      @param {Object} params
+      @return {Future[Tuple[String, Object]]}
+      ###
+      if params.noAuthTokens
+        Future.resolved([url, params])
       else
-        @restoreTokens processRequest
-
-      result
+        @restoreTokens()
+        if params.skipAuth
+          url += ( if url.lastIndexOf('?') == -1 then '?' else '&' ) + "access_token=#{@accessToken}"
+          Future.resolved([url, params])
+        else
+          @_getTokensByAllMeans().spread (accessToken) ->
+            url += ( if url.lastIndexOf('?') == -1 then '?' else '&' ) + "access_token=#{accessToken}"
+            [[url, params]]

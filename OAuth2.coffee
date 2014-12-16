@@ -75,48 +75,41 @@ define [
           callback null, null
 
 
-    clear: ->
-      @deferredRefreshTokenCallbacks = []
-
-
-    ## Получение токена по grant_type = refresh_token (токен обновления)
-    grantAccessTokenByRefreshToken: (refreshToken, scope, callback) =>
-      @deferredRefreshTokenCallbacks.push callback if callback
-
+    grantAccessTokenByRefreshToken: (refreshToken, scope, retries = 1) ->
+      ###
+      Requests access_token by refresh_token
+      @param {String} refreshToken
+      @param {String} scope
+      @param (optional){Int} retries Number of retries on fail before giving up
+      @return {Future[Array[String, String]]} access_token and new refresh_token
+      ###
       params =
         grant_type: 'refresh_token'
         refresh_token: refreshToken
         client_id: @options.clientId
         scope: scope
 
-      if @refreshTokenRequested
-        _console.log "========================================================================"
-        _console.log "Refresh token already requested"
-        _console.log "========================================================================"
+      if not @_refreshTokenRequestPromise
+        resultPromise = Future.single('OAuth2::grantAccessTokenByRefreshToken')
 
-      return if @refreshTokenRequested or @deferredRefreshTokenCallbacks.length == 0
+        @request.get @options.endpoints.accessToken, params, (result, err) =>
+          if result
+            if result.error # this means that refresh token is outdated
+              resultPromise.resolve [null, null]
+            else
+              resultPromise.resolve [ result.access_token, result.refresh_token ]
+          else if retries > 0
+            _console.warn 'Error while refreshing oauth token! Will retry after pause... Error:', err
+            Future.timeout(500).then =>
+              @_refreshTokenRequestPromise = null
+              @grantAccessTokenByRefreshToken(refreshToken, scope, retries - 1)
+            .link(resultPromise)
+          else
+            resultPromise.reject(new Error("Failed to refresh oauth token! Reason: #{JSON.stringify(err)} "))
 
-      @refreshTokenRequested = true
+        @_refreshTokenRequestPromise = resultPromise
 
-      @request.get @options.endpoints.accessToken, params, (result) =>
-        # Если порвалась связь, то не считаем протухшим рефреш токен
-        @refreshTokenRequested = false
-
-        if result && (result.access_token || result.error)
-          # Рефреш токен протух
-          callbackResult = true
-          for callback in @deferredRefreshTokenCallbacks
-            #Protection from multiple redirections
-            callbackResult &= callback result.access_token, result.refresh_token if callbackResult
-
-          @deferredRefreshTokenCallbacks = []
-
-        else
-          _console.log 'Cannot refresh token (('
-          setTimeout =>
-            _console.log 'Recall refresh token'
-            @grantAccessTokenByRefreshToken refreshToken
-          , 500
+      @_refreshTokenRequestPromise
 
 
     getAuthCodeWithoutPassword: ->
