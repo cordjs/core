@@ -870,15 +870,16 @@ define [
 
     _getWidgetDataAttrs: ->
       ###
-      Вовзращает имя класса и путь в атрибутах корневого тега виджета с учетом флага конфигурации
-      @return String  widget class name
+      Builds and returns string with the given data attributes
+      In debug mode adds extra widget info
+      @return String data attrs
       ###
       if global.config.debug.widgetName
-        @addDataAttrs('widget-class-name', @constructor.__name)
-        @addDataAttrs('widget-class-path', @getPath())
+        @addDataAttr('widget-class-name', @constructor.__name)
+        @addDataAttr('widget-class-path', @getPath())
 
       dataList = []
-      dataList = dataList.concat(@ctx.__cord_data_attrs__) if @ctx.__cord_data_attrs__?
+      dataList.push("data-#{key}=\"#{value}\"") for key, value of @ctx.__cord_data_attrs__ if @ctx.__cord_data_attrs__?
       dataList.join(' ')
 
 
@@ -961,16 +962,15 @@ define [
         @ctx.__cord_dyn_classes__.push(cls) if @ctx.__cord_dyn_classes__.indexOf(cls) == -1
 
 
-    addDataAttrs: (key, value) ->
+    addDataAttr: (key, value) ->
       ###
       Adds the specified data property for the root element(s) of the widget.
       @param {String} key Single key to be added
       @param {String} value Single value to be added
       ###
       if key and value
-        @ctx.__cord_data_attrs__ ?= []
-        dataString = "data-#{key}=#{value}"
-        @ctx.__cord_data_attrs__.push(dataString) if @ctx.__cord_data_attrs__.indexOf(dataString) == -1
+        @ctx.__cord_data_attrs__ ?= {}
+        @ctx.__cord_data_attrs__[key] = value
 
 
     _saveContextVersionForBehaviourSubscriptions: ->
