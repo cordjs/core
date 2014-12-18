@@ -36,6 +36,26 @@ define [
         key.replace '_box_', ''
 
 
+    getService: (serviceName) ->
+      ###
+      Returns service by it's name. Like `eval` but promise-like.
+      @param {String} serviceName
+      @return {Future[Any]}
+      ###
+      result = Future.single("ServiceContainer::getService(#{serviceName})")
+      try
+        @eval serviceName, (service) ->
+          if service instanceof Error
+            result.reject(service)
+            @reset(serviceName)
+          else
+            result.resolve(service)
+      catch err
+        result.reject(err)
+        @reset(serviceName)
+      result
+
+
     injectServices: (target) ->
       ###
       Injects services from the service container into the given target object using @inject property of the object's
