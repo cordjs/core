@@ -37,6 +37,15 @@ define [
 
     window._console = _console
 
+    # support for `requireAuth` route option
+    clientSideRouter.setAuthCheckCallback ->
+      serviceContainer.getService('api').then (api) ->
+        api._getTokensByAllMeans()
+      .then ->
+        true
+      .catch ->
+        false
+
     configInitFuture = AppConfigLoader.ready().then (appConfig) ->
       clientSideRouter.addRoutes(appConfig.routes)
       clientSideRouter.addFallbackRoutes(appConfig.fallbackRoutes)
@@ -45,10 +54,7 @@ define [
           serviceContainer.def serviceName, info.deps, (get, done) ->
             info.factory.call(serviceContainer, get, done)
 
-      ###
-        Конфиги
-      ###
-
+      # `config` service definition
       serviceContainer.def 'config', ->
         config = global.config
         loginUrl = config.loginUrl or 'user/login/'
@@ -72,11 +78,7 @@ define [
                 persistentStorage.set('collectionsVersion', currentVersion)
 
 
-    ###
-      Это надо перенести в более кошерное место
-    ###
-
-    #Global errors handling
+    # Global errors handling
     requirejs.onError = (error) ->
       if global.config.debug.require
         throw error

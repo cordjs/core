@@ -3,6 +3,8 @@ define ['underscore'], (_) ->
   class Router
 
     _currentPath: ''
+    # function that is called when `requireAuth` option is enabled for the matched route
+    _authCheckCallback: null
 
 
     constructor: ->
@@ -100,6 +102,17 @@ define ['underscore'], (_) ->
         throw new Error "Route with id #{routeId} is undefined"
 
 
+    setAuthCheckCallback: (cb) ->
+      ###
+      Inject authentication checking function to support `requireAuth` option.
+      The callback should return Boolean or Future[Boolean]. If result is `true` then transition is performed as normal,
+       otherwise - navigate call is failed and page reload is expected with login form.
+      @param {Function} cb
+      ###
+      @_authCheckCallback = cb
+
+
+
   namedParam = /:([\w\d]+)/g
   splatParam = /\*([\w\d]+)/g
   escapeRegExp = /[-[\]{}()+?.,\\^$|#\s]/g
@@ -111,10 +124,14 @@ define ['underscore'], (_) ->
     Individual route definition.
     ###
 
+    # if true, router should check authentication via `authCheckCallback` before processing navigation
+    requireAuth: false
+
     constructor: (@path, definition, fallback = false) ->
       throw new Error("Required 'widget' or 'callback' options is not set in route '#{ path }' definition!") if definition.widget? and definition.callback?
       @widget = definition.widget
       @callback = definition.callback if definition.callback?
+      @requireAuth = !!definition.requireAuth
 
       @params = definition.params ? {}
 
@@ -134,7 +151,6 @@ define ['underscore'], (_) ->
         path = path.replace(escapeRegExp, '\\$&')
                    .replace(namedParam, '([^\/]*)')
                    .replace(splatParam, '(.*?)')
-
 
         if path.charAt(path.length - 1) != '/'
           path += '/'
