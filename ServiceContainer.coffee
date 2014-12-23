@@ -44,7 +44,7 @@ define [
       ###
       result = Future.single("ServiceContainer::getService(#{serviceName})")
       try
-        @eval serviceName, (service) ->
+        @eval serviceName, (service) =>
           if service instanceof Error
             result.reject(service)
             @reset(serviceName)
