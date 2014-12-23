@@ -385,17 +385,19 @@ define [
         apiParams = {}
         apiParams.reconnect = true if params.reconnect == true
         url = @_buildApiRequestUrl(params)
-        @api.get(url, apiParams).then (response) =>
-          if not response._code  #Bad boy! Quickfix for absence of error handling
-            result = []
-            if _.isArray(response)
-              result.push(@buildModel(item)) for item in response
-            else if response
-              result.push(@buildModel(response))
-            callback?(result)
-            [result]
-          else
-            throw new Error("#{@debug('query')}: invalid response for url '#{url}' with code #{response._code}!")
+
+        @container.eval 'api', (api) =>
+          api.get(url, apiParams).then (response) =>
+            if not response._code  #Bad boy! Quickfix for absence of error handling
+              result = []
+              if _.isArray(response)
+                result.push(@buildModel(item)) for item in response
+              else if response
+                result.push(@buildModel(response))
+              callback?(result)
+              [result]
+            else
+              throw new Error("#{@debug('query')}: invalid response for url '#{url}' with code #{response._code}!")
       else
         Future.rejected(new Error('Cleaned up'))
 
