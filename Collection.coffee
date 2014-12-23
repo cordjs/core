@@ -1391,6 +1391,9 @@ define [
             throw new Error("Inconsistent query queue: #{ queryList }, #{ waitForQuery }!")
 
           this
+        .catch (error) =>
+          _console.error "#{@constructor.__name}::_enqueueQuery() query failed:", error
+          false
 
         waitForQuery =
           start: start
