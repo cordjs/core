@@ -168,7 +168,7 @@ define [
 
       colors = ['#A6E8C7', '#FFDE8F', '#A9E1F2', '#F1B8C9', '#C7C9FA', '#C3EDAE']
 
-      return id % colors.length;
+      return (id % colors.length) + 1;
 
 
     @fixFirefoxEventOffset = (event) ->
