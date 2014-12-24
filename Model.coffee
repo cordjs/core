@@ -71,7 +71,7 @@ define [
       @collection = collection
 
 
-    set: (key, val) ->
+    set: (key, val, aloud) ->
       if _.isObject(key)
         key = key.toJSON() if key instanceof Model
         attrs = key
@@ -83,6 +83,8 @@ define [
           @_changed[key] = @[key] if not @_changed[key]?
           @[key] = val
           @_fieldNames.push(key) if @_fieldNames.indexOf(key) == -1
+          if aloud
+            @collection.emit("model.#{ @id }.change", this)
 
       this
 
@@ -92,8 +94,7 @@ define [
       Sets new value and emit change to everyone who subsribed on the Model's 'change' event
       This won't change any models in other collections! Use save() or propagateModelChange() for that.
       ###
-      @set(key, val)
-      @collection.emit("model.#{ @id }.change", this)
+      @set(key, val, true)
 
 
     refreshOnlyContainingCollections: ->
