@@ -198,6 +198,10 @@ define [
       @constructor.path
 
 
+    getName: ->
+      @constructor.__name
+
+
     getDir: ->
       @constructor.relativeDirPath
 
@@ -875,7 +879,7 @@ define [
       @return String data attrs
       ###
       if global.config.debug.widgetName
-        @addDataAttr('widget-class-name', @constructor.__name)
+        @addDataAttr('widget-class-name', @getName())
         @addDataAttr('widget-class-path', @getPath())
 
       dataList = []
