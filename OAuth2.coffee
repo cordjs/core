@@ -25,7 +25,6 @@ define [
       ###
       Получает токены по коду авторизации, ранее выданному авторизационным сервером
       ###
-      debugger
       promise = Future.single('OAuth2::grantAccessTokenByAuthorizationCode promise')
       params =
         grant_type: 'authorization_code'
@@ -55,7 +54,7 @@ define [
         scope: scope
         json: true
 
-      @request.get @options.endpoints.accessToken, params, (result) =>
+      @request.get @options.endpoints.accessToken, params, (result) ->
         if result
           callback result.access_token, result.refresh_token
         else
@@ -72,7 +71,7 @@ define [
 
       requestParams = _.extend params, requestParams
 
-      @request.get @options.endpoints.accessToken, requestParams, (result) =>
+      @request.get @options.endpoints.accessToken, requestParams, (result) ->
         if result
           callback result.access_token, result.refresh_token
         else
@@ -142,7 +141,6 @@ define [
 
 
     getAuthCodeByPassword: (login, password) ->
-      debugger
       promise = Future.single('Api::getAuthCodeByPassword promise')
       if !isBrowser
         promise.reject(new Error('It is only possible to get auth code at client side'))
