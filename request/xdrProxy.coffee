@@ -5,7 +5,7 @@ define [
   'url'
 ], (http, https, _, url) ->
 
-  (targetUrl, req, res) ->
+  (targetUrl, req, res, secrets = false) ->
     ###
     Cross-domain Request Proxy
     Very simple and low-level proxy function that just passes request to the target url and then passes result
@@ -16,6 +16,15 @@ define [
     @param IncomingMessage req the node's request
     @param ServerResponse res the node's response
     ###
+
+    # In case if we need to proxy request with secrets, add them here
+    if secrets and _.isObject(global.config.secrets)
+      for secret, value of global.config.secrets
+        targetUrl = targetUrl.replace('%23%7B' + secret + '%7D', value)
+        targetUrl = targetUrl.replace('#{' + secret + '}', value)
+
+    console.log targetUrl
+
     proxyUrl = url.parse(targetUrl)
 
     # copying headers and removing unnecessary ones

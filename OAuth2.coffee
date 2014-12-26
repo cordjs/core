@@ -6,7 +6,7 @@ define [
 
   class OAuth2
 
-    @inject: ['request']
+    @inject: ['request', 'config']
 
     constructor: (options) ->
       @deferredRefreshTokenCallbacks = []
@@ -25,17 +25,21 @@ define [
       ###
       Получает токены по коду авторизации, ранее выданному авторизационным сервером
       ###
+      debugger
       promise = Future.single('OAuth2::grantAccessTokenByAuthorizationCode promise')
       params =
         grant_type: 'authorization_code'
         code: code
         client_id: @options.clientId
-        client_secret: @options.secretKey
+        client_secret: '#{client_secret}'
         format: 'json'
         redirect_uri: @options.endpoints.redirectUri
-      @request.get @options.endpoints.accessToken, params, (result) =>
+
+      requestUrl = "#{@options.xdrs.protocol}://#{@options.xdrs.host}#{@options.xdrs.urlPrefix}#{@options.endpoints.accessToken}"
+
+      @request.get requestUrl, params, (result) =>
         if result and result.access_token and result.refresh_token
-          promise.resolve(result.access_token, result.refresh_token)
+          promise.resolve(result.access_token, result.refresh_token, code)
         else
           promise.reject(new Error('No response from authorization server'))
       promise
@@ -130,39 +134,39 @@ define [
       else
         params =
           response_type: 'code'
-          client_id: global.config.oauth2.clientId
-          redirect_uri: global.config.oauth2.endpoints.redirectUri
+          client_id: @config.oauth2.clientId
           format: 'json'
+          xhrOptions:
+            withCredentials: true
 
-        @request.get global.config.oauth2.endpoints.authCodeWithoutLogin, params, (response, error) ->
+        requestUrl = @config.oauth2.endpoints.authCodeWithoutLogin
+        @request.get requestUrl, params, (response, error) ->
           if response.code
             promise.resolve(response.code)
           else
-            if response.error == 'access_denied' and response.error_description == 'Not authorized'
-              promise.reject(new Error('Client is not authorized in authorization server'))
-            else
-              promise.reject(new Error('No auth code recieved. Response: ' + JSON.stringify(response) + JSON.stringify(error)))
+            promise.reject(new Error('No auth code recieved. Response: ' + JSON.stringify(response) + JSON.stringify(error)))
       promise
 
 
     getAuthCodeByPassword: (login, password) ->
+      debugger
       promise = Future.single('Api::getAuthCodeByPassword promise')
       if !isBrowser
         promise.reject(new Error('It is only possible to get auth code at client side'))
       else
         params =
           response_type: 'code'
-          client_id: global.config.oauth2.clientId
-          redirect_uri: global.config.oauth2.endpoints.redirectUri
+          client_id: @config.oauth2.clientId
           login: login
           password: password
           format: 'json'
-        @request.get global.config.oauth2.endpoints.authCode, params, (response, error) ->
+          xhrOptions:
+            withCredentials: true
+
+        requestUrl = @config.oauth2.endpoints.authCode
+        @request.get requestUrl, params, (response, error) ->
           if response and response.code
             promise.resolve(response.code)
           else
-            if response.error == 'access_denied' and response.error_description == 'Not authorized'
-              promise.reject(new Error('Wrong login or password'))
-            else
-              promise.reject(new Error('No auth code recieved. Response:'+ JSON.stringify(response) + JSON.stringify(error)))
+            promise.reject(new Error('No auth code recieved. Response:'+ JSON.stringify(response) + JSON.stringify(error)))
       promise

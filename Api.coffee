@@ -159,18 +159,18 @@ define [
       @oauth2.getAuthCodeByPassword(login, password).name('Api::doAuthCodeLoginByPassword')
         .then (code) =>
           @oauth2.grantAccessTokenByAuhorizationCode(code)
-        .then (accessToken, refreshToken) =>
+        .then (accessToken, refreshToken, code) =>
           @onAccessTokenGranted(accessToken, refreshToken)
-          return
+          code
 
 
     doAuthCodeLoginWithoutPassword: ->
       @oauth2.getAuthCodeWithoutPassword().name('Api::doAuthCodeLoginWithoutPassword')
         .then (code) =>
           @oauth2.grantAccessTokenByAuhorizationCode(code)
-        .then (accessToken, refreshToken) =>
+        .then (accessToken, refreshToken, code) =>
           @onAccessTokenGranted(accessToken, refreshToken)
-          return
+          code
 
 
     authenticateUser: ->

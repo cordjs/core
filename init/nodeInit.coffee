@@ -79,6 +79,8 @@ exports.startServer = startServer = (callback) ->
   services.nodeServer = http.createServer (req, res) ->
     if (pos = req.url.indexOf('/XDR/')) != -1 # cross-domain request proxy
       services.xdrProxy(req.url.substr(pos + 5), req, res)
+    if (pos = req.url.indexOf('/XDRS/')) != -1 # cross-domain request proxy with secrets
+      services.xdrProxy(req.url.substr(pos + 6), req, res, true)
     else if req.url.indexOf('/REQUIRESTAT/collect') == 0
       services.statCollector(req, res)
     else if not services.router.process(req, res)
@@ -120,6 +122,13 @@ exports.loadConfig = loadConfig = (configName, serverPort) ->
 
     common = _.clone(result.common)
     result.browser = _.extend(common, result.browser)
+
+    # Load secrets for node config
+    if _.isString(result.node.secrets) and result.node.secrets.length
+      secretsPath = result.node.secrets
+      secretsPath = if secretsPath[0] == '/' then secretsPath else pathDir + '/conf/' + secretsPath
+      secretsConf = require(secretsPath)
+      result.node = _.extend(result.node, secretsConf) if _.isObject(secretsConf)
 
     # Redefine server port if port defined in command line parameter
     result.node.server.port = serverPort if serverPort

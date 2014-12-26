@@ -77,6 +77,7 @@ define [
       @delegateEvents(@events)          if @events
       @initWidgetEvents(@widgetEvents)  if @widgetEvents
       @initCustomEvents(@customEvents)  if @customEvents
+
       @_callbacks = []
 
       if @show?
@@ -261,7 +262,7 @@ define [
         @_registerModelBinding(@widget.ctx[fieldName], fieldName, onChangeMethod)
 
 
-    _initCustomEvents: (events) ->
+    initCustomEvents: (events) ->
       for eventName, method of events
         method = @_getHandlerFunction(method)
         subscription = @widget.on eventName, => method.apply(this, arguments)
