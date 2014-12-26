@@ -29,3 +29,10 @@ define ->
       @name = 'WidgetParamsRace'
       Error.call(this, @message)
       Error.captureStackTrace?(this, arguments.callee)
+
+
+  MustReloadPage: class MustReloadPage extends Error
+    constructor: (@message) ->
+      @name = 'MustReloadPage'
+      Error.call(this, @message)
+      Error.captureStackTrace?(this, arguments.callee)

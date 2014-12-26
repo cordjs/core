@@ -37,6 +37,15 @@ define [
 
     window._console = _console
 
+    # support for `requireAuth` route option
+    clientSideRouter.setAuthCheckCallback ->
+      serviceContainer.getService('api').then (api) ->
+        api._getTokensByAllMeans()
+      .then ->
+        true
+      .catch ->
+        false
+
     configInitFuture = AppConfigLoader.ready().then (appConfig) ->
       clientSideRouter.addRoutes(appConfig.routes)
       clientSideRouter.addFallbackRoutes(appConfig.fallbackRoutes)
@@ -45,21 +54,18 @@ define [
           serviceContainer.def serviceName, info.deps, (get, done) ->
             info.factory.call(serviceContainer, get, done)
 
-      ###
-        Конфиги
-      ###
-
+      # `config` service definition
       serviceContainer.def 'config', ->
         config = global.config
         loginUrl = config.loginUrl or 'user/login/'
         logoutUrl = config.logoutUrl or 'user/logout/'
         config.api.authenticateUserCallback = ->
-          backPath = window.location.pathname
+          backPath = clientSideRouter.getCurrentPath()
           if not (backPath.indexOf(loginUrl) >= 0 or backPath.indexOf(logoutUrl) >= 0)
             # in SPA mode window.location doesn't make sense
             backUrl = clientSideRouter.getCurrentPath() or window.location.pathname
             clientSideRouter.redirect("#{loginUrl}?back=#{backUrl}").failAloud('Auth redirect failed!')
-          true
+          false
         config
 
       # Clear localStorage in case of changing collections' release number
@@ -72,11 +78,7 @@ define [
                 persistentStorage.set('collectionsVersion', currentVersion)
 
 
-    ###
-      Это надо перенести в более кошерное место
-    ###
-
-    #Global errors handling
+    # Global errors handling
     requirejs.onError = (error) ->
       if global.config.debug.require
         throw error

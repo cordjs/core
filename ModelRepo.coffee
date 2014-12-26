@@ -35,7 +35,7 @@ define [
     # @var Object[String -> String]
     actions: null
 
-    @inject: ['modelProxy']
+    @inject: ['api', 'modelProxy']
 
 
     constructor: (@container) ->
@@ -381,25 +381,27 @@ define [
     # REST related
 
     query: (params, callback) ->
-      resultPromise = Future.single('ModelRepo::query')
       if @container
-        @container.eval 'api', (api) =>
-          apiParams = {}
-          apiParams.reconnect = true if params.reconnect == true
+        apiParams = {}
+        apiParams.reconnect = true if params.reconnect == true
+        url = @_buildApiRequestUrl(params)
 
-          api.get @_buildApiRequestUrl(params), apiParams, (response, error) =>
-            result = []
-            if error == null && !response._code  #Bad boy! Quickfix for absence of error handling
+        @container.getService('api').then (api) =>
+          api.get(url, apiParams).then (response) =>
+            if not response._code  #Bad boy! Quickfix for absence of error handling
+              result = []
               if _.isArray(response)
                 result.push(@buildModel(item)) for item in response
               else if response
                 result.push(@buildModel(response))
-            callback?(result)
-            resultPromise.resolve(result)
+              callback?(result)
+              [result]
+            else
+              throw new Error("#{@debug('query')}: invalid response for url '#{url}' with code #{response._code}!")
+        .catch (error) =>
+          throw new Error("#{@debug('query')}: invalid response for url '#{url}' with code #{error.statusCode} and message '#{error.statusText}'!")
       else
-        resultPromise.reject('Cleaned up')
-
-      resultPromise
+        Future.rejected(new Error('Cleaned up'))
 
 
     _buildApiRequestUrl: (params) ->

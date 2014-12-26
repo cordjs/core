@@ -198,6 +198,10 @@ define [
       @constructor.path
 
 
+    getName: ->
+      @constructor.__name
+
+
     getDir: ->
       @constructor.relativeDirPath
 
@@ -656,20 +660,20 @@ define [
           @_structTemplate
 
 
-    inject: (params, transition) ->
+    inject: (params, commonExistingWidget, transition) ->
       ###
       Injects the widget into the extend-tree and reorganizes the tree.
       Recursively walks through it's extend-widgets until matching widget is found in the current extend-tree.
       If the matching extend-widget is found then new widgets are 'attached' to it's placeholders.
       If the matching extend-widget is not eventually found then the page is reloaded to fully rebuild the DOM.
       @browser-only
-      @param Object params
-      @param PageTransition transition
-      @return Future[Widget] common base widget found in extend-tree
+      @param {Object} params
+      @param {Widget} commonExistingWidget
+      @param {PageTransition} transition
+      @return {Future[Widget]} common base widget found in extend-tree
       ###
       _console.log "#{ @debug 'inject' }", params if global.config.debug.widget
 
-      @widgetRepo.registerNewExtendWidget(this)
       @setParamsSafe(params).then =>
         @getStructTemplate().zip(@_handleOnShow())
       .then (tmpl) =>
@@ -681,13 +685,11 @@ define [
 
         extendWidgetInfo = if not tmpl.isEmpty() then tmpl.struct.extend else null
         if extendWidgetInfo?
-          extendWidget = @widgetRepo.findAndCutMatchingExtendWidget(tmpl.struct.widgets[extendWidgetInfo.widget].path)
-          if extendWidget?
+          if commonExistingWidget.getPath() == tmpl.struct.widgets[extendWidgetInfo.widget].path
+            extendWidget = commonExistingWidget
             readyPromise = new Future(@debug('_injectRender:readyPromise'))
             @_inlinesRuntimeInfo = []
 
-            @registerChild(extendWidget, extendWidgetInfo.name)
-            extendWidget.cleanSubscriptions() # clean up supscriptions to the old parent's context change
             @resolveParamRefs(extendWidget, extendWidgetInfo.params).then (params) ->
               extendWidget.setParamsSafe(params)
             .link(readyPromise)
@@ -718,7 +720,7 @@ define [
           else
             tmpl.getWidget(extendWidgetInfo.widget).then (extendWidget) =>
               @resolveParamRefs(extendWidget, extendWidgetInfo.params).then (params) =>
-                extendWidget.inject(params, transition)
+                extendWidget.inject(params, commonExistingWidget, transition)
               .then (commonBaseWidget) =>
                 @browserInit(extendWidget).done => @markShown()
                 commonBaseWidget
@@ -867,7 +869,22 @@ define [
       ###
       classString = @_buildClassString()
       classAttr = if classString.length then ' class="' + classString + '"' else ''
-      "<#{ @rootTag } id=\"#{ @ctx.id }\"#{ classAttr }>#{ content }</#{ @rootTag }>"
+      "<#{ @rootTag } id=\"#{ @ctx.id }\"#{ classAttr }#{ @_getWidgetDataAttrs() }>#{ content }</#{ @rootTag }>"
+
+
+    _getWidgetDataAttrs: ->
+      ###
+      Builds and returns string with the given data attributes
+      In debug mode adds extra widget info
+      @return String data attrs
+      ###
+      if global.config.debug.widgetName
+        @addDataAttr('widget-class-name', @getName())
+        @addDataAttr('widget-class-path', @getPath())
+
+      dataList = []
+      dataList.push("data-#{key}=\"#{value}\"") for key, value of @ctx.__cord_data_attrs__ if @ctx.__cord_data_attrs__?
+      dataList.join(' ')
 
 
     renderPlaceholderTag: (name, content) ->
@@ -947,6 +964,17 @@ define [
       if cls
         @ctx.__cord_dyn_classes__ ?= []
         @ctx.__cord_dyn_classes__.push(cls) if @ctx.__cord_dyn_classes__.indexOf(cls) == -1
+
+
+    addDataAttr: (key, value) ->
+      ###
+      Adds the specified data property for the root element(s) of the widget.
+      @param {String} key Single key to be added
+      @param {String} value Single value to be added
+      ###
+      if key and value
+        @ctx.__cord_data_attrs__ ?= {}
+        @ctx.__cord_data_attrs__[key] = value
 
 
     _saveContextVersionForBehaviourSubscriptions: ->
@@ -1339,6 +1367,7 @@ define [
             break
 
         @_unbindChildEvents(child, childName)
+        child.cleanSubscriptions()
 
         @widgetRepo.unregisterParent(child)
       else

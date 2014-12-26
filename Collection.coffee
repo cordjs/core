@@ -175,6 +175,8 @@ define [
 
       collectionVersion = global.config.static.collection
 
+      emitOnAny = if options._emitChangeOnAny then 'emitOnAny' else 'notEmitOnAny'
+
       tagz = if options.tags then _.keys(options.tags).sort().join('_') else ''
 
       [
@@ -191,6 +193,7 @@ define [
         requestOptions
         pageSize
         tagz
+        emitOnAny
       ].join('|').replace(/\:/g, '')
 
 
@@ -205,6 +208,7 @@ define [
       @_filterType = options.filterType ? ':backend'
       @_fields = options.fields ? []
       @_reconnect = options.reconnect ? false
+      @_emitChangeOnAny = options.emitChangeOnAny ? false
 
       if options.model
         @_fillModelList [options.model]
@@ -1138,6 +1142,12 @@ define [
           isSourceModel = changeInfo._sourceModel == model
           if isSourceModel or modelHasReallyChanged
             @emit("model.#{ changeInfo.id }.change", model)
+            if @_emitChangeOnAny
+              if not @_globalChangeEmitRequired
+                Defer.nextTick =>
+                  @_globalChangeEmitRequired = false
+                  @emit('change', {})
+              @_globalChangeEmitRequired = true
 
 
     # paging related
@@ -1381,6 +1391,9 @@ define [
             throw new Error("Inconsistent query queue: #{ queryList }, #{ waitForQuery }!")
 
           this
+        .catch (error) =>
+          _console.error "#{@constructor.__name}::_enqueueQuery() query failed:", error
+          false
 
         waitForQuery =
           start: start
@@ -1513,6 +1526,7 @@ define [
       pageSize: @_pageSize
       canonicalPath: @constructor.path ? null
       initialized: @_initialized
+      emitChangeOnAny: @_emitChangeOnAny
       _accessPoint: @_accessPoint
 
 
@@ -1538,6 +1552,7 @@ define [
       collection._filter = obj.filter
       collection._requestParams = obj._requestParams
       collection._pageSize = obj.pageSize
+      collection._emitChangeOnAny = obj.emitChangeOnAny
       collection._accessPoint = obj._accessPoint
 
       collection._reindexModels()

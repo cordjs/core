@@ -48,9 +48,18 @@ define [
         _.extend(routeInfo.params, query)
 
         if routeInfo.route.widget?
-          @_lastTransitionPromise = @widgetRepo.smartTransitPage(
-            routeInfo.route.widget, routeInfo.params, new PageTransition(@_currentPath, newPath)
-          )
+          checkAuthPromise =
+            if routeInfo.route.requireAuth and _.isFunction(@_authCheckCallback)
+              Future.try => @_authCheckCallback()
+            else
+              Future.resolved(true)
+          @_lastTransitionPromise = checkAuthPromise.then (authOk) =>
+            if authOk
+              @widgetRepo.smartTransitPage(
+                routeInfo.route.widget, routeInfo.params, new PageTransition(@_currentPath, newPath)
+              )
+            else
+              Future.rejected(new Error("Required auth check not passed for the route #{routeInfo.route}"))
           @_currentPath = newPath
           true
         else
