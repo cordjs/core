@@ -79,7 +79,7 @@ exports.startServer = startServer = (callback) ->
   services.nodeServer = http.createServer (req, res) ->
     if (pos = req.url.indexOf('/XDR/')) != -1 # cross-domain request proxy
       services.xdrProxy(req.url.substr(pos + 5), req, res)
-    if (pos = req.url.indexOf('/XDRS/')) != -1 # cross-domain request proxy with secrets
+    else if (pos = req.url.indexOf('/XDRS/')) != -1 # cross-domain request proxy with secrets
       services.xdrProxy(req.url.substr(pos + 6), req, res, true)
     else if req.url.indexOf('/REQUIRESTAT/collect') == 0
       services.statCollector(req, res)
