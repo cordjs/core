@@ -445,12 +445,16 @@ define [
             this
         else
           this
+      .catch (err) ->
+        firstResultPromise.reject(err) if not firstResultPromise.completed()
+        throw err
 
       # handling different behaviours of return modes
       resultPromise = Future.single('Collection::sync resultPromise')
       switch returnMode
         when ':sync' then resultPromise.when(syncPromise)
         when ':async'
+          syncPromise.failOk()
           if start? and end?
             if start >= @_loadedStart and end <= @_loadedEnd
               resultPromise.resolve(this)
@@ -1391,9 +1395,9 @@ define [
             throw new Error("Inconsistent query queue: #{ queryList }, #{ waitForQuery }!")
 
           this
-        .catch (error) =>
-          _console.error "#{@constructor.__name}::_enqueueQuery() query failed:", error
-          false
+#        .catch (error) =>
+#          _console.error "#{@constructor.__name}::_enqueueQuery() query failed:", error
+#          false
 
         waitForQuery =
           start: start
