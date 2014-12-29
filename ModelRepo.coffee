@@ -386,20 +386,17 @@ define [
         apiParams.reconnect = true if params.reconnect == true
         url = @_buildApiRequestUrl(params)
 
-        @container.getService('api').then (api) =>
-          api.get(url, apiParams).then (response) =>
-            if not response._code  #Bad boy! Quickfix for absence of error handling
-              result = []
-              if _.isArray(response)
-                result.push(@buildModel(item)) for item in response
-              else if response
-                result.push(@buildModel(response))
-              callback?(result)
-              [result]
-            else
-              throw new Error("#{@debug('query')}: invalid response for url '#{url}' with code #{response._code}!")
-        .catch (error) =>
-          throw new Error("#{@debug('query')}: invalid response for url '#{url}' with code #{error.statusCode} and message '#{error.statusText}'!")
+        @api.get(url, apiParams).then (response) =>
+          if not response._code  #Bad boy! Quickfix for absence of error handling
+            result = []
+            if _.isArray(response)
+              result.push(@buildModel(item)) for item in response
+            else if response
+              result.push(@buildModel(response))
+            callback?(result)
+            [result]
+          else
+            throw new Error("#{@debug('query')}: invalid response for url '#{url}' with code #{response._code}!")
       else
         Future.rejected(new Error('Cleaned up'))
 
