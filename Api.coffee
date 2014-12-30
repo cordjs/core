@@ -18,6 +18,8 @@ define [
 
     fallbackErrors: null
 
+    cookiesInvalidated: false
+
 
     constructor: (serviceContainer, options) ->
       @fallbackErrors = {}
@@ -113,7 +115,7 @@ define [
       ###
       Loads saved tokens from cookies
       ###
-      if not (@accessToken and @refreshToken)
+      if not @cookiesInvalidated and not (@accessToken and @refreshToken)
         @accessToken  = @cookie.get('accessToken')
         @refreshToken = @cookie.get('refreshToken')
         @scope        = @cookie.get('oauthScope')
@@ -130,6 +132,7 @@ define [
 
 
     _invalidateAccessToken: ->
+      @cookiesInvalidated = true
       @accessToken = null
       @cookie.set('accessToken')
       return
