@@ -79,6 +79,8 @@ define [
       @refreshToken = refreshToken
       @scope = @getScope()
 
+      @cookiesInvalidated = false
+
       @cookie.set('accessToken', @accessToken, expires: 15)
       @cookie.set('refreshToken', @refreshToken, expires: 15)
       @cookie.set('oauthScope', @scope, expires: 15)
@@ -197,6 +199,7 @@ define [
       result = Future.single('Api::authenticateUser')
 
       # Clear Cookies
+      @cookiesInvalidated = true
       @cookie.set('accessToken')
       @cookie.set('refreshToken')
       @cookie.set('oauthScope')
