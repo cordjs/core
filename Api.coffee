@@ -165,7 +165,22 @@ define [
 
 
     doAuthCodeLoginByPassword: (login, password) ->
-      @oauth2.getAuthCodeByPassword(login, password).name('Api::doAuthCodeLoginByPassword')
+      ###
+      This one is used for normal Auth2 procedure, not MegaId
+      ###
+      @oauth2.getAuthCodeByPassword(login, password, @getScope()).name('Api::doAuthCodeLoginByPassword')
+        .then (code) =>
+          @oauth2.grantAccessTokenByAuhorizationCode(code, @getScope())
+        .then (accessToken, refreshToken, code) =>
+          @onAccessTokenGranted(accessToken, refreshToken)
+          code
+
+
+    doAuthCodeLoginWithoutPassword: ->
+      ###
+      This one is used for normal Auth2 procedure, not MegaId
+      ###
+      @oauth2.getAuthCodeWithoutPassword(@getScope()).name('Api::doAuthCodeLoginWithoutPassword')
         .then (code) =>
           @oauth2.grantAccessTokenByAuhorizationCode(code)
         .then (accessToken, refreshToken, code) =>
@@ -173,11 +188,28 @@ define [
           code
 
 
-    doAuthCodeLoginWithoutPassword: ->
-      @oauth2.getAuthCodeWithoutPassword().name('Api::doAuthCodeLoginWithoutPassword')
+    getAccessTokenByMegaId: ->
+      ###
+      This one is used exclusevely for MegaId via backend (for security reasons)
+      ###
+      console.log 'getAccessTokenByMegaId-------------------------------'
+      @oauth2.getAuthCodeWithoutPassword(@getScope()).name('Api::getAccessTokenByMegaId')
         .then (code) =>
-          @oauth2.grantAccessTokenByAuhorizationCode(code)
+          console.log 'getAuthCodeWithoutPassword code -------------------------------', code
+          @oauth2.grantAccessTokenByMegaId(code, @getScope())
         .then (accessToken, refreshToken, code) =>
+          @onAccessTokenGranted(accessToken, refreshToken)
+          code
+
+
+    getAccessTokenByInviteCode: (inviteCode) ->
+      console.log 'getAccessTokenByInviteCode getAccessTokenByMegaId-------------------------------'
+      @oauth2.getAuthCodeWithoutPassword(@getScope()).name('Api::getAccessTokenByMegaId')
+        .then (code) =>
+          console.log 'grantAccessTokenByInviteCode getAccessTokenByMegaId-------------------------------'
+          @oauth2.grantAccessTokenByInviteCode(inviteCode, code, @getScope())
+        .then (accessToken, refreshToken, code) =>
+          console.log 'onAccessTokenGranted -------------------------------', accessToken, refreshToken
           @onAccessTokenGranted(accessToken, refreshToken)
           code
 
@@ -192,13 +224,22 @@ define [
       @return {Future[Tuple[String, String]]} access- and refresh-tokens.
       ###
       result = Future.single('Api::authenticateUser')
+      console.log 'authenticateUser-------------------------------'
 
       # Clear Cookies
       @cookie.set('accessToken')
       @cookie.set('refreshToken')
       @cookie.set('oauthScope')
 
-      if @options.authenticateUserCallback() # true means possibility of auto-login without user-interaction
+      if @options.useMegaplanId
+        # Try to accuire tokens via MegaId
+        @getAccessTokenByMegaId()
+          .catch (e) =>
+            # Whoops, needed login via Megaplan Start, on client we redirect to start, on server to special auth page
+            console.log '# Whoops, needed login via Megaplan Start, on client we redirect to start, on server to special auth page'
+            @options.authenticateUserCallback()
+
+      else if @options.authenticateUserCallback() # true means possibility of auto-login without user-interaction
         @once 'auth.tokens.ready', (tokens) ->
           result.resolve([tokens.accessToken, tokens.refreshToken])
       else

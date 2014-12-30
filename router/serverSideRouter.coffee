@@ -42,7 +42,7 @@ define [
 
       @_currentPath = req.url
 
-      routeInfo = pr.call(this, 'matchRoute', path.pathname) # timer name is constructed automatically
+      routeInfo = pr.call(this, 'matchRoute', path.pathname + path.search) # timer name is constructed automatically
 
       if routeInfo
         serverProfilerUid = @_initProfilerDump()
@@ -98,6 +98,7 @@ define [
         logoutUrl = config.api.logoutUrl or 'user/logout'
         config.api.authenticateUserCallback = =>
           if serviceContainer
+            console.log 'config.api.authenticateUserCallback'
             response = serviceContainer.get 'serverResponse'
             request = serviceContainer.get 'serverRequest'
             if not (request.url.indexOf(loginUrl) >= 0 or request.url.indexOf(logoutUrl) >= 0)
