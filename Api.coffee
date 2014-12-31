@@ -199,7 +199,7 @@ define [
       result = Future.single('Api::authenticateUser')
 
       # Clear Cookies
-      @cookiesInvalidated = true
+      @cookiesInvalidated = true # server-side hack: cause cookies will be cleared on the next request
       @cookie.set('accessToken')
       @cookie.set('refreshToken')
       @cookie.set('oauthScope')
