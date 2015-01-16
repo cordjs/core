@@ -6,9 +6,10 @@ define [
   'cord!PageTransition'
   'cord!ServiceContainer'
   'cord!WidgetRepo'
+  'monologue' + (if CORD_IS_BROWSER then '' else '.js')
   'jquery'
 ], (AppConfigLoader, _console, cssManager,
-    clientSideRouter, PageTransition, ServiceContainer, WidgetRepo, $) ->
+    clientSideRouter, PageTransition, ServiceContainer, WidgetRepo, Monologue, $) ->
 
   class ClientFallback
 
@@ -84,6 +85,9 @@ define [
         throw error
       else
         _console.error 'Error from requirejs: ', error.toString(), 'Error: ', error
+
+    # monologue to debug mode
+    Monologue.debug = true if global.config.debug.monologue != undefined and global.config.debug.monologue
 
 
     widgetRepo = new WidgetRepo(global.cordServerProfilerUid)

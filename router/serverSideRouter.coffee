@@ -12,7 +12,8 @@ define [
   if CORD_PROFILER_ENABLED then 'mkdirp' else undefined
   'underscore'
   'url'
-], (AppConfigLoader, errors, Router, ServiceContainer, WidgetRepo, DomInfo, Future, pr, sha1, fs, mkdirp, _, url) ->
+  'monologue' + (if CORD_IS_BROWSER then '' else '.js')
+], (AppConfigLoader, errors, Router, ServiceContainer, WidgetRepo, DomInfo, Future, pr, sha1, fs, mkdirp, _, url, Monologue) ->
 
   class ServerSideFallback
 
@@ -77,6 +78,9 @@ define [
         # SaaS-mode configuration support
         appConfig.browser.calculateByRequest?(req)
         appConfig.node.calculateByRequest?(req)
+
+        # monologue to debug mode
+        Monologue.debug = true if global.config.debug.monologue != undefined and global.config.debug.monologue
 
         widgetRepo = new WidgetRepo(serverProfilerUid)
 

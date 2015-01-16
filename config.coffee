@@ -107,7 +107,7 @@ define ->
       'jquery':                  'vendor/jquery/jquery'
       'jquery.cookie':           'vendor/jquery/plugins/jquery.cookie'
       'localforage':             'vendor/localforage/localforage'
-      'monologue':               'vendor/postal/monologue'
+      'monologue':               'vendor/monologue/monologue'
       'postal':                  'vendor/postal/postal_lite'
       'the-box':                 'vendor/the-box/app'
       'underscore':              'vendor/underscore/underscore'
