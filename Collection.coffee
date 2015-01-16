@@ -244,8 +244,8 @@ define [
       @_accessPoint = options.accessPoint ? null
 
       # subscribe for model changes to smart-proxy them to the collections model instances
-      @_changeSubscription = @repo.on('change', @_handleModelChange).context(this)
-      @_tagsSubscription = @repo.on('tags', @_handleTagBroadcast).context(this)
+      @_changeSubscription = @repo.on('change', @_handleModelChange).withContext(this)
+      @_tagsSubscription = @repo.on('tags', @_handleTagBroadcast).withContext(this)
 
 
     injectTags: (tags) ->

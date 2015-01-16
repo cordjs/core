@@ -1396,10 +1396,10 @@ define [
       subs = @constructor._childEventSubscriptions
       if childName and subs[childName]
         for topic, callbacks of subs[childName]
-          childWidget.on(topic, cb).context(this) for cb in callbacks
+          childWidget.on(topic, cb).withContext(this) for cb in callbacks
       if subs[':any']
         for topic, callbacks of subs[':any']
-          childWidget.on(topic, cb).context(this) for cb in callbacks
+          childWidget.on(topic, cb).withContext(this) for cb in callbacks
 
 
     _unbindChildEvents: (childWidget, childName) ->
