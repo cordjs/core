@@ -131,3 +131,5 @@ define ->
         exports: '_'
       'zone':
         exports: 'zone'
+
+  fatalErrorPageFile: 'bundles/cord/core/assets/fatal-error.html'

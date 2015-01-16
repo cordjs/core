@@ -1,5 +1,6 @@
 define [
   'cord!AppConfigLoader'
+  'cord!errors'
   'cord!router/Router'
   'cord!ServiceContainer'
   'cord!WidgetRepo'
@@ -11,7 +12,7 @@ define [
   if CORD_PROFILER_ENABLED then 'mkdirp' else undefined
   'underscore'
   'url'
-], (AppConfigLoader, Router, ServiceContainer, WidgetRepo, DomInfo, Future, pr, sha1, fs, mkdirp, _, url) ->
+], (AppConfigLoader, errors, Router, ServiceContainer, WidgetRepo, DomInfo, Future, pr, sha1, fs, mkdirp, _, url) ->
 
   class ServerSideFallback
 
@@ -54,19 +55,15 @@ define [
         serviceContainer = new ServiceContainer
         serviceContainer.set 'container', serviceContainer
 
-        ###
-          Другого места получить из первых рук запрос-ответ нет
-        ###
-
         serviceContainer.set 'serverRequest', req
         serviceContainer.set 'serverResponse', res
+
         serviceContainer.set 'router', this
 
-        ###
-          Конфиги
-        ###
+        # preparing global configuration
+        # cloning is necessary to prevent conflict of host names of different SaaS-accounts running on the same node
         appConfig = _.clone(global.appConfig)
-        # second level crutch
+
         appConfig.browser = _.clone(appConfig.browser)
         appConfig.browser.api = _.clone(appConfig.browser.api)
         appConfig.browser.oauth2 = _.clone(appConfig.browser.oauth2)
@@ -77,12 +74,16 @@ define [
         appConfig.node.oauth2 = _.clone(appConfig.node.oauth2)
         appConfig.node.oauth2.endpoints = _.clone(appConfig.node.oauth2.endpoints)
 
+        # SaaS-mode configuration support
         appConfig.browser.calculateByRequest?(req)
         appConfig.node.calculateByRequest?(req)
 
         widgetRepo = new WidgetRepo(serverProfilerUid)
 
         clear = =>
+          ###
+          Kinda GC after request processing
+          ###
           if serviceContainer?
             for serviceName in serviceContainer.getNames()
               if serviceContainer.isReady(serviceName)
@@ -129,7 +130,7 @@ define [
 
           previousProcess = {}
 
-          processWidget = (rootWidgetPath, params) =>
+          processWidget = (rootWidgetPath, params) ->
             pr.timer 'ServerSideRouter::showWidget', ->
               widgetRepo.createWidget(rootWidgetPath).then (rootWidget) ->
                 if widgetRepo
@@ -142,9 +143,31 @@ define [
                     res.shouldKeepAlive = false
                     res.writeHead 200, 'Content-Type': 'text/html'
                     res.end(out)
-                    # todo: may be need some cleanup before?
-                    clear()
-              .failAloud("ServerSideRouter::processWidget:#{rootWidgetPath}")
+              .catch (err) ->
+                if err instanceof errors.AuthError
+                  serviceContainer.getService('api').then (api) ->
+                    api.authenticateUser()
+                else
+                  _console.error "FATAL ERROR: server-side rendering failed! Reason: #{err}"
+                  displayFatalError()
+              .finally ->
+                clear()
+
+
+          displayFatalError = ->
+            fatalErrorPageFile = 'public/' + appConfig.fatalErrorPageFile
+            res.writeHead(500, 'Unexpeced Error!', 'Content-type': 'text/html')
+            Future.call(fs.readFile, fatalErrorPageFile, 'utf8').then (data) ->
+              res.end(data)
+            .catch (err) ->
+              _console.error "Error while reading fatal error page html: #{err}. Falling back to the inline version."
+              res.end """
+                <html>
+                  <head><title>Error 500</title></head>
+                  <body><h1>Unexpected Error occurred!</h1></body>
+                </html>
+              """
+
 
           eventEmitter.once 'fallback', (args) =>
             if previousProcess.showPromise

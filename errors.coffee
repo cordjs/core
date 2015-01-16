@@ -36,3 +36,10 @@ define ->
       @name = 'MustReloadPage'
       Error.call(this, @message)
       Error.captureStackTrace?(this, arguments.callee)
+
+
+  AuthError: class AuthError extends Error
+    constructor: (@message) ->
+      @name = 'AuthError'
+      Error.call(this, @message)
+      Error.captureStackTrace?(this, arguments.callee)
