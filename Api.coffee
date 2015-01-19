@@ -18,6 +18,8 @@ define [
 
     fallbackErrors: null
 
+    cookiesInvalidated: false
+
 
     constructor: (serviceContainer, options) ->
       @fallbackErrors = {}
@@ -77,6 +79,8 @@ define [
       @refreshToken = refreshToken
       @scope = @getScope()
 
+      @cookiesInvalidated = false
+
       @cookie.set('accessToken', @accessToken, expires: 15)
       @cookie.set('refreshToken', @refreshToken, expires: 15)
       @cookie.set('oauthScope', @scope, expires: 15)
@@ -113,7 +117,7 @@ define [
       ###
       Loads saved tokens from cookies
       ###
-      if not (@accessToken and @refreshToken)
+      if not @cookiesInvalidated and not (@accessToken and @refreshToken)
         @accessToken  = @cookie.get('accessToken')
         @refreshToken = @cookie.get('refreshToken')
         @scope        = @cookie.get('oauthScope')
@@ -130,6 +134,7 @@ define [
 
 
     _invalidateAccessToken: ->
+      @cookiesInvalidated = true
       @accessToken = null
       @cookie.set('accessToken')
       return
@@ -165,7 +170,22 @@ define [
 
 
     doAuthCodeLoginByPassword: (login, password) ->
-      @oauth2.getAuthCodeByPassword(login, password).name('Api::doAuthCodeLoginByPassword')
+      ###
+      This one is used for normal Auth2 procedure, not MegaId
+      ###
+      @oauth2.getAuthCodeByPassword(login, password, @getScope()).name('Api::doAuthCodeLoginByPassword')
+        .then (code) =>
+          @oauth2.grantAccessTokenByAuhorizationCode(code, @getScope())
+        .then (accessToken, refreshToken, code) =>
+          @onAccessTokenGranted(accessToken, refreshToken)
+          code
+
+
+    doAuthCodeLoginWithoutPassword: ->
+      ###
+      This one is used for normal Auth2 procedure, not MegaId
+      ###
+      @oauth2.getAuthCodeWithoutPassword(@getScope()).name('Api::doAuthCodeLoginWithoutPassword')
         .then (code) =>
           @oauth2.grantAccessTokenByAuhorizationCode(code)
         .then (accessToken, refreshToken, code) =>
@@ -173,10 +193,22 @@ define [
           code
 
 
-    doAuthCodeLoginWithoutPassword: ->
-      @oauth2.getAuthCodeWithoutPassword().name('Api::doAuthCodeLoginWithoutPassword')
+    getAccessTokenByMegaId: ->
+      ###
+      This one is used exclusevely for MegaId via backend (for security reasons)
+      ###
+      @oauth2.getAuthCodeWithoutPassword(@getScope()).name('Api::getAccessTokenByMegaId')
         .then (code) =>
-          @oauth2.grantAccessTokenByAuhorizationCode(code)
+          @oauth2.grantAccessTokenByMegaId(code, @getScope())
+        .then (accessToken, refreshToken, code) =>
+          @onAccessTokenGranted(accessToken, refreshToken)
+          code
+
+
+    getAccessTokenByInviteCode: (inviteCode) ->
+      @oauth2.getAuthCodeWithoutPassword(@getScope()).name('Api::getAccessTokenByMegaId')
+        .then (code) =>
+          @oauth2.grantAccessTokenByInviteCode(inviteCode, code, @getScope())
         .then (accessToken, refreshToken, code) =>
           @onAccessTokenGranted(accessToken, refreshToken)
           code
@@ -194,11 +226,18 @@ define [
       result = Future.single('Api::authenticateUser')
 
       # Clear Cookies
+      @cookiesInvalidated = true # server-side hack: cause cookies will be cleared on the next request
       @cookie.set('accessToken')
       @cookie.set('refreshToken')
       @cookie.set('oauthScope')
+      if @options.megaplanId?.useMegaplanId
+        # Try to accuire tokens via MegaId
+        @getAccessTokenByMegaId()
+          .catch (e) =>
+            # Whoops, needed login via Megaplan Start, on client we redirect to start, on server to special auth page
+            @options.authenticateUserCallback()
 
-      if @options.authenticateUserCallback() # true means possibility of auto-login without user-interaction
+      else if @options.authenticateUserCallback() # true means possibility of auto-login without user-interaction
         @once 'auth.tokens.ready', (tokens) ->
           result.resolve([tokens.accessToken, tokens.refreshToken])
       else

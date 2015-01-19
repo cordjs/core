@@ -50,6 +50,8 @@ define [
           # todo: may be it should be reported when there are duplicate routes?
           _.extend(destination, source)
 
+        fatalErrorPageFile = undefined
+
         for config, i in args
           if config.fallbackRoutes?
             processRoutes config.fallbackRoutes, fallbackRoutes, application[i]
@@ -83,11 +85,15 @@ define [
             for error, fallback of config.fallbackApiErrors
               fallbackApiErrors[error] = fallback
 
+          fatalErrorPageFile = config.fatalErrorPageFile  if config.fatalErrorPageFile
+
         AppConfigLoader._promise.resolve
           routes: routes
           services: services
           fallbackRoutes: fallbackRoutes
           fallbackApiErrors: fallbackApiErrors
+          fatalErrorPageFile: fatalErrorPageFile
+
 
     # start loading immediately on class loading
     @_load()

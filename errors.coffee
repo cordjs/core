@@ -9,7 +9,6 @@ define ->
       Error.call(this, @message)
       Error.captureStackTrace?(this, arguments.callee)
 
-
   WidgetSentenced: class WidgetSentenced extends Error
     constructor: (@message) ->
       @name = 'WidgetSentenced'
@@ -34,5 +33,18 @@ define ->
   MustReloadPage: class MustReloadPage extends Error
     constructor: (@message) ->
       @name = 'MustReloadPage'
+      Error.call(this, @message)
+      Error.captureStackTrace?(this, arguments.callee)
+
+
+  MegaIdAuthFailed: class MegaIdAuthFailed extends Error
+    constructor: (@message) ->
+      @name = 'MegaIdAuthFailed'
+      Error.call(this, @message)
+      Error.captureStackTrace?(this, arguments.callee)
+
+  AuthError: class AuthError extends Error
+    constructor: (@message) ->
+      @name = 'AuthError'
       Error.call(this, @message)
       Error.captureStackTrace?(this, arguments.callee)

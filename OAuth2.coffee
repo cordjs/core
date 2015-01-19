@@ -2,7 +2,8 @@ define [
   'underscore'
   'cord!isBrowser'
   'cord!utils/Future'
-], (_, isBrowser, Future) ->
+  'cord!errors'
+], (_, isBrowser, Future, errors) ->
 
   class OAuth2
 
@@ -21,11 +22,11 @@ define [
       @options = _.extend defaultOptions, options
 
 
-    grantAccessTokenByAuhorizationCode: (code) ->
+    grantAccessTokenByAuhorizationCode: (code, scope) ->
       ###
       Получает токены по коду авторизации, ранее выданному авторизационным сервером
+      Использует спец. секцию xdrs для отправки запросов с секретными материалами.
       ###
-      debugger
       promise = Future.single('OAuth2::grantAccessTokenByAuthorizationCode promise')
       params =
         grant_type: 'authorization_code'
@@ -34,6 +35,7 @@ define [
         client_secret: '#{client_secret}'
         format: 'json'
         redirect_uri: @options.endpoints.redirectUri
+        scope: scope
 
       requestUrl = "#{@options.xdrs.protocol}://#{@options.xdrs.host}#{@options.xdrs.urlPrefix}#{@options.endpoints.accessToken}"
 
@@ -55,7 +57,7 @@ define [
         scope: scope
         json: true
 
-      @request.get @options.endpoints.accessToken, params, (result) =>
+      @request.get @options.endpoints.accessToken, params, (result) ->
         if result
           callback result.access_token, result.refresh_token
         else
@@ -72,7 +74,7 @@ define [
 
       requestParams = _.extend params, requestParams
 
-      @request.get @options.endpoints.accessToken, requestParams, (result) =>
+      @request.get @options.endpoints.accessToken, requestParams, (result) ->
         if result
           callback result.access_token, result.refresh_token
         else
@@ -116,7 +118,7 @@ define [
       @_refreshTokenRequestPromise
 
 
-    getAuthCodeWithoutPassword: ->
+    getAuthCodeWithoutPassword: (scope) ->
       ###
       Try to acquire auth Code. Succeeds only if user has been already logged in.
       Oauth2 server uses it's cookies to identify user
@@ -128,21 +130,23 @@ define [
         params =
           response_type: 'code'
           client_id: @config.oauth2.clientId
+          scope: scope
           format: 'json'
           xhrOptions:
             withCredentials: true
 
         requestUrl = @config.oauth2.endpoints.authCodeWithoutLogin
+        if not requestUrl
+          return promise.reject('config.oauth2.endpoints.authCodeWithoutLogin parameter is required')
         @request.get requestUrl, params, (response, error) ->
           if response.code
             promise.resolve(response.code)
           else
-            promise.reject(new Error('No auth code recieved. Response: ' + JSON.stringify(response) + JSON.stringify(error)))
+            promise.reject(new errors.MegaIdAuthFailed('No auth code recieved. Response: ' + JSON.stringify(response) + JSON.stringify(error)))
       promise
 
 
-    getAuthCodeByPassword: (login, password) ->
-      debugger
+    getAuthCodeByPassword: (login, password, scope) ->
       promise = Future.single('Api::getAuthCodeByPassword promise')
       if !isBrowser
         promise.reject(new Error('It is only possible to get auth code at client side'))
@@ -153,6 +157,7 @@ define [
           login: login
           password: password
           format: 'json'
+          scope: scope
           xhrOptions:
             withCredentials: true
 
@@ -161,5 +166,48 @@ define [
           if response and response.code
             promise.resolve(response.code)
           else
-            promise.reject(new Error('No auth code recieved. Response:'+ JSON.stringify(response) + JSON.stringify(error)))
+            promise.reject(new errors.MegaIdAuthFailed('No auth code recieved. Response:'+ JSON.stringify(response) + JSON.stringify(error)))
       promise
+
+
+    grantAccessTokenByMegaId: (code, scope) ->
+      ###
+      Grant access token from backend, using Code accuired from MegaplanId on front-end
+      Refreshing access tokens done via grantAccessTokenByRefreshToken
+      ###
+      promise = Future.single('OAuth2::grantAccessTokenByMegaId promise')
+      params =
+        grant_type: 'authorization_code'
+        code: code
+        scope: scope
+
+      requestUrl = @options.endpoints.accessToken
+
+      @request.get requestUrl, params, (result) =>
+        if result and result.access_token and result.refresh_token
+          promise.resolve(result.access_token, result.refresh_token, code)
+        else
+          promise.reject(new Error('No response from backend server (MegaId)'))
+      promise
+
+
+    grantAccessTokenByInviteCode: (inviteCode, code, scope) ->
+      ###
+      Convert invite auth into MegaplanId auth, and grant access tokes
+      ###
+
+      promise = Future.single('OAuth2::grantAccessTokenByInviteCode promise')
+      params =
+        megaplan_start_invite: inviteCode
+        code: code
+        scope: scope
+
+      requestUrl = @options.endpoints.inviteCode
+
+      @request.get requestUrl, params, (result) =>
+        if result and result.access_token and result.refresh_token
+          promise.resolve(result.access_token, result.refresh_token, code)
+        else
+          promise.reject(new Error(if _.isObject(result) and result.error then result.error else JSON.stringify(result)))
+      promise
+

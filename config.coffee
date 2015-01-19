@@ -5,7 +5,10 @@ define ->
       deps: ['config', 'container']
       factory: (get, done) ->
         require ['cord!/cord/core/Api'], (Api) ->
-          api = new Api(get('container'), get('config').api)
+          config = get('config')
+          apiConfig = config.api
+          apiConfig.megaplanId = config.megaplanId if config.megaplanId
+          api = new Api(get('container'), apiConfig)
           get('container').injectServices(api).done ->
             done(null, api)
 
@@ -13,7 +16,10 @@ define ->
       deps: ['config', 'container']
       factory: (get, done) ->
         require ['cord!/cord/core/OAuth2'], (OAuth2) ->
-          oauth2 = new OAuth2(get('config').oauth2)
+          config = get('config')
+          oauth2Config = config.oauth2
+          oauth2Config.megaplanId = config.megaplanId if config.megaplanId
+          oauth2 = new OAuth2(oauth2Config)
           get('container').injectServices(oauth2).done ->
             done(null, oauth2)
 
@@ -107,7 +113,7 @@ define ->
       'jquery':                  'vendor/jquery/jquery'
       'jquery.cookie':           'vendor/jquery/plugins/jquery.cookie'
       'localforage':             'vendor/localforage/localforage'
-      'monologue':               'vendor/postal/monologue'
+      'monologue':               'vendor/monologue/monologue'
       'postal':                  'vendor/postal/postal_lite'
       'the-box':                 'vendor/the-box/app'
       'underscore':              'vendor/underscore/underscore'
@@ -131,3 +137,5 @@ define ->
         exports: '_'
       'zone':
         exports: 'zone'
+
+  fatalErrorPageFile: 'bundles/cord/core/assets/fatal-error.html'

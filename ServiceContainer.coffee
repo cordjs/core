@@ -103,7 +103,6 @@ define [
           for serviceAlias, serviceName of services
             injectService serviceAlias, serviceName
 
-
       injectPromise
 
 

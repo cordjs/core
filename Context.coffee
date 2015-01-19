@@ -255,7 +255,7 @@ define [
       Prevents debug timeouts for deferred values to be redundantly logged when the owner widget is going to die
       ###
       if @[':internal'].deferredTimeouts?
-        clearTimeout(timeout) for timeout in @[':internal'].deferredTimeouts
+        clearTimeout(timeout) for name, timeout of @[':internal'].deferredTimeouts
         @[':internal'].deferredTimeouts = null
 
 

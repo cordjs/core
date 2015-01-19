@@ -23,8 +23,6 @@ define [
         targetUrl = targetUrl.replace('%23%7B' + secret + '%7D', value)
         targetUrl = targetUrl.replace('#{' + secret + '}', value)
 
-    console.log targetUrl
-
     proxyUrl = url.parse(targetUrl)
 
     # copying headers and removing unnecessary ones
