@@ -9,7 +9,7 @@ define [
   'cord!utils/sha1'
   'fs'
   if CORD_PROFILER_ENABLED then 'mkdirp' else undefined
-  'underscore'
+  'lodash'
   'url'
 ], (AppConfigLoader, Router, ServiceContainer, WidgetRepo, DomInfo, Future, pr, sha1, fs, mkdirp, _, url) ->
 
@@ -63,22 +63,9 @@ define [
         serviceContainer.set 'router', this
 
         ###
-          Конфиги
+          Prepare configs for particular request
         ###
-        appConfig = _.clone(global.appConfig)
-        # second level crutch
-        appConfig.browser = _.clone(appConfig.browser)
-        appConfig.browser.api = _.clone(appConfig.browser.api)
-        appConfig.browser.oauth2 = _.clone(appConfig.browser.oauth2)
-        appConfig.browser.oauth2.endpoints = _.clone(appConfig.browser.oauth2.endpoints)
-
-        appConfig.node = _.clone(appConfig.node)
-        appConfig.node.api = _.clone(appConfig.node.api)
-        appConfig.node.oauth2 = _.clone(appConfig.node.oauth2)
-        appConfig.node.oauth2.endpoints = _.clone(appConfig.node.oauth2.endpoints)
-
-        appConfig.browser.calculateByRequest?(req)
-        appConfig.node.calculateByRequest?(req)
+        appConfig = @_prepareConfigForRequest(req)
 
         widgetRepo = new WidgetRepo(serverProfilerUid)
 
@@ -93,21 +80,22 @@ define [
             serviceContainer = null
           widgetRepo = null
 
+
         config = appConfig.node
-        loginUrl = config.api.loginUrl or 'user/login'
-        logoutUrl = config.api.logoutUrl or 'user/logout'
-        config.api.authenticateUserCallback = =>
-          if serviceContainer
-            console.log 'config.api.authenticateUserCallback'
-            response = serviceContainer.get 'serverResponse'
-            request = serviceContainer.get 'serverRequest'
-            if not (request.url.indexOf(loginUrl) >= 0 or request.url.indexOf(logoutUrl) >= 0)
-              @redirect("/#{loginUrl}/?back=#{request.url}", response)
-              clear()
-          false
 
         serviceContainer.set 'config', config
         serviceContainer.set 'appConfig', appConfig
+
+        config.api.authenticateUserCallback = =>
+          if serviceContainer
+            serviceContainer.getService('loginUrl').zip(serviceContainer.getService('logoutUrl')).then (loginUrl, logoutUrl) =>
+              response = serviceContainer.get('serverResponse')
+              request = serviceContainer.get('serverRequest')
+              if not (request.url.indexOf(loginUrl) >= 0 or request.url.indexOf(logoutUrl) >= 0)
+                @redirect("/#{loginUrl}/?back=#{request.url}", response)
+                clear()
+          false
+
 
         serviceContainer.set 'widgetRepo', widgetRepo
         widgetRepo.setServiceContainer(serviceContainer)
@@ -209,6 +197,75 @@ define [
       else
         ''
 
+
+    _prepareConfigForRequest: (request) ->
+      ###
+      Deep clone config and substitute {TEMPLATES}
+
+      Examples of templates:
+
+      {TIMESTAMP} = '1234568977'
+      {NODE} = 'megaplan2.megaplan.ru:18181'
+      {NODE_PROTO} = 'megaplan2.megaplan.ru:18181'
+      {XDR} = if SERVER then '{NODE_PROTO}://{NODE}/XDR/' else ''
+
+      {ACCOUNT} = 'megaplan2',
+      {DOMAIN} = '.megaplan.ru',
+
+      {BACKEND} = common.backend.host variable
+      {BACKEND_PROTO} = common.backend.protocol variable
+      ###
+
+      # Prepare templates values
+
+      # prepare what we can first
+      hostFromRequest = request.headers.host
+      dotIndex = hostFromRequest.indexOf('.')
+
+      throw new Error("Please, define the 'server' section in config.") if not global.appConfig.node.server
+      throw new Error("Please, define the 'backend' section in config.") if not global.appConfig.node.backend
+
+      serverHost = global.appConfig.node.server.host
+      serverProto = if global.appConfig.node.server.protocol then global.appConfig.node.server.protocol else ''
+      serverPort  = global.appConfig.node.server.port
+
+      backendProto = if global.appConfig.node.backend.protocol then global.appConfig.node.backend.protocol else 'http'
+
+      context =
+        templates:
+          '{X_PROTO}': if request.headers['x-forwarded-proto'] == 'on' then 'https' else 'http'
+          '{TIMESTAMP}': new Date().getTime()
+          '{ACCOUNT}': hostFromRequest.substr(0, dotIndex)
+          '{DOMAIN}': hostFromRequest.substr(dotIndex)
+
+      serverPort = ServerSideRouter._substituteTemplate(serverProto, context.templates)
+      backendPort  = ServerSideRouter._substituteTemplate(backendProto, context.templates)
+
+      context.templates['{NODE_PROTO}'] = serverPort
+      context.templates['{BACKEND_PROTO}'] = backendPort
+      context.templates['{NODE}'] = serverHost + (if serverPort then ':' + serverPort else '')
+      context.templates['{XDR}'] = serverProto + '://' + serverHost + (if serverPort then ':' + serverPort else '') + '/XDR/'
+
+      if global.appConfig.node.backend.host
+        backend = ServerSideRouter._substituteTemplate(global.appConfig.node.backend.host, context.templates)
+      else
+        backend = hostFromRequest
+
+      context.templates['{BACKEND}'] = backend
+
+      # Clone with templates substitution and return result
+      _.cloneDeep global.appConfig, (value) ->
+        ServerSideRouter._substituteTemplate(value, this.templates)
+      , context
+
+
+    @_substituteTemplate: (value, templates) ->
+      if _.isString(value)
+        for template,realValue of templates
+          value = value.replace(template, realValue)
+        value
+      else
+        undefined
 
 
   new ServerSideRouter

@@ -192,10 +192,8 @@ define [
       ###
       This one is used exclusevely for MegaId via backend (for security reasons)
       ###
-      console.log 'getAccessTokenByMegaId-------------------------------'
       @oauth2.getAuthCodeWithoutPassword(@getScope()).name('Api::getAccessTokenByMegaId')
         .then (code) =>
-          console.log 'getAuthCodeWithoutPassword code -------------------------------', code
           @oauth2.grantAccessTokenByMegaId(code, @getScope())
         .then (accessToken, refreshToken, code) =>
           @onAccessTokenGranted(accessToken, refreshToken)
@@ -203,13 +201,10 @@ define [
 
 
     getAccessTokenByInviteCode: (inviteCode) ->
-      console.log 'getAccessTokenByInviteCode getAccessTokenByMegaId-------------------------------'
       @oauth2.getAuthCodeWithoutPassword(@getScope()).name('Api::getAccessTokenByMegaId')
         .then (code) =>
-          console.log 'grantAccessTokenByInviteCode getAccessTokenByMegaId-------------------------------'
           @oauth2.grantAccessTokenByInviteCode(inviteCode, code, @getScope())
         .then (accessToken, refreshToken, code) =>
-          console.log 'onAccessTokenGranted -------------------------------', accessToken, refreshToken
           @onAccessTokenGranted(accessToken, refreshToken)
           code
 
@@ -224,19 +219,16 @@ define [
       @return {Future[Tuple[String, String]]} access- and refresh-tokens.
       ###
       result = Future.single('Api::authenticateUser')
-      console.log 'authenticateUser-------------------------------'
 
       # Clear Cookies
       @cookie.set('accessToken')
       @cookie.set('refreshToken')
       @cookie.set('oauthScope')
-
-      if @options.useMegaplanId
+      if @options.megaplanId?.useMegaplanId
         # Try to accuire tokens via MegaId
         @getAccessTokenByMegaId()
           .catch (e) =>
             # Whoops, needed login via Megaplan Start, on client we redirect to start, on server to special auth page
-            console.log '# Whoops, needed login via Megaplan Start, on client we redirect to start, on server to special auth page'
             @options.authenticateUserCallback()
 
       else if @options.authenticateUserCallback() # true means possibility of auto-login without user-interaction

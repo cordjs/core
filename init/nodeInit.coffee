@@ -3,7 +3,7 @@
 fs            = require 'fs'
 path          = require 'path'
 requirejs     = require 'requirejs'
-_             = require 'underscore'
+_             = require 'lodash'
 
 http          = require 'http'
 serverStatic  = require 'node-static'
@@ -39,13 +39,12 @@ exports.init = (baseUrl = 'public', configName = 'default', serverPort) ->
     'pathUtils'
     'cord!AppConfigLoader'
     'cord!Console'
-    'cord!Rest'
     if CORD_PROFILER_ENABLED then 'cord!init/profilerInit' else undefined
     'cord!request/xdrProxy'
     'cord!requirejs/statCollector'
     'cord!router/serverSideRouter'
     'cord!utils/Future'
-  ], (pathUtils, AppConfigLoader, Console, Rest, profilerInit, xdrProxy, statCollector, router, Future) ->
+  ], (pathUtils, AppConfigLoader, Console, profilerInit, xdrProxy, statCollector, router, Future) ->
     pathUtils.setPublicPrefix(baseUrl)
 
     router.EventEmitter = EventEmitter
@@ -55,9 +54,6 @@ exports.init = (baseUrl = 'public', configName = 'default', serverPort) ->
     services.statCollector = statCollector
 
     global._console = Console
-
-    Rest.host = global.config.server.host
-    Rest.port = global.config.server.port
 
     biFuture = Future.call(fs.readFile, path.join(baseUrl, 'assets/z/browser-init.id'), 'utf8').then (id) ->
       global.config.browserInitScriptId = id
@@ -71,7 +67,7 @@ exports.init = (baseUrl = 'public', configName = 'default', serverPort) ->
       router.addFallbackRoutes(appConfig.fallbackRoutes) if appConfig.fallbackRoutes?
 
       startServer ->
-        timeLog "Server running at http://#{ Rest.host }:#{ Rest.port }/"
+        timeLog "Server running at http://#{ global.config.server.host }:#{ global.config.server.port }/"
         timeLog "Current directory: #{ process.cwd() }"
 
 
@@ -116,6 +112,25 @@ exports.loadConfig = loadConfig = (configName, serverPort) ->
       configName = pathDir + '/conf/' + configName + '.js'
     result = require(configName)
 
+    if _.isEmpty(result)
+      console.warn("!!! Specified config file #{configName} is empty or misdefined.")
+
+    # If default config exists, load it and merge with config
+    defaultConfigPath = pathDir + '/conf/default.js'
+    if fs.existsSync(defaultConfigPath)
+      defaultConfig = require(defaultConfigPath)
+      result = _.merge(defaultConfig, result)
+
+    # Redefine server port if port defined in command line parameter
+    result.common.server.port = serverPort if serverPort
+    result.common.server.port = 18180 if not result.common.server.port
+
+    if not result.common.server.host
+      result.common.server.host = '127.0.0.1'
+
+    if not result.common.server.proto
+      result.common.server.proto = 'http'
+
     # Merge node and browser configuration with common (defaults)
     common = _.clone(result.common)
     result.node = _.extend(common, result.node)
@@ -129,10 +144,6 @@ exports.loadConfig = loadConfig = (configName, serverPort) ->
       secretsPath = if secretsPath[0] == '/' then secretsPath else pathDir + '/conf/' + secretsPath
       secretsConf = require(secretsPath)
       result.node = _.extend(result.node, secretsConf) if _.isObject(secretsConf)
-
-    # Redefine server port if port defined in command line parameter
-    result.node.server.port = serverPort if serverPort
-    result.node.server.port = 18180 if not result.node.server.port
 
     # Remove common configuration
     delete result.common

@@ -25,6 +25,7 @@ define [
     grantAccessTokenByAuhorizationCode: (code, scope) ->
       ###
       Получает токены по коду авторизации, ранее выданному авторизационным сервером
+      Использует спец. секцию xdrs для отправки запросов с секретными материалами.
       ###
       promise = Future.single('OAuth2::grantAccessTokenByAuthorizationCode promise')
       params =
@@ -138,7 +139,6 @@ define [
         if not requestUrl
           return promise.reject('config.oauth2.endpoints.authCodeWithoutLogin parameter is required')
         @request.get requestUrl, params, (response, error) ->
-          console.log 'getAuthCodeWithoutPassword', response
           if response.code
             promise.resolve(response.code)
           else

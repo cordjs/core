@@ -57,15 +57,27 @@ define [
       # `config` service definition
       serviceContainer.def 'config', ->
         config = global.config
-        loginUrl = config.loginUrl or 'user/login/'
-        logoutUrl = config.logoutUrl or 'user/logout/'
-        config.api.authenticateUserCallback = ->
-          backPath = clientSideRouter.getCurrentPath()
-          if not (backPath.indexOf(loginUrl) >= 0 or backPath.indexOf(logoutUrl) >= 0)
-            # in SPA mode window.location doesn't make sense
-            backUrl = clientSideRouter.getCurrentPath() or window.location.pathname
-            clientSideRouter.redirect("#{loginUrl}?back=#{backUrl}").failAloud('Auth redirect failed!')
-          false
+
+        if config.megaplanId?.useMegaplanId
+          throw new Error('Please, define config.api.startLoginUrl for api.useMegaplanId') if not config.megaplanId.startLoginUrl
+
+          config.api.authenticateUserCallback = ->
+            backUrl = window.location.href
+            window.location = config.megaplanId.startLoginUrl + '?back=' + backUrl
+
+        else
+          loginUrl = config.loginUrl or 'user/login/'
+          logoutUrl = config.logoutUrl or 'user/logout/'
+
+          # For server-side authenticateUserCallback checkout serverSideRouter.coffee
+
+          config.api.authenticateUserCallback = ->
+            backPath = clientSideRouter.getCurrentPath()
+            if not (backPath.indexOf(loginUrl) >= 0 or backPath.indexOf(logoutUrl) >= 0)
+              # in SPA mode window.location doesn't make sense
+              backUrl = clientSideRouter.getCurrentPath() or window.location.pathname
+              clientSideRouter.redirect("#{loginUrl}?back=#{backUrl}").failAloud('Auth redirect failed!')
+            false
         config
 
       # Clear localStorage in case of changing collections' release number
