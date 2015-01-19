@@ -18,6 +18,8 @@ define [
 
     fallbackErrors: null
 
+    cookiesInvalidated: false
+
 
     constructor: (serviceContainer, options) ->
       @fallbackErrors = {}
@@ -77,6 +79,8 @@ define [
       @refreshToken = refreshToken
       @scope = @getScope()
 
+      @cookiesInvalidated = false
+
       @cookie.set('accessToken', @accessToken, expires: 15)
       @cookie.set('refreshToken', @refreshToken, expires: 15)
       @cookie.set('oauthScope', @scope, expires: 15)
@@ -113,7 +117,7 @@ define [
       ###
       Loads saved tokens from cookies
       ###
-      if not (@accessToken and @refreshToken)
+      if not @cookiesInvalidated and not (@accessToken and @refreshToken)
         @accessToken  = @cookie.get('accessToken')
         @refreshToken = @cookie.get('refreshToken')
         @scope        = @cookie.get('oauthScope')
@@ -130,6 +134,7 @@ define [
 
 
     _invalidateAccessToken: ->
+      @cookiesInvalidated = true
       @accessToken = null
       @cookie.set('accessToken')
       return
@@ -221,6 +226,7 @@ define [
       result = Future.single('Api::authenticateUser')
 
       # Clear Cookies
+      @cookiesInvalidated = true # server-side hack: cause cookies will be cleared on the next request
       @cookie.set('accessToken')
       @cookie.set('refreshToken')
       @cookie.set('oauthScope')

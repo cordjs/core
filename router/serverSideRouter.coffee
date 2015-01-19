@@ -1,5 +1,6 @@
 define [
   'cord!AppConfigLoader'
+  'cord!errors'
   'cord!router/Router'
   'cord!ServiceContainer'
   'cord!WidgetRepo'
@@ -11,7 +12,8 @@ define [
   if CORD_PROFILER_ENABLED then 'mkdirp' else undefined
   'lodash'
   'url'
-], (AppConfigLoader, Router, ServiceContainer, WidgetRepo, DomInfo, Future, pr, sha1, fs, mkdirp, _, url) ->
+  'monologue' + (if CORD_IS_BROWSER then '' else '.js')
+], (AppConfigLoader, errors, Router, ServiceContainer, WidgetRepo, DomInfo, Future, pr, sha1, fs, mkdirp, _, url, Monologue) ->
 
   class ServerSideFallback
 
@@ -54,12 +56,9 @@ define [
         serviceContainer = new ServiceContainer
         serviceContainer.set 'container', serviceContainer
 
-        ###
-          Другого места получить из первых рук запрос-ответ нет
-        ###
-
         serviceContainer.set 'serverRequest', req
         serviceContainer.set 'serverResponse', res
+
         serviceContainer.set 'router', this
 
         ###
@@ -67,9 +66,15 @@ define [
         ###
         appConfig = @_prepareConfigForRequest(req)
 
+        # monologue to debug mode
+        Monologue.debug = true if global.config.debug.monologue != undefined and global.config.debug.monologue
+
         widgetRepo = new WidgetRepo(serverProfilerUid)
 
         clear = =>
+          ###
+          Kinda GC after request processing
+          ###
           if serviceContainer?
             for serviceName in serviceContainer.getNames()
               if serviceContainer.isReady(serviceName)
@@ -118,7 +123,7 @@ define [
 
           previousProcess = {}
 
-          processWidget = (rootWidgetPath, params) =>
+          processWidget = (rootWidgetPath, params) ->
             pr.timer 'ServerSideRouter::showWidget', ->
               widgetRepo.createWidget(rootWidgetPath).then (rootWidget) ->
                 if widgetRepo
@@ -131,9 +136,31 @@ define [
                     res.shouldKeepAlive = false
                     res.writeHead 200, 'Content-Type': 'text/html'
                     res.end(out)
-                    # todo: may be need some cleanup before?
-                    clear()
-              .failAloud("ServerSideRouter::processWidget:#{rootWidgetPath}")
+              .catch (err) ->
+                if err instanceof errors.AuthError
+                  serviceContainer.getService('api').then (api) ->
+                    api.authenticateUser()
+                else
+                  _console.error "FATAL ERROR: server-side rendering failed! Reason: #{err}"
+                  displayFatalError()
+              .finally ->
+                clear()
+
+
+          displayFatalError = ->
+            fatalErrorPageFile = 'public/' + appConfig.fatalErrorPageFile
+            res.writeHead(500, 'Unexpeced Error!', 'Content-type': 'text/html')
+            Future.call(fs.readFile, fatalErrorPageFile, 'utf8').then (data) ->
+              res.end(data)
+            .catch (err) ->
+              _console.error "Error while reading fatal error page html: #{err}. Falling back to the inline version."
+              res.end """
+                <html>
+                  <head><title>Error 500</title></head>
+                  <body><h1>Unexpected Error occurred!</h1></body>
+                </html>
+              """
+
 
           eventEmitter.once 'fallback', (args) =>
             if previousProcess.showPromise
@@ -238,11 +265,11 @@ define [
           '{ACCOUNT}': hostFromRequest.substr(0, dotIndex)
           '{DOMAIN}': hostFromRequest.substr(dotIndex)
 
-      serverPort = ServerSideRouter._substituteTemplate(serverProto, context.templates)
-      backendPort  = ServerSideRouter._substituteTemplate(backendProto, context.templates)
+      serverProto = ServerSideRouter._substituteTemplate(serverProto, context.templates)
+      backendProto  = ServerSideRouter._substituteTemplate(backendProto, context.templates)
 
-      context.templates['{NODE_PROTO}'] = serverPort
-      context.templates['{BACKEND_PROTO}'] = backendPort
+      context.templates['{NODE_PROTO}'] = serverProto
+      context.templates['{BACKEND_PROTO}'] = backendProto
       context.templates['{NODE}'] = serverHost + (if serverPort then ':' + serverPort else '')
       context.templates['{XDR}'] = serverProto + '://' + serverHost + (if serverPort then ':' + serverPort else '') + '/XDR/'
 

@@ -591,7 +591,8 @@ define [
           @_currentExtendList = newWidgetsList.concat(@_currentExtendList.slice(keepFrom))
 
           @setRootWidget(newRootWidget)
-          newWidgetsList[newWidgetsList.length - 1].registerChild(commonExistingWidget, commonWidgetName)
+          if newWidgetsList.length
+            newWidgetsList[newWidgetsList.length - 1].registerChild(commonExistingWidget, commonWidgetName)
 
         [[newRootWidget, commonExistingWidget]]
 
