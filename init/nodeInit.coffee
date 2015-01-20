@@ -22,7 +22,6 @@ global._console = console
 global.CORD_IS_BROWSER = false
 
 exports.init = (baseUrl = 'public', configName = 'default', serverPort) ->
-
   config = loadConfig(configName, serverPort)
   global.appConfig = config
   global.config    = config.node
@@ -122,7 +121,7 @@ exports.loadConfig = loadConfig = (configName, serverPort) ->
       result = _.merge(defaultConfig, result)
 
     # Redefine server port if port defined in command line parameter
-    result.common.server.port = serverPort if serverPort
+    result.common.server.port = serverPort if not isNaN(Number(serverPort))
     result.common.server.port = 18180 if not result.common.server.port
 
     if not result.common.server.host
