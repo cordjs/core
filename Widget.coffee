@@ -280,6 +280,13 @@ define [
         @_widgetReadyPromise = Future.single(@debug('_widgetReadyPromise.resolved')).resolve()
         @_shownPromise = Future.single('Widget::_shownPromise ' + @constructor.__name)
 
+        # Restoring translator helper by saved context
+        if @ctx.i18nHelper
+          i18nContext = @ctx.i18nHelper
+          @ctx.i18nHelper = (text, params) =>
+            params.context = i18nContext if not params.context
+            @translator.translate2(text, params)
+
       @_renderPromise = Future.resolved()
 
       @_callbacks = []
