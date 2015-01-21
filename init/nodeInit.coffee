@@ -122,7 +122,7 @@ exports.loadConfig = loadConfig = (configName, serverPort) ->
     result.browser = _.extend(common, result.browser)
 
     # Redefine server port if port defined in command line parameter
-    result.node.server.port = serverPort if serverPort
+    result.node.server.port = serverPort if not isNaN(Number(serverPort))
     result.node.server.port = 18180 if not result.node.server.port
 
     # Remove common configuration
