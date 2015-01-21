@@ -218,6 +218,8 @@ define [
           result[key] = value.serializeLink()
         else if _.isArray(value) and value[0] instanceof Model
           result[key] = (m.serializeLink() for m in value)
+        else if key == 'i18nHelper' and value.i18nContext? #Save translator context for browser-side
+          result[key] = value.i18nContext
         else if key != ':internal'
           result[key] = value
       result
