@@ -87,7 +87,7 @@ define [
       Future-powered clear local storage
       We should use new future, because storage.clear return native future and we can't catch it
       ###
-      result = new Future.single('localStorage::clear')
+      result = Future.single('localStorage::clear')
 
       @_get(@persistentKey).then (persistentValues) =>
         @storage.clear =>
