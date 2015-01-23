@@ -272,7 +272,11 @@ define [
       context.templates['{NODE_PROTO}'] = serverProto
       context.templates['{BACKEND_PROTO}'] = backendProto
       context.templates['{NODE}'] = serverHost + (if serverPort then ':' + serverPort else '')
-      context.templates['{XDR}'] = serverProto + '://' + serverHost + (if serverPort then ':' + serverPort else '') + '/XDR/'
+
+      if global.appConfig.browser.xdr
+        xdr = ServerSideRouter._substituteTemplate(global.appConfig.browser.xdr, context.templates)
+      else
+        xdr = serverProto + '://' + serverHost + (if serverPort then ':' + serverPort else '') + '/XDR/'
 
       if global.appConfig.node.backend.host
         backend = ServerSideRouter._substituteTemplate(global.appConfig.node.backend.host, context.templates)
@@ -280,6 +284,7 @@ define [
         backend = hostFromRequest
 
       context.templates['{BACKEND}'] = backend
+      context.templates['{XDR}'] = xdr
 
       # Clone with templates substitution and return result
       _.cloneDeep global.appConfig, (value) ->
