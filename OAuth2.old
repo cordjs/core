@@ -19,7 +19,10 @@ define [
         endpoints:
           authorize: '/oauth/authorize'
           accessToken: '/oauth/access_token'
-      @options = _.extend defaultOptions, options
+
+      _.extend defaultOptions, options
+      if options.megaplanId?.useMegaplanId
+      @options = defaultOptions
 
 
     grantAccessTokenByAuhorizationCode: (code, scope) ->

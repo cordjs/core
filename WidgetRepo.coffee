@@ -1,5 +1,4 @@
 define [
-  'cord!Api'
   'cord!Collection'
   'cord!Context'
   'cord!css/helper'
@@ -11,7 +10,7 @@ define [
   'cord!utils/Future'
   'postal'
   'underscore'
-], (Api, Collection, Context, cssHelper, deferAggregator, errors, isBrowser, Model, ModelRepo, Future, postal, _) ->
+], (Collection, Context, cssHelper, deferAggregator, errors, isBrowser, Model, ModelRepo, Future, postal, _) ->
 
   class WidgetRepo
 

@@ -41,7 +41,7 @@ define [
     # support for `requireAuth` route option
     clientSideRouter.setAuthCheckCallback ->
       serviceContainer.getService('api').then (api) ->
-        api._getTokensByAllMeans()
+        api.prepareAuth()
       .then ->
         true
       .catch ->
