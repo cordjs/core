@@ -110,7 +110,6 @@ define [
 
 
       @authPromise.then (authModule) =>
-        console.log 'AUTH MODULE THEN'
         authModule.on 'auth.available', =>
           @authAvailable = true
         authModule.on 'auth.unavailable',  =>
