@@ -177,7 +177,7 @@ define [
     ## Tries to grant accees by grant_type = extension (oneTimeKey, for instance)
       result = @_grantAccessTokenByExtensions(url, params, @getScope())
       result.then (accessToken, refreshToken) =>
-        @onAccessTokenGranted(accessToken, refreshToken)
+        @_onAccessTokenGranted(accessToken, refreshToken)
       result
 
 
@@ -363,7 +363,7 @@ define [
         .then (code) =>
           @grantAccessTokenByAuhorizationCode(code, @getScope())
         .then (accessToken, refreshToken, code) =>
-          @onAccessTokenGranted(accessToken, refreshToken)
+          @_onAccessTokenGranted(accessToken, refreshToken)
           code
 
 
@@ -375,7 +375,7 @@ define [
         .then (code) =>
           @grantAccessTokenByAuhorizationCode(code)
         .then (accessToken, refreshToken, code) =>
-          @onAccessTokenGranted(accessToken, refreshToken)
+          @_onAccessTokenGranted(accessToken, refreshToken)
           code
 
 
