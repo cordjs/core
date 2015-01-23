@@ -108,6 +108,8 @@ define [
         widgetRepo.setRequest(req)
         widgetRepo.setResponse(res)
 
+        res.setHeader('x-info', config.static.release) if config.static.release?
+
         eventEmitter = new @EventEmitter()
         fallback = new ServerSideFallback(eventEmitter, this)
 

@@ -69,7 +69,7 @@ define [
 
       # Clear localStorage in case of changing collections' release number
       serviceContainer.eval 'persistentStorage', (persistentStorage) ->
-        currentVersion = window.global.config.static.collection
+        currentVersion = window.global.config.static.release
         persistentStorage.get('collectionsVersion').then (localVersion) ->
           if currentVersion != localVersion
             serviceContainer.eval 'localStorage', (localStorage) ->

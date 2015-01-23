@@ -173,7 +173,7 @@ define [
       id = options.id ? 0
       pageSize = if options.pageSize then options.pageSize else ''
 
-      collectionVersion = global.config.static.collection
+      collectionVersion = global.config.static.release
 
       emitOnAny = if options._emitChangeOnAny then 'emitOnAny' else 'notEmitOnAny'
 
