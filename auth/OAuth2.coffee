@@ -176,7 +176,7 @@ define [
     grantAccessByExtensions: (url, params) ->
     ## Tries to grant accees by grant_type = extension (oneTimeKey, for instance)
       result = @_grantAccessTokenByExtensions(url, params, @getScope())
-      result. then (accessToken, refreshToken) =>
+      result.then (accessToken, refreshToken) =>
         @onAccessTokenGranted(accessToken, refreshToken)
       result
 
