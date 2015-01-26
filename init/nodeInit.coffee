@@ -144,6 +144,10 @@ exports.loadConfig = loadConfig = (configName, serverPort) ->
       secretsConf = require(secretsPath)
       result.node = _.extend(result.node, secretsConf) if _.isObject(secretsConf)
 
+    # Redefine server port if port defined in command line parameter
+    result.node.server.port = serverPort if not isNaN(Number(serverPort))
+    result.node.server.port = 18180 if not result.node.server.port
+
     # Remove common configuration
     delete result.common
 

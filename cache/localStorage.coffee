@@ -85,13 +85,20 @@ define [
     clear: ->
       ###
       Future-powered clear local storage
+      We should use new future, because storage.clear return native future and we can't catch it
       ###
+      result = Future.single('localStorage::clear')
+
       @_get(@persistentKey).then (persistentValues) =>
         @storage.clear =>
-          if persistentValues
-            @_set(@persistentKey, persistentValues)
+          @_set(@persistentKey, persistentValues) if persistentValues
+          result.resolve()
       .catch =>
+        # this is ok, just clear and resolve
         @storage.clear()
+        result.resolve()
+
+      result
 
 
     _removeItem: (key) ->

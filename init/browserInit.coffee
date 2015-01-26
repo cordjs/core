@@ -41,7 +41,7 @@ define [
     # support for `requireAuth` route option
     clientSideRouter.setAuthCheckCallback ->
       serviceContainer.getService('api').then (api) ->
-        api._getTokensByAllMeans()
+        api.prepareAuth()
       .then ->
         true
       .catch ->
@@ -71,7 +71,7 @@ define [
 
       # Clear localStorage in case of changing collections' release number
       serviceContainer.eval 'persistentStorage', (persistentStorage) ->
-        currentVersion = window.global.config.static.collection
+        currentVersion = window.global.config.static.release
         persistentStorage.get('collectionsVersion').then (localVersion) ->
           if currentVersion != localVersion
             serviceContainer.eval 'localStorage', (localStorage) ->

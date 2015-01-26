@@ -2,26 +2,14 @@ define ->
 
   services:
     api:
-      deps: ['config', 'container']
+      deps: ['config', 'container', 'cookie', 'request']
       factory: (get, done) ->
         require ['cord!/cord/core/Api'], (Api) ->
           config = get('config')
-          apiConfig = config.api
-          apiConfig.megaplanId = config.megaplanId if config.megaplanId
-          api = new Api(get('container'), apiConfig)
+          api = new Api(get('container'), config)
           get('container').injectServices(api).done ->
+            api.setupAuthModule()
             done(null, api)
-
-    oauth2:
-      deps: ['config', 'container']
-      factory: (get, done) ->
-        require ['cord!/cord/core/OAuth2'], (OAuth2) ->
-          config = get('config')
-          oauth2Config = config.oauth2
-          oauth2Config.megaplanId = config.megaplanId if config.megaplanId
-          oauth2 = new OAuth2(oauth2Config)
-          get('container').injectServices(oauth2).done ->
-            done(null, oauth2)
 
     userAgent:
       deps: ['container']
