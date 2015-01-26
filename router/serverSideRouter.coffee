@@ -99,6 +99,9 @@ define [
               if not (request.url.indexOf(loginUrl) >= 0 or request.url.indexOf(logoutUrl) >= 0)
                 @redirect("/#{loginUrl}/?back=#{request.url}", response)
                 clear()
+            .catch (error) ->
+              _console.error('Unable to obtain loginUrl or logoutUrl, please, check configs:' + error)
+
           false
 
 
