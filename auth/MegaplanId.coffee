@@ -1,6 +1,6 @@
 define [
   'underscore'
-  'cord!OAuth2'
+  'cord!auth/OAuth2'
   'cord!utils/Future'
 ], (_, OAuth2, Future) ->
 
