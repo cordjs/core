@@ -342,7 +342,7 @@ define [
         redirect_uri: @options.redirectUri
         scope: scope
 
-      requestUrl = "#{@options.xdrs.protocol}://#{@options.xdrs.host}#{@options.xdrs.urlPrefix}#{@endpoints.accessToken}"
+      requestUrl = @endpoints.accessToken
 
       @request.get requestUrl, params, (result) =>
         if result and result.access_token and result.refresh_token
