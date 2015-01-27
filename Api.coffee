@@ -217,9 +217,14 @@ define [
         callback: 'function'
       validatedArgs.method = args[0]
 
-      @_prepareRequestArgs(validatedArgs).then (preparedArgs) =>
-        @_doRequest(preparedArgs.method, preparedArgs.url, preparedArgs.params, preparedArgs.params.retryCount ? 5)
-      .done (response) ->
+      requestPromise = 
+        if validatedArgs.params.noAuthTokens
+          @_doRequest(validatedArgs.method, validatedArgs.url, validatedArgs.params, validatedArgs.params.retryCount ? 5)
+        else
+          @_prepareRequestArgs(validatedArgs).then (preparedArgs) =>
+            @_doRequest(preparedArgs.method, preparedArgs.url, preparedArgs.params, preparedArgs.params.retryCount ? 5)
+
+      requestPromise.done (response) ->
         validatedArgs.callback?(response)
       .fail (err) ->
         validatedArgs.callback?(err.response, err)
@@ -238,7 +243,7 @@ define [
           params: _.extend({ originalArgs: args }, @options.params, params)
         .catch (e) =>
           # Auth module failed, so we need to authorize here somehow
-          @options.authenticateUserCallback()
+          @options.authenticateUserCallback() if not args.params?.skipAuth
           throw e
 
 
