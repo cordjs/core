@@ -250,7 +250,7 @@ define [
 
       # prepare what we can first
       xProto = if request.headers['x-forwarded-proto'] == 'on' then 'https' else 'http'
-      ServerSideRouter.replaceConfigVarsByHost(request.headers.host, xProto)
+      ServerSideRouter.replaceConfigVarsByHost(global.appConfig, request.headers.host, xProto)
 
 
     @replaceConfigVarsByHost: (config, hostFromRequest, xProto) ->
@@ -262,14 +262,14 @@ define [
       ###
       dotIndex = hostFromRequest.indexOf('.')
 
-      throw new Error("Please, define the 'server' section in config.") if not global.appConfig.node.server
-      throw new Error("Please, define the 'backend' section in config.") if not global.appConfig.node.backend
+      throw new Error("Please, define the 'server' section in config.") if not config.node.server
+      throw new Error("Please, define the 'backend' section in config.") if not config.node.backend
 
-      serverHost = global.appConfig.node.server.host
-      serverProto = if global.appConfig.node.server.protocol then global.appConfig.node.server.protocol else ''
-      serverPort  = global.appConfig.node.server.port
+      serverHost = config.node.server.host
+      serverProto = if config.node.server.protocol then config.node.server.protocol else ''
+      serverPort  = config.node.server.port
 
-      backendProto = if global.appConfig.node.backend.protocol then global.appConfig.node.backend.protocol else 'http'
+      backendProto = if config.node.backend.protocol then config.node.backend.protocol else 'http'
 
       templates =
           '{X_PROTO}': xProto
@@ -284,18 +284,18 @@ define [
       templates['{BACKEND_PROTO}'] = backendProto
       templates['{NODE}'] = serverHost + (if serverPort then ':' + serverPort else '')
 
-      if global.appConfig.browser.xdr
-        xdr = Utils.substituteTemplate(global.appConfig.browser.xdr, templates)
+      if config.browser.xdr
+        xdr = Utils.substituteTemplate(config.browser.xdr, templates)
       else
         xdr = serverProto + '://' + serverHost + (if serverPort then ':' + serverPort else '') + '/XDR/'
 
-      if global.appConfig.browser.xdrs
-        xdrs = Utils.substituteTemplate(global.appConfig.browser.xdr, templates)
+      if config.browser.xdrs
+        xdrs = Utils.substituteTemplate(config.browser.xdr, templates)
       else
         xdrs = serverProto + '://' + serverHost + (if serverPort then ':' + serverPort else '') + '/XDRS/'
 
-      if global.appConfig.node.backend.host
-        backend = Utils.substituteTemplate(global.appConfig.node.backend.host, templates)
+      if config.node.backend.host
+        backend = Utils.substituteTemplate(config.node.backend.host, templates)
       else
         backend = hostFromRequest
 
@@ -306,7 +306,7 @@ define [
       context =
         templates: templates
 
-      _.cloneDeep global.appConfig, (value) ->
+      _.cloneDeep config, (value) ->
         Utils.substituteTemplate(value, this.templates)
       , context
 
