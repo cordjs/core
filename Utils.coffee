@@ -224,3 +224,12 @@ define [
         when 2 then enc = enc.slice(0, -1) + '='
 
       enc
+
+
+    @substituteTemplate: (value, templates) ->
+      if _.isString(value)
+        for template,realValue of templates
+          value = value.replace(template, realValue)
+        value
+      else
+        undefined

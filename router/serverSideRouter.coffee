@@ -4,6 +4,7 @@ define [
   'cord!router/Router'
   'cord!ServiceContainer'
   'cord!WidgetRepo'
+  'cord!Utils'
   'cord!utils/DomInfo'
   'cord!utils/Future'
   'cord!utils/profiler/profiler'
@@ -13,7 +14,7 @@ define [
   'lodash'
   'url'
   'monologue' + (if CORD_IS_BROWSER then '' else '.js')
-], (AppConfigLoader, errors, Router, ServiceContainer, WidgetRepo, DomInfo, Future, pr, sha1, fs, mkdirp, _, url, Monologue) ->
+], (AppConfigLoader, errors, Router, ServiceContainer, WidgetRepo, Utils, DomInfo, Future, pr, sha1, fs, mkdirp, _, url, Monologue) ->
 
   class ServerSideFallback
 
@@ -266,20 +267,20 @@ define [
           '{ACCOUNT}': hostFromRequest.substr(0, dotIndex)
           '{DOMAIN}': hostFromRequest.substr(dotIndex)
 
-      serverProto = ServerSideRouter._substituteTemplate(serverProto, context.templates)
-      backendProto  = ServerSideRouter._substituteTemplate(backendProto, context.templates)
+      serverProto = Utils.substituteTemplate(serverProto, context.templates)
+      backendProto  = Utils.substituteTemplate(backendProto, context.templates)
 
       context.templates['{NODE_PROTO}'] = serverProto
       context.templates['{BACKEND_PROTO}'] = backendProto
       context.templates['{NODE}'] = serverHost + (if serverPort then ':' + serverPort else '')
 
       if global.appConfig.browser.xdr
-        xdr = ServerSideRouter._substituteTemplate(global.appConfig.browser.xdr, context.templates)
+        xdr = Utils.substituteTemplate(global.appConfig.browser.xdr, context.templates)
       else
         xdr = serverProto + '://' + serverHost + (if serverPort then ':' + serverPort else '') + '/XDR/'
 
       if global.appConfig.node.backend.host
-        backend = ServerSideRouter._substituteTemplate(global.appConfig.node.backend.host, context.templates)
+        backend = Utils.substituteTemplate(global.appConfig.node.backend.host, context.templates)
       else
         backend = hostFromRequest
 
@@ -288,17 +289,8 @@ define [
 
       # Clone with templates substitution and return result
       _.cloneDeep global.appConfig, (value) ->
-        ServerSideRouter._substituteTemplate(value, this.templates)
+        Utils.substituteTemplate(value, this.templates)
       , context
-
-
-    @_substituteTemplate: (value, templates) ->
-      if _.isString(value)
-        for template,realValue of templates
-          value = value.replace(template, realValue)
-        value
-      else
-        undefined
 
 
   new ServerSideRouter
