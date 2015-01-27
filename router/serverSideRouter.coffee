@@ -250,7 +250,7 @@ define [
 
       # prepare what we can first
       xProto = if request.headers['x-forwarded-proto'] == 'on' then 'https' else 'http'
-      ServerSideRouter.replaceConfigVarsByHost(request.headers.host, xproto)
+      ServerSideRouter.replaceConfigVarsByHost(request.headers.host, xProto)
 
       # Clone with templates substitution and return result
       ServerSideRouter.replaceConfigVars(global.appConfig, templates)
