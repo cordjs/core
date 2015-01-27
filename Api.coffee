@@ -105,7 +105,7 @@ define [
           authPromise.resolve(new Module(@serviceContainer, @config, @cookie, @request))
 
       .catch (error) ->
-        _console.error("Unable to load auth module: #{modulePath}")
+        _console.error("Unable to load auth module: #{modulePath} with error #{error}")
         throw error
 
 
@@ -214,7 +214,7 @@ define [
         callback: 'function'
       validatedArgs.method = args[0]
 
-      requestPromise = 
+      requestPromise =
         if validatedArgs.params.noAuthTokens
           @_doRequest(validatedArgs.method, validatedArgs.url, validatedArgs.params, validatedArgs.params.retryCount ? 5)
         else
