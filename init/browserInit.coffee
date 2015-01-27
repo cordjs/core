@@ -65,6 +65,8 @@ define [
             # in SPA mode window.location doesn't make sense
             backUrl = clientSideRouter.getCurrentPath() or window.location.pathname
             clientSideRouter.redirect("#{loginUrl}?back=#{backUrl}").failAloud('Auth redirect failed!')
+        .catch (error) ->
+          _console.error('Unable to obtain loginUrl or logoutUrl, please, check configs:' + error)
         false
 
       # Clear localStorage in case of changing collections' release number
