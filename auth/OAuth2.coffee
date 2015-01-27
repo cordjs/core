@@ -10,7 +10,7 @@ define [
 
     ###
     OAuth2 auth module
-    required endpoints=
+    required endpoints =
       accessToken: ''
       authCode: ''
       authCodeWithoutLogin: ''
