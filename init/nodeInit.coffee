@@ -134,14 +134,14 @@ exports.loadConfig = loadConfig = (configName, serverPort) ->
 
     # Merge node and browser configuration with common (defaults)
     # Merge priorities: conf.node <- conf.common <- default.node <- default.common
-    result.node = _.clone(defaultConfig.node)
-    _.merge(result.node, result.common)
-    _.merge(result.node, result.node)
+    defaultNodeConfig = _.clone(defaultConfig.node)
+    _.merge(defaultNodeConfig, result.common)
+    result.node = _.merge(defaultNodeConfig, result.node)
 
     # The same for browser
-    result.browser = _.clone(defaultConfig.browser)
-    _.merge(result.browser, result.common)
-    _.merge(result.browser, result.browser)
+    defaultBrowserConfig = _.clone(defaultConfig.browser)
+    _.merge(defaultBrowserConfig, result.common)
+    result.browser = _.merge(defaultBrowserConfig, result.browser)
 
     # Load secrets for node config
     if _.isString(result.node.secrets) and result.node.secrets.length
