@@ -121,11 +121,14 @@ define [
       Checks if there are stored auth tokens that can be used for authenticated request.
       @return Future{Boolean}
       ###
-      @authPromise.then (authModule) ->
-        if authModule.isAuthAvailable()
-          Future.resolved()
-        else
-          Future.rejected()
+      if not @authPromise
+        Future.rejected()
+      else
+        @authPromise.then (authModule) ->
+          if authModule.isAuthAvailable()
+            Future.resolved()
+          else
+            Future.rejected()
 
 
     authTokensReady: ->
