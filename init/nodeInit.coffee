@@ -118,7 +118,9 @@ exports.loadConfig = loadConfig = (configName, serverPort) ->
     defaultConfigPath = pathDir + '/conf/default.js'
     if fs.existsSync(defaultConfigPath)
       defaultConfig = require(defaultConfigPath)
-      result = _.merge(defaultConfig, result)
+      _.merge(defaultConfig.node, defaultConfig.common) # default.node <- default.common
+      _.merge(defaultConfig.browser, defaultConfig.common) # default.browser <- default.common
+      # result = _.merge(defaultConfig, result)
 
     # Redefine server port if port defined in command line parameter
     result.common.server.port = serverPort if not isNaN(Number(serverPort))
@@ -131,11 +133,15 @@ exports.loadConfig = loadConfig = (configName, serverPort) ->
       result.common.server.proto = 'http'
 
     # Merge node and browser configuration with common (defaults)
-    common = _.clone(result.common)
-    result.node = _.extend(common, result.node)
+    # Merge priorities: conf.node <- conf.common <- default.node <- default.common
+    result.node = _.clone(defaultConfig.node)
+    _.merge(result.node, result.common)
+    _.merge(result.node, result.node)
 
-    common = _.clone(result.common)
-    result.browser = _.extend(common, result.browser)
+    # The same for browser
+    result.browser = _.clone(defaultConfig.browser)
+    _.merge(result.browser, result.common)
+    _.merge(result.browser, result.browser)
 
     # Load secrets for node config
     if _.isString(result.node.secrets) and result.node.secrets.length

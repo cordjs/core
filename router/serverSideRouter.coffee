@@ -61,9 +61,7 @@ define [
 
         serviceContainer.set 'router', this
 
-        ###
-          Prepare configs for particular request
-        ###
+        # Prepare configs for particular request
         appConfig = @_prepareConfigForRequest(req)
 
         # monologue to debug mode
@@ -262,34 +260,49 @@ define [
 
       backendProto = if global.appConfig.node.backend.protocol then global.appConfig.node.backend.protocol else 'http'
 
-      context =
-        templates:
+      templates =
           '{X_PROTO}': if request.headers['x-forwarded-proto'] == 'on' then 'https' else 'http'
           '{TIMESTAMP}': new Date().getTime()
           '{ACCOUNT}': hostFromRequest.substr(0, dotIndex)
           '{DOMAIN}': hostFromRequest.substr(dotIndex)
 
-      serverProto = ServerSideRouter._substituteTemplate(serverProto, context.templates)
-      backendProto  = ServerSideRouter._substituteTemplate(backendProto, context.templates)
+      serverProto = ServerSideRouter._substituteTemplate(serverProto, templates)
+      backendProto  = ServerSideRouter._substituteTemplate(backendProto, templates)
 
-      context.templates['{NODE_PROTO}'] = serverProto
-      context.templates['{BACKEND_PROTO}'] = backendProto
-      context.templates['{NODE}'] = serverHost + (if serverPort then ':' + serverPort else '')
+      templates['{NODE_PROTO}'] = serverProto
+      templates['{BACKEND_PROTO}'] = backendProto
+      templates['{NODE}'] = serverHost + (if serverPort then ':' + serverPort else '')
 
       if global.appConfig.browser.xdr
-        xdr = ServerSideRouter._substituteTemplate(global.appConfig.browser.xdr, context.templates)
+        xdr = ServerSideRouter._substituteTemplate(global.appConfig.browser.xdr, templates)
       else
         xdr = serverProto + '://' + serverHost + (if serverPort then ':' + serverPort else '') + '/XDR/'
 
       if global.appConfig.node.backend.host
-        backend = ServerSideRouter._substituteTemplate(global.appConfig.node.backend.host, context.templates)
+        backend = ServerSideRouter._substituteTemplate(global.appConfig.node.backend.host, templates)
       else
         backend = hostFromRequest
 
-      context.templates['{BACKEND}'] = backend
-      context.templates['{XDR}'] = xdr
-
+      templates['{BACKEND}'] = backend
+      templates['{XDR}'] = xdr
       # Clone with templates substitution and return result
+      ServerSideRouter.replaceConfigVars(global.appConfig, templates)
+
+
+    @replaceConfigVars: (config, templates) ->
+      ###
+      Deep clones config with replacement known {VARS} in string parameters
+      @param config - input config object
+      @param templates - object with replacements and it's values
+      vars =
+        '{X_PROTO}': 'https'
+        '{TIMESTAMP}': '1233434546'
+        '{ACCOUNT}': 'megaplan'
+        '{DOMAIN}': '.megaplan.ru'
+      ###
+      context =
+        templates: templates
+
       _.cloneDeep global.appConfig, (value) ->
         ServerSideRouter._substituteTemplate(value, this.templates)
       , context

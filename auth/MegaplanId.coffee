@@ -2,7 +2,7 @@ define [
   'underscore'
   'cord!OAuth2'
   'cord!utils/Future'
-], (_, isBrowser, Future, errors) ->
+], (_, OAuth2, Future) ->
 
   class MegaplanId extends OAuth2
     ###
@@ -17,8 +17,8 @@ define [
     ###
 
     constructor: (serviceContainer, config, @cookie, @request) ->
-      accessToken: false
-      refreshToken: false
+      @accessToken = null
+      @refreshToken = null
       @options = config.megaplanId
       @options.endpoints = @options.endpoints
 

@@ -282,7 +282,7 @@ define [
       else
         params =
           response_type: 'code'
-          client_id: @config.oauth2.clientId
+          client_id: @options.clientId
           login: login
           password: password
           format: 'json'
@@ -310,7 +310,7 @@ define [
       else
         params =
           response_type: 'code'
-          client_id: @config.oauth2.clientId
+          client_id: @options.clientId
           scope: scope
           format: 'json'
           xhrOptions:
