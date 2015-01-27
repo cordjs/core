@@ -249,7 +249,20 @@ define [
       # Prepare templates values
 
       # prepare what we can first
-      hostFromRequest = request.headers.host
+      xProto = if request.headers['x-forwarded-proto'] == 'on' then 'https' else 'http'
+      ServerSideRouter.replaceConfigVarsByHost(request.headers.host, xproto)
+
+      # Clone with templates substitution and return result
+      ServerSideRouter.replaceConfigVars(global.appConfig, templates)
+
+
+    @replaceConfigVarsByHost: (config, hostFromRequest, xProto) ->
+      ###
+      Deep clones config with replacement known {VARS} in string parameters
+      @param config - input config object
+      @param host(String)
+      @param xProto - value of {X_PROTO} variable
+      ###
       dotIndex = hostFromRequest.indexOf('.')
 
       throw new Error("Please, define the 'server' section in config.") if not global.appConfig.node.server
@@ -262,7 +275,7 @@ define [
       backendProto = if global.appConfig.node.backend.protocol then global.appConfig.node.backend.protocol else 'http'
 
       templates =
-          '{X_PROTO}': if request.headers['x-forwarded-proto'] == 'on' then 'https' else 'http'
+          '{X_PROTO}': xProto
           '{TIMESTAMP}': new Date().getTime()
           '{ACCOUNT}': hostFromRequest.substr(0, dotIndex)
           '{DOMAIN}': hostFromRequest.substr(dotIndex)
@@ -279,6 +292,11 @@ define [
       else
         xdr = serverProto + '://' + serverHost + (if serverPort then ':' + serverPort else '') + '/XDR/'
 
+      if global.appConfig.browser.xdrs
+        xdrs = Utils.substituteTemplate(global.appConfig.browser.xdr, templates)
+      else
+        xdrs = serverProto + '://' + serverHost + (if serverPort then ':' + serverPort else '') + '/XDRS/'
+
       if global.appConfig.node.backend.host
         backend = Utils.substituteTemplate(global.appConfig.node.backend.host, templates)
       else
@@ -286,21 +304,8 @@ define [
 
       templates['{BACKEND}'] = backend
       templates['{XDR}'] = xdr
-      # Clone with templates substitution and return result
-      ServerSideRouter.replaceConfigVars(global.appConfig, templates)
+      templates['{XDRS}'] = xdrs
 
-
-    @replaceConfigVars: (config, templates) ->
-      ###
-      Deep clones config with replacement known {VARS} in string parameters
-      @param config - input config object
-      @param templates - object with replacements and it's values
-      vars =
-        '{X_PROTO}': 'https'
-        '{TIMESTAMP}': '1233434546'
-        '{ACCOUNT}': 'megaplan'
-        '{DOMAIN}': '.megaplan.ru'
-      ###
       context =
         templates: templates
 

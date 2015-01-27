@@ -123,14 +123,14 @@ exports.loadConfig = loadConfig = (configName, serverPort) ->
       # result = _.merge(defaultConfig, result)
 
     # Redefine server port if port defined in command line parameter
-    result.common.server.port = serverPort if not isNaN(Number(serverPort))
-    result.common.server.port = 18180 if not result.common.server.port
+    defaultConfig.common.server.port = serverPort if not isNaN(Number(serverPort))
+    defaultConfig.common.server.port = 18180 if not defaultConfig.common.server.port
 
-    if not result.common.server.host
-      result.common.server.host = '127.0.0.1'
+    if not defaultConfig.common.server.host
+      defaultConfig.common.server.host = '127.0.0.1'
 
-    if not result.common.server.proto
-      result.common.server.proto = 'http'
+    if not defaultConfig.common.server.proto
+      defaultConfig.common.server.proto = 'http'
 
     # Merge node and browser configuration with common (defaults)
     # Merge priorities: conf.node <- conf.common <- default.node <- default.common
