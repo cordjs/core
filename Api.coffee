@@ -105,7 +105,7 @@ define [
           authPromise.resolve(new Module(@serviceContainer, @config, @cookie, @request))
 
       .catch (error) ->
-        _console.error("Unable to load auth module: #{modulePath}")
+        _console.error("Unable to load auth module: #{modulePath} with error #{error}")
         throw error
 
 
