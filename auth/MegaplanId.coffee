@@ -19,8 +19,10 @@ define [
     constructor: (serviceContainer, config, @cookie, @request) ->
       @accessToken = null
       @refreshToken = null
+      @accesTokenParamName = 'mega_id_token'
+      @refreshTokenParamName = 'refresh_token'
       @options = config.megaplanId
-      @options.endpoints = @options.endpoints
+      @endpoints = @options.endpoints
 
 
     tryToAuth: ->
@@ -38,7 +40,7 @@ define [
         .then (code) =>
           @grantAccessTokenByMegaId(code, @getScope())
         .then (accessToken, refreshToken, code) =>
-          @onAccessTokenGranted(accessToken, refreshToken)
+          @_storeTokens(accessToken, refreshToken)
           code
 
 
@@ -71,7 +73,7 @@ define [
         .then (code) =>
           @grantAccessTokenByInviteCode(inviteCode, code, @getScope())
         .then (accessToken, refreshToken, code) =>
-          @onAccessTokenGranted(accessToken, refreshToken)
+          @_storeTokens(accessToken, refreshToken)
           code
 
 
@@ -82,7 +84,7 @@ define [
 
       promise = Future.single('OAuth2::grantAccessTokenByInviteCode promise')
       params =
-        megaplan_start_invite: inviteCode
+        inviteCode: inviteCode
         code: code
         scope: scope
 

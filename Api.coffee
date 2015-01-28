@@ -135,6 +135,8 @@ define [
       ###
       Returns a promise that completes when auth tokens are available and authenticated requests can be done
       @return {Future[undefined]}
+      NOTE! returned future does not guarantee to be resolved ever.
+      Please, checkout authTokensAvailable() and authenticateUser(), before using this function.
       ###
       @authTokensAvailable().catch =>
         result = Future.single('authTokensReady')
@@ -217,7 +219,7 @@ define [
         callback: 'function'
       validatedArgs.method = args[0]
 
-      requestPromise = 
+      requestPromise =
         if validatedArgs.params.noAuthTokens
           @_doRequest(validatedArgs.method, validatedArgs.url, validatedArgs.params, validatedArgs.params.retryCount ? 5)
         else

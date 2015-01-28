@@ -19,6 +19,8 @@ define [
     constructor: (serviceContainer, config, @cookie, @request) ->
       @accessToken = false
       @refreshToken = false
+      @accesTokenParamName = 'access_token'
+      @refreshTokenParamName = 'refresh_token'
       @options = config.oauth2
       @endpoints = @options.endpoints
       if not @endpoints or not @endpoints.accessToken
@@ -65,11 +67,11 @@ define [
       else
         @_restoreTokens()
         if tryLuck
-          url += ( if url.lastIndexOf('?') == -1 then '?' else '&' ) + "access_token=#{@accessToken}"
+          url += ( if url.lastIndexOf('?') == -1 then '?' else '&' ) + "#{@accesTokenParamName}=#{@accessToken}"
           Future.resolved([url, params])
         else
-          @_getTokensByAllMeans().spread (accessToken) ->
-            url += ( if url.lastIndexOf('?') == -1 then '?' else '&' ) + "access_token=#{accessToken}"
+          @_getTokensByAllMeans().spread (accessToken) =>
+            url += ( if url.lastIndexOf('?') == -1 then '?' else '&' ) + "#{@accesTokenParamName}=#{accessToken}"
             [[url, params]]
 
 
@@ -232,9 +234,10 @@ define [
       ###
       params =
         grant_type: 'refresh_token'
-        refresh_token: refreshToken
         client_id: @options.clientId
         scope: scope
+
+      params[@refreshTokenParamName] = refreshToken
 
       if not @_refreshTokenRequestPromise
         resultPromise = Future.single('OAuth2::grantAccessTokenByRefreshToken')
@@ -266,7 +269,7 @@ define [
       ###
       @grantAccessTokenByRefreshToken(@refreshToken, @getScope()).spread (grantedAccessToken, grantedRefreshToken) =>
         if grantedAccessToken and grantedRefreshToken
-          @storeTokens grantedAccessToken, grantedRefreshToken
+          @_storeTokens(grantedAccessToken, grantedRefreshToken)
           [[grantedAccessToken, grantedRefreshToken]]
         else
           throw new Error('Failed to get auth token by refresh token: refresh token is outdated!')
