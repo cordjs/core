@@ -221,7 +221,8 @@ define [
 
       requestPromise =
         if validatedArgs.params.noAuthTokens
-          @_doRequest(validatedArgs.method, validatedArgs.url, validatedArgs.params, validatedArgs.params.retryCount ? 5)
+          url = "#{@options.protocol}://#{@options.host}/#{@options.urlPrefix}#{validatedArgs.url}"
+          @_doRequest(validatedArgs.method, url, validatedArgs.params, validatedArgs.params.retryCount ? 5)
         else
           @_prepareRequestArgs(validatedArgs).then (preparedArgs) =>
             @_doRequest(preparedArgs.method, preparedArgs.url, preparedArgs.params, preparedArgs.params.retryCount ? 5)
