@@ -19,7 +19,7 @@ define [
     constructor: (serviceContainer, config, @cookie, @request) ->
       @accessToken = null
       @refreshToken = null
-      @accesTokenParamName = 'mega_id_token'
+      @accessTokenParamName = 'mega_id_token'
       @refreshTokenParamName = 'refresh_token'
       @options = config.megaplanId
       @endpoints = @options.endpoints

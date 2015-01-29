@@ -19,7 +19,7 @@ define [
     constructor: (serviceContainer, config, @cookie, @request) ->
       @accessToken = false
       @refreshToken = false
-      @accesTokenParamName = 'access_token'
+      @accessTokenParamName = 'access_token'
       @refreshTokenParamName = 'refresh_token'
       @options = config.oauth2
       @endpoints = @options.endpoints
@@ -67,11 +67,11 @@ define [
       else
         @_restoreTokens()
         if tryLuck
-          url += ( if url.lastIndexOf('?') == -1 then '?' else '&' ) + "#{@accesTokenParamName}=#{@accessToken}"
+          url += ( if url.lastIndexOf('?') == -1 then '?' else '&' ) + "#{@accessTokenParamName}=#{@accessToken}"
           Future.resolved([url, params])
         else
           @_getTokensByAllMeans().spread (accessToken) =>
-            url += ( if url.lastIndexOf('?') == -1 then '?' else '&' ) + "#{@accesTokenParamName}=#{accessToken}"
+            url += ( if url.lastIndexOf('?') == -1 then '?' else '&' ) + "#{@accessTokenParamName}=#{accessToken}"
             [[url, params]]
 
 
