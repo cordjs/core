@@ -9,7 +9,7 @@ define [
       $.cookie(name) ? defaultValue
 
 
-    set: (name, value, params) ->
+    set: (name, value = null, params) ->
       _params = path: '/'
       _.extend(_params, params) if params
       $.cookie name, value, _params

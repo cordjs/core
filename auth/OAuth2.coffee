@@ -41,7 +41,7 @@ define [
       Do we have an auth right now?
       ###
       @_restoreTokens()
-      !!(@accessToken and @refreshToken)
+      !!(@accessToken or @refreshToken)
 
 
     clearAuth: ->
@@ -95,26 +95,31 @@ define [
       @return {Future[Tuple[String, String]]} access and refresh tokens
       ###
       @_restoreTokens()
-      if not @accessToken
+      if @accessToken
+        Future.resolved([@accessToken, @refreshToken])
+      else
         if @refreshToken
           @_getTokensByRefreshToken()
         else
           Future.rejected('No refresh token available')
-      else
-        Future.resolved([@accessToken, @refreshToken])
+
 
 
     _invalidateAccessToken: ->
       @accessToken = null
       @cookie.set('accessToken')
-      return
+
+
+    _invalidateRefreshToken: ->
+      @refreshToken = null
+      @cookie.set('refreshToken')
 
 
     _restoreTokens: ->
       ###
       Loads saved tokens from cookies
       ###
-      if not (@accessToken and @refreshToken)
+      if true or not (@accessToken and @refreshToken)
         @accessToken  = @cookie.get('accessToken')
         @refreshToken = @cookie.get('refreshToken')
         @scope        = @cookie.get('oauthScope')
@@ -267,12 +272,16 @@ define [
       Refreshes auth tokens pair by the existing refresh token.
       @return {Future[Tuple[String, String]]} new access and refresh tokens
       ###
-      @grantAccessTokenByRefreshToken(@refreshToken, @getScope()).spread (grantedAccessToken, grantedRefreshToken) =>
+      return @_refreshPromise if @_refreshPromise
+      @_refreshPromise = @grantAccessTokenByRefreshToken(@refreshToken, @getScope()).spread (grantedAccessToken, grantedRefreshToken) =>
+        @_refreshPromise = null
         if grantedAccessToken and grantedRefreshToken
           @_storeTokens(grantedAccessToken, grantedRefreshToken)
           [[grantedAccessToken, grantedRefreshToken]]
         else
+          @_invalidateRefreshToken()
           throw new Error('Failed to get auth token by refresh token: refresh token is outdated!')
+      @_refreshPromise
 
 
     getAuthCodeByPassword: (login, password, scope) ->
