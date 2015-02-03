@@ -253,7 +253,7 @@ define [
       Try to prepare auth module to be ready for a request
       ###
       @authPromise.then (authModule) =>
-        authModule.prepareAuth().catch =>
+        authModule.prepareAuth().catch (e) =>
           @options.authenticateUserCallback()
           throw e
 
