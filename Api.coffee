@@ -166,8 +166,6 @@ define [
        and authentication wait time is not determined.
       @return {Future} resolves when auth become available
       ###
-      result = Future.single('Api::authenticateUser')
-
       @authPromise.then (authModule) =>
         # Clear Cookies
         authModule.clearAuth()
