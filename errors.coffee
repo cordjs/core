@@ -10,7 +10,7 @@ define ->
       Error.captureStackTrace?(this, arguments.callee)
 
   WidgetSentenced: class WidgetSentenced extends Error
-    constructor: (@message) ->
+    constructor: (@message, @type = 'notice') ->
       @name = 'WidgetSentenced'
       Error.call(this, @message)
       Error.captureStackTrace?(this, arguments.callee)
