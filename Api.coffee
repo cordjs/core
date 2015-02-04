@@ -108,7 +108,6 @@ define [
         _console.error("Unable to load auth module: #{modulePath} with error #{error}")
         throw error
 
-
       @authPromise.then (authModule) =>
         authModule.on 'auth.available', =>
           @authAvailable = true
