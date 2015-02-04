@@ -8,8 +8,8 @@ define ->
           config = get('config')
           api = new Api(get('container'), config)
           get('container').injectServices(api).done ->
-            api.setupAuthModule()
-            done(null, api)
+            api.setupAuthModule().then ->
+              done(null, api)
 
     userAgent:
       deps: ['container']
