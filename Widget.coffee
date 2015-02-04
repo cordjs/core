@@ -1191,6 +1191,11 @@ define [
               domInfo = new DomInfo("#{ @debug('renderPlaceholders') } -> #{name}")
               @_renderPlaceholder(name, domInfo).then (out, renderInfo) =>
                 $el = $(@renderPlaceholderTag(name, out))
+
+                # we should copy placeholder classes
+                if $('#'+@_getPlaceholderDomId(name)).attr('class') and not $el.attr('class')
+                  $el.addClass($('#'+@_getPlaceholderDomId(name)).attr('class'))
+
                 domInfo.setDomRoot($el)
                 aggregatePromise = new Future(@debug('replacePlaceholders:aggregatePromise')) # full placeholders members initialization promise
                 for info in renderInfo
