@@ -60,7 +60,8 @@ define [
       message = stringify(args)
       postal.publish 'error.notify.publish', { message: 'Произошла ошибка', link: '', details: message }
       error = _.find(args, (item) -> item and item.stack)
-      if not config or (error and not (error.name in config?.console.excludeErrors))
+      excludeErrors = config?.console.excludeErrors or []
+      if error and not (error.name in excludeErrors)
         postal.publish 'logger.log.publish', { tags: tags, params: {error: message} }
 
       return
