@@ -9,7 +9,7 @@ define [
   unhandledMap = null
 
   # environment-dependent console object
-  cons = if typeof _console != 'undefined' then _console else console
+  cons = -> if typeof _console != 'undefined' then _console else console
 
   class Future
     ###
@@ -233,7 +233,7 @@ define [
       ###
       name = @_name
       @fail (err) ->
-        cons.error "Future(#{name})::failAloud#{ if message then " with message: #{message}" else '' }", err, err.stack
+        cons().error "Future(#{name})::failAloud#{ if message then " with message: #{message}" else '' }", err, err.stack
 
 
     failOk: ->
@@ -652,8 +652,8 @@ define [
         catch err
           # this catch is needed to prevent require's error callbacks to fire when error is caused
           # by th result's callbacks. Otherwise we'll try to reject already resolved promise two lines below.
-          cons.error "Got exception in Future.require() callbacks for [#{result._name}]: #{err}", err
-          cons.log err.stack
+          cons().error "Got exception in Future.require() callbacks for [#{result._name}]: #{err}", err
+          cons().log err.stack
       , (err) ->
         result.reject(err)
       result
@@ -682,7 +682,7 @@ define [
       if timeout > 0
         @_incompleteTimeout = setTimeout =>
           if @state() == 'pending' and @_counter > 0
-            cons.warn "Future timed out [#{@_name}] (#{timeout/1000} seconds), counter = #{@_counter}"
+            cons().warn "Future timed out [#{@_name}] (#{timeout/1000} seconds), counter = #{@_counter}"
         , timeout
 
 
@@ -738,9 +738,9 @@ define [
       Can emphasise futures with desired names by using console.warn.
       ###
       if @_name.indexOf('desired search in name') != -1
-        fn = cons.warn
+        fn = cons().warn
       else
-        fn = cons.log
+        fn = cons().log
       args.unshift(@_name)
       args.unshift(@_doneCallbacks.length)
       args.unshift(@_counter)
@@ -772,7 +772,7 @@ define [
                 err = info.promise._callbackArgs[0]
                 reportArgs.push(err)
                 reportArgs.push(err.stack) if err.stack
-              cons.warn.apply(cons, reportArgs)
+              cons().warn.apply(cons, reportArgs)
             delete unhandledMap[id]
       , interval
 
