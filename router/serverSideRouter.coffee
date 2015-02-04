@@ -283,6 +283,7 @@ define [
       templates['{NODE_PROTO}'] = serverProto
       templates['{BACKEND_PROTO}'] = backendProto
       templates['{NODE}'] = serverHost + (if serverPort then ':' + serverPort else '')
+      templates['{NODE_HOST}'] = serverHost
 
       if config.browser.xdr
         xdr = Utils.substituteTemplate(config.browser.xdr, templates)
