@@ -391,3 +391,27 @@ define [
           code
 
 
+
+    doAuthLogout: ->
+      ###
+      Logout for normal Auth2 procedure
+      ###
+      promise = Future.single('OAuth2::doAuthLogout promise')
+      params =
+        client_id: @options.clientId
+        client_secret: '#{client_secret}'
+        dataType: 'json',
+        format: 'json'
+
+      requestUrl = @endpoints.logout
+
+      @request.get requestUrl, params, (result) =>
+        if result and result.status == 'success'
+          @_invalidateAccessToken()
+          @_invalidateRefreshToken()
+          promise.resolve()
+        else
+          promise.reject(new Error('Bad response from authorization server: ' + JSON.stringirfy(error)))
+      promise
+
+
