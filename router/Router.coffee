@@ -90,7 +90,7 @@ define ['underscore'], (_) ->
         for param, value of params
           if url.indexOf(':' + param) != -1
             url = url.replace(':' + param, value)
-          else
+          else if value != null and value != undefined
             getParams += "&#{encodeURIComponent(param)}=#{encodeURIComponent(value)}"
 
         if getParams
