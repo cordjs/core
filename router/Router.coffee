@@ -90,7 +90,7 @@ define ['underscore'], (_) ->
         for param, value of params
           if url.indexOf(':' + param) != -1
             url = url.replace(':' + param, value)
-          else
+          else if value != null and value != undefined
             getParams += "&#{encodeURIComponent(param)}=#{encodeURIComponent(value)}"
 
         if getParams
@@ -127,7 +127,7 @@ define ['underscore'], (_) ->
     # if true, router should check authentication via `authCheckCallback` before processing navigation
     requireAuth: false
 
-    constructor: (@path, definition, fallback = false) ->
+    constructor: (path, definition, fallback = false) ->
       throw new Error("Required 'widget' or 'callback' options is not set in route '#{ path }' definition!") if definition.widget? and definition.callback?
       @widget = definition.widget
       @callback = definition.callback if definition.callback?

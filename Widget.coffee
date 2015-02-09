@@ -580,7 +580,7 @@ define [
                   when ':ignore'
                   else
                     throw new Error("Invalid param rule type: '#{ rule.type }'")
-          else if specialParams.indexOf(name) == -1 and global.config.strictWidgetParams
+          else if specialParams.indexOf(name) == -1 and global.config.strictWidgetParams and this != @widgetRepo.getRootWidget()
             throw new Error("Widget #{ @getPath() } is not accepting param with name #{ name }!")
       else
         for key in params
@@ -1191,6 +1191,11 @@ define [
               domInfo = new DomInfo("#{ @debug('renderPlaceholders') } -> #{name}")
               @_renderPlaceholder(name, domInfo).then (out, renderInfo) =>
                 $el = $(@renderPlaceholderTag(name, out))
+
+                # we should copy placeholder classes
+                if $('#'+@_getPlaceholderDomId(name)).attr('class') and not $el.attr('class')
+                  $el.addClass($('#'+@_getPlaceholderDomId(name)).attr('class'))
+
                 domInfo.setDomRoot($el)
                 aggregatePromise = new Future(@debug('replacePlaceholders:aggregatePromise')) # full placeholders members initialization promise
                 for info in renderInfo
@@ -1707,7 +1712,11 @@ define [
                   .catchIf (err) ->
                     err instanceof errors.WidgetDropped or err instanceof errors.WidgetSentenced
               .catch (err) ->
+<<<<<<< HEAD
                 _console.error("Error on widget #{ widget.debug() } rendering:", err.stack)
+=======
+                _console.error("Error on widget #{ widget.debug() } rendering:", err)
+>>>>>>> 6d3812c186daeb9700dcf5ed766040108cc9eb1b
                 chunk.setError(err)
 
               if hasTimeout

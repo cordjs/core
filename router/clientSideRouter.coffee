@@ -1,10 +1,11 @@
 define [
   './Router'
+  'cord!errors'
   'cord!PageTransition'
   'cord!utils/Future'
   'jquery'
   'postal'
-], (Router, PageTransition, Future, $, postal) ->
+], (Router, errors, PageTransition, Future, $, postal) ->
 
   # detecting private settings from configuration and environment
   # should
@@ -59,7 +60,7 @@ define [
                 routeInfo.route.widget, routeInfo.params, new PageTransition(@_currentPath, newPath)
               )
             else
-              Future.rejected(new Error("Required auth check not passed for the route #{routeInfo.route}"))
+              Future.rejected(new errors.AuthError("Required auth check not passed for the route #{routeInfo.route}"))
           @_currentPath = newPath
           true
         else

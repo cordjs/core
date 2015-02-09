@@ -1,7 +1,8 @@
 define [
   'cord!utils/Future'
   'cord!utils/sha1'
-], (Future, sha1) ->
+  'cord!cookie/LocalCookie'
+], (Future, sha1, LocalCookie) ->
 
   class LocalStorage
 
@@ -90,9 +91,15 @@ define [
       result = Future.single('localStorage::clear')
 
       @_get(@persistentKey).then (persistentValues) =>
-        @storage.clear =>
-          @_set(@persistentKey, persistentValues) if persistentValues
-          result.resolve()
+        @_get(LocalCookie.storageKey).then (cookies) =>
+          @storage.clear =>
+            @_set(@persistentKey, persistentValues) if persistentValues
+            @_set(LocalCookie.storageKey, cookies) if cookies
+            result.resolve()
+        .catch =>
+          @storage.clear =>
+            @_set(@persistentKey, persistentValues) if persistentValues
+            result.resolve()
       .catch =>
         # this is ok, just clear and resolve
         @storage.clear()

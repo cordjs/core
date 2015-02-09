@@ -64,7 +64,7 @@ define [
           if not (backPath.indexOf(loginUrl) >= 0 or backPath.indexOf(logoutUrl) >= 0)
             # in SPA mode window.location doesn't make sense
             backUrl = clientSideRouter.getCurrentPath() or window.location.pathname
-            clientSideRouter.redirect("#{loginUrl}?back=#{backUrl}").failAloud('Auth redirect failed!')
+            clientSideRouter.redirect("#{loginUrl}/?back=#{backUrl}").failAloud('Auth redirect failed!')
         .catch (error) ->
           _console.error('Unable to obtain loginUrl or logoutUrl, please, check configs:' + error)
         false

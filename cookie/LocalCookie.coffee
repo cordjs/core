@@ -5,8 +5,10 @@ define ->
     Simple dumb cookie emulation for the non-cookiable environment
     ###
 
-    constructor: ->
-      @_cookies = {}
+    @storageKey: 'cookies'
+
+
+    constructor: (@_cookies, @storage) ->
 
 
     get: (name, defaultValue) ->
@@ -15,4 +17,5 @@ define ->
 
     set: (name, value, params) ->
       @_cookies[name] = value
+      @storage.setItem(@constructor.storageKey, @_cookies)
       true

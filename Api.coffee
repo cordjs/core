@@ -108,7 +108,6 @@ define [
         _console.error("Unable to load auth module: #{modulePath} with error #{error}")
         throw error
 
-
       @authPromise.then (authModule) =>
         authModule.on 'auth.available', =>
           @authAvailable = true
@@ -166,8 +165,6 @@ define [
        and authentication wait time is not determined.
       @return {Future} resolves when auth become available
       ###
-      result = Future.single('Api::authenticateUser')
-
       @authPromise.then (authModule) =>
         # Clear Cookies
         authModule.clearAuth()

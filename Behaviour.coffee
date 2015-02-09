@@ -265,8 +265,9 @@ define [
     initCustomEvents: (events) ->
       for eventName, method of events
         method = @_getHandlerFunction(method)
-        subscription = @widget.on eventName, => method.apply(this, arguments)
-        @_widgetSubscriptions.push(subscription)
+        do (method) =>
+          subscription = @widget.on eventName, => method.apply(this, arguments)
+          @_widgetSubscriptions.push(subscription)
 
 
     _getEventMethod: (method, eventDesc) ->
