@@ -1712,11 +1712,7 @@ define [
                   .catchIf (err) ->
                     err instanceof errors.WidgetDropped or err instanceof errors.WidgetSentenced
               .catch (err) ->
-<<<<<<< HEAD
-                _console.error("Error on widget #{ widget.debug() } rendering:", err.stack)
-=======
                 _console.error("Error on widget #{ widget.debug() } rendering:", err)
->>>>>>> 6d3812c186daeb9700dcf5ed766040108cc9eb1b
                 chunk.setError(err)
 
               if hasTimeout
