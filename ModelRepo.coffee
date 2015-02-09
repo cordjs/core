@@ -215,6 +215,8 @@ define [
         catch error
           if error.name == 'ModelNotExists'
             promise.reject(error)
+          else
+            throw error
 
       promise
 
