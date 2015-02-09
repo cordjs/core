@@ -60,6 +60,8 @@ define [
 
       global.config.api.authenticateUserCallback = ->
         serviceContainer.getService('loginUrl').zip(serviceContainer.getService('logoutUrl')).then (loginUrl, logoutUrl) ->
+          loginUrl = loginUrl.replace(/^\/|\/$/g, "")
+          logoutUrl = logoutUrl.replace(/^\/|\/$/g, "")
           backPath = clientSideRouter.getCurrentPath()
           if not (backPath.indexOf(loginUrl) >= 0 or backPath.indexOf(logoutUrl) >= 0)
             # in SPA mode window.location doesn't make sense

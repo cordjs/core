@@ -95,6 +95,7 @@ define [
               response = serviceContainer.get('serverResponse')
               request = serviceContainer.get('serverRequest')
               if not (request.url.indexOf(loginUrl) >= 0 or request.url.indexOf(logoutUrl) >= 0)
+                loginUrl = loginUrl.replace(/^\/|\/$/g, "")
                 @redirect("/#{loginUrl}/?back=#{request.url}", response)
                 clear()
             .catch (error) ->
@@ -196,6 +197,7 @@ define [
 
 
     redirect: (redirectUrl, response) ->
+      console.log redirectUrl
       if not response.alreadyRelocated
         response.shouldKeepAlive = false
         response.alreadyRelocated = true
