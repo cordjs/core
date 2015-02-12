@@ -21,7 +21,7 @@ define [
       @refreshToken = false
       @accessTokenParamName = 'access_token'
       @refreshTokenParamName = 'refresh_token'
-      @options = config.oauth2
+      @options = @config.oauth2
       @endpoints = @options.endpoints
       if not @endpoints or not @endpoints.accessToken
         throw new Error('Oauth2::constructor error: at least endpoints.accessToken must be defined.')
