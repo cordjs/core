@@ -33,10 +33,7 @@ define [
 
 
   addDatePrefix = (args) ->
-    if not _.isArray(args)
-      args = if args then [args] else []
-
-    args.unshift(new Date) if not CORD_IS_BROWSER
+    args.unshift((new Date).toString()) if not CORD_IS_BROWSER
     args
 
 

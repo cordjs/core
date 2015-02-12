@@ -53,6 +53,14 @@ define [
 
     proxyReq.on 'error', (e) ->
       _console.error 'Problem with proxy request: ', options, e
+      res.writeHead(500, 'Bad request!', 'Content-type': 'text/html')
+      res.end """
+        <html>
+          <head><title>Error 500</title></head>
+          <body><h1>Unexpected Error occurred!</h1></body>
+        </html>
+      """
+
 
     # read all data from the browser request and pass it to the target server
     req.on 'data', (chunk) -> proxyReq.write(chunk)
