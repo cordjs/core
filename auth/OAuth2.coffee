@@ -244,7 +244,7 @@ define [
 
       # User XDRS if needed, proxy it through XDRS on browser
       params['client_secret'] =
-        if @config.secrets?.client_secret
+        if @config?.secrets?.client_secret
           @config.secrets?.client_secret
         else
           '#{client_secret}'
@@ -338,7 +338,7 @@ define [
         if not requestUrl
           return promise.reject('config.oauth2.endpoints.authCodeWithoutLogin parameter is required')
         @request.get requestUrl, params, (response, error) ->
-          if response.code
+          if response?.code
             promise.resolve(response.code)
           else
             promise.reject(new errors.MegaIdAuthFailed('No auth code recieved. Response: ' + JSON.stringify(response) + JSON.stringify(error)))

@@ -25,6 +25,18 @@ define [
       @endpoints = @options.endpoints
 
 
+    isAuthFailed: (response, error) ->
+      ###
+      Checks whether request results indicate auth failure, and clear tokens if necessary
+      ###
+      isFailed = (response and
+        (response.error == 'invalid_grant' or
+         response?.error == 'invalid_request' or
+         response.error == 'bad_megaplan_id'))
+      @_invalidateAccessToken() if isFailed
+      isFailed
+
+
     tryToAuth: ->
       ###
       In case of possible auto-login this should return resolved promise and rejected one otherwise
@@ -61,7 +73,10 @@ define [
         if result and result.access_token and result.refresh_token
           promise.resolve(result.access_token, result.refresh_token, code)
         else
-          promise.reject(new Error('No response from backend server (MegaId)'))
+          if result?.error == 'bad_megaplan_id'
+            promise.reject(new Error('bad_megaplan_id'))
+          else
+            promise.reject(new Error('No response from backend server (MegaId)'))
       promise
 
 

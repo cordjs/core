@@ -166,7 +166,7 @@ define [
           if @options.authenticateUserCallback()
             @authTokensReady()
           else
-            Future.rejected(new Error('Auto-login is not available!'))
+            Future.rejected(e)
 
 
     get: (url, params, callback) ->
