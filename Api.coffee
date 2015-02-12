@@ -115,13 +115,12 @@ define [
       @return Future{Boolean}
       ###
       if not @authPromise
-        Future.rejected()
+        Future.resolved(false)
       else
         @authPromise.then (authModule) ->
-          if authModule.isAuthAvailable()
-            Future.resolved()
-          else
-            Future.rejected()
+          authModule.isAuthAvailable()
+        .catch ->
+          false
 
 
     authTokensReady: ->
@@ -131,12 +130,31 @@ define [
       NOTE! returned future does not guarantee to be resolved ever.
       Please, checkout authTokensAvailable() and authenticateUser(), before using this function.
       ###
-      @authTokensAvailable().catch =>
-        result = Future.single('authTokensReady')
-        @authPromise.then (authModule) =>
-          @once 'auth.tokens.ready', =>
-            result.when(@authTokensReady()) # recursively checking if auth tokens actually valid
-        result
+      @authTokensAvailable().then (available) =>
+        if available
+          return
+        else
+          result = Future.single('authTokensReady')
+          @authPromise.then (authModule) =>
+            authModule.once 'auth.available', =>
+              result.when(@authTokensReady()) # recursively checking if auth tokens actually valid
+          result
+
+
+    authTokensReadyCb: (cb) ->
+      ###
+      Executes the given callback when auth tokens are available.
+      Same as authTokensReady but with callback semantics.
+      @param {Function} cb
+      ###
+      @authTokensAvailable().then (available) =>
+        if available
+          cb()
+        else
+          @authPromise.then (authModule) =>
+            authModule.once 'auth.available', =>
+              @authTokensReadyCb(cb) # recursively checking if auth tokens actually valid
+      return
 
 
     authByUsernamePassword: (username, password) ->
