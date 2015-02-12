@@ -1,8 +1,9 @@
 define [
   'the-box'
+  'cord!errors'
   'cord!utils/Future'
   'underscore'
-], (Container, Future, _) ->
+], (Container, errors, Future, _) ->
 
   class ServiceContainer extends Container
 
@@ -116,8 +117,9 @@ define [
         do (serviceName) =>
           @eval serviceName, (service) =>
             if service instanceof Error
-              _console.warn "Container::autoStartServices::eval(#{serviceName}) " +
-                             " failed with error: #{ service }", service
+              if not (service instanceof errors.AuthError)
+                _console.warn "Container::autoStartServices::eval(#{serviceName}) " +
+                               " failed with error: #{ service }", service
               # resetting failed service to give it a chance next time (mainly for auth-related purposes)
               @reset(serviceName)
       return
