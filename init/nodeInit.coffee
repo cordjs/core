@@ -29,6 +29,10 @@ exports.init = (baseUrl = 'public', configName = 'default', serverPort) ->
   global.CORD_PROFILER_ENABLED = config.node.debug.profiler.enable
 
 
+  # setting of this callback is necessary to avoid throwing global unhandled exception by requirejs when file not found
+  requirejs.onError = (err) ->
+    console.error 'ERROR while loading in REQUIREJS:', err
+
   requirejs.config
     paths: require('../requirejs/pathConfig')
     baseUrl: baseUrl
