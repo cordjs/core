@@ -66,7 +66,7 @@ define [
       if @options.forcedAuthModule
         module = @options.forcedAuthModule
       else
-        module = @cookie.get(Api.authModuleCookieName)
+        module = decodeURIComponent(@cookie.get(Api.authModuleCookieName))
 
       @setAuthModule(module).catch =>
         module = @defaultAuthModule
@@ -85,6 +85,7 @@ define [
       ###
       return Future.rejected('Api::setAuthModule modulePath needed')  if not modulePath
 
+      originalModule = modulePath
       modulePath = "/cord/core/auth/#{ modulePath }"  if modulePath.charAt(0) != '/'
 
       _console.log "Loading auth module: #{modulePath}"
@@ -96,7 +97,7 @@ define [
         # this is workaround for requirejs-on-serverside bug which doesn't throw an error when requested file doesn't exist
         throw new Error("Failed to load auth module #{modulePath}!")  if not Module
         if @lastModulePath == modulePath # To check that we resolve @authPromise with the latest modulePath
-          @cookie.set(Api.authModuleCookieName, modulePath)
+          @cookie.set(Api.authModuleCookieName, originalModule)
           localAuthPromise.resolve(new Module(@serviceContainer, @config, @cookie, @request))
 
       .catch (error) =>
