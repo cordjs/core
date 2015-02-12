@@ -197,7 +197,6 @@ define [
 
 
     redirect: (redirectUrl, response) ->
-      console.log redirectUrl
       if not response.alreadyRelocated
         response.shouldKeepAlive = false
         response.alreadyRelocated = true

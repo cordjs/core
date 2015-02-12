@@ -16,7 +16,7 @@ define [
       authCodeWithoutLogin: ''
     ###
 
-    constructor: (serviceContainer, config, @cookie, @request) ->
+    constructor: (serviceContainer, @config, @cookie, @request) ->
       @accessToken = false
       @refreshToken = false
       @accessTokenParamName = 'access_token'
@@ -119,7 +119,7 @@ define [
       ###
       Loads saved tokens from cookies
       ###
-      if true or not (@accessToken and @refreshToken)
+      if not (@accessToken and @refreshToken)
         @accessToken  = @cookie.get('accessToken')
         @refreshToken = @cookie.get('refreshToken')
         @scope        = @cookie.get('oauthScope')
@@ -242,11 +242,17 @@ define [
         client_id: @options.clientId
         scope: scope
 
+      # User XDRS if needed, proxy it through XDRS on browser
+      params['client_secret'] =
+        if @config.secrets?.client_secret
+          @config.secrets?.client_secret
+        else
+          '#{client_secret}'
+
       params[@refreshTokenParamName] = refreshToken
 
       if not @_refreshTokenRequestPromise
         resultPromise = Future.single('OAuth2::grantAccessTokenByRefreshToken')
-
         @request.get @endpoints.accessToken, params, (result, err) =>
           if result
             if result.error # this means that refresh token is outdated
