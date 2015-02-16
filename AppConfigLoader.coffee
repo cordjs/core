@@ -40,6 +40,7 @@ define [
         services = {}
         fallbackRoutes = {}
         fallbackApiErrors = {}
+        proxyRoutes = []
 
         processRoutes = (source, destination, bundle) ->
           for route, params of source
@@ -53,6 +54,12 @@ define [
         fatalErrorPageFile = undefined
 
         for config, i in args
+          if config.proxyRoutes
+            if _.isArray(config.proxyRoutes)
+              proxyRoutes = proxyRoutes.concat(config.proxyRoutes)
+            else
+              proxyRoutes.push(config.proxyRoutes)
+
           if config.fallbackRoutes?
             processRoutes config.fallbackRoutes, fallbackRoutes, application[i]
 
@@ -93,6 +100,7 @@ define [
           fallbackRoutes: fallbackRoutes
           fallbackApiErrors: fallbackApiErrors
           fatalErrorPageFile: fatalErrorPageFile
+          proxyRoutes: proxyRoutes
 
 
     # start loading immediately on class loading

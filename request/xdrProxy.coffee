@@ -32,17 +32,20 @@ define [
     delete headers.connection
 
     options =
-      method: req.method
-      hostname: proxyUrl.hostname
+      method: req.method ? 'GET'
+      hostname: proxyUrl.hostname ? global.config.backend.host
       port: proxyUrl.port
       path: proxyUrl.path
       headers: headers
       rejectUnauthorized: false
 
-    if proxyUrl.protocol == 'http:'
-      protocol = http
+    if not proxyUrl.protocol
+      protocol = if global.config.backend.protocol == 'http' then  http else https
     else
-      protocol = https
+      if proxyUrl.protocol == 'http:'
+        protocol = http
+      else
+        protocol = https
 
     proxyReq = protocol.request options, (proxyRes) ->
       # send http-headers back to the browser copying them from the target server response
