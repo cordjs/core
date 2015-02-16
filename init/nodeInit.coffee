@@ -68,6 +68,7 @@ exports.init = (baseUrl = 'public', configName = 'default', serverPort) ->
     AppConfigLoader.ready().zip(biFuture).done (appConfig) ->
       router.addRoutes(appConfig.routes)
       router.addFallbackRoutes(appConfig.fallbackRoutes) if appConfig.fallbackRoutes?
+      services.proxyRoutes = appConfig.proxyRoutes
 
       startServer ->
         timeLog "Server running at http://#{ global.config.server.host }:#{ global.config.server.port }/"
@@ -76,6 +77,12 @@ exports.init = (baseUrl = 'public', configName = 'default', serverPort) ->
 
 exports.startServer = startServer = (callback) ->
   services.nodeServer = http.createServer (req, res) ->
+
+    # Detect for proxyRoutes
+    for proxyRoute in services.proxyRoutes
+      if (pos = req.url.indexOf(proxyRoute)) != -1 # cross-domain request proxy
+        return services.xdrProxy(req.url, req, res)
+
     if (pos = req.url.indexOf('/XDR/')) != -1 # cross-domain request proxy
       services.xdrProxy(req.url.substr(pos + 5), req, res)
     else if (pos = req.url.indexOf('/XDRS/')) != -1 # cross-domain request proxy with secrets
