@@ -16,7 +16,7 @@ define [
       authCodeWithoutLogin: ''
     ###
 
-    constructor: (serviceContainer, config, @cookie, @request) ->
+    constructor: (serviceContainer, @config, @cookie, @request) ->
       @accessToken = null
       @refreshToken = null
       @accessTokenParamName = 'mega_id_token'
