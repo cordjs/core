@@ -56,7 +56,7 @@ define [
       startRequest = new Date() if global.config.debug.request
 
       window.curly[method] argssss.url, options, (error, response, body) =>
-        if not error? and response.statusCode != 200
+        if not error? and response.statusCode >= 400
           error =
             statusCode: response.statusCode
             statusText: response.body._message
