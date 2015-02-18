@@ -278,6 +278,7 @@ define [
       Refreshes auth tokens pair by the existing refresh token.
       @return {Future[Tuple[String, String]]} new access and refresh tokens
       ###
+      debugger
       return @_refreshPromise if @_refreshPromise
       @_refreshPromise = @grantAccessTokenByRefreshToken(@refreshToken, @getScope()).spread (grantedAccessToken, grantedRefreshToken) =>
         @_refreshPromise = null

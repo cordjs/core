@@ -21,7 +21,7 @@ define [
       @refreshToken = null
       @accessTokenParamName = 'mega_id_token'
       @refreshTokenParamName = 'refresh_token'
-      @options = config.megaplanId
+      @options = @config.megaplanId
       @endpoints = @options.endpoints
 
 
