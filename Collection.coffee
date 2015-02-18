@@ -851,7 +851,7 @@ define [
 
       # This means that previously collection was empty and something new has arrived
 
-      oldListCount = @_models.length
+      oldListCount = 0
       oldList = _.clone(@_models)
 
       if (start? and end?) and (start < end)
@@ -870,7 +870,7 @@ define [
         loadingEnd = newList.length - 1
         @_models = []
 
-      firstChangedIndex = oldListCount
+      firstChangedIndex = @_models.length
       lastChangedIndex = 0
 
       deleted = false
@@ -882,9 +882,14 @@ define [
       for item in newList
         newListIds[item.id] = item
 
-      for model in oldList
+      for i in [start..end]
+        model = oldList[i]
+
         # Бывает так, что в списке моделей есть пропуски... Надо с этим разобраться.
         continue if not model
+
+        oldListCount++
+
         if not newListIds[model.id]
           deletedModels[model.id] = model
           deleted = true
@@ -918,7 +923,7 @@ define [
       @_loadedStart = loadingStart if loadingStart < @_loadedStart
       if loadingEnd > @_loadedEnd
         @_loadedEnd = loadingEnd
-      else if loadingEnd =-1 and @_loadedEnd == -1
+      else if loadingEnd == -1 and @_loadedEnd == -1
         @_loadedEnd = 0
 
       @_reindexModels()
