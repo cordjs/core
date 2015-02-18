@@ -21,7 +21,7 @@ define [
       @refreshToken = null
       @accessTokenParamName = 'mega_id_token'
       @refreshTokenParamName = 'refresh_token'
-      @options = config.megaplanId
+      @options = @config.megaplanId
       @endpoints = @options.endpoints
 
 
@@ -111,4 +111,3 @@ define [
         else
           promise.reject(new Error(if _.isObject(result) and result.error then result.error else JSON.stringify(result)))
       promise
-
