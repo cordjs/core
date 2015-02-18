@@ -111,4 +111,3 @@ define [
         else
           promise.reject(new Error(if _.isObject(result) and result.error then result.error else JSON.stringify(result)))
       promise
-

@@ -3,24 +3,21 @@ define [
   'cord!utils/Future'
   'underscore'
   'postal'
-  'cord!isBrowser'
   'cord!AppConfigLoader'
   'eventemitter3'
-], (Utils, Future, _, postal, isBrowser, AppConfigLoader, EventEmitter) ->
-
+], (Utils, Future, _, postal, AppConfigLoader, EventEmitter) ->
 
   class Api extends EventEmitter
 
     @inject: ['cookie', 'request']
 
-    @authModuleCookieName: '_api_auth_module' # Cookie name for auth module name
-
-    accessToken: false
-    refreshToken: false
+    # Cookie name for auth module name
+    @authModuleCookieName: '_api_auth_module'
 
     fallbackErrors: null
 
-    defaultAuthModule: 'OAuth2' # Default auth module, checkout config.api.defaultAuthModule
+    # Default auth module, check out config.api.defaultAuthModule
+    defaultAuthModule: 'OAuth2'
 
 
     constructor: (serviceContainer, config) ->
@@ -31,8 +28,6 @@ define [
         @fallbackErrors = appConfig.fallbackApiErrors
 
       @serviceContainer = serviceContainer
-      @accessToken = ''
-      @restoreToken = ''
 
 
     configure: (config) ->
@@ -76,7 +71,7 @@ define [
         @setAuthModule(module)
 
 
-    setAuthModule: (modulePath)->
+    setAuthModule: (modulePath) ->
       ###
       Sets or replaces current authentication module.
       The method can be called consequently, it guarantees, that @authPromise will be resolved with latest module
