@@ -16,11 +16,11 @@ define [
       authCodeWithoutLogin: ''
     ###
 
-    constructor: (serviceContainer, @config, @cookie, @request) ->
-      @accessToken = null
-      @refreshToken = null
-      @accessTokenParamName = 'mega_id_token'
-      @refreshTokenParamName = 'refresh_token'
+    accessTokenParamName: 'mega_id_token'
+    refreshTokenParamName: 'refresh_token'
+
+
+    constructor: (@config, @cookie, @request) ->
       @options = @config.megaplanId
       @endpoints = @options.endpoints
 

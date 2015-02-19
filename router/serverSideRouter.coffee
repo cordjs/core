@@ -243,8 +243,8 @@ define [
       {ACCOUNT} = 'megaplan2',
       {DOMAIN} = '.megaplan.ru',
 
-      {BACKEND} = common.backend.host variable
-      {BACKEND_PROTO} = common.backend.protocol variable
+      {BACKEND} = common.api.backend.host variable
+      {BACKEND_PROTO} = common.api.backend.protocol variable
       ###
 
       # Prepare templates values
@@ -264,13 +264,13 @@ define [
       dotIndex = hostFromRequest.indexOf('.')
 
       throw new Error("Please, define the 'server' section in config.") if not config.node.server
-      throw new Error("Please, define the 'backend' section in config.") if not config.node.backend
+      throw new Error("Please, define the 'api.backend' section in config.") if not config.node.api.backend
 
       serverHost = config.node.server.host
-      serverProto = if config.node.server.protocol then config.node.server.protocol else ''
+      serverProto = config.node.server.protocol or ''
       serverPort  = config.node.server.port
 
-      backendProto = if config.node.backend.protocol then config.node.backend.protocol else 'http'
+      backendProto = config.node.api.backend.protocol or 'http'
 
       templates =
           '{X_PROTO}': xProto
@@ -296,8 +296,8 @@ define [
       else
         xdrs = serverProto + '://' + serverHost + (if serverPort then ':' + serverPort else '') + '/XDRS/'
 
-      if config.node.backend.host
-        backend = Utils.substituteTemplate(config.node.backend.host, templates)
+      if config.node.api.backend.host
+        backend = Utils.substituteTemplate(config.node.api.backend.host, templates)
       else
         backend = hostFromRequest
 

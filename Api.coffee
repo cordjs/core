@@ -93,7 +93,7 @@ define [
         throw new Error("Failed to load auth module #{modulePath}!")  if not Module
         if @lastModulePath == modulePath # To check that we resolve @authPromise with the latest modulePath
           @cookie.set(Api.authModuleCookieName, originalModule, expires: 365)
-          localAuthPromise.resolve(new Module(@serviceContainer, @config, @cookie, @request))
+          localAuthPromise.resolve(new Module(@config, @cookie, @request))
 
       .catch (error) =>
         if @lastModulePath == modulePath # To check that we resolve @authPromise with the latest modulePath
