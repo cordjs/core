@@ -145,7 +145,7 @@ define [
                   serviceContainer.getService('api').then (api) ->
                     api.authenticateUser()
                 else
-                  _console.error "FATAL ERROR: server-side rendering failed! Reason: #{err}"
+                  _console.error "FATAL ERROR: server-side rendering failed! Reason:", err
                   displayFatalError()
               .finally ->
                 clear()

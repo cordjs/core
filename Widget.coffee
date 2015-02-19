@@ -1831,7 +1831,9 @@ define [
             subscription = postal.subscribe
               topic: "widget.#{ @ctx.id }.render.children.complete"
               callback: =>
-                @widgetRepo.getTemplateCss().done (html) ->
+                @widgetRepo.getTemplateCss().then (html) ->
                   chunk.end(html)
+                .catch (error) ->
+                  chunk.setError(error)
                 subscription.unsubscribe()
             @addTmpSubscription subscription

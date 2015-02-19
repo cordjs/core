@@ -16,8 +16,8 @@ define [
     ###
 
     constructor: (serviceContainer, @config, @cookie, @request) ->
-      @accessToken = false
-      @refreshToken = false
+      @accessToken = null
+      @refreshToken = null
       @accessTokenParamName = 'access_token'
       @refreshTokenParamName = 'refresh_token'
       @options = @config.oauth2
