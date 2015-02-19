@@ -1565,6 +1565,7 @@ define [
       collection._accessPoint = obj._accessPoint
 
       collection._reindexModels()
+      collection.injectTags()
       collection._initialized = obj.initialized || (collection._models.length > 0)
 
       collection
