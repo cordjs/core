@@ -445,7 +445,7 @@ define [
         urlParams.push("_fields=id")
       urlParams.push("_calc=#{ calcFields.join(',') }") if calcFields.length > 0
 
-      @restResource + (if params.id then '/' + params.id else '/') + (if params.accessPoint? then ('/' + params.accessPoint + '?') else '?') + urlParams.join('&')
+      @restResource + (if params.id then '/' + params.id else '') + (if params.accessPoint? then ('/' + params.accessPoint + '/?') else '?') + urlParams.join('&')
 
 
     delete: (model) ->
