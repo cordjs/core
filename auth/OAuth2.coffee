@@ -9,10 +9,11 @@ define [
   class OAuth2 extends EventEmitter
     ###
     OAuth2 auth module
-    required endpoints =
-      accessToken: ''
-      authCode: ''
-      authCodeWithoutLogin: ''
+    Required the following endpoints:
+      accessToken -  url to Get access token via login/password or refresh tokem
+      authCode - url to GET OAuth2 code via login/password
+      authCodeWithoutLogin - url to GET OAuth2 code via CORS request for logged in user
+      logout - url to logout out of server session for logged in user
     ###
 
     accessTokenParamName: 'access_token'
@@ -30,7 +31,6 @@ define [
       @endpoints = @options.endpoints
       if not @endpoints or not @endpoints.accessToken
         throw new Error('OAuth2::constructor error: at least endpoints.accessToken must be defined.')
-
       # setting actual values of secret information if they are available
       @_clientId     = @config.secrets.clientId      if @config?.secrets?.clientId?
       @_clientSecret = @config.secrets.clientSecret  if @config?.secrets?.clientSecret?

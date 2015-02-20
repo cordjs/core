@@ -2,18 +2,14 @@ define [
   'underscore'
   'cord!auth/OAuth2'
   'cord!utils/Future'
+  ''
 ], (_, OAuth2, Future) ->
 
   class MegaplanId extends OAuth2
     ###
     MegaplanId auth module.
     Requires the following config to be set
-      accessToken - request access tokens by megaplan ID
-      inviteCode - process inviteCode by app-backend
-
-    these ones used by OAuth2 module, so should be defined in config as well:
-      authCode: ''
-      authCodeWithoutLogin: ''
+      inviteCode - url to process inviteCode by app-backend
     ###
 
     accessTokenParamName: 'mega_id_token'
@@ -21,7 +17,8 @@ define [
 
 
     constructor: (@config, @cookie, @request) ->
-      @options = @config.megaplanId
+      super
+      @options = @config.api.megaplanId
       @endpoints = @options.endpoints
 
 
