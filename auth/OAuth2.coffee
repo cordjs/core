@@ -408,6 +408,8 @@ define [
       params =
         dataType: 'json',
         format: 'json'
+        xhrOptions:
+          withCredentials: true
 
       requestUrl = @endpoints.logout
 
