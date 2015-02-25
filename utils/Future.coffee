@@ -8,6 +8,8 @@ define [
   unhandledSoftTracking = false
   unhandledMap = null
 
+  logOriginStackTrace = !!global.config?.debug.future.logOriginStackTrace
+
   # environment-dependent console object
   cons = -> if typeof _console != 'undefined' then _console else console
 
@@ -49,6 +51,12 @@ define [
       @_failCallbacks = []
       @_alwaysCallbacks = []
       @_name = name
+
+      if logOriginStackTrace
+        try
+          throw new Error
+        catch err
+          @_stack = err.stack
 
       @_initDebugTimeout() if @_counter > 0
       @_initUnhandledTracking() if unhandledTrackingEnabled
@@ -232,8 +240,13 @@ define [
       Adds often-used scenario of fail that just loudly reports the error
       ###
       name = @_name
-      @fail (err) ->
-        cons().error "Future(#{name})::failAloud#{ if message then " with message: #{message}" else '' }", err, err.stack
+      @fail (err) =>
+        reportArgs = ["Future(#{name})::failAloud#{ if message then " with message: #{message}" else '' }", err]
+        reportArgs.push(err.stack)  if err.stack
+        if @_stack
+          reportArgs.push("\n---------------\n")
+          reportArgs.push(@_stack)
+        cons().error.apply(cons(), reportArgs)
 
 
     failOk: ->
@@ -679,10 +692,12 @@ define [
 
     _initDebugTimeout: ->
       timeout = global.config?.debug.future.timeout
-      if timeout > 0
+      if timeout > 0 and @_name.indexOf('_shownPromise') < 0 and @_name.indexOf('_widgetReadyPromise') < 0
         @_incompleteTimeout = setTimeout =>
           if @state() == 'pending' and @_counter > 0
-            cons().warn "Future timed out [#{@_name}] (#{timeout/1000} seconds), counter = #{@_counter}"
+            reportArgs = ["Future timed out [#{@_name}] (#{timeout/1000} seconds), counter = #{@_counter}"]
+            reportArgs.push(@_stack)  if @_stack
+            cons().warn.apply(cons(), reportArgs)
         , timeout
 
 
@@ -772,7 +787,10 @@ define [
                 err = info.promise._callbackArgs[0]
                 reportArgs.push(err)
                 reportArgs.push(err.stack) if err.stack
-              cons().warn.apply(cons, reportArgs)
+                if info.promise._stack
+                  reportArgs.push("\n--------------------------\n")
+                  reportArgs.push(info.promise._stack)
+                cons().warn.apply(cons(), reportArgs)
             delete unhandledMap[id]
       , interval
 
