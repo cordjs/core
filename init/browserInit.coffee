@@ -15,6 +15,7 @@ define [
 
     constructor: (@router) ->
 
+
     defaultFallback: ->
       # If we dont need to push params into fallback widget, use default, defined in fallbackRoutes
       routeInfo = @router.matchFallbackRoute(@router.getCurrentPath())
@@ -83,10 +84,9 @@ define [
 
     # Global errors handling
     requirejs.onError = (error) ->
-      if global.config.debug.require
-        throw error
-      else
-        _console.error 'Error from requirejs: ', error.toString(), 'Error: ', error
+      _console.error 'Error from requirejs: ', error.toString(), 'Error: ', error
+      throw error  if global.config.debug.require
+
 
     # monologue to debug mode
     Monologue.debug = true if global.config.debug.monologue != undefined and global.config.debug.monologue
