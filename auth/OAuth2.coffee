@@ -74,7 +74,7 @@ define [
       @return {Future[Tuple[String, Object]]}
       ###
       if not @isAuthAvailable()
-        Future.rejected('No OAuth2 tokens available.')
+        Future.rejected(new Error('No OAuth2 tokens available.'))
       else
         @_restoreTokens()
         if tryLuck
