@@ -6,7 +6,7 @@ define ->
       factory: (get, done) ->
         require ['cord!/cord/core/Api'], (Api) ->
           config = get('config')
-          api = new Api(get('container'), config)
+          api = new Api(get('container'), config.api)
           get('container').injectServices(api).done ->
             api.setupAuthModule().then ->
               done(null, api)

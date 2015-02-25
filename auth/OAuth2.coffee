@@ -16,6 +16,9 @@ define [
       logout - url to logout out of server session for logged in user
     ###
 
+    # name of auth configuration section inside `api` section
+    @configKey: 'oauth2'
+
     accessTokenParamName: 'access_token'
     refreshTokenParamName: 'refresh_token'
     accessToken: null
@@ -26,8 +29,7 @@ define [
     _clientSecret: '#{clientSecret}'
 
 
-    constructor: (@config, @cookie, @request) ->
-      @options = @config.api.oauth2
+    constructor: (@options, @cookie, @request) ->
       @endpoints = @options.endpoints
       if not @endpoints or not @endpoints.accessToken
         throw new Error('OAuth2::constructor error: at least endpoints.accessToken must be defined.')
@@ -153,7 +155,7 @@ define [
       @cookie.set('oauthScope', @scope, expires: 15)
 
       @emit('auth.available')
-      _console.log "Store tokens: #{accessToken}, #{refreshToken}"  if global.config.debug.oauth2
+      _console.log "Store tokens: #{accessToken}, #{refreshToken}"  if global.config.debug.oauth
 
 
     getScope: ->

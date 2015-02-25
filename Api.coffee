@@ -4,10 +4,9 @@ define [
   'underscore'
   'postal'
   'cord!AppConfigLoader'
-  'eventemitter3'
-], (Utils, Future, _, postal, AppConfigLoader, EventEmitter) ->
+], (Utils, Future, _, postal, AppConfigLoader) ->
 
-  class Api extends EventEmitter
+  class Api
 
     @inject: ['cookie', 'request']
 
@@ -42,8 +41,7 @@ define [
         params: {}
         authenticateUserCallback: -> false # @see authenticateUser() method
 
-      @options = _.extend(defaultOptions, config.api)
-      @config = config
+      @options = _.extend(defaultOptions, config)
       @defaultAuthModule = @options.defaultAuthModule if @options.defaultAuthModule
 
       # если в конфиге у нас заданы параметры автовхода, то надо логиниться по ним
@@ -83,7 +81,7 @@ define [
       originalModule = modulePath
       modulePath = "/cord/core/auth/#{ modulePath }"  if modulePath.charAt(0) != '/'
 
-      _console.log "Loading auth module: #{modulePath}"
+      _console.log "Loading auth module: #{modulePath}"  if global.config.debug.oauth
 
       localAuthPromise = Future.single("Auth module promise: #{modulePath}")
       @lastModulePath = modulePath # To check that we resolve @authPromise with the latest modulePath
@@ -93,7 +91,7 @@ define [
         throw new Error("Failed to load auth module #{modulePath}!")  if not Module
         if @lastModulePath == modulePath # To check that we resolve @authPromise with the latest modulePath
           @cookie.set(Api.authModuleCookieName, originalModule, expires: 365)
-          localAuthPromise.resolve(new Module(@config, @cookie, @request))
+          localAuthPromise.resolve(new Module(@options[Module.configKey], @cookie, @request))
 
       .catch (error) =>
         if @lastModulePath == modulePath # To check that we resolve @authPromise with the latest modulePath

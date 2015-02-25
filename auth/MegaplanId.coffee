@@ -12,14 +12,12 @@ define [
       inviteCode - url to process inviteCode by app-backend
     ###
 
+    @configKey: 'megaplanId'
+
+    # need to be renamed to avoid conflict when used both auth methods in conjunction
     accessTokenParamName: 'mega_id_token'
+    # refresh token name need not to be renamed
     refreshTokenParamName: 'refresh_token'
-
-
-    constructor: (@config, @cookie, @request) ->
-      super
-      @options = @config.api.megaplanId
-      @endpoints = @options.endpoints
 
 
     isAuthFailed: (response, error) ->
