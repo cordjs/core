@@ -516,7 +516,7 @@ define [
       ###
       if @_renderPromise.completed()
         if @_sentenced
-          Future.rejected(new errors.WidgetParamsRace("#{ @debug 'setParamsSafe' } is called for sentenced widget!"))
+          Future.rejected(new errors.WidgetParamsRace("#{ @debug 'setParamsSafe' } is called for sentenced widget!", 'notice'))
         else
           Future.try => @setParams(params)
       else
@@ -530,7 +530,7 @@ define [
 
         @_nextSetParamsCallback = =>
           if @_sentenced
-            x = new errors.WidgetParamsRace("#{ @debug('setParamsSafe') } is called for sentenced widget!")
+            x = new errors.WidgetParamsRace("#{ @debug('setParamsSafe') } is called for sentenced widget!", 'notice')
             @_lastSetParams.reject(x)
           else
             Future.try =>

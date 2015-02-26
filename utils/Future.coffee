@@ -233,7 +233,7 @@ define [
       ###
       name = @_name
       @fail (err) ->
-        cons().error "Future(#{name})::failAloud#{ if message then " with message: #{message}" else '' }", err, err.stack
+        cons().error "Future(#{name})::failAloud#{ if message then " with message: #{message}" else '' }", err
 
 
     failOk: ->
@@ -652,8 +652,7 @@ define [
         catch err
           # this catch is needed to prevent require's error callbacks to fire when error is caused
           # by th result's callbacks. Otherwise we'll try to reject already resolved promise two lines below.
-          cons().error "Got exception in Future.require() callbacks for [#{result._name}]: #{err}", err
-          cons().log err.stack
+          cons().error "Got exception in Future.require() callbacks for [#{result._name}]", err
       , (err) ->
         result.reject(err)
       result

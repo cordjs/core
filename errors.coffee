@@ -25,7 +25,7 @@ define ->
 
 
   WidgetParamsRace: class WidgetParamsRace extends Error
-    constructor: (@message) ->
+    constructor: (@message, @type = 'warning') ->
       @name = 'WidgetParamsRace'
       Error.call(this, @message)
       Error.captureStackTrace?(this, arguments.callee)
