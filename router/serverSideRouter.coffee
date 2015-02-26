@@ -153,7 +153,7 @@ define [
 
           displayFatalError = ->
             fatalErrorPageFile = 'public/' + appConfig.fatalErrorPageFile
-            res.writeHead(500, 'Unexpeced Error!', 'Content-type': 'text/html')
+            res.writeHead(500, 'Unexpected Error!', 'Content-type': 'text/html')
             Future.call(fs.readFile, fatalErrorPageFile, 'utf8').then (data) ->
               res.end(data)
             .catch (err) ->
