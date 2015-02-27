@@ -145,7 +145,7 @@ define [
                   serviceContainer.getService('api').then (api) ->
                     api.authenticateUser()
                 else
-                  _console.error "FATAL ERROR: server-side rendering failed! Reason: #{err}"
+                  _console.error "FATAL ERROR: server-side rendering failed! Reason: #{err}", err
                   displayFatalError()
               .finally ->
                 clear()
@@ -157,7 +157,7 @@ define [
             Future.call(fs.readFile, fatalErrorPageFile, 'utf8').then (data) ->
               res.end(data)
             .catch (err) ->
-              _console.error "Error while reading fatal error page html: #{err}. Falling back to the inline version."
+              _console.error "Error while reading fatal error page html: #{err}. Falling back to the inline version.", err
               res.end """
                 <html>
                   <head><title>Error 500</title></head>

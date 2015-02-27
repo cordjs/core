@@ -594,7 +594,7 @@ define [
         return _console.error('collection.partialRefresh called with wront parameters startPage, maxPages',
         startPage,
         maxPages,
-        (new Error()).stack)
+        new Error())
 
       if minRefreshInterval >= 0 and @getLastQueryTimeDiff() > minRefreshInterval
         @_refreshInProgress = true
@@ -618,11 +618,11 @@ define [
 
       # Try to catch some architectural errors
       if isNaN(Number(currentId))
-        _console.error('collection.refresh called with wrong parameter currentId', currentId, (new Error()).stack)
+        _console.error('collection.refresh called with wrong parameter currentId', currentId, new Error())
         return
 
       if maxPages < 1
-        _console.error('collection.refresh called with wrong parameter maxPages', maxPages, (new Error()).stack)
+        _console.error('collection.refresh called with wrong parameter maxPages', maxPages, new Error())
 
       return if not (minRefreshInterval >= 0 and @getLastQueryTimeDiff() > minRefreshInterval)
 
@@ -675,7 +675,7 @@ define [
       ###
       # _console.log "#{ @repo.restResource } _simplePageRefresh: (startPage=#{startPage}, maxPages=#{maxPages}, loadedPages=#{loadedPages}) ->"
       if startPage < 1 or maxPages < 1
-        _console.error('collection._simplePageRefresh got bad parameters.')
+        _console.error('collection._simplePageRefresh got bad parameters.', new Error())
 
       else
         start = (startPage - 1) * @_pageSize

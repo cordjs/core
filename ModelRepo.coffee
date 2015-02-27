@@ -910,7 +910,7 @@ define [
           .zip(storage.saveCollection(@constructor.__name, name, models))
           .then -> true
           .catch (err) ->
-            _console.error "#{@constructor.__name}::cacheCollection() failed:", err, err.stack
+            _console.error "#{@constructor.__name}::cacheCollection() failed:", err
             false
           .link(result)
       else
