@@ -1454,8 +1454,10 @@ define [
             if BehaviourClass.prototype instanceof Behaviour
               @behaviour = new BehaviourClass(this, $domRoot)
               @container.injectServices(@behaviour).then =>
-                @behaviour.init()
-                return
+                if not @_sentenced
+                  @behaviour.init()
+                else
+                  throw new errors.WidgetSentenced("Couldn't init behaviour #{BehaviourClass.__name} bacause widget is sentenced!")
             else
               throw new Error("WRONG BEHAVIOUR CLASS: #{behaviourClass}")
         .catch (err) =>
