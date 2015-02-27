@@ -58,8 +58,10 @@ define [
       ###
       if @options.forcedAuthModule
         module = @options.forcedAuthModule
-      else
+      else if @cookie.get(Api.authModuleCookieName)
         module = decodeURIComponent(@cookie.get(Api.authModuleCookieName))
+      else
+        module = @defaultAuthModule
 
       @setAuthModule(module).catch =>
         module = @defaultAuthModule
