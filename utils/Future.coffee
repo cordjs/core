@@ -242,7 +242,6 @@ define [
       name = @_name
       @fail (err) =>
         reportArgs = ["Future(#{name})::failAloud#{ if message then " with message: #{message}" else '' }", err]
-        reportArgs.push(err.stack)  if err.stack
         if @_stack
           reportArgs.push("\n---------------\n")
           reportArgs.push(@_stack)
@@ -665,8 +664,7 @@ define [
         catch err
           # this catch is needed to prevent require's error callbacks to fire when error is caused
           # by th result's callbacks. Otherwise we'll try to reject already resolved promise two lines below.
-          cons().error "Got exception in Future.require() callbacks for [#{result._name}]: #{err}", err
-          cons().log err.stack
+          cons().error "Got exception in Future.require() callbacks for [#{result._name}]:", err
       , (err) ->
         result.reject(err)
       result
@@ -786,7 +784,6 @@ define [
               if state == 'rejected'
                 err = info.promise._callbackArgs[0]
                 reportArgs.push(err)
-                reportArgs.push(err.stack) if err.stack
                 if info.promise._stack
                   reportArgs.push("\n--------------------------\n")
                   reportArgs.push(info.promise._stack)

@@ -90,7 +90,7 @@ define [
                   target[serviceAlias] = service
                   injectPromise.resolve()
             catch e
-              _console.error "Container::injectServices -> eval(#{ serviceName }) for target #{ target.constructor.name } fail: #{ e.message }"
+              _console.error "Container::injectServices -> eval(#{ serviceName }) for target #{ target.constructor.name } fail: #{ e.message }", e
               target[serviceAlias] = undefined
               injectPromise.reject(e)
               @reset(serviceName)

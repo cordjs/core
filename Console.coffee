@@ -6,84 +6,88 @@ define [
   config = global.config
 
   excludeErrors = []
-  outputLog = outputWarn = outputError = outputErrorTrace = true
+  outputLog = outputWarn = outputError = true
+  outputErrorTrace = false
 
   if config and config.console
     outputLog = config.console.log
     outputWarn = config.console.warn
     outputError = config.console.error
-    outputErrorTrace = config.console.errorTrace or outputErrorTrace
+    outputErrorTrace = !!config.console.errorTrace
     excludeErrors = config.console.excludeErrors or excludeErrors
 
-  stringify = (args) ->
-    result = ''
 
-    for arg in args
-      if arg instanceof Object
+  stringify = (args) ->
+    args.map (x) ->
+      if x instanceof Object
         try
           # TypeError: Converting circular structure to JSON
-          result += JSON.stringify(arg) + ', '
-          result += JSON.stringify(arg[3].stack) if arg[3] != undefined and arg[3].stack != ''
+          JSON.stringify(x)
         catch
-          result += arg + ', '
+          x
       else
-        result += arg + ', '
+        x
+    .join(', ')
 
-    return result
 
-
-  addDatePrefix = (args) ->
+  prependDate = (args) ->
     args.unshift((new Date).toString()) if not CORD_IS_BROWSER
     args
 
 
-  addErrorTrace = (error, args) ->
+  appendErrorTrace = (args, error) ->
     args.push(error.stack) if error and not _.find(args, (item) -> item == error.stack)
     args
 
+
   self =
     ###
-    Обертка для консоли, служит для того, чтобы включать/выключать вывод в конфиге
+    System console wrapper with nice configurable debugging and logging features
     ###
 
     log: (args...) ->
-      console.log.apply(console, addDatePrefix(args)) if outputLog
-      return
+      console.log.apply(console, prependDate(args)) if outputLog
 
 
     warn: (args...) ->
-      console.warn.apply(console, addDatePrefix(args)) if outputWarn
+      postal.publish 'logger.log.publish',
+        tags: ['warning']
+        params:
+          warning: stringify(args)
 
-      message = stringify(arguments)
-      postal.publish 'logger.log.publish', { tags: ['warning'], params: {warning: message} }
-      return
+      console.warn.apply(console, prependDate(args)) if outputWarn
 
 
     error: (args...) ->
-      #console.log x.stack for x in arguments when x and x.stack # advanced debugging
       self.taggedError.apply(self, [['error']].concat(args))
 
 
     taggedError: (tags, args...) ->
       ###
-      Выводит ошибку в консоль и оповещает Logger
-      @param tags {Array} Тэги ошибки. Например: ['error'] | ['warning']
-      @param args {Mixed} Сообщения об ошибке и/или экземпляр Error
+      Smart console.error:
+       * appends stack-trace of Error-typed argument if configured
+       * sends error information to logger
+       * displays error in console if configured
+      @param {Array} tags - tags for logging, e.g. ['error'] | ['warning']
+      @param {Any} args - usual console.error arguments
       ###
-      error = _.find(args, (item) -> item and item.stack)
+      if outputErrorTrace
+        error = _.find(args, (item) -> item and item.stack)
+        appendErrorTrace(args, error)
 
-      if outputError
-        args = addErrorTrace(error, args) if outputErrorTrace
-        console.error.apply(console, addDatePrefix(args))
-
-      args = addErrorTrace(error, args) if not outputError or not outputErrorTrace
       message = stringify(args)
-      postal.publish 'error.notify.publish', { message: 'Произошла ошибка', link: '', details: message }
+      postal.publish 'error.notify.publish',
+        message: 'Произошла ошибка'
+        link: ''
+        details: message
 
       if not error or not error.type or not (error.type in excludeErrors)
-        postal.publish 'logger.log.publish', { tags: tags, params: {error: message} }
+        postal.publish 'logger.log.publish',
+          tags: tags
+          params:
+            error: message
 
-      return
+      console.error.apply(console, prependDate(args))  if outputError
 
 
     clear: ->
