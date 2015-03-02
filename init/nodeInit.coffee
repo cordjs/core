@@ -129,30 +129,10 @@ exports.loadConfig = loadConfig = (configName, serverPort) ->
     defaultConfigPath = pathDir + '/conf/default.js'
     if fs.existsSync(defaultConfigPath)
       defaultConfig = require(defaultConfigPath)
-      _.merge(defaultConfig.node, defaultConfig.common) # default.node <- default.common
-      _.merge(defaultConfig.browser, defaultConfig.common) # default.browser <- default.common
-      # result = _.merge(defaultConfig, result)
+      result = _.merge({}, defaultConfig, result)
 
-    # Redefine server port if port defined in command line parameter
-    defaultConfig.common.server.port = serverPort if not isNaN(Number(serverPort))
-    defaultConfig.common.server.port = 18180 if not defaultConfig.common.server.port
-
-    if not defaultConfig.common.server.host
-      defaultConfig.common.server.host = '127.0.0.1'
-
-    if not defaultConfig.common.server.proto
-      defaultConfig.common.server.proto = 'http'
-
-    # Merge node and browser configuration with common (defaults)
-    # Merge priorities: conf.node <- conf.common <- default.node <- default.common
-    defaultNodeConfig = _.clone(defaultConfig.node)
-    _.merge(defaultNodeConfig, result.common)
-    result.node = _.merge(defaultNodeConfig, result.node)
-
-    # The same for browser
-    defaultBrowserConfig = _.clone(defaultConfig.browser)
-    _.merge(defaultBrowserConfig, result.common)
-    result.browser = _.merge(defaultBrowserConfig, result.browser)
+    result.node    = _.merge({}, result.common, result.node)
+    result.browser = _.merge({}, result.common, result.browser)
 
     # Load secrets for node config
     if _.isString(result.node.secrets) and result.node.secrets.length
@@ -163,7 +143,10 @@ exports.loadConfig = loadConfig = (configName, serverPort) ->
 
     # Redefine server port if port defined in command line parameter
     result.node.server.port = serverPort if not isNaN(Number(serverPort))
-    result.node.server.port = 18180 if not result.node.server.port
+    result.node.server.port or= 18180
+
+    result.node.server.host or= '127.0.0.1'
+    result.node.server.proto or= 'http'
 
     # Remove common configuration
     delete result.common

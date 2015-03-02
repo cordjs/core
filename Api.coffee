@@ -3,24 +3,20 @@ define [
   'cord!utils/Future'
   'underscore'
   'postal'
-  'cord!isBrowser'
   'cord!AppConfigLoader'
-  'eventemitter3'
-], (Utils, Future, _, postal, isBrowser, AppConfigLoader, EventEmitter) ->
+], (Utils, Future, _, postal, AppConfigLoader) ->
 
-
-  class Api extends EventEmitter
+  class Api
 
     @inject: ['cookie', 'request']
 
-    @authModuleCookieName: '_api_auth_module' # Cookie name for auth module name
-
-    accessToken: false
-    refreshToken: false
+    # Cookie name for auth module name
+    @authModuleCookieName: '_api_auth_module'
 
     fallbackErrors: null
 
-    defaultAuthModule: 'OAuth2' # Default auth module, checkout config.api.defaultAuthModule
+    # Default auth module, check out config.api.defaultAuthModule
+    defaultAuthModule: 'OAuth2'
 
 
     constructor: (serviceContainer, config) ->
@@ -31,8 +27,6 @@ define [
         @fallbackErrors = appConfig.fallbackApiErrors
 
       @serviceContainer = serviceContainer
-      @accessToken = ''
-      @restoreToken = ''
 
 
     configure: (config) ->
@@ -47,8 +41,7 @@ define [
         params: {}
         authenticateUserCallback: -> false # @see authenticateUser() method
 
-      @options = _.extend(defaultOptions, config.api)
-      @config = config
+      @options = _.extend(defaultOptions, config)
       @defaultAuthModule = @options.defaultAuthModule if @options.defaultAuthModule
 
       # если в конфиге у нас заданы параметры автовхода, то надо логиниться по ним
@@ -65,8 +58,10 @@ define [
       ###
       if @options.forcedAuthModule
         module = @options.forcedAuthModule
-      else
+      else if @cookie.get(Api.authModuleCookieName)
         module = decodeURIComponent(@cookie.get(Api.authModuleCookieName))
+      else
+        module = @defaultAuthModule
 
       @setAuthModule(module).catch =>
         module = @defaultAuthModule
@@ -76,7 +71,7 @@ define [
         @setAuthModule(module)
 
 
-    setAuthModule: (modulePath)->
+    setAuthModule: (modulePath) ->
       ###
       Sets or replaces current authentication module.
       The method can be called consequently, it guarantees, that @authPromise will be resolved with latest module
@@ -88,7 +83,7 @@ define [
       originalModule = modulePath
       modulePath = "/cord/core/auth/#{ modulePath }"  if modulePath.charAt(0) != '/'
 
-      _console.log "Loading auth module: #{modulePath}"
+      _console.log "Loading auth module: #{modulePath}"  if global.config.debug.oauth
 
       localAuthPromise = Future.single("Auth module promise: #{modulePath}")
       @lastModulePath = modulePath # To check that we resolve @authPromise with the latest modulePath
@@ -97,8 +92,8 @@ define [
         # this is workaround for requirejs-on-serverside bug which doesn't throw an error when requested file doesn't exist
         throw new Error("Failed to load auth module #{modulePath}!")  if not Module
         if @lastModulePath == modulePath # To check that we resolve @authPromise with the latest modulePath
-          @cookie.set(Api.authModuleCookieName, originalModule)
-          localAuthPromise.resolve(new Module(@serviceContainer, @config, @cookie, @request))
+          @cookie.set(Api.authModuleCookieName, originalModule, expires: 365)
+          localAuthPromise.resolve(new Module(@options[Module.configKey], @cookie, @request))
 
       .catch (error) =>
         if @lastModulePath == modulePath # To check that we resolve @authPromise with the latest modulePath

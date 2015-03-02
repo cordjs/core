@@ -270,7 +270,8 @@ define [
 
 
     getTemplateCss: ->
-      cssHelper.getInitCssCode(@rootWidget.getDeepCssList())
+      Future.try =>
+        cssHelper.getInitCssCode(@rootWidget.getDeepCssList())
 
 
     endInit: ->

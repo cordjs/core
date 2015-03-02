@@ -2,27 +2,22 @@ define [
   'underscore'
   'cord!auth/OAuth2'
   'cord!utils/Future'
+  ''
 ], (_, OAuth2, Future) ->
 
   class MegaplanId extends OAuth2
     ###
     MegaplanId auth module.
     Requires the following config to be set
-      accessToken - request access tokens by megaplan ID
-      inviteCode - process inviteCode by app-backend
-
-    these ones used by OAuth2 module, so should be defined in config as well:
-      authCode: ''
-      authCodeWithoutLogin: ''
+      inviteCode - url to process inviteCode by app-backend
     ###
 
-    constructor: (serviceContainer, @config, @cookie, @request) ->
-      @accessToken = null
-      @refreshToken = null
-      @accessTokenParamName = 'mega_id_token'
-      @refreshTokenParamName = 'refresh_token'
-      @options = config.megaplanId
-      @endpoints = @options.endpoints
+    @configKey: 'megaplanId'
+
+    # need to be renamed to avoid conflict when used both auth methods in conjunction
+    accessTokenParamName: 'mega_id_token'
+    # refresh token name need not to be renamed
+    refreshTokenParamName: 'refresh_token'
 
 
     isAuthFailed: (response, error) ->
@@ -111,4 +106,3 @@ define [
         else
           promise.reject(new Error(if _.isObject(result) and result.error then result.error else JSON.stringify(result)))
       promise
-

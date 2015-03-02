@@ -72,6 +72,7 @@ define [
       @param Widget contextWidget
       @return String
       ###
+      throw new Error("Css path: '#{shortPath}' is not a string.") if not _.isString(shortPath)
       if shortPath.substr(0, 1) != '/' and shortPath.indexOf '//' == -1
         # context of current widget
         shortPath += '.css' if shortPath.substr(-4) != '.css'

@@ -516,7 +516,7 @@ define [
       ###
       if @_renderPromise.completed()
         if @_sentenced
-          Future.rejected(new errors.WidgetParamsRace("#{ @debug 'setParamsSafe' } is called for sentenced widget!"))
+          Future.rejected(new errors.WidgetParamsRace("#{ @debug 'setParamsSafe' } is called for sentenced widget!", 'notice'))
         else
           Future.try => @setParams(params)
       else
@@ -530,7 +530,7 @@ define [
 
         @_nextSetParamsCallback = =>
           if @_sentenced
-            x = new errors.WidgetParamsRace("#{ @debug('setParamsSafe') } is called for sentenced widget!")
+            x = new errors.WidgetParamsRace("#{ @debug('setParamsSafe') } is called for sentenced widget!", 'notice')
             @_lastSetParams.reject(x)
           else
             Future.try =>
@@ -1454,8 +1454,10 @@ define [
             if BehaviourClass.prototype instanceof Behaviour
               @behaviour = new BehaviourClass(this, $domRoot)
               @container.injectServices(@behaviour).then =>
-                @behaviour.init()
-                return
+                if not @_sentenced
+                  @behaviour.init()
+                else
+                  throw new errors.WidgetSentenced("Couldn't init behaviour #{BehaviourClass.__name} bacause widget is sentenced!")
             else
               throw new Error("WRONG BEHAVIOUR CLASS: #{behaviourClass}")
         .catch (err) =>
@@ -1712,7 +1714,7 @@ define [
                   .catchIf (err) ->
                     err instanceof errors.WidgetDropped or err instanceof errors.WidgetSentenced
               .catch (err) ->
-                _console.error("Error on widget #{ widget.debug() } rendering:", err.stack)
+                _console.error "Error on widget #{ widget.debug() } rendering:", err
                 chunk.setError(err)
 
               if hasTimeout
@@ -1831,7 +1833,9 @@ define [
             subscription = postal.subscribe
               topic: "widget.#{ @ctx.id }.render.children.complete"
               callback: =>
-                @widgetRepo.getTemplateCss().done (html) ->
+                @widgetRepo.getTemplateCss().then (html) ->
                   chunk.end(html)
+                .catch (error) ->
+                  chunk.setError(error)
                 subscription.unsubscribe()
             @addTmpSubscription subscription

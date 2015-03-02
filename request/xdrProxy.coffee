@@ -33,19 +33,18 @@ define [
 
     options =
       method: req.method ? 'GET'
-      hostname: proxyUrl.hostname ? global.config.backend.host
+      hostname: proxyUrl.hostname ? global.config.api.backend.host
       port: proxyUrl.port
       path: proxyUrl.path
       headers: headers
       rejectUnauthorized: false
 
-    if not proxyUrl.protocol
-      protocol = if global.config.backend.protocol == 'http' then  http else https
-    else
-      if proxyUrl.protocol == 'http:'
-        protocol = http
+    protoString = proxyUrl.protocol or global.config.api.backend.protocol
+    protocol =
+      if protoString == 'http:' or protoString == 'http'
+        http
       else
-        protocol = https
+        https
 
     proxyReq = protocol.request options, (proxyRes) ->
       # send http-headers back to the browser copying them from the target server response

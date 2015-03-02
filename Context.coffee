@@ -81,7 +81,7 @@ define [
           resolvedValue = null if resolvedValue == undefined
           @setSingle name, resolvedValue
         .catch (err) =>
-          _console.error "Context.set promise failed with error: #{err}! Setting value to null...", err, err.stack
+          _console.error "Context.set promise failed with error: #{err}! Setting value to null...", err
           @setSingle name, null
         return triggerChange
 

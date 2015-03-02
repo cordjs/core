@@ -7,24 +7,35 @@ define [
 ], (_, isBrowser, Future, errors, EventEmitter) ->
 
   class OAuth2 extends EventEmitter
-
     ###
     OAuth2 auth module
-    required endpoints =
-      accessToken: ''
-      authCode: ''
-      authCodeWithoutLogin: ''
+    Required the following endpoints:
+      accessToken -  url to Get access token via login/password or refresh tokem
+      authCode - url to GET OAuth2 code via login/password
+      authCodeWithoutLogin - url to GET OAuth2 code via CORS request for logged in user
+      logout - url to logout out of server session for logged in user
     ###
 
-    constructor: (serviceContainer, @config, @cookie, @request) ->
-      @accessToken = false
-      @refreshToken = false
-      @accessTokenParamName = 'access_token'
-      @refreshTokenParamName = 'refresh_token'
-      @options = @config.oauth2
+    # name of auth configuration section inside `api` section
+    @configKey: 'oauth2'
+
+    accessTokenParamName: 'access_token'
+    refreshTokenParamName: 'refresh_token'
+    accessToken: null
+    refreshToken: null
+
+    # default values are patterns for XDRS replacement
+    _clientId: '#{clientId}'
+    _clientSecret: '#{clientSecret}'
+
+
+    constructor: (@options, @cookie, @request) ->
       @endpoints = @options.endpoints
       if not @endpoints or not @endpoints.accessToken
-        throw new Error('Oauth2::constructor error: at least endpoints.accessToken must be defined.')
+        throw new Error('OAuth2::constructor error: at least endpoints.accessToken must be defined.')
+      # setting actual values of secret information if they are available
+      @_clientId     = global.config.secrets.clientId      if global.config?.secrets?.clientId?
+      @_clientSecret = global.config.secrets.clientSecret  if global.config?.secrets?.clientSecret?
 
 
     isAuthFailed: (response, error) ->
@@ -63,7 +74,7 @@ define [
       @return {Future[Tuple[String, Object]]}
       ###
       if not @isAuthAvailable()
-        Future.rejected('No OAuth2 tokens available.')
+        Future.rejected(new Error('No OAuth2 tokens available.'))
       else
         @_restoreTokens()
         if tryLuck
@@ -144,7 +155,7 @@ define [
       @cookie.set('oauthScope', @scope, expires: 15)
 
       @emit('auth.available')
-      _console.log "Store tokens: #{accessToken}, #{refreshToken}"  if global.config.debug.oauth2
+      _console.log "Store tokens: #{accessToken}, #{refreshToken}"  if global.config.debug.oauth
 
 
     getScope: ->
@@ -166,7 +177,7 @@ define [
       @return {Future} resolves when auth suceeded, fails in otherway
       ###
       result = @grantAccessTokenByPassword(username, password, @getScope())
-      result.then (accessToken, refreshToken) =>
+      result.spread (accessToken, refreshToken) =>
         @_onAccessTokenGranted(accessToken, refreshToken)
 
       result
@@ -192,7 +203,7 @@ define [
       resultPromise = Future.single('Oauth2::_grantAccessTokenByExtensions')
       requestParams =
         grant_type: url
-        client_id: @options.clientId
+        client_id: @_clientId
         scope: scope
         json: true
 
@@ -207,22 +218,23 @@ define [
       resultPromise
 
 
-    ## Получение токена по grant_type = password (логин и пароль)
     grantAccessTokenByPassword: (user, password, scope) ->
-
+      ###
+      Получение токена по grant_type = password (логин и пароль)
+      ###
       resultPromise = Future.single('Oauth2::grantAccessTokenByPassword')
 
       params =
         grant_type: 'password'
         username: user
         password: password
-        client_id: @options.clientId
+        client_id: @_clientId
         scope: scope
         json: true
 
       @request.get @endpoints.accessToken, params, (result) ->
         if result and result.access_token and result.refresh_token
-          resultPromise.resolve(result.access_token, result.refresh_token)
+          resultPromise.resolve([result.access_token, result.refresh_token])
         else
           resultPromise.reject('Oauth2::grantAccessTokenByPassword unables to accuire tokens:' + JSON.stringify(result))
 
@@ -239,15 +251,9 @@ define [
       ###
       params =
         grant_type: 'refresh_token'
-        client_id: @options.clientId
         scope: scope
-
-      # User XDRS if needed, proxy it through XDRS on browser
-      params['client_secret'] =
-        if @config?.secrets?.client_secret
-          @config.secrets?.client_secret
-        else
-          '#{client_secret}'
+        client_id: @_clientId
+        client_secret: @_clientSecret
 
       params[@refreshTokenParamName] = refreshToken
 
@@ -292,7 +298,7 @@ define [
 
     getAuthCodeByPassword: (login, password, scope) ->
       ###
-      Accuires OAuth2 code via login and password for two-step code-auth
+      Acquires OAuth2 code via login and password for two-step code-auth
       ###
       promise = Future.single('Api::getAuthCodeByPassword promise')
       if !isBrowser
@@ -300,7 +306,7 @@ define [
       else
         params =
           response_type: 'code'
-          client_id: @options.clientId
+          client_id: @_clientId
           login: login
           password: password
           format: 'json'
@@ -328,43 +334,42 @@ define [
       else
         params =
           response_type: 'code'
-          client_id: @options.clientId
+          client_id: @_clientId
           scope: scope
           format: 'json'
           xhrOptions:
             withCredentials: true
 
         requestUrl = @endpoints.authCodeWithoutLogin
-        if not requestUrl
-          return promise.reject('config.oauth2.endpoints.authCodeWithoutLogin parameter is required')
-        @request.get requestUrl, params, (response, error) ->
-          if response?.code
-            promise.resolve(response.code)
-          else
-            promise.reject(new errors.MegaIdAuthFailed('No auth code recieved. Response: ' + JSON.stringify(response) + JSON.stringify(error)))
+        if requestUrl
+          @request.get requestUrl, params, (response, error) ->
+            if response?.code
+              promise.resolve(response.code)
+            else
+              promise.reject(new errors.MegaIdAuthFailed('No auth code recieved. Response: ' + JSON.stringify(response) + JSON.stringify(error)))
+        else
+          promise.reject(new Error('config.api.oauth2.endpoints.authCodeWithoutLogin parameter is required'))
       promise
 
 
     grantAccessTokenByAuhorizationCode: (code, scope) ->
       ###
-      Accuire tokens by OAuth2 code
+      Acquires tokens by OAuth2 code
       It uses special XDRS section to send secrets into auth server
       ###
       promise = Future.single('OAuth2::grantAccessTokenByAuthorizationCode promise')
       params =
         grant_type: 'authorization_code'
         code: code
-        client_id: @options.clientId
-        client_secret: '#{client_secret}'
+        client_id: @_clientId
+        client_secret: @_clientSecret
         format: 'json'
         redirect_uri: @options.redirectUri
         scope: scope
 
-      requestUrl = @endpoints.accessToken
-
-      @request.get requestUrl, params, (result) =>
+      @request.get @endpoints.accessToken, params, (result) ->
         if result and result.access_token and result.refresh_token
-          promise.resolve(result.access_token, result.refresh_token, code)
+          promise.resolve([result.access_token, result.refresh_token, code])
         else
           promise.reject(new Error('No response from authorization server'))
       promise
@@ -380,7 +385,7 @@ define [
       @getAuthCodeByPassword(login, password, @getScope()).name('Oauth2::doAuthCodeLoginByPassword')
         .then (code) =>
           @grantAccessTokenByAuhorizationCode(code, @getScope())
-        .then (accessToken, refreshToken, code) =>
+        .spread (accessToken, refreshToken, code) =>
           @_onAccessTokenGranted(accessToken, refreshToken)
           code
 
@@ -392,10 +397,9 @@ define [
       @getAuthCodeWithoutPassword(@getScope()).name('Api::doAuthCodeLoginWithoutPassword')
         .then (code) =>
           @grantAccessTokenByAuhorizationCode(code)
-        .then (accessToken, refreshToken, code) =>
+        .spread (accessToken, refreshToken, code) =>
           @_onAccessTokenGranted(accessToken, refreshToken)
           code
-
 
 
     doAuthLogout: ->
@@ -404,10 +408,10 @@ define [
       ###
       promise = Future.single('OAuth2::doAuthLogout promise')
       params =
-        client_id: @options.clientId
-        client_secret: '#{client_secret}'
         dataType: 'json',
         format: 'json'
+        xhrOptions:
+          withCredentials: true
 
       requestUrl = @endpoints.logout
 
@@ -419,5 +423,3 @@ define [
         else
           promise.reject(new Error('Bad response from authorization server: ' + JSON.stringirfy(error)))
       promise
-
-
