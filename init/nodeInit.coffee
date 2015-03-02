@@ -125,14 +125,30 @@ exports.loadConfig = loadConfig = (configName, serverPort) ->
     if _.isEmpty(result)
       console.warn("!!! Specified config file #{configName} is empty or misdefined.")
 
-    # If default config exists, load it and merge with config
+    defaultConfig = null
+
+    # Merge configs.
+    # After a final merge we'll get the priorities:
+    # (lowest) default.common -> default.node -> config.common -> confin.node (higest)
+    # (lowest) default.common -> default.browser -> config.common -> confin.browser (higest)
+
+    # If default config exists, load it and merge common -> node, common -> browser
     defaultConfigPath = pathDir + '/conf/default.js'
     if fs.existsSync(defaultConfigPath)
       defaultConfig = require(defaultConfigPath)
-      result = _.merge({}, defaultConfig, result)
+      defaultConfig.node    = _.merge({}, defaultConfig.common, defaultConfig.node)
+      defaultConfig.browser = _.merge({}, defaultConfig.common, defaultConfig.browser)
 
+    # Merge for main config common -> node, common -> browser
     result.node    = _.merge({}, result.common, result.node)
     result.browser = _.merge({}, result.common, result.browser)
+
+    # Final merge with default config node -> node, browser -> browser
+    if defaultConfig
+      result.node    = _.merge({}, defaultConfig.node, result.node)
+      result.browser = _.merge({}, defaultConfig.browser, result.browser)
+
+    console.log result.node.server
 
     # Load secrets for node config
     if _.isString(result.node.secrets) and result.node.secrets.length
