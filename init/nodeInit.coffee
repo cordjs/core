@@ -148,8 +148,6 @@ exports.loadConfig = loadConfig = (configName, serverPort) ->
       result.node    = _.merge({}, defaultConfig.node, result.node)
       result.browser = _.merge({}, defaultConfig.browser, result.browser)
 
-    console.log result.node.server
-
     # Load secrets for node config
     if _.isString(result.node.secrets) and result.node.secrets.length
       secretsPath = result.node.secrets
