@@ -784,6 +784,7 @@ define [
               if state == 'rejected'
                 err = info.promise._callbackArgs[0]
                 reportArgs.push(err)
+                reportArgs.push(err.stack) if err.stack
                 if info.promise._stack
                   reportArgs.push("\n--------------------------\n")
                   reportArgs.push(info.promise._stack)
