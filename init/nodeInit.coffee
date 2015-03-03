@@ -26,7 +26,7 @@ exports.init = (baseUrl = 'public', configName = 'default', serverPort) ->
   global.appConfig = config
   global.config    = config.node
   # need to be global because used to conditionally define dependencies throughout the project
-  global.CORD_PROFILER_ENABLED = config.node.debug.profiler.enable
+  global.CORD_PROFILER_ENABLED = config.debug.profiler.enable
 
 
   # setting of this callback is necessary to avoid throwing global unhandled exception by requirejs when file not found
