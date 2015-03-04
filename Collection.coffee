@@ -1559,7 +1559,7 @@ define [
       collection._hasLimits = obj.hasLimits
       collection._totalCount = obj.totalCount
       collection._filter = obj.filter
-      collection._requestParams = obj._requestParams
+      collection._requestParams = obj.requestParams
       collection._pageSize = obj.pageSize
       collection._emitChangeOnAny = obj.emitChangeOnAny
       collection._accessPoint = obj._accessPoint
