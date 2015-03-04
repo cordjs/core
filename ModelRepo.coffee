@@ -210,11 +210,10 @@ define [
       collection = @createSingleModel(id, fields, extraOptions)
 
       collection.sync syncMode, 0, 0, ->
-        try
-          promise.resolve(collection.get(id))
-        catch error
-          if error.name == 'ModelNotExists'
-            promise.reject(error)
+        model = collection.get(id)
+        promise.resolve(model)
+      .catch (error) ->
+        promise.reject(error)
 
       promise
 
