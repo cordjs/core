@@ -210,13 +210,10 @@ define [
       collection = @createSingleModel(id, fields, extraOptions)
 
       collection.sync syncMode, 0, 0, ->
-        try
-          promise.resolve(collection.get(id))
-        catch error
-          if error.name == 'ModelNotExists'
-            promise.reject(error)
-          else
-            throw error
+        model = collection.get(id)
+        promise.resolve(model)
+      .catch (error) ->
+        promise.reject(error)
 
       promise
 
@@ -445,7 +442,7 @@ define [
         urlParams.push("_fields=id")
       urlParams.push("_calc=#{ calcFields.join(',') }") if calcFields.length > 0
 
-      @restResource + (if params.id then '/' + params.id else '') + (if params.accessPoint? then ('/' + params.accessPoint + '/?') else '?') + urlParams.join('&')
+      @restResource + (if params.accessPoint? then ('/' + params.accessPoint) else '') + (if params.id then '/' + params.id + '/?'  else '/?') + urlParams.join('&')
 
 
     delete: (model) ->
