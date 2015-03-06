@@ -265,6 +265,8 @@ define [
               resultPromise.resolve [null, null]
             else
               resultPromise.resolve [ result.access_token, result.refresh_token ]
+            # Clear refresh promise, so the next time a new one will be created
+            @_refreshTokenRequestPromise = null
           else if retries > 0
             _console.warn 'Error while refreshing oauth token! Will retry after pause... Error:', err
             Future.timeout(500).then =>
