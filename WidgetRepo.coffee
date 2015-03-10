@@ -287,6 +287,8 @@ define [
         @serviceContainer.autoStartServices(appConfig.services)
         # setup browser-side behaviour for all loaded widgets
         @_setupBindings().then =>
+          # Remove 'm-not-ready' modifier. Elements are clickable now
+          document.body.classList.remove('m-not-ready')
           # Initializing profiler panel
           if CORD_PROFILER_ENABLED
             if window.zone?
