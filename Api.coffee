@@ -4,9 +4,10 @@ define [
   'underscore'
   'postal'
   'cord!AppConfigLoader'
-], (Utils, Future, _, postal, AppConfigLoader) ->
+  'eventemitter3'
+], (Utils, Future, _, postal, AppConfigLoader, EventEmitter) ->
 
-  class Api
+  class Api extends EventEmitter
 
     @inject: ['cookie', 'request']
 
@@ -93,7 +94,10 @@ define [
         throw new Error("Failed to load auth module #{modulePath}!")  if not Module
         if @lastModulePath == modulePath # To check that we resolve @authPromise with the latest modulePath
           @cookie.set(Api.authModuleCookieName, originalModule, expires: 365)
-          localAuthPromise.resolve(new Module(@options[Module.configKey], @cookie, @request))
+          module = new Module(@options[Module.configKey], @cookie, @request)
+          localAuthPromise.resolve(module)
+          # translate module event
+          module.on('auth.available', => @emit('auth.available'))
 
       .catch (error) =>
         if @lastModulePath == modulePath # To check that we resolve @authPromise with the latest modulePath
@@ -130,9 +134,10 @@ define [
           return
         else
           result = Future.single('authTokensReady')
-          @authPromise.then (authModule) =>
-            authModule.once 'auth.available', =>
-              result.when(@authTokensReady()) # recursively checking if auth tokens actually valid
+          # We can not subscribe to authModule, stored in @authPromise future, because it can be changed due to
+          # user login. So, we subscribe to event, bubbled in this module.
+          @once 'auth.available',
+            => result.when(@authTokensReady()) # recursively checking if auth tokens actually valid
           result
 
 
@@ -146,9 +151,9 @@ define [
         if available
           cb()
         else
-          @authPromise.then (authModule) =>
-            authModule.once 'auth.available', =>
-              @authTokensReadyCb(cb) # recursively checking if auth tokens actually valid
+          # We can not subscribe to authModule, stored in @authPromise future, because it can be changed due to
+          # user login. So, we subscribe to event, bubbled in this module.
+          @once 'auth.available', => @authTokensReadyCb(cb) # recursively checking if auth tokens actually valid
       return
 
 
