@@ -416,6 +416,7 @@ define [
     cleanModelSubscriptions: ->
       for name, mb of @_modelBindings
         mb.subscription?.unsubscribe()
+        mb.subscription = null
 
 
     setRepo: (repo) ->
