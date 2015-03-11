@@ -96,7 +96,7 @@ define [
           @cookie.set(Api.authModuleCookieName, originalModule, expires: 365)
           module = new Module(@options[Module.configKey], @cookie, @request)
           localAuthPromise.resolve(module)
-          # translate module event
+          # bypass module event
           module.on('auth.available', => @emit('auth.available'))
 
       .catch (error) =>
@@ -136,8 +136,8 @@ define [
           result = Future.single('authTokensReady')
           # We can not subscribe to authModule, stored in @authPromise future, because it can be changed due to
           # user login. So, we subscribe to event, bubbled in this module.
-          @once 'auth.available',
-            => result.when(@authTokensReady()) # recursively checking if auth tokens actually valid
+          @once 'auth.available', =>
+            result.when(@authTokensReady()) # recursively checking if auth tokens actually valid
           result
 
 
