@@ -36,7 +36,9 @@ define [
 
 
   appendErrorTrace = (args, error) ->
-    args.push(error.stack) if error and not _.find(args, (item) -> item == error.stack)
+    if error and not _.find(args, (item) -> item == error.stack)
+      args.push("\n---------------\n")
+      args.push(error.stack)
     args
 
 
