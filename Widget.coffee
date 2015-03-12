@@ -1519,7 +1519,15 @@ define [
 
         if this != stopPropagateWidget and not @_delayedRender
           for widgetId, bindingMap of @childBindings
-            @childById[widgetId].setSubscribedPushBinding(bindingMap)
+            if @childById[widgetId]
+              @childById[widgetId].setSubscribedPushBinding(bindingMap)
+            else
+              widgetInfo =
+                id: @ctx.id
+                constructorName: @constructor.__name
+                widgetId: widgetId
+                stack: (new Error()).stack
+              _console.warn "Widget has died, but it was not removed from childBindings", widgetInfo
 
           readyConditions = []
 
