@@ -95,3 +95,11 @@ define [
     clear: ->
       console.clear?()
       return
+
+
+    assertLazy: (errorMessage, checkFunction) ->
+      ###
+      Checks that checkFunction() value is true. Otherwise throws an error with errorMessage text.
+      ###
+      if config.debug.assertions and not checkFunction()
+        throw new Error("Assertion failed. #{errorMessage}")
