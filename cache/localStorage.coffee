@@ -11,7 +11,8 @@ define [
     constructor: (storage) ->
       @storage = storage
       # Max amount of time to waint until reject @getItem and clear localStorage
-      @_getTimeout = 300
+      # Made this value bigger according to http://calendar.perfplanet.com/2012/is-localstorage-performance-a-problem/
+      @_getTimeout = 1000
 
 
     saveCollectionInfo: (repoName, collectionName, ttl, info) ->
@@ -146,12 +147,6 @@ define [
       Future-powered proxy key-value get method.
       ###
       result = Future.single("localStorage::_get #{key}")
-      @storage.getItem key, (value) ->
-        if result.state() == 'pending'
-          if value?
-            result.resolve(value)
-          else
-            result.reject(new Error("Key '#{key}' doesn't exists in the local storage!"))
 
       # Protection against localStorage going crazy (because of overflow?), when @storage.getItem never calls callback in Chrome
       setTimeout =>
@@ -159,6 +154,13 @@ define [
           @clear()
           result.reject(new Error("LocalStorage timeouted with key #{key}!"))
       , @_getTimeout
+
+      @storage.getItem key, (value) ->
+        if result.state() == 'pending'
+          if value?
+            result.resolve(value)
+          else
+            result.reject(new Error("Key '#{key}' doesn't exists in the local storage!"))
 
       result
 
@@ -211,44 +213,44 @@ define [
 
 
     _invalidateAllCollectionsWithField: (repoName, fieldName) ->
-      promise = new Future(1, "localStorage::_invalidateAllCollectionsWithField #{repoName} #{fieldName} promise")
-
-      @storage.length (length) =>
+      promise = Future.single("localStorage::_invalidateAllCollectionsWithField #{repoName} #{fieldName} promise")
+      @storage.length().then (length) =>
+        promises = []
         for index in [0..length-1]
-          promise.fork()
-
-          @storage.key index, (key) =>
+          @storage.key(index).then (key) =>
             if key and key.slice(-5) == ':info' && key.indexOf(repoName) >= 0
-              if !fieldName
-                @storage.removeItem key
-                @storage.removeItem(key.slice(0, key.length - 5))
+              if not fieldName
+                promises.push(@_clearItem key)
               else
-                @storage.getItem key, (value) =>
-                  if !value.fields || (fieldName in value.fields)
-                    @storage.removeItem key
-                    @storage.removeItem(key.slice(0, key.length - 5))
+                @storage.getItem(key).then (value) =>
+                  if not value.fields || (fieldName in value.fields)
+                    promises.push(@_clearItem key)
 
-            promise.resolve()
+        Promise.all(promises)
+      .toFuture(promise)
 
-        promise.resolve()
 
-      promise
+    _clearItem: (key) ->
+      ###
+      Очищает ключ в кэше, одновременно очищая его вариант без сууфикса ':info'
+      ###
+      _console.assertLazy "Local storage key (#{key}) should end up with \":info\"", ->
+        key.slice(-5) == ':info1'
+
+      Promise.all [
+        @storage.removeItem(key)
+        @storage.removeItem(key.slice(0, key.length - 5))
+      ]
 
 
     _invalidateAllCollections: (repoName) ->
-      promise = new Future(1, "localStorage::_invalidateAllCollections #{repoName} promise")
+      promise = Future.single("localStorage::_invalidateAllCollections #{repoName} promise")
 
-      @storage.length (length) =>
+      @storage.length().then (length) =>
+        promises = []
         for index in [1..length-1]
-          promise.fork()
-
-          @storage.key index, (key) =>
-            if key.indexOf(repoName) >= 0
-              @storage.removeItem key
-              @storage.removeItem(key.slice(0, key.length - 5))
-
-            promise.resolve()
-
-        promise.resolve()
-
-      promise
+          @storage.key(index).then (key) =>
+            if key and key.slice(-5) == ':info' and key.indexOf(repoName) >= 0
+              promises.push(@_clearItem key)
+        Promise.all(promises)
+      .toFuture(promise)

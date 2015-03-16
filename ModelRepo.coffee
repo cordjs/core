@@ -791,7 +791,7 @@ define [
         if parseInt(collection._id) == model.id
           promise.fork()
           delete @_collections[key]
-          collection.invalidateCache().done =>
+          collection.invalidateCache().failAloud().then =>
             promise.resolve()
       promise
 

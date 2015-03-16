@@ -79,6 +79,13 @@ define ->
       localStorage: (get, done) ->
         require ['cord!cache/localStorage', 'localforage'], (LocalStorage, localForage) ->
           localForage.ready().then ->
+            # Resolve future (promise argument) according with Promise
+            Promise::toFuture = (promise) ->
+              this
+                .then -> promise.resolve()
+                .catch (err) -> promise.reject(err)
+              promise
+
             done(null, new LocalStorage(localForage))
           .catch (err) ->
             _console.error "ERROR while initializing localforage: #{err.message}! Driver: #{localForage.driver()}", err
