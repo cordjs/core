@@ -828,6 +828,9 @@ define [
               else
                 params[name] = @ctx[value]
                 @widgetRepo.subscribePushBinding(@ctx.id, value, widget, name, @ctx.getVersion()) if isBrowser
+          else if name == 'params' and _.isObject(value)
+            params[subName] = subValue for subName, subValue of value
+            delete params.params
 
       if Object.keys(bindings).length != 0
         @childBindings[widget.ctx.id] = bindings
