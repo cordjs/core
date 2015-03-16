@@ -277,6 +277,7 @@ define [
           '{TIMESTAMP}': new Date().getTime()
           '{ACCOUNT}': hostFromRequest.substr(0, dotIndex)
           '{DOMAIN}': hostFromRequest.substr(dotIndex)
+          '{X_HOST}': hostFromRequest
 
       serverProto = Utils.substituteTemplate(serverProto, templates)
       backendProto  = Utils.substituteTemplate(backendProto, templates)

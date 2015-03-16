@@ -153,7 +153,6 @@ define [
       @return {Boolean} true if any widgets has been scheduled to be dropped
       ###
       return false if @_gcTimeout # schedule only one GC task at a time
-
       root = @rootWidget
       okWidgetIds = []
       recCollectIds = (widget) =>
