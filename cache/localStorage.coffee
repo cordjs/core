@@ -235,7 +235,7 @@ define [
       Очищает ключ в кэше, одновременно очищая его вариант без сууфикса ':info'
       ###
       _console.assertLazy "Local storage key (#{key}) should end up with \":info\"", ->
-        key.slice(-5) == ':info1'
+        key.slice(-5) == ':info'
 
       Promise.all [
         @storage.removeItem(key)
