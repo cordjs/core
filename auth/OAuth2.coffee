@@ -7,7 +7,7 @@ define [
 ], (_, isBrowser, Future, errors, EventEmitter) ->
 
   class OAuth2 extends EventEmitter
- 
+
     ###
     OAuth2 auth module
     required endpoints =
@@ -244,10 +244,10 @@ define [
 
       # User XDRS if needed, proxy it through XDRS on browser
       params['client_secret'] =
-        if @config?.secrets?.client_secret
-          @config.secrets?.client_secret
+        if @config?.secrets?.clientSecret
+          @config.secrets?.clientSecret
         else
-          '#{client_secret}'
+          '#{clientSecret}'
 
       params[@refreshTokenParamName] = refreshToken
 
@@ -259,6 +259,7 @@ define [
               resultPromise.resolve [null, null]
             else
               resultPromise.resolve [ result.access_token, result.refresh_token ]
+            @_refreshTokenRequestPromise = null
           else if retries > 0
             _console.warn 'Error while refreshing oauth token! Will retry after pause... Error:', err
             Future.timeout(500).then =>
@@ -355,7 +356,7 @@ define [
         grant_type: 'authorization_code'
         code: code
         client_id: @options.clientId
-        client_secret: '#{client_secret}'
+        client_secret: '#{clientSecret}'
         format: 'json'
         redirect_uri: @options.redirectUri
         scope: scope
@@ -405,7 +406,7 @@ define [
       promise = Future.single('OAuth2::doAuthLogout promise')
       params =
         client_id: @options.clientId
-        client_secret: '#{client_secret}'
+        client_secret: '#{clientSecret}'
         dataType: 'json',
         format: 'json'
 
