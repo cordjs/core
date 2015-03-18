@@ -127,19 +127,24 @@ define ['underscore'], (_) ->
     # if true, router should check authentication via `authCheckCallback` before processing navigation
     requireAuth: false
 
+
     constructor: (path, definition, fallback = false) ->
+      ###
+      definition.mergeParams - optional Array of param names which should be merged together into key-value object and
+                               assigned to param with special name `__mergedParams`. This feature is useful when
+                               there is a special middleware router-widget which need to bypass params to the next level.
+      ###
       throw new Error("Required 'widget' or 'callback' options is not set in route '#{ path }' definition!") if definition.widget? and definition.callback?
       @widget = definition.widget
       @callback = definition.callback if definition.callback?
       @requireAuth = !!definition.requireAuth
+      @mergeParams = definition.mergeParams
 
       @params = definition.params ? {}
 
-      path = new RegExp(path) if definition.regexp
-
       @names = []
 
-      if typeof path is 'string'
+      if not definition.regexp
         namedParam.lastIndex = 0
         while (match = namedParam.exec(path)) != null
           @names.push(match[1])
@@ -158,7 +163,13 @@ define ['underscore'], (_) ->
 
         @route = new RegExp('^' + path + if not fallback then '$' else '')
       else
-        @route = path
+        namedParamInRe = /\\\:([^\/]+)/g
+        namedParamInRe.lastIndex = 0
+        while (match = namedParamInRe.exec(path)) != null
+          @names.push(match[1])
+        path = path.replace(namedParamInRe, '([^\/]+)')
+
+        @route = new RegExp(path)
 
 
     match: (path) ->
@@ -174,6 +185,11 @@ define ['underscore'], (_) ->
       if @names.length
         for param, i in match.slice(1)
           params[@names[i]] = param
+
+      if @mergeParams and @mergeParams.length > 0
+        mergedParamValue = {}
+        mergedParamValue[name] = params[name] for name in @mergeParams when params[name] != undefined
+        params.__mergedParams = mergedParamValue
 
       _.extend params, @params
 
