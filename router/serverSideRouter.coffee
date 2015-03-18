@@ -85,6 +85,7 @@ define [
           widgetRepo = null
 
         config = appConfig.node
+        global.config = config
 
         serviceContainer.set 'config', config
         serviceContainer.set 'appConfig', appConfig
