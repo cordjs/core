@@ -7,6 +7,7 @@ define [
 ], (_, isBrowser, Future, errors, EventEmitter) ->
 
   class OAuth2 extends EventEmitter
+
     ###
     OAuth2 auth module
     Required the following endpoints:
