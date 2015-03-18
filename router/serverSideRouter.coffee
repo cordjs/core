@@ -293,7 +293,7 @@ define [
         xdr = serverProto + '://' + serverHost + (if serverPort then ':' + serverPort else '') + '/XDR/'
 
       if config.browser.xdrs
-        xdrs = Utils.substituteTemplate(config.browser.xdr, templates)
+        xdrs = Utils.substituteTemplate(config.browser.xdrs, templates)
       else
         xdrs = serverProto + '://' + serverHost + (if serverPort then ':' + serverPort else '') + '/XDRS/'
 
