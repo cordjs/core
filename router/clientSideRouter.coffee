@@ -23,7 +23,7 @@ define [
       @_noPageReload = historySupport or global.config.localFsMode
 
       # save current path
-      @_currentPath = @getActualPath()
+      @_currentPath = if global.config.localFsMode then '/' else @getActualPath()
 
       @_initHistoryNavigate() if historySupport
       @_initLinkClickHook() if @_noPageReload
@@ -153,9 +153,13 @@ define [
       Extracts current actual path from the window.location
       @return String
       ###
-      path = window.location.pathname
-      path = '/' + path if path.charAt(0) != '/'
-      path
+      if global.config.localFsMode
+        # in local environment window.location doesn't make sence
+        @_currentPath
+      else
+        path = window.location.pathname
+        path = '/' + path if path.charAt(0) != '/'
+        path
 
 
     getHash: -> window.location.hash
