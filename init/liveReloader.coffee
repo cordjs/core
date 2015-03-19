@@ -2,10 +2,14 @@ define ->
 
   host = location.host
 
+  currentTimeout = 100
+
   waitAndReload = ->
     ws = new WebSocket('ws://' + host)
     ws.onopen = -> location.reload()
-    ws.onclose = -> setTimeout(waitAndReload, 100)
+    ws.onclose = ->
+      setTimeout(waitAndReload, currentTimeout)
+      currentTimeout += 10
 
 
   init: ->
