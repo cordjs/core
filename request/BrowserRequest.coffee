@@ -92,4 +92,4 @@ define [
             tags: loggerTags
             params: loggerParams
 
-        argssss.callback body, error if typeof argssss.callback == 'function'
+        argssss.callback body, error, response if typeof argssss.callback == 'function'

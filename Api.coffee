@@ -13,6 +13,7 @@ define [
 
     # Cookie name for auth module name
     @authModuleCookieName: '_api_auth_module'
+    @lastHostCookieName: '_last_host'
 
     fallbackErrors: null
 
@@ -20,14 +21,23 @@ define [
     defaultAuthModule: 'OAuth2'
 
 
-    constructor: (serviceContainer, config) ->
+    constructor: (serviceContainer, @config) ->
       @fallbackErrors = {}
-      @configure(config)
+      @serviceContainer = serviceContainer
+
+
+    init: ->
+      if @config.storeHostInCookie
+        cookieHost = @cookie.get(Api.lastHostCookieName)
+        if cookieHost
+          @config.host = cookieHost
+
+      @configure(@config)
+
       # заберем настройки для fallbackErrors
       AppConfigLoader.ready().done (appConfig) =>
         @fallbackErrors = appConfig.fallbackApiErrors
-
-      @serviceContainer = serviceContainer
+      @setupAuthModule()
 
 
     configure: (config) ->
@@ -42,7 +52,7 @@ define [
         params: {}
         authenticateUserCallback: -> false # @see authenticateUser() method
 
-      @options = _.extend(defaultOptions, config)
+      @options = _.extend(defaultOptions, @options, config)
       @defaultAuthModule = @options.defaultAuthModule if @options.defaultAuthModule
 
       # если в конфиге у нас заданы параметры автовхода, то надо логиниться по ним
@@ -50,7 +60,23 @@ define [
         @options.authenticateUserCallback = =>
           @getTokensByUsernamePassword @options.autoLogin, @options.autoPassword
 
-      return
+      # we should call this method to ensure that host stored in cookie
+      @setBackendHost(@options.host)
+
+
+    setBackendHost: (host) ->
+      ###
+      Useful method for runtime change of backend host
+      ###
+      @cookie.set(Api.lastHostCookieName, host)
+      oldHost = @options.host
+      if (host != oldHost)
+        _console.log("Backend host was changed from #{@options.host} to #{host}")
+        @options.host = host
+        @emit('host.changed',
+          old: oldHost
+          new: host
+        )
 
 
     setupAuthModule: ->
@@ -283,8 +309,21 @@ define [
       requestParams = _.clone(params)
       delete requestParams.originalArgs
       @authPromise.then (authModule) =>
-        @request[method] url, requestParams, (response, error) =>
+        @request[method] url, requestParams, (response, error, rawResponse) =>
           Future.try =>
+            if targetHost = rawResponse?.getResponseHeader('x-target-host')
+              ###
+              Change target host of backend, if asked
+              @see public/bundles/cord/core/request/xdrProxy.coffee:52
+              @see public/bundles/cord/core/init/nodeInit.coffee:82
+              ###
+              @setBackendHost(targetHost)
+
+            if rawResponse == undefined
+              authModule.clearAuth()
+              @options.authenticateUserCallback()
+              throw new Error(error.message);
+
             isAuthFailed = authModule.isAuthFailed(response, error)
 
             # if auth failed normally, we try to resuurect auth and try again
