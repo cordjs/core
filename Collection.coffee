@@ -508,8 +508,6 @@ define [
     toArray: ->
       # This method returns array of loaded models.
       # Warning! Probably you should not use this function for paged collections, but getPage()
-      if @_pageSize > 0
-        _console.warn('Warning, collection.toArray() was used for paged collection!', @debug())
       @_models
 
 
