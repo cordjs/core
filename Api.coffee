@@ -62,7 +62,7 @@ define [
       if @options.forcedAuthModule
         module = @options.forcedAuthModule
       else if @cookie.get(Api.authModuleCookieName)
-        module = decodeURIComponent(@cookie.get(Api.authModuleCookieName))
+        module = @cookie.get(Api.authModuleCookieName)
       else
         module = @defaultAuthModule
 

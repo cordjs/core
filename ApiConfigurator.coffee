@@ -1,11 +1,12 @@
 define [
   'cord!Utils'
   'lodash'
-], (Utils, _) ->
+  'cord!Api'
+], (Utils, _, Api) ->
 
   class ApiConfigurator
 
-    @inject: ['cookie', 'api']
+    @inject: ['cookie', 'container']
     @cookieName = '_api_config_vars'
 
 
@@ -14,17 +15,30 @@ define [
 
 
     init: ->
-      # Load stored variables from cookies
-      @variables = @cookie.get(ApiConfigurator.cookieName) ? {}
-      @_applyConfig()
-      @api.on('host.changed', (newHost) => @setBackendHost(newHost))
+      # Initialize api service
+      @api = new Api(@container, @config)
+      @container.injectServices(@api)
+        .then => @api.init()
+        .then =>
+          # Load stored variables from cookies
+          @variables = try
+            JSON.parse(@cookie.get(ApiConfigurator.cookieName))
+          catch
+            {}
+
+          @_applyConfig()
+          @api.on('host.changed', (newHost) => @setBackendHost(newHost))
+
+
+    getApi: ->
+      @api
 
 
     setBackendHost: (newHost) ->
       @variables =
         '%BACKEND_HOST%': newHost
       @_applyConfig()
-      @cookie.set(ApiConfigurator.cookieName, @variables)
+      @cookie.set(ApiConfigurator.cookieName, JSON.stringify(@variables))
 
 
     _applyConfig: ->
