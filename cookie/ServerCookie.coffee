@@ -1,6 +1,7 @@
 define [
   'cookies'
-], (Cookies) ->
+  'underscore'
+], (Cookies, _) ->
 
   class ServerCookie
 
@@ -13,9 +14,14 @@ define [
     get: (name, defaultValue) =>
       value = if @setValues[name] then @setValues[name].value else @cookies.get(name)
       value ?= defaultValue
+      if _.isString(value)
+        decodeURIComponent(value)
+      else
+        value
 
 
     set: (name, value, params) =>
+      value = encodeURIComponent(value)
       # prevent browser to use the same connection
       if @cookies.response._header
         return false

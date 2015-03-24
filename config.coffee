@@ -2,14 +2,18 @@ define ->
 
   services:
     api:
+      deps: ['apiConfigurator']
+      factory: (get, done) ->
+        done(null, get('apiConfigurator').getApi())
+
+    apiConfigurator:
       deps: ['config', 'container', 'cookie', 'request']
       factory: (get, done) ->
-        require ['cord!/cord/core/Api'], (Api) ->
-          config = get('config')
-          api = new Api(get('container'), config.api)
-          get('container').injectServices(api).done ->
-            api.init().then ->
-              done(null, api)
+        require ['cord!/cord/core/ApiConfigurator'], (ApiConfigurator) ->
+          configurator = new ApiConfigurator(get('config').api)
+          get('container').injectServices(configurator)
+            .then -> configurator.init()
+            .then -> done(null, configurator)
 
     userAgent:
       deps: ['container']
@@ -99,7 +103,6 @@ define ->
         factory: (get, done) ->
           require ['cord!cache/persistentStorage'], (PersistentStorage) ->
             done(null, new PersistentStorage(get('localStorage')))
-
 
   routes:
     '/REQUIRESTAT/optimizer':

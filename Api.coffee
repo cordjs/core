@@ -13,7 +13,6 @@ define [
 
     # Cookie name for auth module name
     @authModuleCookieName: '_api_auth_module'
-    @lastHostCookieName: '_last_host'
 
     fallbackErrors: null
 
@@ -27,11 +26,6 @@ define [
 
 
     init: ->
-      if @config.storeHostInCookie
-        cookieHost = @cookie.get(Api.lastHostCookieName)
-        if cookieHost
-          @config.host = cookieHost
-
       @configure(@config)
 
       # заберем настройки для fallbackErrors
@@ -60,24 +54,6 @@ define [
         @options.authenticateUserCallback = =>
           @getTokensByUsernamePassword @options.autoLogin, @options.autoPassword
 
-      # we should call this method to ensure that host stored in cookie
-      @setBackendHost(@options.host)
-
-
-    setBackendHost: (host) ->
-      ###
-      Useful method for runtime change of backend host
-      ###
-      @cookie.set(Api.lastHostCookieName, host)
-      oldHost = @options.host
-      if (host != oldHost)
-        _console.log("Backend host was changed from #{@options.host} to #{host}")
-        @options.host = host
-        @emit('host.changed',
-          old: oldHost
-          new: host
-        )
-
 
     setupAuthModule: ->
       ###
@@ -86,7 +62,7 @@ define [
       if @options.forcedAuthModule
         module = @options.forcedAuthModule
       else if @cookie.get(Api.authModuleCookieName)
-        module = decodeURIComponent(@cookie.get(Api.authModuleCookieName))
+        module = @cookie.get(Api.authModuleCookieName)
       else
         module = @defaultAuthModule
 
@@ -312,12 +288,7 @@ define [
         @request[method] url, requestParams, (response, error, rawResponse) =>
           Future.try =>
             if targetHost = rawResponse?.getResponseHeader?('X-Target-Host')
-              ###
-              Change target host of backend, if asked
-              @see public/bundles/cord/core/request/xdrProxy.coffee:52
-              @see public/bundles/cord/core/init/nodeInit.coffee:82
-              ###
-              @setBackendHost(targetHost)
+              @emit('host.changed', targetHost)
 
             if rawResponse == undefined
               authModule.clearAuth()
