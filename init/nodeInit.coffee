@@ -80,7 +80,7 @@ exports.startServer = startServer = (callback) ->
 
     # Detect for proxyRoutes
     for proxyRoute in services.proxyRoutes
-      if (pos = req.url.indexOf(proxyRoute)) != -1 # cross-domain request proxy
+      if 0 == req.url.indexOf(proxyRoute) # cross-domain request proxy
         return services.xdrProxy(req.url, req, res)
 
     if (pos = req.url.indexOf('/XDR/')) != -1 # cross-domain request proxy

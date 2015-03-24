@@ -8,7 +8,7 @@ define ->
           config = get('config')
           api = new Api(get('container'), config.api)
           get('container').injectServices(api).done ->
-            api.setupAuthModule().then ->
+            api.init().then ->
               done(null, api)
 
     userAgent:
