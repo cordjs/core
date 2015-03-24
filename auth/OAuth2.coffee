@@ -131,7 +131,7 @@ define [
       ###
       Loads saved tokens from cookies
       ###
-      if not (@accessToken and @refreshToken)
+      if not (@accessToken and @refreshToken and @scope)
         @accessToken  = @cookie.get('accessToken')
         @refreshToken = @cookie.get('refreshToken')
         @scope        = @cookie.get('oauthScope')
