@@ -586,6 +586,8 @@ define [
       Useful for potentilally huge collections
       ###
       # _console.log "#{ @repo.restResource } partialRefresh: (startPage=#{startPage}, maxPages=#{maxPages}, minRefreshInterval=#{minRefreshInterval})"
+      return Future.resolved(this) if @_fixed
+
       startPage = Number(startPage)
       maxPages = Number(maxPages)
 
@@ -615,6 +617,8 @@ define [
       ###
 
       #_console.log "#{ @repo.restResource } refresh: (currentId=#{currentId}, emitModelChangeExcept=#{emitModelChangeExcept}, maxPages=#{maxPages})"
+
+      return Future.resolved(this) if @_fixed
 
       # Try to catch some architectural errors
       if isNaN(Number(currentId))
