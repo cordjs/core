@@ -47,8 +47,14 @@ define [
     System console wrapper with nice configurable debugging and logging features
     ###
 
+    _trace: ->
+      (new Error).stack.split("\n")
+
+
     log: (args...) ->
-      console.log.apply(console, prependDate(args)) if outputLog
+      if outputLog
+        args.push @_trace()[3]
+        console.log.apply(console, prependDate(args))
 
 
     warn: (args...) ->
@@ -57,7 +63,9 @@ define [
         params:
           warning: stringify(args)
 
-      console.warn.apply(console, prependDate(args)) if outputWarn
+      if outputWarn
+        args.push @_trace()[3]
+        console.warn.apply(console, prependDate(args))
 
 
     error: (args...) ->
