@@ -100,6 +100,16 @@ define ->
           require ['cord!cache/persistentStorage'], (PersistentStorage) ->
             done(null, new PersistentStorage(get('localStorage')))
 
+      apiConfigurator:
+        deps: ['config', 'container', 'api', 'cookie']
+        autoStart: true
+        factory: (get, done) ->
+          require ['cord!/cord/core/ApiConfigurator'], (ApiConfigurator) ->
+            configurator = new ApiConfigurator(get('config').api)
+            get('container').injectServices(configurator)
+              .then -> configurator.init()
+              .then -> done(null, configurator)
+
 
   routes:
     '/REQUIRESTAT/optimizer':
