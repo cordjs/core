@@ -311,7 +311,7 @@ define [
       @authPromise.then (authModule) =>
         @request[method] url, requestParams, (response, error, rawResponse) =>
           Future.try =>
-            if targetHost = rawResponse?.getResponseHeader('X-Target-Host')
+            if targetHost = rawResponse?.getResponseHeader?('X-Target-Host')
               ###
               Change target host of backend, if asked
               @see public/bundles/cord/core/request/xdrProxy.coffee:52
