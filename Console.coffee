@@ -97,7 +97,9 @@ define [
           params:
             error: message
 
-      console.error.apply(console, prependDate(args))  if outputError
+      if outputError
+        args.push @_trace()[3]
+        console.error.apply(console, prependDate(args))
 
 
     clear: ->
