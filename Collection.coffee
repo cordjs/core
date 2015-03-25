@@ -1539,6 +1539,7 @@ define [
       initialized: @_initialized
       emitChangeOnAny: @_emitChangeOnAny
       _accessPoint: @_accessPoint
+      _fixed: !!@_fixed
 
 
     @fromJSON: (repo, name, obj) ->
@@ -1565,10 +1566,10 @@ define [
       collection._pageSize = obj.pageSize
       collection._emitChangeOnAny = obj.emitChangeOnAny
       collection._accessPoint = obj._accessPoint
-
       collection._reindexModels()
       collection.injectTags()
       collection._initialized = obj.initialized || (collection._models.length > 0)
+      collection._fixed = !!obj._fixed
 
       collection
 
