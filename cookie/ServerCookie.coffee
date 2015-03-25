@@ -21,7 +21,7 @@ define [
 
 
     set: (name, value, params) =>
-      value = encodeURIComponent(value)
+      value = encodeURIComponent(value) if value
       # prevent browser to use the same connection
       if @cookies.response._header
         return false
