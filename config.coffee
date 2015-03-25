@@ -1,19 +1,44 @@
 define ->
 
   services:
-    api:
-      deps: ['apiConfigurator']
+    apiNoWait:
+      deps: ['runtimeConfigResolver', 'container', 'config']
       factory: (get, done) ->
-        done(null, get('apiConfigurator').getApi())
+        require ['cord!Api'], (Api) ->
+          container = get('container')
+          apiConfig = get('runtimeConfigResolver').tryResolve(get('config').api)
+          if false != apiConfig
+            api = new Api(container, apiConfig)
+            container.injectServices(api)
+              .then -> api.init()
+              .then -> done(null, api)
+              .catch (error) -> done(error)
+          else
+            done(new Error('Api service is unavailable now'))
 
-    apiConfigurator:
-      deps: ['config', 'container', 'cookie', 'request']
+    api:
+      deps: ['runtimeConfigResolver', 'container', 'config']
       factory: (get, done) ->
-        require ['cord!/cord/core/ApiConfigurator'], (ApiConfigurator) ->
-          configurator = new ApiConfigurator(get('config').api)
-          get('container').injectServices(configurator)
-            .then -> configurator.init()
-            .then -> done(null, configurator)
+        require ['cord!Api'], (Api) ->
+          container = get('container')
+          get('runtimeConfigResolver')
+            .resolveConfig(get('config').api)
+              .then (apiConfig) ->
+                api = new Api(container, apiConfig)
+                container.injectServices(api)
+                  .then -> api.init()
+                  .then -> done(null, api)
+              .catch (error) ->
+                done(error)
+
+    runtimeConfigResolver:
+      deps: ['container']
+      factory: (get, done) ->
+        require ['cord!RuntimeConfigResolver'], (RuntimeConfigResolver) ->
+          resolver = new RuntimeConfigResolver()
+          get('container').injectServices(resolver)
+            .then -> resolver.init()
+            .then -> done(null, resolver)
 
     userAgent:
       deps: ['container']
