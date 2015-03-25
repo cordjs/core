@@ -2,9 +2,10 @@ define [
   'cord!Utils'
   'lodash'
   'cord!Api'
-], (Utils, _, Api) ->
+  'eventemitter3'
+], (Utils, _, Api, EventEmitter) ->
 
-  class ApiConfigurator
+  class ApiConfigurator extends EventEmitter
 
     @inject: ['cookie', 'container']
     @cookieName = '_api_config_vars'
@@ -39,6 +40,7 @@ define [
         '%BACKEND_HOST%': newHost
       @_applyConfig()
       @cookie.set(ApiConfigurator.cookieName, JSON.stringify(@variables))
+      @emit('host.changed', newHost)
 
 
     _applyConfig: ->
