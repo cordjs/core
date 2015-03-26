@@ -104,7 +104,6 @@ define [
 
           false
 
-
         serviceContainer.set 'widgetRepo', widgetRepo
         widgetRepo.setServiceContainer(serviceContainer)
 
@@ -130,26 +129,37 @@ define [
 
           processWidget = (rootWidgetPath, params) ->
             pr.timer 'ServerSideRouter::showWidget', ->
-              widgetRepo.createWidget(rootWidgetPath).then (rootWidget) ->
-                if widgetRepo
-                  rootWidget._isExtended = true
-                  widgetRepo.setRootWidget(rootWidget)
-                  previousProcess.showPromise = rootWidget.show(params, DomInfo.fake())
-                  previousProcess.showPromise.done (out) ->
-                    eventEmitter.removeAllListeners('fallback')
-                    # prevent browser to use the same connection
-                    res.shouldKeepAlive = false
-                    res.writeHead 200, 'Content-Type': 'text/html'
-                    res.end(out)
-              .catch (err) ->
-                if err instanceof errors.AuthError
-                  serviceContainer.getService('api').then (api) ->
-                    api.authenticateUser()
-                else
-                  _console.error "FATAL ERROR: server-side rendering failed! Reason:", err
-                  displayFatalError()
-              .finally ->
-                clear()
+              # If current route requires authorization, api service should be available
+              processNext = Future.single('Main process next')
+              if routeInfo.route?.requireAuth
+                serviceContainer.getService('api')
+                  .then => processNext.resolve()
+                  # on api service failure, we should redirect user to login page
+                  .catch => config.api.authenticateUserCallback()
+              else
+                processNext.resolve()
+
+              processNext.then =>
+                widgetRepo.createWidget(rootWidgetPath).then (rootWidget) ->
+                  if widgetRepo
+                    rootWidget._isExtended = true
+                    widgetRepo.setRootWidget(rootWidget)
+                    previousProcess.showPromise = rootWidget.show(params, DomInfo.fake())
+                    previousProcess.showPromise.done (out) ->
+                      eventEmitter.removeAllListeners('fallback')
+                      # prevent browser to use the same connection
+                      res.shouldKeepAlive = false
+                      res.writeHead 200, 'Content-Type': 'text/html'
+                      res.end(out)
+                .catch (err) ->
+                  if err instanceof errors.AuthError
+                    serviceContainer.getService('api').then (api) ->
+                      api.authenticateUser()
+                  else
+                    _console.error "FATAL ERROR: server-side rendering failed! Reason:", err
+                    displayFatalError()
+                .finally ->
+                  clear()
 
 
           displayFatalError = ->

@@ -44,6 +44,10 @@ define [
       @return {Future[Any]}
       ###
       result = Future.single("ServiceContainer::getService(#{serviceName})")
+      @onerror(serviceName, (error) =>
+        result.reject(error)
+        @reset(serviceName)
+      )
       try
         @eval serviceName, (service) =>
           if service instanceof Error
@@ -65,7 +69,7 @@ define [
       @param Object target the instance to be injected to
       @return Future completed when all services asyncronously loaded and assigned into the target object
       ###
-      injectPromise = new Future("Container::injectServices(#{target.constructor.name})")
+      injectFutures = []
 
       if target.constructor.inject
         if _.isFunction target.constructor.inject
@@ -75,24 +79,25 @@ define [
 
         injectService = (serviceAlias, serviceName) =>
           if @isDefined(serviceName)
-            injectPromise.fork()
+            injectFuture = Future.single("Inject #{serviceAlias} to #{target.constructor.name}")
+            injectFutures.push(injectFuture)
             try
               @eval serviceName, (service) =>
                 if service instanceof Error
                   _console.error "Container::injectServices::eval(#{serviceName}) for target #{target.constructor.name}" +
                                  " failed with error: #{ service }", service
-                  injectPromise.reject(service)
+                  injectFuture.reject(service)
                   # resetting failed service to give it a chance next time (mainly for auth-related purposes)
                   @reset(serviceName)
                 else
                   _console.log "Container::injectServices -> eval(#{ serviceName }) for target #{ target.constructor.name } finished success" if global.config?.debug.service
 
                   target[serviceAlias] = service
-                  injectPromise.resolve()
+                  injectFuture.resolve(service)
             catch e
               _console.error "Container::injectServices -> eval(#{ serviceName }) for target #{ target.constructor.name } fail: #{ e.message }", e
               target[serviceAlias] = undefined
-              injectPromise.reject(e)
+              injectFuture.reject(e)
               @reset(serviceName)
           else
             _console.warn "Container::injectServices #{ serviceName } for target #{ target.constructor.name } is not defined" if global.config?.debug.service
@@ -104,7 +109,7 @@ define [
           for serviceAlias, serviceName of services
             injectService serviceAlias, serviceName
 
-      injectPromise
+      Future.sequence(injectFutures, "Container::injectServices(#{target.constructor.name})")
 
 
     autoStartServices: (services) ->
