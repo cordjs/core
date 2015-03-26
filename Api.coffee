@@ -131,7 +131,7 @@ define [
       NOTE! returned future does not guarantee to be resolved ever.
       Please, checkout authTokensAvailable() and authenticateUser(), before using this function.
       ###
-      @authTokensAvailable().then (available) =>
+      @authTokensAvailable().withoutTimeout().then (available) =>
         if available
           return
         else
