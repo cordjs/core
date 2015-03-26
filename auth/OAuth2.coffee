@@ -131,6 +131,8 @@ define [
       ###
       Loads saved tokens from cookies
       ###
+
+      # Never ever uncomment this line. Otherwise you'll face spoiling tokens in different browser tabs
       if not (@accessToken and @refreshToken and @scope)
         @accessToken  = @cookie.get('accessToken')
         @refreshToken = @cookie.get('refreshToken')
