@@ -164,6 +164,7 @@ define [
       Can be called multiple times.
       @param (variable)Future args another future which'll be waited
       @return Future self
+      @todo maybe need to support noTimeout property of futureList promises
       ###
       self = this
       for promise in arguments
@@ -323,6 +324,7 @@ define [
       ###
       throw new Error("No callback given for Future.then (name = #{@_name})!") if not onResolved? and not onRejected?
       result = Future.single("#{@_name} -> then")
+      result.withoutTimeout() if @_noTimeout
       if onResolved?
         @done ->
           try
@@ -399,6 +401,7 @@ define [
       If this Future is rejected than the resulting Future will contain the same error.
       ###
       result = Future.single("#{@_name} -> map")
+      result.withoutTimeout() if @_noTimeout
       @done ->
         try
           mapRes = callback.apply(null, arguments)
@@ -425,6 +428,7 @@ define [
       @return Future(A)
       ###
       result = Future.single("#{@_name} -> flatMap")
+      result.withoutTimeout() if @_noTimeout
       @done ->
         try
           result.when(callback.apply(null, arguments))
@@ -447,6 +451,7 @@ define [
       @return Future(this.result)
       ###
       result = Future.single("#{@_name} -> andThen")
+      result.withoutTimeout() if @_noTimeout
       this.finally ->
         callback.apply(null, arguments)
         result.complete.apply(result, arguments)
@@ -468,6 +473,7 @@ define [
     @sequence: (futureList, name = ':sequence:') ->
       ###
       Converts Array[Future[X]] to Future[Array[X]]
+      @todo maybe need to support noTimeout property of futureList promises
       ###
       promise = new Future(name)
       result = []
@@ -493,6 +499,7 @@ define [
       Result completes with failure if all of the given futures fails.
       @param Array[Future[X]] futureList
       @return Future[X]
+      @todo maybe need to support noTimeout property of futureList promises
       ###
       result = @single(':select:')
       ready = false
@@ -686,6 +693,17 @@ define [
           Future.resolved(res)
       catch err
         Future.rejected(err)
+
+
+    withoutTimeout: ->
+      ###
+      Mark that Future's normal behaviour is to wait forever
+      For instance a Future that depends on user's input
+      ###
+      @_clearDebugTimeout()
+      @_noTimeout = true
+      this
+
 
 
     _initDebugTimeout: ->
