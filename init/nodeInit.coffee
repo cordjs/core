@@ -78,11 +78,6 @@ exports.init = (baseUrl = 'public', configName = 'default', serverPort) ->
 exports.startServer = startServer = (callback) ->
   services.nodeServer = http.createServer (req, res) ->
 
-    # Detect for proxyRoutes
-    for proxyRoute in services.proxyRoutes
-      if 0 == req.url.indexOf(proxyRoute) # cross-domain request proxy
-        return services.xdrProxy(req.url, req, res)
-
     if (pos = req.url.indexOf('/XDR/')) != -1 # cross-domain request proxy
       services.xdrProxy(req.url.substr(pos + 5), req, res)
     else if (pos = req.url.indexOf('/XDRS/')) != -1 # cross-domain request proxy with secrets
@@ -90,6 +85,13 @@ exports.startServer = startServer = (callback) ->
     else if req.url.indexOf('/REQUIRESTAT/collect') == 0
       services.statCollector(req, res)
     else if not services.router.process(req, res)
+
+      # Detect for custom proxyRoutes from bundle configs
+      for proxyRoute in services.proxyRoutes
+        if req.url.indexOf(proxyRoute) != -1 # cross-domain request proxy
+          services.xdrProxy(req.url, req, res)
+          return
+
       req.addListener 'end', (err) ->
         services.fileServer.serve req, res, (err) ->
           if err
