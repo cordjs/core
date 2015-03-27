@@ -6,12 +6,14 @@ define ->
   WidgetDropped: class WidgetDropped extends Error
     constructor: (@message) ->
       @name = 'WidgetDropped'
+      @isCordInternal = true
       Error.call(this, @message)
       Error.captureStackTrace?(this, arguments.callee)
 
   WidgetSentenced: class WidgetSentenced extends Error
     constructor: (@message, @type = 'notice') ->
       @name = 'WidgetSentenced'
+      @isCordInternal = true
       Error.call(this, @message)
       Error.captureStackTrace?(this, arguments.callee)
 
@@ -19,6 +21,7 @@ define ->
   BehaviourCleaned: class BehaviourCleaned extends Error
     constructor: (@message) ->
       @name = 'BehaviourCleaned'
+      @isCordInternal = true
       Error.call(this, @message)
       Error.captureStackTrace?(this, arguments.callee)
 
@@ -26,6 +29,7 @@ define ->
   WidgetParamsRace: class WidgetParamsRace extends Error
     constructor: (@message, @type = 'warning') ->
       @name = 'WidgetParamsRace'
+      @isCordInternal = true
       Error.call(this, @message)
       Error.captureStackTrace?(this, arguments.callee)
 
@@ -33,6 +37,7 @@ define ->
   MustReloadPage: class MustReloadPage extends Error
     constructor: (@message) ->
       @name = 'MustReloadPage'
+      @isCordInternal = true
       Error.call(this, @message)
       Error.captureStackTrace?(this, arguments.callee)
 

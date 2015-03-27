@@ -1465,13 +1465,14 @@ define [
             else
               throw new Error("WRONG BEHAVIOUR CLASS: #{behaviourClass}")
         .catch (err) =>
-          _console.error "#{ @debug 'initBehaviour' } --> error occurred while loading behaviour:", err
-          postal.publish 'error.notify.publish',
-            link: ''
-            message: "Ошибка загрузки виджета #{ behaviourClass }. Попробуйте перезагрузить страницу."
-            details: String(err)
-            error: true
-            timeOut: 30000
+          if not err.isCordInternal
+            _console.error "#{ @debug 'initBehaviour' } --> error occurred while loading behaviour:", err
+            postal.publish 'error.notify.publish',
+              link: ''
+              message: "Ошибка загрузки виджета #{ behaviourClass }. Попробуйте перезагрузить страницу."
+              details: String(err)
+              error: true
+              timeOut: 30000
           throw err
       else
         Future.resolved()
@@ -1541,6 +1542,7 @@ define [
               readyConditions.push(childWidget.browserInit(stopPropagateWidget, $domRoot))
 
           childWidgetsReadyPromise = Future.sequence(readyConditions)
+          childWidgetsReadyPromise.catchIf (err) -> err.isCordInternal # prevent reporting internal exceptions
 
           readyConditions.push(@constructor._cssPromise)
 
@@ -1726,7 +1728,7 @@ define [
                   .catchIf (err) ->
                     err instanceof errors.WidgetDropped or err instanceof errors.WidgetSentenced
               .catch (err) ->
-                _console.error "Error on widget #{ widget.debug() } rendering:", err
+                _console.error "Error on widget #{ widget.debug() } rendering:", err  if not err.isCordInternal
                 chunk.setError(err)
 
               if hasTimeout

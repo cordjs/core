@@ -367,7 +367,7 @@ define [
             @_renderAggregatePromise = null
         @_renderAggregatePromise
       .catchIf (err) ->
-        err instanceof errors.WidgetDropped or err instanceof errors.BehaviourCleaned
+        err.isCordInternal
       .failAloud(@debug('render'))
 
 
