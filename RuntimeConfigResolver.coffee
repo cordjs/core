@@ -35,10 +35,7 @@ define [
       ###
       Init method fetch stored parameters from cookies
       ###
-      @parameters = try
-        JSON.parse(@cookie.get(RuntimeConfigResolver.cookieName))
-      catch
-        {}
+      @_loadParameters()
 
 
     resolveConfig: (config) ->
@@ -66,7 +63,7 @@ define [
       Name should be without % on edges
       ###
       @parameters[name] = value;
-      @cookie.set(RuntimeConfigResolver.cookieName, JSON.stringify(@parameters))
+      @_saveParameters()
 
       for configToResolve in @configsToResolve
         if false != resolvedConfig = @tryResolve(configToResolve.originalConfig)
@@ -77,6 +74,15 @@ define [
         name: name,
         value: value
       )
+
+
+    clearParameters: ->
+      ###
+      This method should be called on user logout. Clears all parameters from current instance and cookies
+      ###
+      @parameters = {}
+      @_saveParameters()
+
 
 
     tryResolve: (config) ->
@@ -101,3 +107,20 @@ define [
           )
       )
       if allResolved then resolvedConfig else false
+
+
+    _saveParameters: ->
+      ###
+      Saves parameters to cookie storage
+      ###
+      @cookie.set(RuntimeConfigResolver.cookieName, JSON.stringify(@parameters))
+
+
+    _loadParameters: ->
+      ###
+      Loads parameters from cookie storage
+      ###
+      @parameters = try
+        JSON.parse(@cookie.get(RuntimeConfigResolver.cookieName))
+      catch
+        {}
