@@ -44,7 +44,7 @@ define [
       its value. Now or in future, when all parameters will be available
       ###
       config = _.cloneDeep(config)
-      if false != resolvedConfig = @tryResolve(config)
+      if false != resolvedConfig = @_tryResolve(config)
         Future.resolved(resolvedConfig)
       else
         future = Future.single('resolveRuntimeConfig')
@@ -66,7 +66,7 @@ define [
       @_saveParameters()
 
       for configToResolve in @configsToResolve
-        if false != resolvedConfig = @tryResolve(configToResolve.originalConfig)
+        if false != resolvedConfig = @_tryResolve(configToResolve.originalConfig)
           @configsToResolve = _.without(@configsToResolve, configToResolve)
           configToResolve.future.resolve(resolvedConfig)
 
@@ -85,7 +85,7 @@ define [
 
 
 
-    tryResolve: (config) ->
+    _tryResolve: (config) ->
       ###
       Make a try to resolve config. If try is successful, method returns resolved config, else it returns false
       ###
