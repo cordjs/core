@@ -5,16 +5,12 @@ define ->
       deps: ['runtimeConfigResolver', 'container', 'config']
       factory: (get, done) ->
         require ['cord!Api'], (Api) ->
-          container = get('container')
-          apiConfig = get('runtimeConfigResolver').tryResolve(get('config').api)
-          if false != apiConfig
-            api = new Api(container, apiConfig)
-            container.injectServices(api)
-              .then -> api.init()
-              .then -> done(null, api)
-              .catch (error) -> done(error)
-          else
+          apiF = get('container').getService('api')
+          if get('runtimeConfigResolver').isPending()
             done(new Error('Api service is unavailable now'))
+          else
+            apiF.then (api) ->
+              done(null, api)
 
     api:
       deps: ['runtimeConfigResolver', 'container', 'config']
