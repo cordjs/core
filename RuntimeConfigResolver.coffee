@@ -109,6 +109,13 @@ define [
       if allResolved then resolvedConfig else false
 
 
+    isPending: ->
+      ###
+      Indicates, that someone waits for runtime config resolving
+      ###
+      @configsToResolve.length > 0
+
+
     _saveParameters: ->
       ###
       Saves parameters to cookie storage

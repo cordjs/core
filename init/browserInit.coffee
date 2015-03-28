@@ -41,12 +41,18 @@ define [
 
     # support for `requireAuth` route option
     clientSideRouter.setAuthCheckCallback ->
-      serviceContainer.getService('api').then (api) ->
-        api.prepareAuth()
-      .then ->
-        true
-      .catch ->
-        false
+      serviceContainer.getService('runtimeConfigResolver').then (resolver) =>
+        apiF = serviceContainer.getService('api')
+        if resolver.isPending()
+          return false
+
+        apiF
+          .then (api) ->
+            api.prepareAuth()
+          .then ->
+            true
+          .catch ->
+            false
 
     configInitFuture = AppConfigLoader.ready().then (appConfig) ->
       clientSideRouter.addRoutes(appConfig.routes)
