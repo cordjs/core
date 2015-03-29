@@ -293,6 +293,14 @@ define [
       @_completed
 
 
+    pending: ->
+      ###
+      Indicates, that current Future now in pending state
+      Syntax sugar for state() == 'pending'
+      ###
+      @state() == 'pending'
+
+
     state: ->
       ###
       Returns state of the promise - 'pending', 'resolved' or 'rejected'
@@ -488,6 +496,10 @@ define [
             promise.resolve()
           .fail (e) ->
             promise.reject(e)
+      # On empty futureList resolve immediately with empty array
+      if _.isEmpty(futureList)
+        promise.fork()
+        promise.resolve()
       promise.map -> [result]
 
 
