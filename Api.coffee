@@ -116,11 +116,13 @@ define [
       @return Future{Boolean}
       ###
       if not @authPromise
+        _console.warn('Api::authTokensAvailable authPromise does not exists. Call setAuthModule before use.')
         Future.resolved(false)
       else
         @authPromise.then (authModule) ->
           authModule.isAuthAvailable()
-        .catch ->
+        .catch (e) ->
+          _console.warn('authTokensAvailable failed, because of:', e)
           false
 
 
@@ -133,7 +135,8 @@ define [
       ###
       @authTokensAvailable().withoutTimeout().then (available) =>
         if available
-          return
+          _console.warn('authTokensReady: auth tokens are not available')
+          false
         else
           result = Future.single('authTokensReady')
           # We can not subscribe to authModule, stored in @authPromise future, because it can be changed due to
