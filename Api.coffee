@@ -136,7 +136,7 @@ define [
       @authTokensAvailable().withoutTimeout().then (available) =>
         if available
           _console.warn('authTokensReady: auth tokens are not available')
-          false
+          true
         else
           result = Future.single('authTokensReady')
           # We can not subscribe to authModule, stored in @authPromise future, because it can be changed due to
