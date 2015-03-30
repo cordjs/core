@@ -5,11 +5,12 @@ define [
   'cord!Utils'
 ], (Future, EventEmitter, _, Utils) ->
 
-  class ConfigToResolve
+  class ResolveRequest
     ###
     This class is value holder for one config to resolve
     ###
-    constructor: (@future, @originalConfig) ->
+
+    constructor: (@name, @future, @originalConfig) ->
 
 
   class RuntimeConfigResolver extends EventEmitter
@@ -28,7 +29,10 @@ define [
 
     constructor: ->
       @parameters = {}
-      @configsToResolve = []
+      # Resolve requests, mapped by name
+      @resolveRequests = {}
+      # isPending futures, mapped by name
+      @isPendings = {}
 
 
     init: ->
@@ -38,23 +42,31 @@ define [
       @_loadParameters()
 
 
-    resolveConfig: (config) ->
+    resolveConfig: (name, config) ->
       ###
       Returns Future with resolved config. Replaces all parameters, which surrounded by % sign (i.e. %PARAM_NAME%) to
-      its value. Now or in future, when all parameters will be available
+      its value. Now or in future, when all parameters will be available.
+      You should provide unique name of resolve request
       ###
+      if @resolveRequests[name] != undefined
+        return @resolveRequests[name].future
+
       config = _.cloneDeep(config)
+      future = Future.single("Resolve runtime config for #{name}")
       if false != resolvedConfig = @_tryResolve(config)
-        Future.resolved(resolvedConfig)
+        future.resolve(resolvedConfig)
       else
-        future = Future.single('resolveRuntimeConfig')
-        if CORD_IS_BROWSER
-          @configsToResolve.push(new ConfigToResolve(future, config))
-        else
+        @resolveRequests[name] = new ResolveRequest(name, future, config)
+        if not CORD_IS_BROWSER
           # We will never can set runtime parameter on server side,
           # so, we should reject this future
           future.reject(new Error('Runtime config is not available on server side!'))
-        future
+      @_getIsPendingFuture(name).resolve(future.state() == 'pending')
+      future.finally =>
+        delete @isPendings[name]
+        @_getIsPendingFuture(name).resolve(false)
+        return
+      future
 
 
     setParameter: (name, value) ->
@@ -65,10 +77,10 @@ define [
       @parameters[name] = value;
       @_saveParameters()
 
-      for configToResolve in @configsToResolve
-        if false != resolvedConfig = @_tryResolve(configToResolve.originalConfig)
-          @configsToResolve = _.without(@configsToResolve, configToResolve)
-          configToResolve.future.resolve(resolvedConfig)
+      for name, request of @resolveRequests
+        if false != resolvedConfig = @_tryResolve(request.originalConfig)
+          delete @resolveRequests[name]
+          request.future.resolve(resolvedConfig)
 
       @emit('setParameter',
         name: name,
@@ -83,6 +95,15 @@ define [
       @parameters = {}
       @_saveParameters()
 
+
+    isPending: (name) ->
+      ###
+      Indicates, that resolve request pending (Await for user input)
+      Result is Future[Boolean]
+      Keeps pending until method resolveConfig is called. Result of resolve is pending state of Resolve future,
+      immediately after resolveConfig(call)
+      ###
+      @_getIsPendingFuture(name)
 
 
     _tryResolve: (config) ->
@@ -109,11 +130,12 @@ define [
       if allResolved then resolvedConfig else false
 
 
-    isPending: ->
+    _getIsPendingFuture: (name) ->
       ###
-      Indicates, that someone waits for runtime config resolving
+      Gets or create isPending future
       ###
-      @configsToResolve.length > 0
+      @isPendings[name] = Future.single("IsPending request for #{name}") if @isPendings[name] == undefined
+      @isPendings[name]
 
 
     _saveParameters: ->

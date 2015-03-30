@@ -314,7 +314,7 @@ define [
       this
 
 
-    then: (onResolved, onRejected) ->
+    then: (onResolved, onRejected, _nameSuffix = 'then') ->
       ###
       Implements 'then'-semantics to be compatible with standard JS Promise.
       Both arguments are optional but at least on of them must be defined!
@@ -331,7 +331,7 @@ define [
       @return Future[A]
       ###
       throw new Error("No callback given for Future.then (name = #{@_name})!") if not onResolved? and not onRejected?
-      result = Future.single("#{@_name} -> then")
+      result = Future.single("#{@_name} -> #{_nameSuffix}")
       result.withoutTimeout() if @_noTimeout
       if onResolved?
         @done ->
@@ -378,7 +378,7 @@ define [
       @param Function callback function to be evaluated in case of the promise rejection
       @return Future[A]
       ###
-      this.then(undefined, callback)
+      this.then(undefined, callback, 'catch')
 
 
     catchIf: (predicate) ->

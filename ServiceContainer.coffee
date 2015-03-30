@@ -16,36 +16,37 @@ define [
 
     constructor: ->
       # registered definitions. Keys are name, values are instance of ServiceDefinition
-      @definitions = {}
+      @_definitions = {}
       # already resolved services. Keys are name of service
-      @instances = {}
+      @_instances = {}
       # futures of already scheduled service factories. Keys are name, values are futures
-      @pendingFactories = {}
+      @_pendingFactories = {}
 
 
     isDefined: (name) ->
       ###
-      Is sevice defined
+      Is service defined
       @param string path - Service name
       @return bool
       ###
-      _(@definitions).has(name) or _(@instances).has(name)
+      _(@_definitions).has(name) or _(@_instances).has(name)
 
 
     reset: (name) ->
       ###
       Reset services
       ###
-      delete @instances[name]
-      if @pendingFactories[name]?.pending()
-        @pendingFactories[name].reject(".reset(#{name}) was called inside service initialization process!")
-      delete @pendingFactories[name]
+      delete @_instances[name]
+      if @_pendingFactories[name]?.pending()
+        @_pendingFactories[name].reject(new Error(".reset(#{name}) was called inside service initialization process!"))
+      delete @_pendingFactories[name]
       this
 
 
     set: (name, instance) ->
       @reset(name)
-      @instances[name] = instance
+      @_instances[name] = instance
+      @_pendingFactories[name] = Future.resolved(instance)
       this
 
 
@@ -54,10 +55,14 @@ define [
       Get all defined services
       @return array
       ###
-      _.map _.filter(Object.keys(@), (key) ->
-        key.indexOf('_box_') > -1 and key.indexOf('_box_val_') == -1
-      ), (key) ->
-        key.replace '_box_', ''
+      _.union(_(@_definitions).keys(), _(@_instances).keys())
+
+
+    allInstances: ->
+      ###
+      This method returns map with all initialized instances. Name of services are in keys
+      ###
+      _.clone(@_instances)
 
 
     def: (name, deps, factory) ->
@@ -67,7 +72,7 @@ define [
       if _.isFunction(deps) and factory == undefined
         factory = deps
         deps = []
-      @definitions[name] = new ServiceDefinition(name, deps ? [], factory, this)
+      @_definitions[name] = new ServiceDefinition(name, deps ? [], factory, this)
 
 
     eval: (name, readyCb) ->
@@ -76,7 +81,10 @@ define [
       Deprecated, please use getService()!
       ###
       @getService(name)
-        .then (instance) -> readyCb?(instance)
+        .then (instance) ->
+          readyCb?(instance)
+          return # Avoid to possible Future result of readyCb
+        .catch (e) -> throw new Error("Eval for service `#{name}` failed with #{e}")
 
 
     getService: (name) ->
@@ -85,49 +93,57 @@ define [
       @param {String} serviceName
       @return {Future[Any]}
       ###
-      result = Future.single("ServiceContainer::getService(#{name})")
-      if _(@instances).has(name)
-        result.resolve(@instances[name])
-        return result
-      else if not _(@pendingFactories).has(name)
-        # Call a factory for a service
-        if not _(@definitions).has(name)
-          throw new Error("There is no registered definition for called service '#{name}'")
+      return @_pendingFactories[name] if _(@_pendingFactories).has(name)
 
-        def = @definitions[name]
-        @pendingFactories[name] = Future.single("Factory of service #{name}")
-        # Ensure, that all of dependencies are loaded before factory call
-        Future.sequence(_.map(def.deps, (dep) => @getService(dep)), "Deps for `#{name}`")
-          .then () =>
-            # call a factory with 2 parameters, get & done. On done resolve a result.
-            locked = false
-            done = (err, instance) =>
-              try
-                throw new Error('Done was already called!') if locked
-                locked = true
-                if err?
-                  throw err
-                else if instance instanceof Error
-                  throw instance
-                else
-                  @instances[name] = instance
-                  @pendingFactories[name].resolve(instance)
-              catch err
-                @pendingFactories[name].reject(err)
-            res = def.factory(@get, done)
-            if def.factory.length < 2
-              done(res)
-          .catch (e) => @pendingFactories[name].reject(e)
-      result.when(@pendingFactories[name])
+      # Call a factory for a service
+      if not _(@_definitions).has(name)
+        throw new Error("There is no registered definition for called service '#{name}'")
+
+      def = @_definitions[name]
+      @_pendingFactories[name] = Future.single("Factory of service #{name}")
+      # Ensure, that all of dependencies are loaded before factory call
+      Future.sequence(def.deps.map((dep) => @getService(dep)), "Deps for `#{name}`")
+        .then =>
+          # call a factory with 2 parameters, get & done. On done resolve a result.
+          locked = false
+          done = (err, instance) =>
+            try
+              throw new Error('Done was already called') if locked
+              locked = true
+              if err?
+                throw err
+              else if instance instanceof Error
+                throw instance
+              else
+                @_instances[name] = instance
+                @_pendingFactories[name].resolve(instance)
+            catch err
+              @_pendingFactories[name].reject(err)
+            return # we should not return future from this callback!
+          res = def.factory(@get, done)
+          if def.factory.length < 2
+            if res instanceof Future
+              res
+                .then (instance) => done(null, instance)
+                .catch (error) => done(error)
+            else
+              done(null, res)
+        .catch (e) =>
+          @_pendingFactories[name].reject(e)
+          return # we should not return rejected future from this callback!
+      @_pendingFactories[name].catch (e) =>
+        # Remove rejected factory from map
+        delete @_pendingFactories[name]
+        throw e
 
 
     get: (name) =>
       ###
       Gets service in a synchronized mode. This method passed as `get` callback to factory of service def
       ###
-      if not _(@instances).has(name)
+      if not _(@_instances).has(name)
         throw new Error("Service #{name} is not loaded yet. Do you forget to specify it in `deps` section?")
-      @instances[name]
+      @_instances[name]
 
 
     injectServices: (target) ->
@@ -148,14 +164,13 @@ define [
 
         injectService = (serviceAlias, serviceName) =>
           if @isDefined(serviceName)
-            injectFuture = Future.single("Inject #{serviceAlias} to #{target.constructor.name}")
-            injectFutures.push(injectFuture)
-            injectFuture.when(
+            injectFutures.push(
               @getService(serviceName)
                 .then (service) => target[serviceAlias] = service
                 .catch (e) =>
                   @reset(serviceName)
                   throw e
+                .name("Inject #{serviceName} to #{target.constructor.name}")
             )
           else
             _console.warn "Container::injectServices #{ serviceName } for target #{ target.constructor.name } is not defined" if global.config?.debug.service
@@ -167,8 +182,7 @@ define [
           for serviceAlias, serviceName of services
             injectService serviceAlias, serviceName
 
-
-      Future.sequence(injectFutures, "Container::injectServices(#{target.constructor.name})")
+      Future.sequence(injectFutures, "Container::injectServices(#{target.constructor.name})").map -> target
 
 
     autoStartServices: (services) ->
