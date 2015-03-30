@@ -5,6 +5,18 @@ define [
 ], (Widget, nameResolver, Future) ->
 
   class Switcher extends Widget
+    ###
+    Special widget which aims to provide kinda "polimorphism" to the widget's template - ability to insert child widgets
+     of different types to the same place depending of some dynamic state (i.e. dynamic type of the widget
+     instead of statically defined in the template).
+
+    Accepts two params:
+    * widget {String} - cordjs-style path of the underlying widget which should be inserted
+    * widgetParams {Object} - key-value params which should be used for that widget
+
+    Both params can be changed during Switcher's lifetime and it will correctly replace the underlying widget
+     (if the widget path changed) or pass new params to it accordingly.
+    ###
 
     # promise to hold processing of swithing to the new widget until the previous switch is complete
     _switchQueuePromise: null
@@ -23,12 +35,12 @@ define [
           widgetPath = nameInfo.canonicalPath
 
         # first time in browser after server rendering
-        @_switchQueuePromise ?= Future.resolved()
-        if not @_latestArgs
-          @_latestArgs =
-            widgetPath: @ctx.contentWidget
+        @_switchQueuePromise or= Future.resolved()
+        @_latestArgs or=
+          widgetPath: @ctx.contentWidget
 
-        currentSwitchPromise = Future.single("Switcher switch to []")
+        # the promise will be resolved when this params processing will be completed or decided to be skipped
+        currentSwitchPromise = Future.single("Switcher switch to #{widgetPath}")
 
         @_latestArgs =
           # context of the parent widget will not emit event if the widgetPath is not changed, have to default to previous
@@ -63,6 +75,7 @@ define [
                 queuePromise: currentSwitchPromise
 
             else
+              # widget type is not changed, just passing new params
               @ctx.set
                 contentWidget: widgetPath
                 contentParams: widgetParams

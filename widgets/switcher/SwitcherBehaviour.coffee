@@ -48,8 +48,6 @@ define [
             newWidgetEl.removeClass('cord-switcher-show-start').addClass('cord-switcher-show-finish')
             # giving time to the new widget to perform animation if it wants to, before marking the widget as shown
             Future.timeout(animateShowDuration)
-          else
-            Future.resolved()
         .then ->
           newWidget.markShown()
       .link(queuePromise)
