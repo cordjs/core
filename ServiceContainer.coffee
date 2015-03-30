@@ -137,11 +137,15 @@ define [
         throw e
 
 
+    isReady: (name) ->
+      _(@_instances).has(name)
+
+
     get: (name) =>
       ###
       Gets service in a synchronized mode. This method passed as `get` callback to factory of service def
       ###
-      if not _(@_instances).has(name)
+      if not @isReady(name)
         throw new Error("Service #{name} is not loaded yet. Do you forget to specify it in `deps` section?")
       @_instances[name]
 
