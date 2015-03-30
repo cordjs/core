@@ -35,10 +35,7 @@ define [
       ###
       Init method fetch stored parameters from cookies
       ###
-      @parameters = try
-        JSON.parse(@cookie.get(RuntimeConfigResolver.cookieName))
-      catch
-        {}
+      @_loadParameters()
 
 
     resolveConfig: (config) ->
@@ -47,7 +44,7 @@ define [
       its value. Now or in future, when all parameters will be available
       ###
       config = _.cloneDeep(config)
-      if false != resolvedConfig = @tryResolve(config)
+      if false != resolvedConfig = @_tryResolve(config)
         Future.resolved(resolvedConfig)
       else
         future = Future.single('resolveRuntimeConfig')
@@ -66,10 +63,10 @@ define [
       Name should be without % on edges
       ###
       @parameters[name] = value;
-      @cookie.set(RuntimeConfigResolver.cookieName, JSON.stringify(@parameters))
+      @_saveParameters()
 
       for configToResolve in @configsToResolve
-        if false != resolvedConfig = @tryResolve(configToResolve.originalConfig)
+        if false != resolvedConfig = @_tryResolve(configToResolve.originalConfig)
           @configsToResolve = _.without(@configsToResolve, configToResolve)
           configToResolve.future.resolve(resolvedConfig)
 
@@ -79,7 +76,16 @@ define [
       )
 
 
-    tryResolve: (config) ->
+    clearParameters: ->
+      ###
+      This method should be called on user logout. Clears all parameters from current instance and cookies
+      ###
+      @parameters = {}
+      @_saveParameters()
+
+
+
+    _tryResolve: (config) ->
       ###
       Make a try to resolve config. If try is successful, method returns resolved config, else it returns false
       ###
@@ -101,3 +107,27 @@ define [
           )
       )
       if allResolved then resolvedConfig else false
+
+
+    isPending: ->
+      ###
+      Indicates, that someone waits for runtime config resolving
+      ###
+      @configsToResolve.length > 0
+
+
+    _saveParameters: ->
+      ###
+      Saves parameters to cookie storage
+      ###
+      @cookie.set(RuntimeConfigResolver.cookieName, JSON.stringify(@parameters))
+
+
+    _loadParameters: ->
+      ###
+      Loads parameters from cookie storage
+      ###
+      @parameters = try
+        JSON.parse(@cookie.get(RuntimeConfigResolver.cookieName))
+      catch
+        {}
