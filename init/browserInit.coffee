@@ -54,8 +54,9 @@ define [
       clientSideRouter.addFallbackRoutes(appConfig.fallbackRoutes)
       for serviceName, info of appConfig.services
         do (info) ->
-          serviceContainer.def serviceName, info.deps, (get, done) ->
-            info.factory.call(serviceContainer, get, done)
+          throw new Error("Service '#{serviceName}' does not have a defined factory") if undefined == info.factory
+          throw new Error("Service '#{serviceName}' has invalid factory definition") if not _.isFunction(info.factory)
+          serviceContainer.def(serviceName, info.deps, info.factory.bind(serviceContainer))
 
       # `config` service definition
       serviceContainer.set 'config', global.config

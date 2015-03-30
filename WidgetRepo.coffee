@@ -224,10 +224,10 @@ define [
       Loops through service container to find all repository services.
       ###
       result = []
-      for key, val of @serviceContainer
-        if val? and key.substr(0, 9) == '_box_val_' and val.isReady and val.val instanceof ModelRepo
-          escapedString = unescape(encodeURIComponent(JSON.stringify(val.val))).replace(/[\\']/g, '\\$&')
-          result.push("wi.initRepo('#{ key.substr(9) }', '#{ escapedString }', p.fork());")
+      for key, val of @serviceContainer.allInstances()
+        if val instanceof ModelRepo
+          escapedString = unescape(encodeURIComponent(JSON.stringify(val))).replace(/[\\']/g, '\\$&')
+          result.push("wi.initRepo('#{ key }', '#{ escapedString }', p.fork());")
       result.join("\n")
 
 

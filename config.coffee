@@ -3,14 +3,14 @@ define ->
   services:
     apiNoWait:
       deps: ['runtimeConfigResolver', 'container', 'config']
-      factory: (get, done) ->
-        require ['cord!Api'], (Api) ->
-          apiF = get('container').getService('api')
-          if get('runtimeConfigResolver').isPending()
-            done(new Error('Api service is unavailable now'))
-          else
-            apiF.then (api) ->
-              done(null, api)
+      factory: (get) ->
+        apiF = get('container').getService('api')
+        get('runtimeConfigResolver').isPending('api')
+          .then (isPending) ->
+            if isPending
+              throw new Error('Api service is unavailable now')
+            else
+              apiF
 
     api:
       deps: ['runtimeConfigResolver', 'container', 'config']
@@ -18,14 +18,13 @@ define ->
         require ['cord!Api'], (Api) ->
           container = get('container')
           get('runtimeConfigResolver')
-            .resolveConfig(get('config').api)
+            .resolveConfig('api', get('config').api)
               .then (apiConfig) ->
                 api = new Api(container, apiConfig)
                 container.injectServices(api)
                   .then -> api.init()
                   .then -> done(null, api)
-              .catch (error) ->
-                done(error)
+              .catch (error) -> done(error)
 
     runtimeConfigResolver:
       deps: ['container']
@@ -35,31 +34,36 @@ define ->
           get('container').injectServices(resolver)
             .then -> resolver.init()
             .then -> done(null, resolver)
+            .catch (e) -> done(e)
 
     userAgent:
       deps: ['container']
       factory: (get, done) ->
         require ['cord!/cord/core/UserAgent'], (UserAgent) =>
           userAgent = new UserAgent
-          get('container').injectServices(userAgent).done ->
-            userAgent.calculate()
-            done(null, userAgent)
+          get('container').injectServices(userAgent)
+            .then ->
+              userAgent.calculate()
+              done(null, userAgent)
+            .catch (e) -> done(e)
 
     modelProxy:
       deps: ['container']
       factory: (get, done) ->
         require ['cord!/cord/core/ModelProxy'], (ModelProxy) =>
           modelProxy = new ModelProxy
-          get('container').injectServices(modelProxy).done ->
-            done(null, modelProxy)
+          get('container').injectServices(modelProxy)
+            .then -> done(null, modelProxy)
+            .catch (e) -> done(e)
 
     redirector:
       deps: ['container']
       factory: (get, done) ->
         require ['cord!/cord/core/router/Redirector'], (Redirector) ->
           redirector = new Redirector()
-          get('container').injectServices(redirector).done ->
-            done(null, redirector)
+          get('container').injectServices(redirector)
+            .then -> done(null, redirector)
+            .catch (e) -> done(e)
 
     ':server':
       request:
