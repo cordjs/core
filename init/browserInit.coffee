@@ -46,7 +46,8 @@ define [
           api.prepareAuth()
         .then ->
           true
-        .catch ->
+        .catch (e) ->
+          _console.warn("Api.prepareAuth failed because of:", e)
           false
 
     configInitFuture = AppConfigLoader.ready().then (appConfig) ->
