@@ -53,8 +53,8 @@ define [
 
     log: (args...) ->
       if outputLog
-        args.push @_trace()[3]
-        console.log.apply(console, prependDate(args))
+        args.unshift @_trace()[3]
+        console.log stringify(prependDate(args))
 
 
     warn: (args...) ->
@@ -64,15 +64,19 @@ define [
           warning: stringify(args)
 
       if outputWarn
-        args.push @_trace()[3]
-        console.warn.apply(console, prependDate(args))
+        args.unshift @_trace()[3]
+        console.warn stringify(prependDate(args))
 
 
     error: (args...) ->
-      self.taggedError.apply(self, [['error']].concat(args))
+      @_taggedError @_trace(), ['error'], args
 
 
     taggedError: (tags, args...) ->
+      @_taggedError @_trace(), tags, args
+
+
+    _taggedError: (trace, tags, args...) ->
       ###
       Smart console.error:
        * appends stack-trace of Error-typed argument if configured
@@ -98,8 +102,8 @@ define [
             error: message
 
       if outputError
-        args.push @_trace()[3]
-        console.error.apply(console, prependDate(args))
+        args.unshift trace[3]
+        console.error stringify(prependDate(args))
 
 
     clear: ->
