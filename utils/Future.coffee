@@ -496,10 +496,6 @@ define [
             promise.resolve()
           .fail (e) ->
             promise.reject(e)
-      # On empty futureList resolve immediately with empty array
-      if _.isEmpty(futureList)
-        promise.fork()
-        promise.resolve()
       promise.map -> [result]
 
 
