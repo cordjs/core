@@ -155,7 +155,10 @@ define [
       ###
       if global.config.localFsMode
         # in local environment window.location doesn't make sence
-        @_currentPath
+        if (pos = @_currentPath.indexOf('?')) > -1
+          @_currentPath.slice(0, pos)
+        else
+          @_currentPath
       else
         path = window.location.pathname
         path = '/' + path if path.charAt(0) != '/'
