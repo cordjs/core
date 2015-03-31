@@ -53,10 +53,7 @@ define [
       @_name = name
 
       if logOriginStackTrace
-        try
-          throw new Error
-        catch err
-          @_stack = err.stack
+        @_stack = (new Error).stack
 
       @_initDebugTimeout() if @_counter > 0
       @_initUnhandledTracking() if unhandledTrackingEnabled

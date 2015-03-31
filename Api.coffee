@@ -20,18 +20,15 @@ define [
     defaultAuthModule: 'OAuth2'
 
 
-    constructor: (serviceContainer, @config) ->
+    constructor: (serviceContainer) ->
       @fallbackErrors = {}
       @serviceContainer = serviceContainer
 
 
     init: ->
-      @configure(@config)
-
       # заберем настройки для fallbackErrors
       AppConfigLoader.ready().done (appConfig) =>
         @fallbackErrors = appConfig.fallbackApiErrors
-      @setupAuthModule()
 
 
     configure: (config) ->
@@ -48,6 +45,8 @@ define [
 
       @options = _.extend(defaultOptions, @options, config)
       @defaultAuthModule = @options.defaultAuthModule if @options.defaultAuthModule
+
+      @setupAuthModule()
 
       # если в конфиге у нас заданы параметры автовхода, то надо логиниться по ним
       if @options.autoLogin? and @options.autoPassword?
