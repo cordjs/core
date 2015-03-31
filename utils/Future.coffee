@@ -166,6 +166,7 @@ define [
       self = this
       for promise in arguments
         @fork() if not @_locked
+        self.withoutTimeout()  if promise._noTimeout
         promise
           .done(-> self.resolve.apply(self, arguments))
           .fail(-> self.reject.apply(self, arguments))
