@@ -1617,6 +1617,14 @@ define [
       @_shownPromise
 
 
+    isShown: ->
+      ###
+      Returns shown status of the widget.
+      @return {Boolean}
+      ###
+      @_shown
+
+
     markShown: (ignoreChildren = false) ->
       ###
       Triggers widget's show events and promises.
