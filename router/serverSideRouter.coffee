@@ -95,9 +95,9 @@ define [
             serviceContainer.getService('loginUrl').zip(serviceContainer.getService('logoutUrl')).then (loginUrl, logoutUrl) =>
               response = serviceContainer.get('serverResponse')
               request = serviceContainer.get('serverRequest')
-              if not (request.url.indexOf(loginUrl) >= 0 or request.url.indexOf(logoutUrl) >= 0)
+              if not (request.url.indexOf(loginUrl) >= 0)
                 loginUrl = loginUrl.replace(/^\/|\/$/g, "")
-                @redirect("/#{loginUrl}/?back=#{request.url}", response)
+                @redirect("/#{loginUrl}/?back=#{if request.url.indexOf(logoutUrl) >= 0 then '' else request.url}", response)
                 clear()
             .catch (error) ->
               _console.error('Unable to obtain loginUrl or logoutUrl, please, check configs:' + error)
@@ -117,12 +117,13 @@ define [
 
         serviceContainer.set 'fallback', fallback
 
-        AppConfigLoader.ready().done (appConfig) ->
+        AppConfigLoader.ready().then (appConfig) ->
           pr.timer 'ServerSideRouter::defineServices', =>
             for serviceName, info of appConfig.services
               do (info) ->
-                serviceContainer.def serviceName, info.deps, (get, done) ->
-                  info.factory.call(serviceContainer, get, done)
+                throw new Error("Service '#{serviceName}' does not have a defined factory") if undefined == info.factory
+                throw new Error("Service '#{serviceName}' has invalid factory definition") if not _.isFunction(info.factory)
+                serviceContainer.def(serviceName, info.deps, info.factory.bind(serviceContainer))
             serviceContainer.autoStartServices(appConfig.services)
 
           previousProcess = {}

@@ -5,24 +5,54 @@ define [
   'underscore'
 ], (Container, errors, Future, _) ->
 
-  class ServiceContainer extends Container
+  class ServiceDefinition
 
-    isDefined: (path) ->
+    constructor: (@name, @deps, @factory, @container) ->
+
+
+
+  class ServiceContainer # extends Container
+
+
+    constructor: ->
+      # registered definitions. Keys are name, values are instance of ServiceDefinition
+      @_definitions = {}
+      # already resolved services. Keys are name of service
+      @_instances = {}
+      # futures of already scheduled service factories. Keys are name, values are futures
+      @_pendingFactories = {}
+
+
+    isDefined: (name) ->
       ###
-      Is sevice defined
+      Is service defined
       @param string path - Service name
       @return bool
       ###
-      path = @_resolve(path)
-      !!(@['_box_' + path] or  @['_box_val_' + path])
+      _(@_definitions).has(name) or _(@_instances).has(name)
 
 
-    reset: (path) ->
+    reset: (name) ->
       ###
-      Reset services
+      Reset service.
       ###
-      p = @._resolve(path)
-      @['_box_val_' + p] = null
+      # reset pending service only after instantiation
+      promise = Future.single("Reset of '#{name}'")
+      if _(@_pendingFactories).has(name)
+        @_pendingFactories[name].finally =>
+          delete @_instances[name]
+          delete @_pendingFactories[name]
+          promise.resolve()
+      else
+        delete @_instances[name]
+        promise.resolve()
+      promise
+
+
+    set: (name, instance) ->
+      @reset(name)
+      @_instances[name] = instance
+      @_pendingFactories[name] = Future.resolved(instance)
       this
 
 
@@ -31,34 +61,106 @@ define [
       Get all defined services
       @return array
       ###
-      _.map _.filter(Object.keys(@), (key) ->
-        key.indexOf('_box_') > -1 and key.indexOf('_box_val_') == -1
-      ), (key) ->
-        key.replace '_box_', ''
+      _.union(_(@_definitions).keys(), _(@_instances).keys())
 
 
-    getService: (serviceName) ->
+    allInstances: ->
+      ###
+      This method returns map with all initialized instances. Name of services are in keys
+      ###
+      _.clone(@_instances)
+
+
+    def: (name, deps, factory) ->
+      ###
+      Registers a new service definition in container
+      ###
+      if _.isFunction(deps) and factory == undefined
+        factory = deps
+        deps = []
+      @_definitions[name] = new ServiceDefinition(name, deps ? [], factory, this)
+
+
+    eval: (name, readyCb) ->
+      ###
+      Evaluates a service, on ready call
+      Deprecated, please use getService()!
+      ###
+      @getService(name)
+        .then (instance) ->
+          readyCb?(instance)
+          return # Avoid to possible Future result of readyCb
+        .catch (e) -> throw new Error("Eval for service `#{name}` failed with #{e}")
+
+
+    getService: (name) ->
       ###
       Returns service by it's name. Like `eval` but promise-like.
       @param {String} serviceName
       @return {Future[Any]}
       ###
-      result = Future.single("ServiceContainer::getService(#{serviceName})")
-      @onerror(serviceName, (error) =>
-        result.reject(error)
-        @reset(serviceName)
-      )
-      try
-        @eval serviceName, (service) =>
-          if service instanceof Error
-            result.reject(service)
-            @reset(serviceName)
-          else
-            result.resolve(service)
-      catch err
-        result.reject(err)
-        @reset(serviceName)
-      result
+      return @_pendingFactories[name] if _(@_pendingFactories).has(name)
+
+      # Call a factory for a service
+      if not _(@_definitions).has(name)
+        throw new Error("There is no registered definition for called service '#{name}'")
+
+      def = @_definitions[name]
+      @_pendingFactories[name] = Future.single("Factory of service #{name}")
+      # Ensure, that all of dependencies are loaded before factory call
+      Future.sequence(def.deps.map((dep) => @getService(dep)), "Deps for `#{name}`")
+        .then =>
+          # call a factory with 2 parameters, get & done. On done resolve a result.
+          locked = false
+          done = (err, instance) =>
+            try
+              throw new Error('Done was already called') if locked
+              locked = true
+              if err?
+                throw err
+              else if instance instanceof Error
+                throw instance
+              else
+                @_instances[name] = instance
+                @_pendingFactories[name].resolve(instance)
+            catch err
+              @_pendingFactories[name].reject(err)
+            return # we should not return future from this callback!
+
+          res = try
+            def.factory(@get, done)
+          catch factoryError
+            factoryError
+
+          if def.factory.length < 2
+            if res instanceof Future
+              res
+                .then (instance) => done(null, instance)
+                .catch (error) => done(error)
+            else if res instanceof Error
+              done(res)
+            else
+              done(null, res)
+        .catch (e) =>
+          @_pendingFactories[name].reject(e)
+          return # we should not return rejected future from this callback!
+      @_pendingFactories[name].catch (e) =>
+        # Remove rejected factory from map
+        delete @_pendingFactories[name]
+        throw e
+
+
+    isReady: (name) ->
+      _(@_instances).has(name)
+
+
+    get: (name) =>
+      ###
+      Gets service in a synchronized mode. This method passed as `get` callback to factory of service def
+      ###
+      if not @isReady(name)
+        throw new Error("Service #{name} is not loaded yet. Do you forget to specify it in `deps` section?")
+      @_instances[name]
 
 
     injectServices: (target) ->
@@ -79,26 +181,13 @@ define [
 
         injectService = (serviceAlias, serviceName) =>
           if @isDefined(serviceName)
-            injectFuture = Future.single("Inject #{serviceAlias} to #{target.constructor.name}")
-            injectFutures.push(injectFuture)
-            try
-              @eval serviceName, (service) =>
-                if service instanceof Error
-                  _console.error "Container::injectServices::eval(#{serviceName}) for target #{target.constructor.name}" +
-                                 " failed with error: #{ service }", service
-                  injectFuture.reject(service)
-                  # resetting failed service to give it a chance next time (mainly for auth-related purposes)
-                  @reset(serviceName)
-                else
-                  _console.log "Container::injectServices -> eval(#{ serviceName }) for target #{ target.constructor.name } finished success" if global.config?.debug.service
-
+            injectFutures.push(
+              @getService(serviceName)
+                .then (service) =>
                   target[serviceAlias] = service
-                  injectFuture.resolve(service)
-            catch e
-              _console.error "Container::injectServices -> eval(#{ serviceName }) for target #{ target.constructor.name } fail: #{ e.message }", e
-              target[serviceAlias] = undefined
-              injectFuture.reject(e)
-              @reset(serviceName)
+                  return
+                .name("Inject #{serviceName} to #{target.constructor.name}")
+            )
           else
             _console.warn "Container::injectServices #{ serviceName } for target #{ target.constructor.name } is not defined" if global.config?.debug.service
 
@@ -109,7 +198,7 @@ define [
           for serviceAlias, serviceName of services
             injectService serviceAlias, serviceName
 
-      Future.sequence(injectFutures, "Container::injectServices(#{target.constructor.name})")
+      Future.sequence(injectFutures, "Container::injectServices(#{target.constructor.name})").map -> target
 
 
     autoStartServices: (services) ->
@@ -120,13 +209,9 @@ define [
       ###
       for serviceName, info of services when info.autoStart
         do (serviceName) =>
-          @eval serviceName, (service) =>
-            if service instanceof Error
-              if not (service instanceof errors.AuthError)
-                _console.warn "Container::autoStartServices::eval(#{serviceName}) " +
-                               " failed with error: #{ service }", service
-              # resetting failed service to give it a chance next time (mainly for auth-related purposes)
-              @reset(serviceName)
+          @getService(serviceName)
+            .catch (error) =>
+              if not (error instanceof errors.AuthError)
+                _console.warn "Container::autoStartServices::getService(#{serviceName}) " +
+                               " failed with error: #{ error }", error
       return
-
-

@@ -1,31 +1,28 @@
-define ->
+define  ->
 
   services:
-    apiNoWait:
-      deps: ['runtimeConfigResolver', 'container', 'config']
-      factory: (get, done) ->
-        require ['cord!Api'], (Api) ->
-          apiF = get('container').getService('api')
-          if get('runtimeConfigResolver').isPending()
-            done(new Error('Api service is unavailable now'))
-          else
-            apiF.then (api) ->
-              done(null, api)
-
     api:
       deps: ['runtimeConfigResolver', 'container', 'config']
       factory: (get, done) ->
-        require ['cord!Api'], (Api) ->
+        require ['cord!Api', 'cord!utils/Future'], (Api, Future) ->
           container = get('container')
-          get('runtimeConfigResolver')
-            .resolveConfig(get('config').api)
-              .then (apiConfig) ->
-                api = new Api(container, apiConfig)
-                container.injectServices(api)
-                  .then -> api.init()
-                  .then -> done(null, api)
-              .catch (error) ->
-                done(error)
+          resolver = get('runtimeConfigResolver')
+          originalConfig = get('config').api
+          Future.try -> resolver.resolveConfig(originalConfig)
+            .then (apiConfig) ->
+              api = new Api(container, apiConfig)
+              container.injectServices(api)
+                .then -> api.init()
+                .then -> api.configure(apiConfig)
+                .then ->
+                  # Subscribe to runtimeConfigResolver's 'setParameter' event, and
+                  # reconfigure on event emitted
+                  resolver.on('setParameter', -> api.configure(resolver.resolveConfig(originalConfig)))
+                  return
+                .then -> done(null, api)
+            .catch (e) ->
+              done(e)
+
 
     runtimeConfigResolver:
       deps: ['container']
@@ -35,31 +32,36 @@ define ->
           get('container').injectServices(resolver)
             .then -> resolver.init()
             .then -> done(null, resolver)
+            .catch (e) -> done(e)
 
     userAgent:
       deps: ['container']
       factory: (get, done) ->
         require ['cord!/cord/core/UserAgent'], (UserAgent) =>
           userAgent = new UserAgent
-          get('container').injectServices(userAgent).done ->
-            userAgent.calculate()
-            done(null, userAgent)
+          get('container').injectServices(userAgent)
+            .then ->
+              userAgent.calculate()
+              done(null, userAgent)
+            .catch (e) -> done(e)
 
     modelProxy:
       deps: ['container']
       factory: (get, done) ->
         require ['cord!/cord/core/ModelProxy'], (ModelProxy) =>
           modelProxy = new ModelProxy
-          get('container').injectServices(modelProxy).done ->
-            done(null, modelProxy)
+          get('container').injectServices(modelProxy)
+            .then -> done(null, modelProxy)
+            .catch (e) -> done(e)
 
     redirector:
       deps: ['container']
       factory: (get, done) ->
         require ['cord!/cord/core/router/Redirector'], (Redirector) ->
           redirector = new Redirector()
-          get('container').injectServices(redirector).done ->
-            done(null, redirector)
+          get('container').injectServices(redirector)
+            .then -> done(null, redirector)
+            .catch (e) -> done(e)
 
     ':server':
       request:

@@ -20,18 +20,15 @@ define [
     defaultAuthModule: 'OAuth2'
 
 
-    constructor: (serviceContainer, @config) ->
+    constructor: (serviceContainer) ->
       @fallbackErrors = {}
       @serviceContainer = serviceContainer
 
 
     init: ->
-      @configure(@config)
-
       # заберем настройки для fallbackErrors
       AppConfigLoader.ready().done (appConfig) =>
         @fallbackErrors = appConfig.fallbackApiErrors
-      @setupAuthModule()
 
 
     configure: (config) ->
@@ -48,6 +45,8 @@ define [
 
       @options = _.extend(defaultOptions, @options, config)
       @defaultAuthModule = @options.defaultAuthModule if @options.defaultAuthModule
+
+      @setupAuthModule()
 
       # если в конфиге у нас заданы параметры автовхода, то надо логиниться по ним
       if @options.autoLogin? and @options.autoPassword?
@@ -116,11 +115,13 @@ define [
       @return Future{Boolean}
       ###
       if not @authPromise
+        _console.warn('Api::authTokensAvailable authPromise does not exists. Call setAuthModule before use.')
         Future.resolved(false)
       else
         @authPromise.then (authModule) ->
           authModule.isAuthAvailable()
-        .catch ->
+        .catch (e) ->
+          _console.warn('authTokensAvailable failed, because of:', e)
           false
 
 
@@ -133,7 +134,8 @@ define [
       ###
       @authTokensAvailable().withoutTimeout().then (available) =>
         if available
-          return
+          _console.warn('authTokensReady: auth tokens are not available')
+          true
         else
           result = Future.single('authTokensReady')
           # We can not subscribe to authModule, stored in @authPromise future, because it can be changed due to
@@ -257,6 +259,7 @@ define [
           params: _.extend({ originalArgs: args }, @options.params, params)
         .catch (e) =>
           # Auth module failed, so we need to authorize here somehow
+          _console.warn("Auth failed:", e)
           @options.authenticateUserCallback() if not args.params?.skipAuth
           throw e
 
@@ -289,11 +292,6 @@ define [
           Future.try =>
             if targetHost = rawResponse?.getResponseHeader?('X-Target-Host')
               @emit('host.changed', targetHost)
-
-            if rawResponse == undefined
-              authModule.clearAuth()
-              @options.authenticateUserCallback()
-              throw new Error(error.message);
 
             isAuthFailed = authModule.isAuthFailed(response, error)
 

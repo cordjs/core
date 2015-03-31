@@ -2,23 +2,11 @@ define [
   'cord!utils/Future'
   'eventemitter3'
   'lodash'
-  'cord!Utils'
-], (Future, EventEmitter, _, Utils) ->
-
-  class ConfigToResolve
-    ###
-    This class is value holder for one config to resolve
-    ###
-    constructor: (@future, @originalConfig) ->
-
+], (Future, EventEmitter, _) ->
 
   class RuntimeConfigResolver extends EventEmitter
     ###
-    This service used to defer other services initialization until all of required runtime parameters are resolved.
-    Runtime parameters stored in cookies between requests.
-    Runtime parameter placeholders present in service config, passed to the method resolveConfig(), which
-    returns a Future with resolved parameters. If there was no placeholders in passed config, future returns already
-    resolved with original passed config. Other services can set a parameter value by calling setParameter() method
+    This service used to resolve runtime parameter in configs. Stores parameters in cookies
     ###
 
     @inject: ['cookie']
@@ -28,7 +16,6 @@ define [
 
     constructor: ->
       @parameters = {}
-      @configsToResolve = []
 
 
     init: ->
@@ -38,25 +25,6 @@ define [
       @_loadParameters()
 
 
-    resolveConfig: (config) ->
-      ###
-      Returns Future with resolved config. Replaces all parameters, which surrounded by % sign (i.e. %PARAM_NAME%) to
-      its value. Now or in future, when all parameters will be available
-      ###
-      config = _.cloneDeep(config)
-      if false != resolvedConfig = @_tryResolve(config)
-        Future.resolved(resolvedConfig)
-      else
-        future = Future.single('resolveRuntimeConfig')
-        if CORD_IS_BROWSER
-          @configsToResolve.push(new ConfigToResolve(future, config))
-        else
-          # We will never can set runtime parameter on server side,
-          # so, we should reject this future
-          future.reject(new Error('Runtime config is not available on server side!'))
-        future
-
-
     setParameter: (name, value) ->
       ###
       Sets a parameter's value by it's name.
@@ -64,11 +32,6 @@ define [
       ###
       @parameters[name] = value;
       @_saveParameters()
-
-      for configToResolve in @configsToResolve
-        if false != resolvedConfig = @_tryResolve(configToResolve.originalConfig)
-          @configsToResolve = _.without(@configsToResolve, configToResolve)
-          configToResolve.future.resolve(resolvedConfig)
 
       @emit('setParameter',
         name: name,
@@ -84,12 +47,10 @@ define [
       @_saveParameters()
 
 
-
-    _tryResolve: (config) ->
+    resolveConfig: (config) ->
       ###
       Make a try to resolve config. If try is successful, method returns resolved config, else it returns false
       ###
-      allResolved = true
       resolvedConfig = _.cloneDeep(config, (val) =>
         if _.isString(val)
           # Replace variables by regexp replace
@@ -102,18 +63,10 @@ define [
               if @parameters[name] != undefined
                 @parameters[name]
               else
-                allResolved = false
-                matches[0]
+                throw new Error("Parameter #{name} is not defined")
           )
       )
-      if allResolved then resolvedConfig else false
-
-
-    isPending: ->
-      ###
-      Indicates, that someone waits for runtime config resolving
-      ###
-      @configsToResolve.length > 0
+      resolvedConfig
 
 
     _saveParameters: ->

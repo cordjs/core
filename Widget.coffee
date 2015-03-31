@@ -866,7 +866,7 @@ define [
         tmplPath = "#{ @getDir() }/#{ @ctx[':inlines'][inlineName].template }.html"
         templateLoader.loadToDust(tmplPath).then =>
           @_saveContextVersionForBehaviourSubscriptions()
-          @_domInfo = DomInfo.merge(@_domInfo, domInfo)
+          @_domInfo = DomInfo.merge([@_domInfo, domInfo], inlineName + " " + tmplPath)
           Future.call(dust.render, tmplPath, @getBaseContext().push(@ctx))
       else
         Future.rejected(new Error("Trying to render unknown inline (name = #{ inlineName })!"))
