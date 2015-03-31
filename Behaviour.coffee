@@ -432,10 +432,14 @@ define [
       @return Future[jQuery] jQuery element of the created widget
       ###
       domInfo = new DomInfo("#{ @debug('renderNewWidget') } -> #{ widget.debug() }")
-      widget.show(params, domInfo).then (out) ->
+      widget.show(params, domInfo).then (out) =>
         checkIsSentenced(widget, 'after widget.show')
         $el = $(widget.renderRootTag(out))
         domInfo.setDomRoot($el)
+        # _childShownNoTimeout - special hack flag that should be set before calling initChildWidget to prevent
+        # widget's shown timeout reporting
+        # useful in case of page preloading in mobile application
+        widget.shown().withoutTimeout()  if @_childShownNoTimeout
         domInfo.domInserted().when(widget.shown())
         widget.browserInit($el).then ->
           checkIsSentenced(widget, 'after browserInit')
