@@ -260,6 +260,7 @@ define [
           params: _.extend({ originalArgs: args }, @options.params, params)
         .catch (e) =>
           # Auth module failed, so we need to authorize here somehow
+          _console.warn("Auth failed:", e)
           @options.authenticateUserCallback() if not args.params?.skipAuth
           throw e
 
@@ -292,11 +293,6 @@ define [
           Future.try =>
             if targetHost = rawResponse?.getResponseHeader?('X-Target-Host')
               @emit('host.changed', targetHost)
-
-            if rawResponse == undefined
-              authModule.clearAuth()
-              @options.authenticateUserCallback()
-              throw new Error(error.message);
 
             isAuthFailed = authModule.isAuthFailed(response, error)
 
