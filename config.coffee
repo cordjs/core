@@ -1,30 +1,28 @@
-define ->
+define  ->
 
   services:
-    apiNoWait:
-      deps: ['runtimeConfigResolver', 'container', 'config']
-      factory: (get) ->
-        apiF = get('container').getService('api')
-        get('runtimeConfigResolver').isPending('api')
-          .then (isPending) ->
-            if isPending
-              throw new Error('Api service is unavailable now')
-            else
-              apiF
-
     api:
       deps: ['runtimeConfigResolver', 'container', 'config']
       factory: (get, done) ->
-        require ['cord!Api'], (Api) ->
+        require ['cord!Api', 'cord!utils/Future'], (Api, Future) ->
           container = get('container')
-          get('runtimeConfigResolver')
-            .resolveConfig('api', get('config').api)
-              .then (apiConfig) ->
-                api = new Api(container, apiConfig)
-                container.injectServices(api)
-                  .then -> api.init()
-                  .then -> done(null, api)
-              .catch (error) -> done(error)
+          resolver = get('runtimeConfigResolver')
+          originalConfig = get('config').api
+          Future.try -> resolver.resolveConfig(originalConfig)
+            .then (apiConfig) ->
+              api = new Api(container, apiConfig)
+              container.injectServices(api)
+                .then -> api.init()
+                .then -> api.configure(apiConfig)
+                .then ->
+                  # Subscribe to runtimeConfigResolver's 'setParameter' event, and
+                  # reconfigure on event emitted
+                  resolver.on('setParameter', -> api.configure(resolver.resolveConfig(originalConfig)))
+                  return
+                .then -> done(null, api)
+            .catch (e) ->
+              done(e)
+
 
     runtimeConfigResolver:
       deps: ['container']

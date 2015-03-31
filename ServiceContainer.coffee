@@ -34,13 +34,19 @@ define [
 
     reset: (name) ->
       ###
-      Reset services
+      Reset service.
       ###
-      delete @_instances[name]
-      if @_pendingFactories[name]?.pending()
-        @_pendingFactories[name].reject(new Error(".reset(#{name}) was called inside service initialization process!"))
-      delete @_pendingFactories[name]
-      this
+      # reset pending service only after instantiation
+      promise = Future.single("Reset of '#{name}'")
+      if _(@_pendingFactories).has(name)
+        @_pendingFactories[name].finally =>
+          delete @_instances[name]
+          delete @_pendingFactories[name]
+          promise.resolve()
+      else
+        delete @_instances[name]
+        promise.resolve()
+      promise
 
 
     set: (name, instance) ->
@@ -120,12 +126,19 @@ define [
             catch err
               @_pendingFactories[name].reject(err)
             return # we should not return future from this callback!
-          res = def.factory(@get, done)
+
+          res = try
+            def.factory(@get, done)
+          catch factoryError
+            factoryError
+
           if def.factory.length < 2
             if res instanceof Future
               res
                 .then (instance) => done(null, instance)
                 .catch (error) => done(error)
+            else if res instanceof Error
+              done(res)
             else
               done(null, res)
         .catch (e) =>
@@ -170,10 +183,9 @@ define [
           if @isDefined(serviceName)
             injectFutures.push(
               @getService(serviceName)
-                .then (service) => target[serviceAlias] = service
-                .catch (e) =>
-                  @reset(serviceName)
-                  throw e
+                .then (service) =>
+                  target[serviceAlias] = service
+                  return
                 .name("Inject #{serviceName} to #{target.constructor.name}")
             )
           else
@@ -202,6 +214,4 @@ define [
               if not (error instanceof errors.AuthError)
                 _console.warn "Container::autoStartServices::getService(#{serviceName}) " +
                                " failed with error: #{ error }", error
-              # resetting failed service to give it a chance next time (mainly for auth-related purposes)
-              @reset(serviceName)
       return
