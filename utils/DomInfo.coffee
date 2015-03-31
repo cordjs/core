@@ -31,7 +31,7 @@ define [
       ###
       Inform listeners that the DOM-element is inserted into the main document's DOM tree.
       ###
-      throw new Error("DOM root must be set before show!") if not @_domRootPromise.completed()
+      throw new Error("DOM root must be set before show!"  + @_domRootPromise._name, @_showPromise._name) if not @_domRootPromise.completed()
       @_showPromise.resolve()
 
 
@@ -58,13 +58,13 @@ define [
       result
 
 
-    @merge: (infos...) ->
+    @merge: (infos, debugInfo) ->
       ###
       Smartly merges several given DomInfos into one
       @return DomInfo
       ###
       if isBrowser
-        result = new DomInfo('merged')
+        result = new DomInfo("merged #{debugInfo}")
 
         filtered = infos.filter (info) -> !!info
         domRootsPromise = filtered.map (info) -> info.domRootCreated()
@@ -74,7 +74,8 @@ define [
           roots = $()
           roots = roots.add(root) for root in domRoots
           result.setDomRoot(roots)
-        Future.sequence(domInsertedPromise).then ->
+          Future.sequence(domInsertedPromise)
+        .then ->
           result.markShown()
 
         result
