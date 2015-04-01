@@ -213,5 +213,5 @@ define [
             .catch (error) =>
               if not (error instanceof errors.AuthError)
                 _console.warn "Container::autoStartServices::getService(#{serviceName}) " +
-                               " failed with error: #{ error }", error
+                               " failed with error: ", error
       return

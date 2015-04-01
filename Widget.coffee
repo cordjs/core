@@ -1059,7 +1059,8 @@ define [
             else
               TimeoutStubHelper.replaceStub(out, widget, domInfo).then ($newRoot) ->
                 timeoutDomInfo.setDomRoot($newRoot)
-                domInfo.domInserted().done -> timeoutDomInfo.markShown()
+                timeoutDomInfo.domInserted().when(domInfo.domInserted())
+                return # prevent chaining of domInserted
               .catchIf (err) ->
                 err instanceof errors.WidgetDropped
 
@@ -1091,7 +1092,9 @@ define [
                 complete = true # should be here to avoid returning `promise` (above) and locking to it
               else
                 replaceTimeoutStub(out, timeoutDomInfo)
-            .catch (err) -> promise.reject(err)
+            .catch (err) ->
+              promise.reject(err)
+              return
 
           else if info.type == 'timeouted-widget'
             placeholderOrder[widgetId] = i
@@ -1616,6 +1619,14 @@ define [
       @_shownPromise
 
 
+    isShown: ->
+      ###
+      Returns shown status of the widget.
+      @return {Boolean}
+      ###
+      @_shown
+
+
     markShown: (ignoreChildren = false) ->
       ###
       Triggers widget's show events and promises.
@@ -1724,7 +1735,8 @@ define [
                 else
                   TimeoutStubHelper.replaceStub(out, widget, @_domInfo).then ($newRoot) =>
                     timeoutDomInfo.setDomRoot($newRoot)
-                    @_domInfo.domInserted().done -> timeoutDomInfo.markShown()
+                    timeoutDomInfo.domInserted().when(@_domInfo.domInserted())
+                    return
                   .catchIf (err) ->
                     err instanceof errors.WidgetDropped or err instanceof errors.WidgetSentenced
               .catch (err) ->
