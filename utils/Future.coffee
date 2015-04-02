@@ -390,15 +390,19 @@ define [
 
     catchIf: (predicate, callback) ->
       ###
-      Bypasses rejected promise (transform it to the resolved one) if the given predicate function returns true
+      Catch error only if predicate returns true. On catch calls callback, if specified.
+      If predicate instance of Error, then error catched only of error instanceof predicate
       @param Function predicate
       @return Future
       ###
-      throw new Error('First argument should be a function!') if not _.isFunction(predicate)
+
+      if predicate instanceof Error
+        do (errorClass = predicate) =>
+          predicate = (e) -> e instanceof errorClass
 
       this.catch (err) ->
         if predicate(err)
-          callback(err) if callback
+          callback?(err)
         else
           throw err
 
