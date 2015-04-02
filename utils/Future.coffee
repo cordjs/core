@@ -73,6 +73,14 @@ define [
       this
 
 
+    rename: (name) ->
+      ###
+      Renames current future
+      ###
+      @_name = name
+      this
+
+
     fork: ->
       ###
       Adds one more value to wait.
@@ -369,36 +377,30 @@ define [
       result
 
 
-    catch: (errorType, callback) ->
+    catch: (callback) ->
       ###
       Implements 'catch'-semantics to be compatible with standard JS Promise.
       Shortcut for promise.then(undefined, callback)
       @see then()
-      @param [errorType] Optional class of error to handle.
       @param Function callback function to be evaluated in case of the promise rejection
       @return Future[A]
       ###
-      if callback == undefined
-        callback = errorType
-        errorType = undefined
-      else
-        originalCallback = callback
-        callback = (error) =>
-          if error instanceof errorType
-            originalCallback(error)
-          else
-            throw error
       this.then(undefined, callback, 'catch')
 
 
-    catchIf: (predicate) ->
+    catchIf: (predicate, callback) ->
       ###
       Bypasses rejected promise (transform it to the resolved one) if the given predicate function returns true
       @param Function predicate
       @return Future
       ###
+      throw new Error('First argument should be a function!') if not _.isFunction(predicate)
+
       this.catch (err) ->
-        throw err if not predicate(err)
+        if predicate(err)
+          callback(err) if callback
+        else
+          throw err
 
 
     spread: (onResolved, onRejected) ->
