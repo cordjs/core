@@ -99,7 +99,7 @@ define [
       @param {String} serviceName
       @return {Future[Any]}
       ###
-      return @_pendingFactories[name] if _(@_pendingFactories).has(name)
+      return @_pendingFactories[name].then() if _(@_pendingFactories).has(name)
 
       # Call a factory for a service
       if not _(@_definitions).has(name)

@@ -328,7 +328,8 @@ define [
                                            Return value behaviour is the same as for `onResolved` callback
       @return Future[A]
       ###
-      throw new Error("No callback given for Future.then (name = #{@_name})!") if not onResolved? and not onRejected?
+      if not onResolved? and not onRejected?
+        _nameSuffix = 'then(empty)'
       result = Future.single("#{@_name} -> #{_nameSuffix}")
       result.withoutTimeout() if @_noTimeout
       if onResolved?
@@ -368,14 +369,25 @@ define [
       result
 
 
-    catch: (callback) ->
+    catch: (errorType, callback) ->
       ###
       Implements 'catch'-semantics to be compatible with standard JS Promise.
       Shortcut for promise.then(undefined, callback)
       @see then()
+      @param [errorType] Optional class of error to handle.
       @param Function callback function to be evaluated in case of the promise rejection
       @return Future[A]
       ###
+      if callback == undefined
+        callback = errorType
+        errorType = undefined
+      else
+        originalCallback = callback
+        callback = (error) =>
+          if error instanceof errorType
+            originalCallback(error)
+          else
+            throw error
       this.then(undefined, callback, 'catch')
 
 
