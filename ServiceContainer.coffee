@@ -103,47 +103,48 @@ define [
 
       # Call a factory for a service
       if not _(@_definitions).has(name)
-        throw new Error("There is no registered definition for called service '#{name}'")
+        return Future.rejected(new Error("There is no registered definition for called service '#{name}'"))
 
       def = @_definitions[name]
       @_pendingFactories[name] = Future.single("Factory of service #{name}")
       # Ensure, that all of dependencies are loaded before factory call
-      Future.sequence(def.deps.map((dep) => @getService(dep)), "Deps for `#{name}`")
-        .then =>
-          # call a factory with 2 parameters, get & done. On done resolve a result.
-          locked = false
-          done = (err, instance) =>
-            try
-              throw new Error('Done was already called') if locked
-              locked = true
-              if err?
-                throw err
-              else if instance instanceof Error
-                throw instance
-              else
-                @_instances[name] = instance
-                @_pendingFactories[name].resolve(instance)
-            catch err
-              @_pendingFactories[name].reject(err)
-            return # we should not return future from this callback!
+      Future.sequence(def.deps.map((dep) => @getService(dep)), "Deps for `#{name}`").then =>
+        # call a factory with 2 parameters, get & done. On done resolve a result.
+        locked = false
+        done = (err, instance) =>
+          try
+            throw new Error('Done was already called') if locked
+            locked = true
+            if err?
+              throw err
+            else if instance instanceof Error
+              throw instance
+            else
+              @_instances[name] = instance
+              @_pendingFactories[name].resolve(instance)
+          catch err
+            @_pendingFactories[name].reject(err)
+          return # we should not return future from this callback!
 
-          res = try
+        res =
+          try
             def.factory(@get, done)
           catch factoryError
             factoryError
 
-          if def.factory.length < 2
-            if res instanceof Future
-              res
-                .then (instance) => done(null, instance)
-                .catch (error) => done(error)
-            else if res instanceof Error
-              done(res)
-            else
-              done(null, res)
-        .catch (e) =>
-          @_pendingFactories[name].reject(e)
-          return # we should not return rejected future from this callback!
+        if def.factory.length < 2
+          if res instanceof Future
+            res
+              .then (instance) => done(null, instance)
+              .catch (error) => done(error)
+          else if res instanceof Error
+            done(res)
+          else
+            done(null, res)
+      .catch (e) =>
+        @_pendingFactories[name].reject(e)
+        return # we should not return rejected future from this callback!
+
       @_pendingFactories[name].catch (e) =>
         # Remove rejected factory from map
         delete @_pendingFactories[name]
