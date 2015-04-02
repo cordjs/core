@@ -94,8 +94,8 @@ define [
 
           injectRouterPromise = @serviceContainer.getService('router').then (router) ->
             widget.router = router
-          .catch (err) ->
-            true
+          .catch (err) -> # compatibility with compiling index.html when services are not defined
+            null
           @serviceContainer.injectServices(widget).zip(injectRouterPromise).then -> widget
         .catch (err) =>
           @dropWidget(widget.ctx.id)
