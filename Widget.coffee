@@ -1828,11 +1828,8 @@ define [
           routeId = params.routeId
           if not routeId
             throw new Error @debug("RouteId is require for #url")
-
           delete(params.routeId)
-
-          @widgetRepo.getServiceContainer().eval 'router', (router) ->
-            chunk.write(router.urlTo(routeId, params))
+          chunk.write(@router.urlTo(routeId, params))
 
 
         #
