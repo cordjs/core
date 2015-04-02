@@ -866,11 +866,12 @@ define [
           return true
         ###
 
-        loadingStart = start
-        loadingEnd = end
+        loadingStart = oldListStart = start
+        loadingEnd = oldListEnd = end
         @_models = _.clone(@_models)
       else
-        loadingStart = 0
+        loadingStart = oldListStart = 0
+        oldListEnd = oldList.length - 1
         loadingEnd = newList.length - 1
         @_models = []
 
@@ -886,7 +887,7 @@ define [
       for item in newList
         newListIds[item.id] = item
 
-      for i in [start..end]
+      for i in [oldListStart..oldListEnd] by 1
         model = oldList[i]
 
         # Бывает так, что в списке моделей есть пропуски... Надо с этим разобраться.
