@@ -396,7 +396,9 @@ define [
       @return Future
       ###
 
-      if predicate instanceof Error
+      return Future.rejected(new Error("Invalid predicate")) if not _.isFunction(predicate)
+
+      if predicate.prototype instanceof Error
         do (errorClass = predicate) =>
           predicate = (e) -> e instanceof errorClass
 
