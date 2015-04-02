@@ -288,11 +288,11 @@ define [
       requestParams = _.clone(params)
       delete requestParams.originalArgs
       @authPromise.then (authModule) =>
-        @request[method] url, requestParams, (response, error, rawResponse) =>
+        # TODO @request[method] returns a Future[(data, cord!request/Response)] now. So, we should refactor this handler
+        # TODO into Future handling
+        # TODO Also, we should check X-Target-Host header to override backend host in options
+        @request[method] url, requestParams, (response, error) =>
           Future.try =>
-            if targetHost = rawResponse?.getResponseHeader?('X-Target-Host')
-              @emit('host.changed', targetHost)
-
             isAuthFailed = authModule.isAuthFailed(response, error)
 
             # if auth failed normally, we try to resuurect auth and try again
