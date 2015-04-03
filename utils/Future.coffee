@@ -821,18 +821,13 @@ define [
             state = info.promise.state()
             if state != 'pending'
               reportArgs = [
-                "Unhandled rejection detected for Future[#{info.promise._name}] " +
+                "Unhandled rejection detected for [#{state}] Future[#{info.promise._name}] " +
                   "after #{(curTime - info.startTime) / 1000 } seconds!"
-                state
               ]
               if state == 'rejected'
                 err = info.promise._callbackArgs[0]
-                reportArgs.push(err)
-                reportArgs.push(err.stack) if err.stack
-                if info.promise._stack
-                  reportArgs.push("\n--------------------------\n")
-                  reportArgs.push(info.promise._stack)
-                cons().warn.apply(cons(), reportArgs)
+                reportArgs.push err
+                cons()._taggedError(info.promise._stack, ['warn'], reportArgs)
             delete unhandledMap[id]
       , interval
 

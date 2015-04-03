@@ -11,7 +11,8 @@ define ->
       Error.captureStackTrace?(this, arguments.callee)
 
   WidgetSentenced: class WidgetSentenced extends Error
-    constructor: (@message, @type = 'notice') ->
+    constructor: (@message, @type = 'internal') ->
+      @type = 'warning' if global?.config.console.widget and @type == 'internal'
       @name = 'WidgetSentenced'
       @isCordInternal = true
       Error.call(this, @message)

@@ -562,7 +562,7 @@ define [
             # new params to the root widget
             newRootWidget.setParamsSafe(params)
         else
-          # if the new root widget doesn't exists in the current page structure, than we need to create it,
+          # if the new root widget doesn't exist in the current page structure, than we need to create it,
           # inject to the top of the page structure and recursively find the common widget from the extend list
           # down to the base widget (containing <html> tag)
           newRootWidget.inject(params, commonExistingWidget, transition).then (commonBaseWidget) =>
