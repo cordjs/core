@@ -3,7 +3,9 @@ define [
   'cord!Utils'
   'underscore'
   'postal'
-], (curly, Utils, _, postal) ->
+  'cord!utils/Future'
+  'cord!request/Response'
+], (curly, Utils, _, postal, Future, Response) ->
 
   class BrowserRequest
 
@@ -55,11 +57,14 @@ define [
 
       startRequest = new Date() if global.config.debug.request
 
-      window.curly[method] argssss.url, options, (error, response, body) =>
-        if not error? and response.statusCode >= 400
+      promise = Future.single("BrowserRequest::send(#{method}, #{url})")
+
+      window.curly[method] argssss.url, options, (error, xhr, body) =>
+        response = Response.fromXhr(error, xhr)
+        if not error? and xhr.statusCode >= 400
           error =
-            statusCode: response.statusCode
-            statusText: response.body._message
+            statusCode: xhr.statusCode
+            statusText: xhr.body._message
 
         if global.config.debug.request
           stopRequest = new Date()
@@ -78,7 +83,7 @@ define [
 
           if global.config.debug.request == 'full'
             fullParams = requestParams: argssss.params
-            fullParams['response'] = response.body if response?.body
+            fullParams['response'] = xhr.body if xhr?.body
             loggerParams = _.extend loggerParams, fullParams
 
           if error
@@ -92,4 +97,6 @@ define [
             tags: loggerTags
             params: loggerParams
 
-        argssss.callback body, error, response if typeof argssss.callback == 'function'
+        response.completePromise(promise)
+        argssss.callback body, error if typeof argssss.callback == 'function'
+      promise.then()

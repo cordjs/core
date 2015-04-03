@@ -92,7 +92,10 @@ define [
         Future.try =>
           parentWidget.registerChild(widget, name) if parentWidget
 
-          injectRouterPromise = @serviceContainer.getService('router').then (router) -> widget.router = router
+          injectRouterPromise = @serviceContainer.getService('router').then (router) ->
+            widget.router = router
+          .catch (err) -> # compatibility with compiling index.html when services are not defined
+            null
           @serviceContainer.injectServices(widget).zip(injectRouterPromise).then -> widget
         .catch (err) =>
           @dropWidget(widget.ctx.id)

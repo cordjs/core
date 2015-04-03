@@ -73,6 +73,14 @@ define [
       this
 
 
+    rename: (name) ->
+      ###
+      Renames current future
+      ###
+      @_name = name
+      this
+
+
     fork: ->
       ###
       Adds one more value to wait.
@@ -328,7 +336,8 @@ define [
                                            Return value behaviour is the same as for `onResolved` callback
       @return Future[A]
       ###
-      throw new Error("No callback given for Future.then (name = #{@_name})!") if not onResolved? and not onRejected?
+      if not onResolved? and not onRejected?
+        _nameSuffix = 'then(empty)'
       result = Future.single("#{@_name} -> #{_nameSuffix}")
       result.withoutTimeout() if @_noTimeout
       if onResolved?
@@ -379,14 +388,25 @@ define [
       this.then(undefined, callback, 'catch')
 
 
-    catchIf: (predicate) ->
+    catchIf: (predicate, callback) ->
       ###
-      Bypasses rejected promise (transform it to the resolved one) if the given predicate function returns true
+      Catch error only if predicate returns true. On catch calls callback, if specified.
+      If predicate instance of Error, then error catched only of error instanceof predicate
       @param Function predicate
       @return Future
       ###
+
+      return Future.rejected(new Error("Invalid predicate")) if not _.isFunction(predicate)
+
+      if predicate.prototype instanceof Error
+        do (errorClass = predicate) =>
+          predicate = (e) -> e instanceof errorClass
+
       this.catch (err) ->
-        throw err if not predicate(err)
+        if predicate(err)
+          callback?(err)
+        else
+          throw err
 
 
     spread: (onResolved, onRejected) ->

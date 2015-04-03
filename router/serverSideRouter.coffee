@@ -100,7 +100,7 @@ define [
                 @redirect("/#{loginUrl}/?back=#{if request.url.indexOf(logoutUrl) >= 0 then '' else request.url}", response)
                 clear()
             .catch (error) ->
-              _console.error('Unable to obtain loginUrl or logoutUrl, please, check configs:' + error)
+              _console.error('Unable to obtain loginUrl or logoutUrl, please, check configs:' + error.trace())
 
           false
 

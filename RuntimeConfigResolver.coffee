@@ -47,9 +47,11 @@ define [
       @_saveParameters()
 
 
-    resolveConfig: (config) ->
+    resolveConfig: (config, parameters = {}) ->
       ###
       Make a try to resolve config. If try is successful, method returns resolved config, else it returns false
+      @param config Config to resolve
+      @param parameters optionally one-time used parameters.
       ###
       resolvedConfig = _.cloneDeep(config, (val) =>
         if _.isString(val)
@@ -60,7 +62,9 @@ define [
               '%%'
             else
               name = matches[1]
-              if @parameters[name] != undefined
+              if parameters[name] != undefined
+                parameters[name]
+              else if @parameters[name] != undefined
                 @parameters[name]
               else
                 throw new Error("Parameter #{name} is not defined")

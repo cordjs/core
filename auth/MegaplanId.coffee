@@ -20,7 +20,7 @@ define [
     refreshTokenParamName: 'refresh_token'
 
 
-    isAuthFailed: (response, error) ->
+    isAuthFailed: (response) ->
       ###
       Checks whether request results indicate auth failure, and clear tokens if necessary
       ###

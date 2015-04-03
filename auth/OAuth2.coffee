@@ -4,7 +4,9 @@ define [
   'cord!utils/Future'
   'cord!errors'
   'eventemitter3'
-], (_, isBrowser, Future, errors, EventEmitter) ->
+  'cord!request/errors'
+  'cord!errors'
+], (_, isBrowser, Future, errors, EventEmitter, httpError, cordError) ->
 
   class OAuth2 extends EventEmitter
 
@@ -39,7 +41,7 @@ define [
       @_clientSecret = global.config.secrets.clientSecret  if global.config?.secrets?.clientSecret?
 
 
-    isAuthFailed: (response, error) ->
+    isAuthFailed: (response) ->
       ###
       Checks whether request results indicate auth failure, and clear tokens if necessary
       ###
@@ -179,7 +181,7 @@ define [
       @return {Future} resolves when auth suceeded, fails in otherway
       ###
       result = @grantAccessTokenByPassword(username, password, @getScope())
-      result.spread (accessToken, refreshToken) =>
+      result.then (accessToken, refreshToken) =>
         @_onAccessTokenGranted(accessToken, refreshToken)
 
       result
@@ -202,7 +204,6 @@ define [
 
 
     _grantAccessTokenByExtensions: (url, params, scope) ->
-      resultPromise = Future.single('Oauth2::_grantAccessTokenByExtensions')
       requestParams =
         grant_type: url
         client_id: @_clientId
@@ -211,36 +212,35 @@ define [
 
       requestParams = _.extend params, requestParams
 
-      @request.get @endpoints.accessToken, requestParams, (result) ->
-        if result
-          resultPromise.resolve(result.access_token, result.refresh_token)
-        else
-          resultPromise.reject('Oauth2::_grantAccessTokenByExtensions unables to accuire access token: ' + JSON.stringify(result))
-
-      resultPromise
+      @request.get(@endpoints.accessToken, requestParams)
+        .rename('Oauth2::_grantAccessTokenByExtensions')
+        .map (result) -> [result.access_token, result.refresh_token]
+        .catchIf(
+          (e) -> e instanceof httpError.InvalidResponse and e.response.statusCode == 400
+          -> throw new cordError.AuthError()
+        )
 
 
     grantAccessTokenByPassword: (user, password, scope) ->
       ###
       Получение токена по grant_type = password (логин и пароль)
       ###
-      resultPromise = Future.single('Oauth2::grantAccessTokenByPassword')
-
       params =
         grant_type: 'password'
         username: user
         password: password
         client_id: @_clientId
+        client_secret: @_clientSecret
         scope: scope
         json: true
 
-      @request.get @endpoints.accessToken, params, (result) ->
-        if result and result.access_token and result.refresh_token
-          resultPromise.resolve([result.access_token, result.refresh_token])
-        else
-          resultPromise.reject('Oauth2::grantAccessTokenByPassword unables to accuire tokens:' + JSON.stringify(result))
-
-      resultPromise
+      @request.get(@endpoints.accessToken, params)
+        .rename('Oauth2::grantAccessTokenByPassword')
+        .map (result) -> [result.access_token, result.refresh_token]
+        .catchIf(
+          (e) -> e instanceof httpError.InvalidResponse and e.response.statusCode == 400
+          -> throw new cordError.AuthError()
+        )
 
 
     grantAccessTokenByRefreshToken: (refreshToken, scope, retries = 1) ->
@@ -264,6 +264,8 @@ define [
         @request.get @endpoints.accessToken, params, (result, err) =>
           if result
             if result.error # this means that refresh token is outdated
+              if result.error == 'invalid_client'
+                _console.error("Invalid clientId or clientSecret", result)
               resultPromise.resolve [null, null]
             else
               resultPromise.resolve [ result.access_token, result.refresh_token ]
