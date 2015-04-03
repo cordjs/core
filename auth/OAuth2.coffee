@@ -41,7 +41,7 @@ define [
       @_clientSecret = global.config.secrets.clientSecret  if global.config?.secrets?.clientSecret?
 
 
-    isAuthFailed: (response, error) ->
+    isAuthFailed: (response) ->
       ###
       Checks whether request results indicate auth failure, and clear tokens if necessary
       ###

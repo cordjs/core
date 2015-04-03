@@ -5,7 +5,8 @@ define [
   'postal'
   'cord!AppConfigLoader'
   'eventemitter3'
-], (Utils, Future, _, postal, AppConfigLoader, EventEmitter) ->
+  'cord!request/errors'
+], (Utils, Future, _, postal, AppConfigLoader, EventEmitter, httpErrors) ->
 
   class Api extends EventEmitter
 
@@ -284,79 +285,70 @@ define [
       @param {Int} retryCount Maximum number of retries before give up in case of errors (where applicable)
       @return {Future[Object]} response object like in curly
       ###
-      resultPromise = Future.single("Api::_doRequest(#{method}, #{url})")
       requestParams = _.clone(params)
       delete requestParams.originalArgs
       @authPromise.then (authModule) =>
-        # TODO @request[method] returns a Future[(data, cord!request/Response)] now. So, we should refactor this handler
-        # TODO into Future handling
-        # TODO Also, we should check X-Target-Host header to override backend host in options
-        @request[method] url, requestParams, (response, error) =>
-          Future.try =>
-            isAuthFailed = authModule.isAuthFailed(response, error)
+        @request[method](url, requestParams).then (result, response) =>
+          # If backend want to change host, override it
+          # Event should be handler by api service factory
+          if response.headers.has('X-Target-Host')
+            @emit('host.changed', response.headers.get('X-Target-Host'))
+          [result, response]
+        .catchIf httpErrors.InvalidResponse, (e) =>
+          # Handle invalid server response. i.e. 401, 403, 500 and etc..
+          # We can not handle here network errors, so, it will throws to external handlers
+          response = e.response
+          isAuthFailed = authModule.isAuthFailed(response.body)
+          # if auth failed normally, we try to resuurect auth and try again
+          if isAuthFailed and not params.skipAuth and retryCount > 0
+            # need to use originalArgs here to workaround situation when API host is changed during request
+            @_prepareRequestArgs(params.originalArgs).then (preparedArgs) =>
+              @_doRequest(preparedArgs.method, preparedArgs.url, preparedArgs.params, retryCount - 1)
 
-            # if auth failed normally, we try to resuurect auth and try again
-            if isAuthFailed and not params.skipAuth and retryCount > 0
-              # need to use originalArgs here to workaround situation when API host is changed during request
-              @_prepareRequestArgs(params.originalArgs).then (preparedArgs) =>
-                @_doRequest(preparedArgs.method, preparedArgs.url, preparedArgs.params, retryCount - 1)
+          # if request failed in other cases
+          else
+            message = response.body?._message ? response.body?.message ? response.statusText
 
-            # if request failed in other cases
-            else if error
-              if error.statusCode or error.message
-                message = error.message if error.message
-                message = error.statusText if error.statusText
+            # Post could make duplicates
+            if method == 'get' and params.reconnect and
+               (not response.statusCode or response.statusCode == 500) and
+               retryCount > 0
 
-                # Post could make duplicates
-                if method == 'get' and params.reconnect and
-                   (not error.statusCode or error.statusCode == 500) and
-                   retryCount > 0
+              _console.warn "WARNING: request to #{url} failed! Retrying after 0.5s..."
 
-                  _console.warn "WARNING: request to #{url} failed! Retrying after 0.5s..."
+              Future.timeout(500).then =>
+                @_doRequest(method, url, params, retryCount - 1)
+            else
+              # handle API errors fallback behaviour if configured
+              errorCode = response.statusCode
+              if errorCode? and @fallbackErrors and @fallbackErrors[errorCode]
+                fallbackInfo = _.clone(@fallbackErrors[errorCode])
+                fallbackInfo.params = _.clone(fallbackInfo.params)
+                # если есть доппараметры у ошибки - добавим их
+                if response.body._params?
+                  fallbackInfo.params.contentParams =
+                    if not fallbackInfo.params.contentParams?
+                      {}
+                    else
+                      _.clone(fallbackInfo.params.contentParams)
+                  fallbackInfo.params.contentParams['params'] = response.body._params
 
-                  Future.timeout(500).then =>
-                    @_doRequest(method, url, params, retryCount - 1)
+                @serviceContainer.get('fallback').fallback(fallbackInfo.widget, fallbackInfo.params)
 
-                else
-                  # handle API errors fallback behaviour if configured
-                  errorCode = response?._code ? error.statusCode
-                  if errorCode? and @fallbackErrors and @fallbackErrors[errorCode]
-                    fallbackInfo = _.clone(@fallbackErrors[errorCode])
-                    fallbackInfo.params = _.clone(fallbackInfo.params)
-                    # если есть доппараметры у ошибки - добавим их
-                    if response._params?
-                      fallbackInfo.params.contentParams =
-                        if not fallbackInfo.params.contentParams?
-                          {}
-                        else
-                          _.clone(fallbackInfo.params.contentParams)
-                      fallbackInfo.params.contentParams['params'] = response._params
+              # otherwise just notify the user
+              else
+                message = 'Ошибка ' + (if response.statusCode != undefined then (' ' + response.statusCode)) + ': ' + message
+                postal.publish 'error.notify.publish',
+                  link: ''
+                  message: message
+                  error: true
+                  timeOut: 30000
 
-                    @serviceContainer.get('fallback').fallback(fallbackInfo.widget, fallbackInfo.params)
-
-                  # otherwise just notify the user
-                  else
-                    message = 'Ошибка ' + (if error.statusCode != undefined then (' ' + error.statusCode)) + ': ' + message
-                    postal.publish 'error.notify.publish',
-                      link: ''
-                      message: message
-                      error: true
-                      timeOut: 30000
-
-              e = new Error(error.message)
               e.url = url
               e.method = method
               e.params = params
-              e.statusCode = error.statusCode
-              e.statusText = error.statusText
-              e.originalError = error
-              e.response = response
+              e.statusCode = response.statusCode
+              e.statusText = response.statusText
+              e.originalError = e
               throw e
-
-            # if everything is all right
-            else
-              response
-
-          .link(resultPromise)
-
-      resultPromise
+      .rename("Api::_doRequest(#{method}, #{url})")

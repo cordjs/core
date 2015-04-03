@@ -50,7 +50,7 @@ define [
 
       startRequest = new Date() if global.config.debug.request
 
-      promise = Future.single("send(#{method}, #{url})")
+      promise = Future.single("ServerRequest::send(#{method}, #{url})")
 
       curly[method] argssss.url, options, (error, curlyResponse, body) =>
         response = Response.fromIncomingMessage(error, curlyResponse)

@@ -57,7 +57,7 @@ define [
 
       startRequest = new Date() if global.config.debug.request
 
-      promise = Future.single("send(#{method}, #{url})")
+      promise = Future.single("BrowserRequest::send(#{method}, #{url})")
 
       window.curly[method] argssss.url, options, (error, xhr, body) =>
         response = Response.fromXhr(error, xhr)

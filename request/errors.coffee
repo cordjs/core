@@ -1,5 +1,4 @@
 define ->
-
   Http: class Http extends Error
     # Abstract, should not be instantiated directly
     constructor: (@message) ->
@@ -22,8 +21,8 @@ define ->
       Http.captureStackTrace?(this, arguments.callee)
 
 
-  Aborted: class Aborted extends Http
+  Aborted: class Aborted extends Network
     constructor: (@message) ->
       @name = 'Aborted'
-      Http.call(this, @message)
-      Http.captureStackTrace?(this, arguments.callee)
+      Network.call(this, @message)
+      Network.captureStackTrace?(this, arguments.callee)
