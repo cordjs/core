@@ -554,7 +554,7 @@ define [
       @_collectedTags[tag] = mods
 
       Defer.nextTick =>
-        _console.log('Emit tags:', @_collectedTags) if _.size(@_collectedTags) > 0
+        _console.log('Emit tags:', @_collectedTags) if _.size(@_collectedTags) > 0 if global.config.debug.model
         @emit('tags', @_collectedTags) if _.size(@_collectedTags) > 0
         @_collectedTags = {}
 

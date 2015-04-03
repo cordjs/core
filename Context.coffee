@@ -271,8 +271,8 @@ define [
         dt = @[':internal'].deferredTimeouts
         clearTimeout(dt[name]) if dt[name]
         dt[name] = setTimeout =>
-          if @[name] == ':deferred'
-            _console.warn "### Deferred timeout for #{@_owner?.constructor.__name}(#{@id}) ctx.#{name}"
+          if @[name] == ':deferred' and @_ownerWidget and not @_ownerWidget.isSentenced()
+            _console.warn "### Deferred timeout for #{@_ownerWidget?.constructor.__name}(#{@id}) ctx.#{name}"
           delete dt[name]
         , timeout
 

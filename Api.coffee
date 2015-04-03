@@ -135,7 +135,6 @@ define [
       ###
       @authTokensAvailable().withoutTimeout().then (available) =>
         if available
-          _console.warn('authTokensReady: auth tokens are not available')
           true
         else
           result = Future.single('authTokensReady')
