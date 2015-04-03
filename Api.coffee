@@ -253,16 +253,15 @@ define [
       @param {Object} args
       @return {Future[Object]}
       ###
-      @authPromise.then (authModule) =>
-        authModule.injectAuthParams(args.url, args.params).spread (url, params) =>
-          method: args.method
-          url:    "#{@options.protocol}://#{@options.host}/#{@options.urlPrefix}#{url}"
-          params: _.extend({ originalArgs: args }, @options.params, params)
-        .catch (e) =>
-          # Auth module failed, so we need to authorize here somehow
-          _console.warn("Auth failed:", e)
-          @options.authenticateUserCallback() if not args.params?.skipAuth
-          throw e
+      @injectAuthParams(args.url, args.params).spread (url, params) =>
+        method: args.method
+        url:    "#{@options.protocol}://#{@options.host}/#{@options.urlPrefix}#{url}"
+        params: _.extend({ originalArgs: args }, @options.params, params)
+      .catch (e) =>
+        # Auth module failed, so we need to authorize here somehow
+        _console.warn("Auth failed:", e)
+        @options.authenticateUserCallback() if not args.params?.skipAuth
+        throw e
 
 
     prepareAuth: ->
@@ -273,6 +272,13 @@ define [
         authModule.prepareAuth().catch (e) =>
           @options.authenticateUserCallback()
           throw e
+
+
+    injectAuthParams: (url, params) ->
+      ###
+      Injects auth params to passed url and params
+      ###
+      @authPromise.then (authModule) => authModule.injectAuthParams(url, params)
 
 
     _doRequest: (method, url, params, retryCount = 5) ->

@@ -230,6 +230,7 @@ define [
         username: user
         password: password
         client_id: @_clientId
+        client_secret: @_clientSecret
         scope: scope
         json: true
 
@@ -263,6 +264,8 @@ define [
         @request.get @endpoints.accessToken, params, (result, err) =>
           if result
             if result.error # this means that refresh token is outdated
+              if result.error == 'invalid_client'
+                _console.error("Invalid clientId or clientSecret", result)
               resultPromise.resolve [null, null]
             else
               resultPromise.resolve [ result.access_token, result.refresh_token ]
