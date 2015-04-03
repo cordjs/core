@@ -136,7 +136,7 @@ define [
 
       # Read more: http://perfectionkills.com/detecting-event-support-without-browser-sniffing/
       clickEventType = if 'ontouchstop' of document.documentElement then 'touchstop' else 'click'
-      $(document).on clickEventType, 'a:not([data-bypass],[target="_blank"])', (event) ->
+      $(document).on clickEventType, 'a:not([data-bypass],[target="_blank"],[target="_system"])', (event) ->
         # Default behaviour for anchors if any modification key pressed
         return if event.metaKey or event.ctrlKey or event.altKey or event.shiftKey
 
