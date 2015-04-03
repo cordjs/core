@@ -23,6 +23,15 @@ define [
       @refreshTokenParamName = 'refresh_token'
       @options = @config.oauth2
       @endpoints = @options.endpoints
+      @clientId = @options.clientId
+
+      # User XDRS if needed, proxy it through XDRS on browser
+      @clientSecret =
+        if @config?.secrets?.clientSecret
+          @config.secrets?.clientSecret
+        else
+          '#{clientSecret}'
+
       if not @endpoints or not @endpoints.accessToken
         throw new Error('Oauth2::constructor error: at least endpoints.accessToken must be defined.')
 
@@ -194,7 +203,8 @@ define [
       resultPromise = Future.single('Oauth2::_grantAccessTokenByExtensions')
       requestParams =
         grant_type: url
-        client_id: @options.clientId
+        client_id: @clientId
+        client_secret: @clientSecret
         scope: scope
         json: true
 
@@ -218,7 +228,8 @@ define [
         grant_type: 'password'
         username: user
         password: password
-        client_id: @options.clientId
+        client_id: @clientId
+        client_secret: @clientSecret
         scope: scope
         json: true
 
@@ -241,15 +252,9 @@ define [
       ###
       params =
         grant_type: 'refresh_token'
-        client_id: @options.clientId
+        client_id: @clientId
+        client_secret: @clientSecret
         scope: scope
-
-      # User XDRS if needed, proxy it through XDRS on browser
-      params['client_secret'] =
-        if @config?.secrets?.clientSecret
-          @config.secrets?.clientSecret
-        else
-          '#{clientSecret}'
 
       params[@refreshTokenParamName] = refreshToken
 
@@ -258,6 +263,8 @@ define [
         @request.get @endpoints.accessToken, params, (result, err) =>
           if result
             if result.error # this means that refresh token is outdated
+              if result.error == 'invalid_client'
+                _console.error("Invalid clientId or clientSecret", params)
               resultPromise.resolve [null, null]
             else
               resultPromise.resolve [ result.access_token, result.refresh_token ]

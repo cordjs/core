@@ -99,7 +99,7 @@ define [
                 @redirect("/#{loginUrl}/?back=#{request.url}", response)
                 clear()
             .catch (error) ->
-              _console.error('Unable to obtain loginUrl or logoutUrl, please, check configs:' + error)
+              _console.error('Unable to obtain loginUrl or logoutUrl, please, check configs:' + error.trace())
 
           false
 
