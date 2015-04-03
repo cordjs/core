@@ -624,9 +624,12 @@ define [
       Returns the future already resolved with the given arguments.
       @return Future
       ###
-      result = @single(':resolved:')
-      result.resolve.apply(result, arguments)
-      result
+      if arguments.length
+        result = @single(':resolved:')
+        result.resolve.apply(result, arguments)
+        result
+      else
+        preallocatedResolvedEmptyPromise
 
 
     @rejected: (error) ->
@@ -840,5 +843,6 @@ define [
   unhandledTrackingEnabled = !!global.config?.debug.future.trackUnhandled.enable
   initUnhandledTracker() if unhandledTrackingEnabled
 
+  preallocatedResolvedEmptyPromise = Future.single(':empty:').resolve()
 
   Future

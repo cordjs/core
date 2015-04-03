@@ -26,6 +26,9 @@ define [
     templateLoader.loadTemplate tmplPath, ->
       callback null, ''
 
+  # special shared promise for the empty struct templates to avoid redundant promise allocation
+  predefinedEmptyRawStructPromise = Future.resolved({})
+
 
   class Widget extends Module
     @include Monologue.prototype
@@ -190,6 +193,10 @@ define [
           Future.require('cord!css/browserManager').then (cssManager) =>
             promises = (cssManager.load(cssFile) for cssFile in @::getCssFiles())
             Future.sequence(promises)
+          .then =>
+            # memory optimization
+            @_cssPromise = Future.resolved()
+            return
         else
           Future.resolved()
 
@@ -277,7 +284,7 @@ define [
 
       if isBrowser
         @_browserInitialized = true
-        @_widgetReadyPromise = Future.single(@debug('_widgetReadyPromise.resolved')).resolve()
+        @_widgetReadyPromise = Future.resolved()
         @_shownPromise = Future.single('Widget::_shownPromise ' + @constructor.__name)
 
         # Restoring translator helper by saved context
@@ -660,10 +667,12 @@ define [
         if not @constructor._rawStructPromise
           tmplStructureFile = "bundles/#{ @getTemplatePath() }.struct"
           @constructor._rawStructPromise = Future.require(tmplStructureFile)
-        @constructor._rawStructPromise.map (struct) =>
+        @constructor._rawStructPromise.then (struct) =>
           if struct.widgets? and Object.keys(struct.widgets).length > 1
             @_structTemplate = new StructureTemplate(struct, this)
           else
+            # memory optimization for empty templates
+            @constructor._rawStructPromise = predefinedEmptyRawStructPromise
             @_structTemplate = StructureTemplate.emptyTemplate()
           @_structTemplate
 
@@ -755,7 +764,10 @@ define [
         else
           @_renderSelfTemplate(domInfo)
 
-      @_renderPromise = result.then -> return # do not keep rendered template string to allow GC
+      @_renderPromise = savedRenderPromise = result.then =>
+        # memory optimization
+        @_renderPromise = Future.resolved()  if @_renderPromise == savedRenderPromise
+        return # do not keep rendered template string to allow GC
 
       result
 
@@ -776,6 +788,8 @@ define [
         @_saveContextVersionForBehaviourSubscriptions()
         @_domInfo = domInfo
         result = Future.call(dust.render, tmplPath, @getBaseContext().push(@ctx))
+        result.finally =>
+          @_domInfo = null # free for GC
         @markRenderFinished()
         result
 
@@ -871,7 +885,10 @@ define [
         templateLoader.loadToDust(tmplPath).then =>
           @_saveContextVersionForBehaviourSubscriptions()
           @_domInfo = DomInfo.merge([@_domInfo, domInfo], inlineName + " " + tmplPath)
-          Future.call(dust.render, tmplPath, @getBaseContext().push(@ctx))
+          result = Future.call(dust.render, tmplPath, @getBaseContext().push(@ctx))
+          result.finally =>
+            @_domInfo = null # free for GC
+          result
       else
         Future.rejected(new Error("Trying to render unknown inline (name = #{ inlineName })!"))
 
@@ -1556,15 +1573,19 @@ define [
             @ctx.replayStashedEvents()
             selfInitBehaviour = true
 
-          @_widgetReadyPromise.when(Future.sequence(readyConditions)).done =>
+          savedPromiseForTimeoutCheck = @_widgetReadyPromise
+          Future.sequence(readyConditions).then =>
             if @_browserInitDebugTimeout
               clearTimeout(@_browserInitDebugTimeout)
               @_browserInitDebugTimeout = null
-            @emit 'render.complete'
+            return # leave _widgetReadyPromise clean to ease GC
+          .link(@_widgetReadyPromise)
+          .then =>
+            # memory optimization
+            @_widgetReadyPromise = Future.resolved() if @_widgetReadyPromise == savedPromiseForTimeoutCheck
 
           # This code is for debugging puroses: it clarifies if there are some bad situations
           # when widget doesn't become ready at all even after 5 seconds. Likely that points to some errors in logic.
-          savedPromiseForTimeoutCheck = @_widgetReadyPromise
           savedConstructorCssPromise = @constructor._cssPromise
           @_browserInitDebugTimeout = setTimeout =>
             if not childWidgetsReadyPromise.completed()
@@ -1641,6 +1662,7 @@ define [
         # this redundancy can be removed when inline-generated widgets will have appropriate detection and separation API
         @_shown = true
         @_shownPromise?.resolve()
+        @_shownPromise = Future.resolved() # memory optimization
         @emit 'show'
 
 
@@ -1702,13 +1724,15 @@ define [
           if params.type.substr(0, 2) == './'
             params.type = "//#{@constructor.relativeDir}#{params.type.substr(1)}"
 
+          contextDomInfo = @_domInfo
+
           chunk.map (chunk) =>
             normalizedName = if params.name then params.name.trim() else undefined
             normalizedName = undefined if not normalizedName
 
             timeout = if params.timeout? then parseInt(params.timeout) else -1
             hasTimeout = isBrowser and timeout >= 0
-            timeoutDomInfo = if hasTimeout then new DomInfo(@debug('#widget::timeout')) else @_domInfo
+            timeoutDomInfo = if hasTimeout then new DomInfo(@debug('#widget::timeout')) else contextDomInfo
 
             @getStructTemplate().then (tmpl) =>
               # creating widget from the structured template or not depending on it's existence and name
@@ -1731,13 +1755,13 @@ define [
               .then (out) =>
                 if not complete
                   complete = true
-                  timeoutDomInfo.completeWith(@_domInfo) if hasTimeout
+                  timeoutDomInfo.completeWith(contextDomInfo) if hasTimeout
                   @childWidgetComplete()
                   chunk.end(widget.renderRootTag(out))
                 else
-                  TimeoutStubHelper.replaceStub(out, widget, @_domInfo).then ($newRoot) =>
+                  TimeoutStubHelper.replaceStub(out, widget, contextDomInfo).then ($newRoot) =>
                     timeoutDomInfo.setDomRoot($newRoot)
-                    timeoutDomInfo.domInserted().when(@_domInfo.domInserted())
+                    timeoutDomInfo.domInserted().when(contextDomInfo.domInserted())
                     return
                   .catchIf (err) ->
                     err instanceof errors.WidgetDropped or err instanceof errors.WidgetSentenced

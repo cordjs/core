@@ -58,11 +58,18 @@ define [
       if not @_loadedFiles[normPath]?
         if not @_cssToGroup[normPath]
           @_loadedFiles[normPath] = @_loadLink("#{ cssPath }?release=#{ global.config.static.release }")
+          @_loadedFiles[normPath].then =>
+            # memory optimization
+            @_loadedFiles[normPath] = Future.resolved()
           @_loadingOrder.push(normPath)
         else
           groupId = @_cssToGroup[normPath]
-          loadFuture = @_loadLink("/assets/z/#{groupId}.css")
-          @_loadedFiles[css] = loadFuture for css in @_groupToCss[groupId]
+          loadPromise = @_loadLink("/assets/z/#{groupId}.css")
+          @_loadedFiles[css] = loadPromise for css in @_groupToCss[groupId]
+          loadPromise.then =>
+            # memory optimization
+            @_loadedFiles[css] = Future.resolved() for css in @_groupToCss[groupId]
+
       else if @_loadedFiles[normPath] == true
         @_loadedFiles[normPath] = Future.resolved()
       @_loadedFiles[normPath]
