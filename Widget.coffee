@@ -749,11 +749,15 @@ define [
       @_placeholdersRenderInfo = []
       @_deferredBlockCounter = 0
 
-      @_renderPromise = @getStructTemplate().flatMap (tmpl) =>
+      result = @getStructTemplate().then (tmpl) =>
         if tmpl.isExtended()
           @_renderExtendedTemplate(tmpl, domInfo)
         else
           @_renderSelfTemplate(domInfo)
+
+      @_renderPromise = result.then -> return # do not keep rendered template string to allow GC
+
+      result
 
 
     _renderSelfTemplate: (domInfo) ->
