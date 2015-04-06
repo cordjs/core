@@ -11,7 +11,7 @@ define [
 
     @inject: ['cookie']
 
-    @cookieName = '_runtime_config_values'
+    @cookieName: '_runtime_config_values'
 
 
     constructor: ->
@@ -30,13 +30,21 @@ define [
       Sets a parameter's value by it's name.
       Name should be without % on edges
       ###
-      @parameters[name] = value;
+      @parameters[name] = value
       @_saveParameters()
 
       @emit('setParameter',
         name: name,
         value: value
       )
+
+
+    getParameter: (name) ->
+      ###
+      Gets a parameter's value by it's name.
+      Name should be without % on edges
+      ###
+      @parameters[name]
 
 
     clearParameters: ->

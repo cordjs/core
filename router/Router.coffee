@@ -167,7 +167,7 @@ define ['underscore'], (_) ->
         namedParamInRe.lastIndex = 0
         while (match = namedParamInRe.exec(path)) != null
           @names.push(match[1])
-        path = path.replace(namedParamInRe, '([^\/]+)')
+        path = path.replace(namedParamInRe, '([^\/\?]+)')
 
         @route = new RegExp(path)
 
