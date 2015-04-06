@@ -291,7 +291,7 @@ define [
             if elapsed > deferredTimeout
               if info.ctx[name] == ':deferred'
                 _console.warn "### Deferred timeout (#{elapsed / 1000} s) " +
-                              "for #{ctx._ownerWidget?.constructor.__name}(#{id}) <<< ctx.#{name} >>>"
+                              "for #{info.ctx._ownerWidget?.constructor.__name}(#{id}) <<< ctx.#{name} >>>"
               delete deferredTrackMap[id][name]
               delete deferredTrackMap[id]  if _.isEmpty(deferredTrackMap[id])
 
