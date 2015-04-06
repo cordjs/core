@@ -8,6 +8,9 @@ define [
   unhandledSoftTracking = false
   unhandledMap = null
 
+  unresolvedTrackingEnabled = false
+  unresolvedMap = null
+
   logOriginStackTrace = !!global.config?.debug.future.logOriginStackTrace
 
   # environment-dependent console object
@@ -55,7 +58,7 @@ define [
       if logOriginStackTrace
         @_stack = (new Error).stack
 
-      @_initDebugTimeout() if @_counter > 0
+      @_initDebugTimeout() if unresolvedTrackingEnabled
       @_initUnhandledTracking() if unhandledTrackingEnabled
 
 
@@ -91,7 +94,6 @@ define [
         throw new Error("Trying to use the completed future [#{@_name}]!")
       throw new Error("Trying to fork locked future [#{@_name}]!") if @_locked
       @_counter++
-      @_initDebugTimeout() if @_counter == 1
       this
 
 
@@ -114,7 +116,7 @@ define [
             @_runDoneCallbacks() if @_doneCallbacks.length > 0
             @_runAlwaysCallbacks() if @_alwaysCallbacks.length > 0
             @_clearFailCallbacks() if @_state == 'resolved'
-            @_clearDebugTimeout()
+            @_clearDebugTimeout() if unresolvedTrackingEnabled
           # not changing state to 'resolved' here because it is possible to call fork() again if done hasn't called yet
       else
         nameStr = if @_name then " (name = #{@_name})" else ''
@@ -141,7 +143,7 @@ define [
           @_runFailCallbacks() if @_failCallbacks.length > 0
           @_runAlwaysCallbacks() if @_alwaysCallbacks.length > 0
           @_clearDoneCallbacks()
-          @_clearDebugTimeout()
+          @_clearDebugTimeout() if unresolvedTrackingEnabled
       else
         throw new Error(
           "Future::reject is called more times than Future::fork! [#{@_name}], state = #{@_state}, [#{@_callbackArgs}]"
@@ -202,7 +204,7 @@ define [
       if @_state != 'rejected'
         @_doneCallbacks.push(callback)
         if @_counter == 0
-          @_clearDebugTimeout()
+          @_clearDebugTimeout()  if unresolvedTrackingEnabled
           Defer.nextTick =>
             @_runDoneCallbacks()
             @_clearFailCallbacks()
@@ -219,7 +221,7 @@ define [
       if @_state != 'resolved'
         @_failCallbacks.push(callback)
         if @_state == 'rejected'
-          @_clearDebugTimeout()
+          @_clearDebugTimeout() if unresolvedTrackingEnabled
           Defer.nextTick =>
             @_runFailCallbacks()
       @_clearUnhandledTracking() if unhandledTrackingEnabled
@@ -234,7 +236,7 @@ define [
       ###
       @_alwaysCallbacks.push(callback)
       if @_counter == 0 or @_state == 'rejected'
-        @_clearDebugTimeout()
+        @_clearDebugTimeout() if unresolvedTrackingEnabled
         Defer.nextTick =>
           @_runAlwaysCallbacks()
           @_clearFailCallbacks() if @_state == 'resolved'
@@ -624,9 +626,12 @@ define [
       Returns the future already resolved with the given arguments.
       @return Future
       ###
-      result = @single(':resolved:')
-      result.resolve.apply(result, arguments)
-      result
+      if arguments.length
+        result = @single(':resolved:')
+        result.resolve.apply(result, arguments)
+        result
+      else
+        preallocatedResolvedEmptyPromise
 
 
     @rejected: (error) ->
@@ -726,27 +731,21 @@ define [
       Mark that Future's normal behaviour is to wait forever
       For instance a Future that depends on user's input
       ###
-      @_clearDebugTimeout()
+      @_clearDebugTimeout()  if unresolvedTrackingEnabled
       @_noTimeout = true
       this
 
 
 
     _initDebugTimeout: ->
-      timeout = global.config?.debug.future.timeout
-      if timeout > 0 and @_name.indexOf('_shownPromise') < 0 and @_name.indexOf('_widgetReadyPromise') < 0
-        @_incompleteTimeout = setTimeout =>
-          if @state() == 'pending' and @_counter > 0
-            reportArgs = ["Future timed out [#{@_name}] (#{timeout/1000} seconds), counter = #{@_counter}"]
-            reportArgs.push(@_stack)  if @_stack
-            cons().warn.apply(cons(), reportArgs)
-        , timeout
+      @_trackId or= _.uniqueId()
+      unresolvedMap[@_trackId] =
+        startTime: (new Date).getTime()
+        promise: this
 
 
     _clearDebugTimeout: ->
-      if @_incompleteTimeout?
-        clearTimeout(@_incompleteTimeout)
-        @_incompleteTimeout = null
+      delete unresolvedMap[@_trackId]
 
 
     _clearDoneCallbacks: ->
@@ -765,7 +764,7 @@ define [
       @_clearDoneCallbacks()
       @_clearFailCallbacks()
       @_alwaysCallbacks = []
-      @_clearDebugTimeout()
+      @_clearDebugTimeout() if unresolvedTrackingEnabled
       @_clearUnhandledTracking() if unhandledTrackingEnabled
 
 
@@ -775,7 +774,7 @@ define [
       ###
       Registers the promise to the unhandled failure tracking map.
       ###
-      @_trackId = _.uniqueId()
+      @_trackId or= _.uniqueId()
       unhandledMap[@_trackId] =
         startTime: (new Date).getTime()
         promise: this
@@ -805,24 +804,38 @@ define [
 
 
 
-  initUnhandledTracker = ->
+  initTimeoutTracker = ->
     ###
     Initializes infinite checking of promises with unhandled failure result.
     ###
     unhandledSoftTracking = !!global.config?.debug.future.trackUnhandled.soft
     interval = parseInt(global.config?.debug.future.trackUnhandled.interval)
-    timeout = parseInt(global.config?.debug.future.trackUnhandled.timeout)
+    unhandledTimeout = parseInt(global.config?.debug.future.trackUnhandled.timeout)
+    unresolvedTimeout = parseInt(global.config?.debug.future.timeout)
     unhandledMap = {}
+    unresolvedMap = {}
     if interval > 0
-      setInterval =>
+      setInterval ->
         curTime = (new Date).getTime()
+
+        for id, info of unresolvedMap
+          elapsed = curTime - info.startTime
+          if elapsed > unresolvedTimeout
+            pr = info.promise
+            if pr.state() == 'pending' and pr._counter > 0
+              reportArgs = ["Future timed out [#{pr._name}] (#{elapsed / 1000} seconds), counter = #{pr._counter}"]
+              reportArgs.push(pr._stack)  if pr._stack
+              cons().warn.apply(cons(), reportArgs)
+            delete unresolvedMap[id]
+
         for id, info of unhandledMap
-          if curTime - info.startTime > timeout
+          elapsed = curTime - info.startTime
+          if elapsed > unhandledTimeout
             state = info.promise.state()
             if state != 'pending'
               reportArgs = [
                 "Unhandled rejection detected for [#{state}] Future[#{info.promise._name}] " +
-                  "after #{(curTime - info.startTime) / 1000 } seconds!"
+                  "after #{elapsed / 1000} seconds!"
               ]
               if state == 'rejected'
                 err = info.promise._callbackArgs[0]
@@ -833,7 +846,8 @@ define [
 
 
   unhandledTrackingEnabled = !!global.config?.debug.future.trackUnhandled.enable
-  initUnhandledTracker() if unhandledTrackingEnabled
-
+  unresolvedTrackingEnabled = !!global.config?.debug.future.timeout
+  initTimeoutTracker()  if unhandledTrackingEnabled or unresolvedTrackingEnabled
+  preallocatedResolvedEmptyPromise = Future.single(':empty:').resolve()
 
   Future
