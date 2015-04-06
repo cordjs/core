@@ -259,7 +259,7 @@ define [
       ###
       Prevents debug timeouts for deferred values to be redundantly logged when the owner widget is going to die
       ###
-      delete deferredTrackMap[@id]
+      delete deferredTrackMap[@id] if deferredTrackingEnabled
 
 
     _initDeferredDebug: (name) ->
