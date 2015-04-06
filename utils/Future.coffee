@@ -815,7 +815,7 @@ define [
     unhandledMap = {}
     unresolvedMap = {}
     if interval > 0
-      setInterval =>
+      setInterval ->
         curTime = (new Date).getTime()
 
         for id, info of unresolvedMap
