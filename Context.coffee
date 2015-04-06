@@ -9,6 +9,11 @@ define [
   'cord!isBrowser'
 ], (Collection, Model, Defer, Future, postal, _, _console, isBrowser) ->
 
+  # support for deferred timeout tracking
+  deferredTrackingEnabled = false
+  deferredTrackMap = null
+
+
   class Context
 
     constructor: (arg1, arg2) ->
@@ -29,7 +34,7 @@ define [
 
       for key, value of initCtx
         @[key] = value
-        @_initDeferredDebug(key)
+        @_initDeferredDebug(key)  if value == ':deferred' and deferredTrackingEnabled
 
 
     setOwnerWidget: (owner) ->
@@ -90,7 +95,7 @@ define [
         if @[name] == ':deferred'
           # if the current value special :deferred than event should be triggered even if the new value is null
           triggerChange = (newValue != ':deferred')
-          @_clearDeferredDebug(name) if triggerChange
+          @_clearDeferredDebug(name)  if triggerChange and deferredTrackingEnabled
           # stashing should be turned off for modifying from :deferred except the value has become :deferred during
           #  widget template rendering (when stashing is enabled)
           stashChange = @[':internal'].deferredStash?[name]
@@ -102,10 +107,10 @@ define [
             triggerChange = (newValue != null)
           else
             triggerChange = (newValue != oldValue)
+
+          @_initDeferredDebug(name)  if newValue == ':deferred' and deferredTrackingEnabled
       else
         triggerChange = false
-
-#      _console.log "setSingle -> #{ name } = #{ newValue } (oldValue = #{ @[name] }) trigger = #{ triggerChange } -> #{ (new Date).getTime() }"
 
       # never change value to 'undefined' (don't mix up with 'null' value)
       @[name] = newValue if newValue != undefined
@@ -139,8 +144,6 @@ define [
             cursor: cursor
             version: curVersion
           callbackPromise.resolve() if callbackPromise
-
-      @_initDeferredDebug(name)
 
       triggerChange
 
@@ -256,27 +259,48 @@ define [
       ###
       Prevents debug timeouts for deferred values to be redundantly logged when the owner widget is going to die
       ###
-      if @[':internal'].deferredTimeouts?
-        clearTimeout(timeout) for name, timeout of @[':internal'].deferredTimeouts
-        @[':internal'].deferredTimeouts = null
+      delete deferredTrackMap[@id]
 
 
     _initDeferredDebug: (name) ->
-      timeout = global.config?.debug.deferred.timeout
-
-      if @[name] == ':deferred' and timeout > 0
-        @[':internal'].deferredTimeouts ?= {}
-        dt = @[':internal'].deferredTimeouts
-        clearTimeout(dt[name]) if dt[name]
-        dt[name] = setTimeout =>
-          if @[name] == ':deferred'
-            _console.warn "### Deferred timeout for #{@_owner?.constructor.__name}(#{@id}) ctx.#{name}"
-          delete dt[name]
-        , timeout
+      deferredTrackMap[@id] or= {}
+      deferredTrackMap[@id][name] =
+        startTime: (new Date).getTime()
+        ctx: this
 
 
     _clearDeferredDebug: (name) ->
-      dt = @[':internal'].deferredTimeouts
-      if dt and dt[name]
-        clearTimeout(dt[name])
-        delete dt[name]
+      delete deferredTrackMap[@id][name]
+      delete deferredTrackMap[@id]  if _.isEmpty(deferredTrackMap[@id])
+
+
+
+  initTimeoutTracker = (interval) ->
+    ###
+    Initializes infinite checking of deferred values that are not resolved until configured timeout.
+    ###
+    deferredTimeout = parseInt(global.config?.debug.deferred.timeout)
+    deferredTrackMap = {}
+    if interval > 0
+      setInterval ->
+        curTime = (new Date).getTime()
+
+        for id, names of deferredTrackMap
+          for name, info of names
+            elapsed = curTime - info.startTime
+            if elapsed > deferredTimeout
+              if info.ctx[name] == ':deferred'
+                _console.warn "### Deferred timeout (#{elapsed / 1000} s) " +
+                              "for #{ctx._ownerWidget?.constructor.__name}(#{id}) <<< ctx.#{name} >>>"
+              delete deferredTrackMap[id][name]
+              delete deferredTrackMap[id]  if _.isEmpty(deferredTrackMap[id])
+
+      , interval
+
+
+  interval = parseInt(global.config?.debug.deferred.checkInterval)
+  deferredTrackingEnabled = !!global.config?.debug.deferred.timeout and interval > 0
+  initTimeoutTracker(interval)  if deferredTrackingEnabled
+
+
+  Context
