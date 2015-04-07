@@ -761,6 +761,8 @@ define [
       Way to eliminate any impact of resolving or rejecting or time-outing of this promise.
       Should be used when actions that are waiting for this promise completion are no more needed.
       ###
+      # preallocated empty promise is shared and should never be cleaned, as it can break logic in another place
+      return if this == preallocatedResolvedEmptyPromise
       @_clearDoneCallbacks()
       @_clearFailCallbacks()
       @_alwaysCallbacks = []
