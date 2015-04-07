@@ -63,7 +63,7 @@ define [
           args.push @_trace(3).split("\n")[0]
 
         method = if console[type] then type else 'log'
-        console[method](stringify(addDate(args)))
+        console[method].apply(console, addDate(args))
 
 
     log: (args...) ->

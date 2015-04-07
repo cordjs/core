@@ -1384,7 +1384,7 @@ define [
 
         # may be the child was firstly registered without name and then re-resitered with name
         @childByName[name] = child if name?
-      else if global.config.debug.widget
+      else
         throw new errors.WidgetSentenced(
           "Couldn't register child #{child.constructor.__name} because parent #{@constructor.__name} is sentenced!"
         )
