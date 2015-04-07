@@ -82,6 +82,9 @@ define [
     _shownPromise: null
     _shown: false
 
+    # flag pointing that the widget is going to be dropped
+    _sentenced: false
+
     # temporary helper data container for inline-block processing
     _inlinesRuntimeInfo: null
 
