@@ -1584,6 +1584,7 @@ define [
             return # leave _widgetReadyPromise clean to ease GC
           .link(@_widgetReadyPromise)
           .then =>
+            @emit 'render.complete'
             # memory optimization
             @_widgetReadyPromise = Future.resolved() if @_widgetReadyPromise == savedPromiseForTimeoutCheck
 
