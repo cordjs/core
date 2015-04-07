@@ -82,6 +82,9 @@ define [
     _shownPromise: null
     _shown: false
 
+    # flag pointing that the widget is going to be dropped
+    _sentenced: false
+
     # temporary helper data container for inline-block processing
     _inlinesRuntimeInfo: null
 
@@ -1581,6 +1584,7 @@ define [
             return # leave _widgetReadyPromise clean to ease GC
           .link(@_widgetReadyPromise)
           .then =>
+            @emit 'render.complete'
             # memory optimization
             @_widgetReadyPromise = Future.resolved() if @_widgetReadyPromise == savedPromiseForTimeoutCheck
 
