@@ -102,7 +102,7 @@ define [
       if output.errorTrace
         error = _.find(args, (item) -> item and item.stack)
         if error and error.stack
-          trace = error.stack.split("\n").slice(1).join("\n")
+          trace = error.stack
           # Remove errors from args. We already have a stack trace
           args = _.filter args, (item) -> not item.stack
         addErrorTrace args, trace
