@@ -149,7 +149,7 @@ define [
         @_runAlwaysCallbacks() if @_alwaysCallbacks.length > 0
         @_clearDoneCallbacks()
         @_clearDebugTimeout() if unresolvedTrackingEnabled
-        @_clearUnhandledTracking() if unhandledTrackingEnabled and errors.isInternal(err)
+        @_clearUnhandledTracking() if unhandledTrackingEnabled and err and errors.isInternal(err)
       this
 
 
