@@ -35,7 +35,7 @@ define [
 
 
   addErrorTrace = (args, trace) ->
-    args.push(trace) if trace
+    args.push("\n" + trace) if trace
     args
 
 
@@ -44,8 +44,15 @@ define [
     System console wrapper with nice configurable debugging and logging features
     ###
 
-    _trace: (linesFrom = 0) ->
-      (new Error).stack.split("\n").slice(linesFrom+1).join("\n")
+    _trace: () ->
+      ###
+      Smart trace. It removes all lines inside Console.coffee so the first line will be the caller.
+      ###
+      lines = (new Error).stack.split("\n").slice(1)
+      # There should be a better way :(
+      while (lines[0]?.indexOf('/cord/core/Console.') >= 0)
+        lines = lines.slice(1)
+      lines.join("\n")
 
 
     _log: (type, args) ->
@@ -56,14 +63,15 @@ define [
             message: stringify(args)
             console: true
 
-        # We need trace only for error messages
-        if output.errorTrace and (type == 'error' or type == 'warn')
-          addErrorTrace args, @_trace(3)
+        # Add trace information for non-error types
+        if output.errorTrace and (type == 'warn' or type == 'error')
+          addErrorTrace args, "    ------------------\n" + @_trace()
         else
-          args.push @_trace(3).split("\n")[0]
+          args.push @_trace().split("\n")[0]
 
         method = if console[type] then type else 'log'
-        console[method].apply(console, addDate(args))
+        args.unshift "[#{type}]"
+        console[method] addDate(args).join(" ")
 
 
     log: (args...) ->
@@ -75,11 +83,11 @@ define [
 
 
     error: (args...) ->
-      @_taggedError @_trace(2), ['error'], args
+      @_taggedError @_trace(), ['error'], args
 
 
     taggedError: (tags, args...) ->
-      @_taggedError @_trace(2), tags, args
+      @_taggedError @_trace(), tags, args
 
 
     _taggedError: (trace, tags, args) ->
@@ -94,7 +102,9 @@ define [
       if output.errorTrace
         error = _.find(args, (item) -> item and item.stack)
         if error and error.stack
-          trace = error.stack
+          trace = error.stack.split("\n").slice(1).join("\n")
+          # Remove errors from args. We already have a stack trace
+          args = _.filter args, (item) -> not item.stack
         addErrorTrace args, trace
 
       errorType = (error and error.type) or 'error'
