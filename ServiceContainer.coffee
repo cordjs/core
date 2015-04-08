@@ -112,7 +112,7 @@ define [
 
         deps = _.object(def.deps, services)
         get = (name) ->
-          if deps[name]?
+          if _(deps).has(name)
             deps[name]
           else
             throw new Error("Service #{name} is not loaded yet. Did you forget to specify it in `deps` section?")
