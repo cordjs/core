@@ -576,10 +576,9 @@ define [
       @_alwaysCallbacks = []
       @_completed = true
 
-      args = []
       if @_state == 'resolved'
         # for successfully completed future we must add null-error first argument.
-        args.push(null)
+        args = [null]
         if @_callbackArgs?
           len = if @_order > 0 then @_order else @_callbackArgs.length
           for i in [0..len-1]
