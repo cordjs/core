@@ -593,10 +593,9 @@ define [
 
       # This is actually for debugging purposes
       if isNaN(startPage) or isNaN(maxPages) or startPage < 1 or maxPages <1
-        return _console.error('collection.partialRefresh called with wront parameters startPage, maxPages',
-        startPage,
-        maxPages,
-        new Error())
+        error =  new Error("collection.partialRefresh called with wront parameters startPage: #{startPage}, maxPages: #{maxPage}")
+        _console.error(error)
+        return Future.rejected(error)
 
       if minRefreshInterval >= 0 and @getLastQueryTimeDiff() > minRefreshInterval
         @_refreshInProgress = true
@@ -604,6 +603,8 @@ define [
           @_fullReload()
         else
           @_simplePageRefresh(startPage, maxPages)
+      else
+        Future.resolved()
 
 
     refresh: (currentId, maxPages = @_defaultRefreshPages, minRefreshInterval = 0, emitModelChangeExcept = true) ->
@@ -679,8 +680,9 @@ define [
       ###
       # _console.log "#{ @repo.restResource } _simplePageRefresh: (startPage=#{startPage}, maxPages=#{maxPages}, loadedPages=#{loadedPages}) ->"
       if startPage < 1 or maxPages < 1
-        _console.error('collection._simplePageRefresh got bad parameters.', new Error())
-
+        error = new Error('collection._simplePageRefresh got bad parameters.')
+        _console.error(error)
+        Future.rejected(error)
       else
         start = (startPage - 1) * @_pageSize
         end = startPage * @_pageSize - 1
@@ -691,6 +693,7 @@ define [
             @_simplePageRefresh(startPage + 1, maxPages, loadedPages + 1)
         else
           @_refreshInProgress = false
+          Future.resolved()
 
 
     _sophisticatedRefreshPage: (page, startPage, endPage, maxPages = @_defaultRefreshPages, direction = 'down', loadedPages = 0) ->

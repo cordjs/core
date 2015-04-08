@@ -78,12 +78,12 @@ define [
       _console.clear() if global.config.console.clear
 
       newPath = '/' + newPath if newPath.charAt(0) != '/'
-      return if @_currentPath == newPath
+      return Future.resolved() if @_currentPath == newPath
 
       if window.systemPageRefresh != undefined and window.systemPageRefresh == true
         postal.publish 'mp2.was.updated'
         window.location.replace(newPath)
-        return
+        return Future.resolved()
 
       if @_noPageReload
         if @process(newPath)

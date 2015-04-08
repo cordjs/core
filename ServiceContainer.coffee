@@ -13,7 +13,6 @@ define [
 
   class ServiceContainer # extends Container
 
-
     constructor: ->
       # registered definitions. Keys are name, values are instance of ServiceDefinition
       @_definitions = {}
@@ -108,8 +107,16 @@ define [
       def = @_definitions[name]
       @_pendingFactories[name] = Future.single("Factory of service #{name}")
       # Ensure, that all of dependencies are loaded before factory call
-      Future.sequence(def.deps.map((dep) => @getService(dep)), "Deps for `#{name}`").then =>
+      Future.sequence(def.deps.map((dep) => @getService(dep)), "Deps for `#{name}`").then (services) =>
         # call a factory with 2 parameters, get & done. On done resolve a result.
+
+        deps = _.object(def.deps, services)
+        get = (name) ->
+          if deps[name]?
+            deps[name]
+          else
+            throw new Error("Service #{name} is not loaded yet. Did you forget to specify it in `deps` section?")
+
         locked = false
         done = (err, instance) =>
           try
@@ -128,17 +135,17 @@ define [
 
         res =
           try
-            def.factory(@get, done)
+            def.factory(get, done)
           catch factoryError
             factoryError
 
-        if def.factory.length < 2
+        if res instanceof Error
+          done(res)
+        else if def.factory.length < 2
           if res instanceof Future
             res
               .then (instance) => done(null, instance)
               .catch (error) => done(error)
-          else if res instanceof Error
-            done(res)
           else
             done(null, res)
       .catch (e) =>
@@ -160,7 +167,7 @@ define [
       Gets service in a synchronized mode. This method passed as `get` callback to factory of service def
       ###
       if not @isReady(name)
-        throw new Error("Service #{name} is not loaded yet. Do you forget to specify it in `deps` section?")
+        throw new Error("Service #{name} is not loaded yet. Did you forget to specify it in `deps` section?")
       @_instances[name]
 
 

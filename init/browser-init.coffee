@@ -4,7 +4,7 @@ Initializes requirejs configuration and then calls cordjs framework initializati
 
 require.config
   baseUrl: if global.config.localFsMode then '' else '/'
-  urlArgs: "release=" + global.config.static.release
+  urlArgs: if global.config.localFsMode then '' else "release=" + global.config.static.release
 
 window.CORD_IS_BROWSER = true
 window.CORD_PROFILER_ENABLED = global.config.debug.profiler.enable
