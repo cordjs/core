@@ -1,28 +1,19 @@
-define ->
-  Http: class Http extends Error
-    # Abstract, should not be instantiated directly
-    constructor: (@message) ->
-      @name = 'Http'
-      Error.call(this, @message)
-      Error.captureStackTrace?(this, arguments.callee)
+define ['cord!errors'], (errors) ->
+
+  Http: class Http extends errors.CordError
+    name: 'Http'
 
 
   InvalidResponse: class InvalidResponse extends Http
+    name: 'InvalidResponse'
+
     constructor: (@response) ->
-      @name = 'InvalidResponse'
-      Http.call(this, "#{@response.statusCode} #{@response.statusText}")
-      Http.captureStackTrace?(this, arguments.callee)
+      super("#{@response.statusCode} #{@response.statusText}")
 
 
   Network: class Network extends Http
-    constructor: (@message) ->
-      @name = 'Network'
-      Http.call(this, @message)
-      Http.captureStackTrace?(this, arguments.callee)
+    name: 'Network'
 
 
   Aborted: class Aborted extends Network
-    constructor: (@message) ->
-      @name = 'Aborted'
-      Network.call(this, @message)
-      Network.captureStackTrace?(this, arguments.callee)
+    name: 'Aborted'

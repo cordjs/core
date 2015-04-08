@@ -1,7 +1,8 @@
 define [
   'underscore'
   'cord!utils/Defer'
-], (_, Defer) ->
+  'cord!errors'
+], (_, Defer, errors) ->
 
   # unhandled tracking settings
   unhandledTrackingEnabled = false
@@ -135,20 +136,20 @@ define [
        when fail-method is called.
       Only first call of this method is important. Any subsequent calls does nothing but decrementing the counter.
       ###
-      if @_counter > 0
-        @_counter--
-        if @_state != 'rejected'
-          @_state = 'rejected'
-          @_callbackArgs = [err ? new Error("Future[#{@_name}] rejected without error message!")]
-          @_runFailCallbacks() if @_failCallbacks.length > 0
-          @_runAlwaysCallbacks() if @_alwaysCallbacks.length > 0
-          @_clearDoneCallbacks()
-          @_clearDebugTimeout() if unresolvedTrackingEnabled
-      else
+      @_counter--
+      if @_counter < 0
         throw new Error(
           "Future::reject is called more times than Future::fork! [#{@_name}], state = #{@_state}, [#{@_callbackArgs}]"
         )
 
+      if @_state != 'rejected'
+        @_state = 'rejected'
+        @_callbackArgs = [err ? new Error("Future[#{@_name}] rejected without error message!")]
+        @_runFailCallbacks() if @_failCallbacks.length > 0
+        @_runAlwaysCallbacks() if @_alwaysCallbacks.length > 0
+        @_clearDoneCallbacks()
+        @_clearDebugTimeout() if unresolvedTrackingEnabled
+        @_clearUnhandledTracking() if unhandledTrackingEnabled and errors.isInternal(err)
       this
 
 

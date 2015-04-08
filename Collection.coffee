@@ -1,16 +1,15 @@
 define [
   'cord!isBrowser'
   'cord!Module'
+  'cord!errors'
   'cord!utils/Defer'
   'cord!utils/Future'
   'monologue' + (if CORD_IS_BROWSER then '' else '.js')
   'underscore'
-], (isBrowser, Module, Defer, Future, Monologue, _) ->
+], (isBrowser, Module, errors, Defer, Future, Monologue, _) ->
 
-  class ModelNotExists extends Error
-
-    constructor: (@message) ->
-      @name = 'ModelNotExists'
+  class ModelNotExists extends errors.CordError
+    name: 'ModelNotExists'
 
 
   class Collection extends Module
