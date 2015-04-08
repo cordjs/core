@@ -107,25 +107,23 @@ define [
       @param Object options common collection options
       @return Future(Collection)
       ###
-      result = Future.single('ModelRepo::createExtendedCollection')
       options.collectionClass = collectionClass
       name = Collection.generateName(options)
 
       if @_collections[name]?
-        result.resolve(@_collections[name])
+        # We need to reinject tags because some of them could be user-functions
+        @_collections[name].injectTags(options.tags)
+        Future.resolved(@_collections[name])
       else
         CollectionClass = options.collectionClass ? Collection
         collection = new CollectionClass(this, name, options)
         @_registerCollection(name, collection)
 
-        @container.injectServices(collection).done ->
-          collection.browserInit?() if isBrowser
-          result.resolve(collection)
-
-      # We need to reinject tags because some of them could be user-functions
-      @_collections[name].injectTags(options.tags)
-
-      result
+        @container.injectServices(collection).then =>
+          # We need to reinject tags because some of them could be user-functions
+          @_collections[name].injectTags(options.tags)
+          collection.browserInit?()  if isBrowser
+          collection
 
 
     buildCollection: (options, syncMode, callback) ->
