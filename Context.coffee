@@ -270,7 +270,7 @@ define [
 
 
     _clearDeferredDebug: (name) ->
-      delete deferredTrackMap[@id][name]
+      delete deferredTrackMap[@id][name] if deferredTrackMap[@id]?
       delete deferredTrackMap[@id]  if _.isEmpty(deferredTrackMap[@id])
 
 
