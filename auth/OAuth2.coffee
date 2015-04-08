@@ -263,7 +263,7 @@ define [
 
       if not @_refreshTokenRequestPromise
         @_refreshTokenRequestPromise = @getExternalRefreshPromise().catch =>
-        
+
           # Set refresh lock, to let other tabs know we are in progress of getting new tokens, so wait for us
           @tabSync.set(@_extRefreshName, '1')
           refreshPromise = Future.single('OAuth2::grantAccessTokenByRefreshToken')
@@ -308,7 +308,7 @@ define [
       Rejects if could not find any sing of refreshing by someone else
       Resolves if got new access and refresh tokens
       ###
-      @tabSync.waitUntil(@_extRefreshName, ).then =>
+      @tabSync.waitUntil(@_extRefreshName).then =>
         @_restoreTokens()
         Future.resolved([@accessToken, @refreshToken])
 
