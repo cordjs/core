@@ -1,4 +1,6 @@
-define ->
+define [
+  'cord!utils/Future'
+], (Future) ->
 
   class LocalCookie
     ###
@@ -9,6 +11,7 @@ define ->
 
 
     constructor: (@_cookies, @storage) ->
+      @cookiesReady = new Future('LocalCookie::set')
 
 
     get: (name, defaultValue) ->
@@ -17,5 +20,10 @@ define ->
 
     set: (name, value, params) ->
       @_cookies[name] = value
-      @storage.setItem(@constructor.storageKey, @_cookies)
+
+      @cookiesReady.fork()
+      @storage.setItem(@constructor.storageKey, @_cookies).done =>
+        @cookiesReady.resolve()
+        return
+
       true

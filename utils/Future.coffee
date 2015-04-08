@@ -177,7 +177,7 @@ define [
       self = this
       for promise in arguments
         @fork() if not @_locked
-        self.withoutTimeout()  if promise._noTimeout
+        self.withoutTimeout()  if promise._noTimeout or not global.config?.debug.future.trackInternalTimeouts
         promise
           .done(-> self.resolve.apply(self, arguments))
           .fail(-> self.reject.apply(self, arguments))
@@ -342,7 +342,7 @@ define [
       if not onResolved? and not onRejected?
         _nameSuffix = 'then(empty)'
       result = Future.single("#{@_name} -> #{_nameSuffix}")
-      result.withoutTimeout() if @_noTimeout
+      result.withoutTimeout() if @_noTimeout or not global.config?.debug.future.trackInternalTimeouts
       if onResolved?
         @done ->
           try
@@ -430,7 +430,7 @@ define [
       If this Future is rejected than the resulting Future will contain the same error.
       ###
       result = Future.single("#{@_name} -> map")
-      result.withoutTimeout() if @_noTimeout
+      result.withoutTimeout() if @_noTimeout or not global.config?.debug.future.trackInternalTimeouts
       @done ->
         try
           mapRes = callback.apply(null, arguments)
@@ -457,7 +457,7 @@ define [
       @return Future(A)
       ###
       result = Future.single("#{@_name} -> flatMap")
-      result.withoutTimeout() if @_noTimeout
+      result.withoutTimeout() if @_noTimeout or not global.config?.debug.future.trackInternalTimeouts
       @done ->
         try
           result.when(callback.apply(null, arguments))
@@ -480,7 +480,7 @@ define [
       @return Future(this.result)
       ###
       result = Future.single("#{@_name} -> andThen")
-      result.withoutTimeout() if @_noTimeout
+      result.withoutTimeout() if @_noTimeout or not global.config?.debug.future.trackInternalTimeouts
       this.finally ->
         callback.apply(null, arguments)
         result.complete.apply(result, arguments)
