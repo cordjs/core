@@ -43,6 +43,7 @@ define ->
     name: 'WidgetParamsRace'
     isCordInternal: true
 
+
   MustReloadPage: class MustReloadPage extends CordError
     name: 'MustReloadPage'
     isCordInternal: true
@@ -55,3 +56,6 @@ define ->
   AuthError: class AuthError extends CordError
     name: 'AuthError'
 
+
+  ConfigError: class ConfigError extends CordError
+    name: 'ConfigError'

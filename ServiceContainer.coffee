@@ -217,9 +217,9 @@ define [
       ###
       for serviceName, info of services when info.autoStart
         do (serviceName) =>
-          @getService(serviceName)
-            .catch (error) =>
-              if not (error instanceof errors.AuthError)
-                _console.warn "Container::autoStartServices::getService(#{serviceName}) " +
-                               " failed with error: ", error
+          @getService(serviceName).catch (error) ->
+            if not (error instanceof errors.AuthError) and
+               not (error instanceof errors.ConfigError)  # supress "no BACKEND_HOST" error
+              _console.warn "Container::autoStartServices::getService(#{serviceName}) " +
+                            " failed with error: ", error
       return
