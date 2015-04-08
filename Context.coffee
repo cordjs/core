@@ -39,7 +39,7 @@ define [
 
     setOwnerWidget: (owner) ->
       if owner
-        Object.defineProperty @, "_ownerWidget",
+        Object.defineProperty this, '_ownerWidget',
           value: owner
           writable: true
           enumerable: false
@@ -49,7 +49,7 @@ define [
     set: (args...) ->
       triggerChange = false
       if args.length == 0
-        throw "Invalid number of arguments! Should be 1 or 2."
+        throw new Error('Invalid number of arguments! Should be 1 or 2.')
       else if args.length == 1
         pairs = args[0]
         if typeof pairs is 'object'
@@ -57,12 +57,12 @@ define [
             if @setSingle key, value
               triggerChange = true
         else
-          throw "Invalid argument! Single argument must be key-value pair (object)."
+          throw new Error("Invalid argument! Single argument must be key-value pair (object).")
       else if @setSingle args[0], args[1]
         triggerChange = true
 
       #Prevent multiple someChange events in one tick
-      if triggerChange && !@_someChangeNotHappened
+      if triggerChange and not @_someChangeNotHappened
         @_someChangeNotHappened = true
         Defer.nextTick =>
           postal.publish "widget.#{ @id }.someChange", {}
@@ -270,8 +270,9 @@ define [
 
 
     _clearDeferredDebug: (name) ->
-      delete deferredTrackMap[@id][name]
-      delete deferredTrackMap[@id]  if _.isEmpty(deferredTrackMap[@id])
+      if deferredTrackMap[@id]
+        delete deferredTrackMap[@id][name]
+        delete deferredTrackMap[@id]  if _.isEmpty(deferredTrackMap[@id])
 
 
 
