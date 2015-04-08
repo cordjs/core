@@ -63,7 +63,7 @@ define [
         serviceContainer.set 'router', this
 
         # Prepare configs for particular request
-        appConfig = @_prepareConfigForRequest(req)
+        appConfig = @prepareConfigForRequest(req)
 
         # monologue to debug mode
         Monologue.debug = true if global.config.debug.monologue != undefined and global.config.debug.monologue
@@ -241,7 +241,7 @@ define [
         ''
 
 
-    _prepareConfigForRequest: (request) ->
+    prepareConfigForRequest: (request) ->
       ###
       Deep clone config and substitute {TEMPLATES}
 
@@ -285,11 +285,11 @@ define [
       backendProto = config.node.api.backend.protocol or 'http'
 
       templates =
-          '{X_PROTO}': xProto
-          '{TIMESTAMP}': new Date().getTime()
-          '{ACCOUNT}': hostFromRequest.substr(0, dotIndex)
-          '{DOMAIN}': hostFromRequest.substr(dotIndex)
-          '{X_HOST}': hostFromRequest
+        '{X_PROTO}': xProto
+        '{TIMESTAMP}': new Date().getTime()
+        '{ACCOUNT}': hostFromRequest.substr(0, dotIndex)
+        '{DOMAIN}': hostFromRequest.substr(dotIndex)
+        '{X_HOST}': hostFromRequest
 
       serverProto = Utils.substituteTemplate(serverProto, templates)
       backendProto  = Utils.substituteTemplate(backendProto, templates)
