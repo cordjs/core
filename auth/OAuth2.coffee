@@ -4,9 +4,10 @@ define [
   'cord!utils/Future'
   'cord!errors'
   'eventemitter3'
+  'cord!utils/Defer'
   'cord!request/errors'
   'cord!errors'
-], (_, isBrowser, Future, errors, EventEmitter, httpError, cordError) ->
+], (_, isBrowser, Future, errors, EventEmitter, Defer, httpError, cordError) ->
 
   class OAuth2 extends EventEmitter
 
@@ -31,8 +32,13 @@ define [
     _clientId: '#{clientId}'
     _clientSecret: '#{clientSecret}'
 
+    _extRefreshName: '_external_refresh_in_progress_'
 
-    constructor: (@options, @cookie, @request) ->
+    # Wait for external refresh for no more than 30 seconds
+    _maxExtRefreshWaitTime: 30
+
+
+    constructor: (@options, @cookie, @request, @tabSync) ->
       @endpoints = @options.endpoints
       if not @endpoints or not @endpoints.accessToken
         throw new Error('OAuth2::constructor error: at least endpoints.accessToken must be defined.')
@@ -251,38 +257,60 @@ define [
       @param (optional){Int} retries Number of retries on fail before giving up
       @return {Future[Array[String, String]]} access_token and new refresh_token
       ###
-      params =
-        grant_type: 'refresh_token'
-        scope: scope
-        client_id: @_clientId
-        client_secret: @_clientSecret
 
-      params[@refreshTokenParamName] = refreshToken
+      # There could be race conditions in one browser different tabs,
+      # when few of them simultaneously try to get access_token by refresh_token, which could lead to cleansing all tokens
 
       if not @_refreshTokenRequestPromise
-        resultPromise = Future.single('OAuth2::grantAccessTokenByRefreshToken')
-        @request.get @endpoints.accessToken, params, (result, err) =>
-          if result
-            if result.error # this means that refresh token is outdated
-              if result.error == 'invalid_client'
-                _console.error("Invalid clientId or clientSecret", result)
-              resultPromise.resolve [null, null]
-            else
-              resultPromise.resolve [ result.access_token, result.refresh_token ]
-            # Clear refresh promise, so the next time a new one will be created
-            @_refreshTokenRequestPromise = null
-          else if retries > 0
-            _console.warn 'Error while refreshing oauth token! Will retry after pause... Error:', err
-            Future.timeout(500).then =>
-              @_refreshTokenRequestPromise = null
-              @grantAccessTokenByRefreshToken(refreshToken, scope, retries - 1)
-            .link(resultPromise)
-          else
-            resultPromise.reject(new Error("Failed to refresh oauth token! Reason: #{JSON.stringify(err)} "))
+        @_refreshTokenRequestPromise = @getExternalRefreshPromise().catch =>
+        
+          # Set refresh lock, to let other tabs know we are in progress of getting new tokens, so wait for us
+          @tabSync.set(@_extRefreshName, '1')
+          refreshPromise = Future.single('OAuth2::grantAccessTokenByRefreshToken')
 
-        @_refreshTokenRequestPromise = resultPromise
+          params =
+            grant_type: 'refresh_token'
+            scope: scope
+            client_id: @_clientId
+            client_secret: @_clientSecret
+
+          params[@refreshTokenParamName] = refreshToken
+          @request.get @endpoints.accessToken, params, (result, err) =>
+            if result
+              if result.error # this means that refresh token is outdated
+                if result.error == 'invalid_client'
+                  _console.error("Invalid clientId or clientSecret", result)
+                refreshPromise.resolve [null, null]
+              else
+                refreshPromise.resolve [ result.access_token, result.refresh_token ]
+              # Clear refresh promise, so the next time a new one will be created
+              @_refreshTokenRequestPromise = null
+
+              # Clear refresh lock, to let other tabs know we have new tokens
+              @tabSync.set(@_extRefreshName)
+            else if retries > 0
+              _console.warn 'Error while refreshing oauth token! Will retry after pause... Error:', err
+              Future.timeout(500).then =>
+                @_refreshTokenRequestPromise = null
+                @grantAccessTokenByRefreshToken(refreshToken, scope, retries - 1)
+              .link(refreshPromise)
+            else
+              refreshPromise.reject(new Error("Failed to refresh oauth token! Reason: #{JSON.stringify(err)} "))
+
+          refreshPromise
 
       @_refreshTokenRequestPromise
+
+
+    getExternalRefreshPromise: ->
+      ###
+      Check if there is any sign of other tab refreshing access_token
+      Rejects if could not find any sing of refreshing by someone else
+      Resolves if got new access and refresh tokens
+      ###
+      @tabSync.waitUntil(@_extRefreshName, ).then =>
+        @_restoreTokens()
+        Future.resolved([@accessToken, @refreshToken])
 
 
     _getTokensByRefreshToken: ->
