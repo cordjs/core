@@ -100,16 +100,8 @@ define  ->
       cookie:
         deps: ['container', 'localStorage']
         factory: (get, done) ->
-          if global.config.localFsMode
-            require ["cord!/cord/core/cookie/LocalCookie"], (Cookie) ->
-              cookieStorage = get('localStorage')
-              cookieStorage.getItem(Cookie.storageKey).then (cookies) ->
-                done(null, new Cookie(cookies, cookieStorage))
-              .catch ->
-                done(null, new Cookie({}, cookieStorage))
-          else
-            require ["cord!/cord/core/cookie/BrowserCookie"], (Cookie) ->
-              done(null, new Cookie(get('container')))
+          require ["cord!/cord/core/cookie/BrowserCookie"], (Cookie) ->
+            done(null, new Cookie(get('container')))
 
       userAgentText: (get, done) ->
         done(null, navigator.userAgent)
