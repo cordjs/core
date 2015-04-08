@@ -1,8 +1,9 @@
 define [
+  'cord!errors'
   'cord!utils/Future'
   'eventemitter3'
   'lodash'
-], (Future, EventEmitter, _) ->
+], (errors, Future, EventEmitter, _) ->
 
   class RuntimeConfigResolver extends EventEmitter
     ###
@@ -61,10 +62,10 @@ define [
       @param config Config to resolve
       @param parameters optionally one-time used parameters.
       ###
-      resolvedConfig = _.cloneDeep(config, (val) =>
+      resolvedConfig = _.cloneDeep config, (val) =>
         if _.isString(val)
           # Replace variables by regexp replace
-          val.replace(/%%|%([^%\s]+)%/g, (matches...) =>
+          val.replace /%%|%([^%\s]+)%/g, (matches...) =>
             if matches[1] == undefined
               # skip '%%'
               '%%'
@@ -75,9 +76,7 @@ define [
               else if @parameters[name] != undefined
                 @parameters[name]
               else
-                throw new Error("Parameter #{name} is not defined")
-          )
-      )
+                throw new errors.ConfigError("Parameter #{name} is not defined")
       resolvedConfig
 
 
