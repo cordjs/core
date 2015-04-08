@@ -2,6 +2,7 @@ define [
   'cord!Collection'
   'cord!Context'
   'cord!css/helper'
+  'cord!dustPlugins'
   'cord!errors'
   'cord!helpers/TimeoutStubHelper'
   'cord!isBrowser'
@@ -18,13 +19,15 @@ define [
   'monologue' + (if CORD_IS_BROWSER then '' else '.js')
   'postal'
   'underscore'
-], (Collection, Context, cssHelper, errors, TimeoutStubHelper, isBrowser, Model, Module, StructureTemplate,
+], (Collection, Context, cssHelper, dustPlugins, errors, TimeoutStubHelper, isBrowser, Model, Module, StructureTemplate,
     templateLoader, Utils, DomInfo, Future,
     dust, Monologue, postal, _) ->
 
   dust.onLoad = (tmplPath, callback) ->
     templateLoader.loadTemplate tmplPath, ->
       callback null, ''
+
+  predefinedBaseContextWithPlugins = dust.makeBase(dustPlugins)
 
   # special shared promise for the empty struct templates to avoid redundant promise allocation
   predefinedEmptyRawStructPromise = Future.resolved({})
@@ -1713,182 +1716,4 @@ define [
 
 
     getBaseContext: ->
-      @_baseContext ? (@_baseContext = @_buildBaseContext())
-
-
-    _buildBaseContext: ->
-      dust.makeBase
-
-        widget: (chunk, context, bodies, params) =>
-          ###
-          {#widget/} block handling
-          ###
-          @childWidgetAdd()
-
-          if params.type.substr(0, 2) == './'
-            params.type = "//#{@constructor.relativeDir}#{params.type.substr(1)}"
-
-          contextDomInfo = @_domInfo
-
-          chunk.map (chunk) =>
-            normalizedName = if params.name then params.name.trim() else undefined
-            normalizedName = undefined if not normalizedName
-
-            timeout = if params.timeout? then parseInt(params.timeout) else -1
-            hasTimeout = isBrowser and timeout >= 0
-            timeoutDomInfo = if hasTimeout then new DomInfo(@debug('#widget::timeout')) else contextDomInfo
-
-            @getStructTemplate().then (tmpl) =>
-              # creating widget from the structured template or not depending on it's existence and name
-              # btw getting and pushing futher timeout template name from the structure template if there is one
-              if tmpl.isEmpty() or not normalizedName
-                @widgetRepo.createWidget(params.type, this, normalizedName, @getBundle())
-              else if normalizedName
-                tmpl.getWidgetByName(normalizedName).then (widget) ->
-                  [widget, tmpl.getWidgetInfoByName(normalizedName).timeoutTemplate]
-                .catch =>
-                  @widgetRepo.createWidget(params.type, this, normalizedName, @getBundle())
-              # else impossible
-
-            .then (widget, timeoutTemplate) =>
-              complete = false
-
-              @resolveParamRefs(widget, params).then (resolvedParams) =>
-                widget.setModifierClass(params.class)
-                widget.show(resolvedParams, timeoutDomInfo)
-              .then (out) =>
-                if not complete
-                  complete = true
-                  timeoutDomInfo.completeWith(contextDomInfo) if hasTimeout
-                  @childWidgetComplete()
-                  chunk.end(widget.renderRootTag(out))
-                else
-                  TimeoutStubHelper.replaceStub(out, widget, contextDomInfo).then ($newRoot) =>
-                    timeoutDomInfo.setDomRoot($newRoot)
-                    timeoutDomInfo.domInserted().when(contextDomInfo.domInserted())
-                    return
-                  .catchIf (err) ->
-                    err instanceof errors.WidgetDropped or err instanceof errors.WidgetSentenced
-              .catch (err) ->
-                _console.error "Error on widget #{ widget.debug() } rendering:", err
-                chunk.setError(err)
-
-              if hasTimeout
-                setTimeout =>
-                  # if the widget has not been rendered within given timeout, render stub template from the {:timeout} block
-                  if not complete
-                    complete = true
-                    widget._delayedRender = true
-                    TimeoutStubHelper.getTimeoutHtml(this, timeoutTemplate, widget).then (out) =>
-                      @childWidgetComplete()
-                      chunk.end(widget.renderRootTag(out))
-                    .catch (err) ->
-                      chunk.setError(err)
-                , timeout
-            .catch (err) ->
-              chunk.setError(err)
-
-
-        deferred: (chunk, context, bodies, params) =>
-          ###
-          {#deferred/} block handling
-          ###
-          if bodies.block?
-            deferredId = @_deferredBlockCounter++
-            deferredKeys = params.params.split /[, ]/
-            needToWait = (name for name in deferredKeys when @ctx.isDeferred(name))
-
-            promise = new Future(@debug('deferred'))
-            for name in needToWait
-              do (name) =>
-                promise.fork()
-                subscription = postal.subscribe
-                  topic: "widget.#{ @ctx.id }.change.#{ name }"
-                  callback: (data) ->
-                    if data.value != ':deferred'
-                      promise.resolve()
-                      subscription.unsubscribe()
-                @addTmpSubscription subscription
-
-            @childWidgetAdd()
-            chunk.map (chunk) =>
-              promise.then =>
-                TimeoutStubHelper.renderTemplateFile(this, "__deferred_#{deferredId}")
-              .then (out) =>
-                @childWidgetComplete()
-                chunk.end(out)
-              .failAloud(@debug('#deferred'))
-          else
-            ''
-
-
-        placeholder: (chunk, context, bodies, params) =>
-          ###
-          {#placeholder/} block handling
-          Placeholder - point of extension of the widget.
-          ###
-          @childWidgetAdd()
-          chunk.map (chunk) =>
-            name = params?.name ? 'default'
-            if params and params.class
-              @_placeholdersClasses[name] = params.class
-
-            @_renderPlaceholder(name, @_domInfo).then (out) =>
-              @childWidgetComplete()
-              chunk.end(@renderPlaceholderTag(name, out))
-            .catch (err) ->
-              chunk.setError(err)
-
-
-        i18n: (chunk, context, bodies, params) =>
-          ###
-          {#i18n text="" [context=""] [wrapped="true"] /}
-          ###
-          text = params.text or ''
-          delete(params.text)
-
-          if @ctx.i18nHelper
-            chunk.write(@ctx.i18nHelper(text, params))
-          else
-            chunk.write(text)
-
-
-        url: (chunk, context, bodies, params) =>
-          ###
-          {#url routeId="" [param1=""...] /}
-          ###
-          routeId = params.routeId
-          if not routeId
-            throw new Error @debug("RouteId is require for #url")
-          delete(params.routeId)
-          chunk.write(@router.urlTo(routeId, params))
-
-
-        #
-        # Widget initialization script generator
-        #
-        widgetInitializer: (chunk) =>
-          if @widgetRepo._initEnd
-            ''
-          else
-            chunk.map (chunk) =>
-              subscription = postal.subscribe
-                topic: "widget.#{ @ctx.id }.render.children.complete"
-                callback: =>
-                  chunk.end @widgetRepo.getTemplateCode()
-                  subscription.unsubscribe()
-              @addSubscription subscription
-
-
-        # css include
-        css: (chunk) =>
-          chunk.map (chunk) =>
-            subscription = postal.subscribe
-              topic: "widget.#{ @ctx.id }.render.children.complete"
-              callback: =>
-                @widgetRepo.getTemplateCss().then (html) ->
-                  chunk.end(html)
-                .catch (error) ->
-                  chunk.setError(error)
-                subscription.unsubscribe()
-            @addTmpSubscription subscription
+      predefinedBaseContextWithPlugins
