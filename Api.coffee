@@ -10,7 +10,7 @@ define [
 
   class Api extends EventEmitter
 
-    @inject: ['cookie', 'request']
+    @inject: ['cookie', 'request', 'tabSync']
 
     # Cookie name for auth module name
     @authModuleCookieName: '_api_auth_module'
@@ -96,7 +96,7 @@ define [
         throw new Error("Failed to load auth module #{modulePath}!")  if not Module
         if @lastModulePath == modulePath # To check that we resolve @authPromise with the latest modulePath
           @cookie.set(Api.authModuleCookieName, originalModule, expires: 365)
-          module = new Module(@options[Module.configKey], @cookie, @request)
+          module = new Module(@options[Module.configKey], @cookie, @request, @tabSync)
           localAuthPromise.resolve(module)
           # bypass module event
           module.on('auth.available', => @emit('auth.available'))

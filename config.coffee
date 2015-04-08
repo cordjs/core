@@ -2,7 +2,7 @@ define  ->
 
   services:
     api:
-      deps: ['runtimeConfigResolver', 'container', 'config']
+      deps: ['runtimeConfigResolver', 'container', 'config', 'tabSync']
       factory: (get, done) ->
         require ['cord!Api', 'cord!utils/Future'], (Api, Future) ->
           container = get('container')
@@ -25,6 +25,15 @@ define  ->
             .catch (e) ->
               done(e)
 
+    tabSync:
+      factory: (get, done) ->
+        require ['cord!cache/TabSync' + if not CORD_IS_BROWSER then 'Server' else ''], (tabSync) ->
+          tabSync = new tabSync()
+          tabSync.init()
+            .then ->
+              done(null, tabSync)
+            .catch (e) ->
+              done(e)
 
     runtimeConfigResolver:
       deps: ['container']
