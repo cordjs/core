@@ -9,16 +9,18 @@ define [
     This is a storage for response headers
     ###
 
-    constructor: (@headers) ->
+    constructor: (headers) ->
+      @headers = {}
+      @headers[key.toLowerCase()] = val for own key, val of headers
       @_headers = _(@headers)
 
 
     has: (name) ->
-      @_headers.has(name)
+      @_headers.has(name.toLowerCase())
 
 
     get: (name) ->
-      @headers[name]
+      @headers[name.toLowerCase()]
 
 
     @fromXhr: (xhr) ->

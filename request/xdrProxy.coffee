@@ -56,7 +56,7 @@ define [
       proxyRes.on 'end', -> res.end()
 
     proxyReq.on 'error', (e) ->
-      _console.error 'Problem with proxy request: ', options, e
+      console.error 'Problem with proxy request: ', options, e
       res.writeHead(500, 'Bad request!', 'Content-type': 'text/html')
       res.end """
         <html>
