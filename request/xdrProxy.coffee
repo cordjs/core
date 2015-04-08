@@ -18,10 +18,11 @@ define [
     ###
 
     resolvedConfig = router.prepareConfigForRequest(req)
+    nodeConfig = resolvedConfig.node
 
     # In case if we need to proxy request with secrets, add them here
-    if secrets and _.isObject(resolvedConfig.secrets)
-      for secret, value of resolvedConfig.secrets
+    if secrets and _.isObject(nodeConfig.secrets)
+      for secret, value of nodeConfig.secrets
         targetUrl = targetUrl.replace('%23%7B' + secret + '%7D', value)
         targetUrl = targetUrl.replace('#{' + secret + '}', value)
 
@@ -35,13 +36,13 @@ define [
 
     options =
       method: req.method ? 'GET'
-      hostname: proxyUrl.hostname ? resolvedConfig.api.backend.host
+      hostname: proxyUrl.hostname ? nodeConfig.api.backend.host
       port: proxyUrl.port
       path: proxyUrl.path
       headers: headers
       rejectUnauthorized: false
 
-    protoString = proxyUrl.protocol or resolvedConfig.api.backend.protocol
+    protoString = proxyUrl.protocol or nodeConfig.api.backend.protocol
     protocol =
       if protoString == 'http:' or protoString == 'http'
         http
