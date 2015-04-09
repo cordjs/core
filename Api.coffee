@@ -104,7 +104,6 @@ define [
 
 
     getTokensByUsernamePassword: (username, password, callback) ->
-      console.log 'getTokensByUsernamePassword: (username, password, callback) ->', username, password
       @serviceContainer.eval 'oauth2', (oauth2) =>
         oauth2.grantAccessTokenByPassword username, password, @getScope(), (accessToken, refreshToken) =>
           @onAccessTokenGranted(accessToken, refreshToken, callback)
@@ -213,7 +212,6 @@ define [
 
       processRequest = (accessToken, refreshToken) =>
         requestUrl = "#{@options.protocol}://#{@options.host}/#{@options.urlPrefix}#{args.url}"
-        console.log 'requestUrl', requestUrl
         defaultParams = _.clone @options.params
         requestParams = _.extend defaultParams, args.params
 
