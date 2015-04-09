@@ -213,6 +213,7 @@ define [
 
       processRequest = (accessToken, refreshToken) =>
         requestUrl = "#{@options.protocol}://#{@options.host}/#{@options.urlPrefix}#{args.url}"
+        console.log 'requestUrl', requestUrl
         defaultParams = _.clone @options.params
         requestParams = _.extend defaultParams, args.params
 
