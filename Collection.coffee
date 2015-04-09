@@ -594,7 +594,6 @@ define [
       # This is actually for debugging purposes
       if isNaN(startPage) or isNaN(maxPages) or startPage < 1 or maxPages <1
         error =  new Error("collection.partialRefresh called with wront parameters startPage: #{startPage}, maxPages: #{maxPage}")
-        _console.error(error)
         return Future.rejected(error)
 
       if minRefreshInterval >= 0 and @getLastQueryTimeDiff() > minRefreshInterval
