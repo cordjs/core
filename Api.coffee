@@ -55,6 +55,13 @@ define [
           @getTokensByUsernamePassword @options.autoLogin, @options.autoPassword
 
 
+    getBackendHost: ->
+      ###
+      Returns currently used api backend host
+      ###
+      @options.host
+
+
     setupAuthModule: ->
       ###
       Initializer. Should be called after injecting @inject services

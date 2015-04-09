@@ -4,7 +4,7 @@ define  ->
     api:
       deps: ['runtimeConfigResolver', 'container', 'config', 'tabSync']
       factory: (get, done) ->
-        require ['cord!Api', 'cord!utils/Future'], (Api, Future) ->
+        require ['cord!Api', 'cord!utils/Future', 'postal'], (Api, Future, postal) ->
           container = get('container')
           resolver = get('runtimeConfigResolver')
           originalConfig = get('config').api
@@ -22,6 +22,7 @@ define  ->
                     resolver.setParameter('BACKEND_HOST', host) if host != resolver.getParameter('BACKEND_HOST')
                   return
                 .then -> done(null, api)
+                .then -> postal.publish('api.available')
             .catch (e) ->
               done(e)
 
