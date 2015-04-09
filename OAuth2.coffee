@@ -40,6 +40,7 @@ define [
 
     ## Получение токена по grant_type = password (логин и пароль)
     grantAccessTokenByPassword: (user, password, scope, callback) =>
+      console.log 'grantAccessTokenByPassword: (user, password, scope, callback) =>', user, password, scope
       params =
         grant_type: 'password'
         username: user

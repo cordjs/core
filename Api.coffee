@@ -104,6 +104,7 @@ define [
 
 
     getTokensByUsernamePassword: (username, password, callback) ->
+      console.log 'getTokensByUsernamePassword: (username, password, callback) ->', username, password
       @serviceContainer.eval 'oauth2', (oauth2) =>
         oauth2.grantAccessTokenByPassword username, password, @getScope(), (accessToken, refreshToken) =>
           @onAccessTokenGranted(accessToken, refreshToken, callback)
