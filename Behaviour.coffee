@@ -1,15 +1,15 @@
 define [
   'cord!errors'
   'cord!Model'
-  'cord!utils/Defer'
   'cord!utils/DomHelper'
   'cord!utils/DomInfo'
   'cord!utils/Future'
   'cord!utils/profiler/profiler'
   'cord!Module'
+  'asap/raw'
   'jquery'
   'postal'
-], (errors, Model, Defer, DomHelper, DomInfo, Future, pr, Module, $, postal) ->
+], (errors, Model, DomHelper, DomInfo, Future, pr, Module, asap, $, postal) ->
 
   checkIsSentenced = (widget, message = '') ->
     ###
@@ -362,7 +362,7 @@ define [
       @widget.shown().then =>
         if not @_renderAggregatePromise?
           @_renderAggregatePromise = Future.single(@debug('renderAggregate'))
-          Defer.nextTick =>
+          asap =>
             @_renderAggregatePromise.when(@_render0())
             @_renderAggregatePromise = null
         @_renderAggregatePromise

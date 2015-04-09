@@ -132,8 +132,10 @@ define  ->
 
   requirejs:
     paths:
+      #'asap':                    'vendor/asap/asap'
+      'asap/raw':                'vendor/asap/raw'
       'curly':                   'vendor/curly/browser'
-      'cordjs-zone':             'vendor/zone/zone',
+      'cordjs-zone':             'vendor/zone/zone'
       'dustjs-linkedin':         'vendor/dustjs/dustjs-full'
       'dustjs-helpers':          'vendor/dustjs/dustjs-helpers'
       'eventemitter3':           'vendor/eventemitter3/eventemitter3'

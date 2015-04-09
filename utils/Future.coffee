@@ -1,8 +1,8 @@
 define [
+  'asap/raw'
   'underscore'
-  'cord!utils/Defer'
   'cord!errors'
-], (_, Defer, errors) ->
+], (asap, _, errors) ->
 
   # unhandled tracking settings
   unhandledTrackingEnabled = false
@@ -206,7 +206,7 @@ define [
         @_doneCallbacks.push(callback)
         if @_counter == 0
           @_clearDebugTimeout()  if unresolvedTrackingEnabled
-          Defer.nextTick =>
+          asap =>
             @_runDoneCallbacks()
             @_clearFailCallbacks()
       this
@@ -223,7 +223,7 @@ define [
         @_failCallbacks.push(callback)
         if @_state == 'rejected'
           @_clearDebugTimeout() if unresolvedTrackingEnabled
-          Defer.nextTick =>
+          asap =>
             @_runFailCallbacks()
       @_clearUnhandledTracking() if unhandledTrackingEnabled
       this
@@ -238,7 +238,7 @@ define [
       @_alwaysCallbacks.push(callback)
       if @_counter == 0 or @_state == 'rejected'
         @_clearDebugTimeout() if unresolvedTrackingEnabled
-        Defer.nextTick =>
+        asap =>
           @_runAlwaysCallbacks()
           @_clearFailCallbacks() if @_state == 'resolved'
       @_clearUnhandledTracking() if unhandledTrackingEnabled

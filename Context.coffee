@@ -1,13 +1,13 @@
 define [
   'cord!Collection'
   'cord!Model'
-  'cord!utils/Defer'
   'cord!utils/Future'
+  'asap/raw'
   'postal'
   'underscore'
   'cord!Console'
   'cord!isBrowser'
-], (Collection, Model, Defer, Future, postal, _, _console, isBrowser) ->
+], (Collection, Model, Future, asap, postal, _, _console, isBrowser) ->
 
   # support for deferred timeout tracking
   deferredTrackingEnabled = false
@@ -64,7 +64,7 @@ define [
       #Prevent multiple someChange events in one tick
       if triggerChange and not @_someChangeNotHappened
         @_someChangeNotHappened = true
-        Defer.nextTick =>
+        asap =>
           postal.publish "widget.#{ @id }.someChange", {}
           @_someChangeNotHappened = false
 
@@ -134,7 +134,7 @@ define [
               cursor: cursor
               version: curVersion
 
-        Defer.nextTick =>
+        asap =>
           _console.log "publish widget.#{ @id }.change.#{ name }" if global.config.debug.widget
           postal.publish "widget.#{ @id }.change.#{ name }",
             name: name
@@ -197,7 +197,7 @@ define [
         originalStash = @[':internal'].stash
         @[':internal'].stash = null
         @[':internal'].deferredStash = null
-        Defer.nextTick =>
+        asap =>
           for ev in originalStash
             postal.publish "widget.#{ ev.id }.change.#{ ev.name }",
               name: ev.name

@@ -22,9 +22,11 @@ require [
     require.config(config.requirejs) for config in args when config.requirejs
 
     require [
+      'asap/raw'
       'cord!init/browserInit'
       if CORD_PROFILER_ENABLED then 'cord!init/profilerInit' else undefined
-    ], (browserInit, profilerInit) ->
+    ], (asap, browserInit, profilerInit) ->
+      require.nextTick = asap
       profilerInit() if CORD_PROFILER_ENABLED
       browserInit.init()
 
