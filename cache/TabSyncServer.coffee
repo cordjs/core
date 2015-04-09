@@ -8,7 +8,7 @@ define [
     ###
 
     init: ->
-      Future.resolved()
+      Future.resolved(this)
 
 
     set: (key, value) ->
