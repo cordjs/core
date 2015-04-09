@@ -47,26 +47,21 @@ define [
 
 
     set: (args...) ->
-      triggerChange = false
+      ###
+      Changes single or multiple context values.
+      Accepts object argument with key-value pairs or two arguments - String name and value
+      ###
       if args.length == 0
         throw new Error('Invalid number of arguments! Should be 1 or 2.')
       else if args.length == 1
         pairs = args[0]
-        if typeof pairs is 'object'
-          for key, value of pairs
-            if @setSingle key, value
-              triggerChange = true
+        if typeof pairs == 'object'
+          @setSingle(key, value) for key, value of pairs
         else
           throw new Error("Invalid argument! Single argument must be key-value pair (object).")
-      else if @setSingle args[0], args[1]
-        triggerChange = true
-
-      #Prevent multiple someChange events in one tick
-      if triggerChange and not @_someChangeNotHappened
-        @_someChangeNotHappened = true
-        asap =>
-          postal.publish "widget.#{ @id }.someChange", {}
-          @_someChangeNotHappened = false
+      else
+        @setSingle args[0], args[1]
+      return
 
 
     setSingle: (name, newValue, callbackPromise) ->
