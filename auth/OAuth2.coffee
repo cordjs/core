@@ -313,7 +313,7 @@ define [
       ###
       @tabSync.waitUntil(@_extRefreshName).then =>
         @_restoreTokens()
-        Future.resolved([@accessToken, @refreshToken])
+        [[@accessToken, @refreshToken]]
 
 
     _getTokensByRefreshToken: ->
