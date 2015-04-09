@@ -4,25 +4,27 @@ define [
   'jquery'
 ], (Future, _, $) ->
 
+  # max awaiting time, before auto-rejection
+  _maxWaitingTime = 3000
+
   class TabSync
     ###
     Service for sharing common data and sync between browser tabs
     Browser only
     ###
 
-    # Set of futures awaitng for localStorage event
-    _awaitingKeys: {}
-
-    # max awaiting time, before auto-rejection
-    _maxWaitingTime: 3000
+    constructor: ->
+      # Set of futures awaitng for localStorage event
+      _awaitingKeys = {}
 
 
     init: ->
-      if 'localStorage' in window and window.localStorage != null
-        Future.rejected(new Error('Your browser does not support localStorage.'))
-      else
-        $(window).bind('storage', @_handleStorageEvent)
-        Future.resolved()
+      Future.try =>
+        if window.localStorage?
+          window.addEventListener("storage", @_handleStorageEvent, false);
+          this
+        else
+          throw new Error('Your browser does not support localStorage.')
 
 
     set: (key, value) ->
@@ -33,9 +35,10 @@ define [
       ###
       if value == undefined
         localStorage.removeItem(key)
-      else
-        throw new Error('Only string values accepted in tabSync::set') if not _.isString(value)
+      else if _.isString(value)
         localStorage[key] = value
+      else
+        throw new Error('Only string values accepted in tabSync::set')
 
 
     get: (key) ->
@@ -45,7 +48,7 @@ define [
       localStorage[key]
 
 
-    waitFor: (key, timeout = @_maxWaitingTime) ->
+    waitFor: (key, timeout = _maxWaitingTime) ->
       ###
       Waits for keyed value to appear in tabs storage
       @param string key
@@ -57,7 +60,7 @@ define [
         @_createAwaitingPromise(key, timeout)
 
 
-    waitUntil: (key, timeout = @_maxWaitingTime) ->
+    waitUntil: (key, timeout = _maxWaitingTime) ->
       ###
       Waits until keyed value disappear from localstorage
       result is rejected if key does not exists or timeouted, resolved if it existed and then disappeared
@@ -72,14 +75,13 @@ define [
 
     _createAwaitingPromise: (key, timeout) ->
       # Each awaiting request creates a new Future, not to let timeouts interfere
-      if not @_awaitingKeys[key]
-        @_awaitingKeys[key] = []
+      @_awaitingKeys[key] or= []
 
       result = Future.single("tabSync::_createAwaitingPromise(#{key})")
       @_awaitingKeys[key].push(result)
 
       result.finally =>
-        @_awaitingKeys[key] = _.filter @_awaitingKeys[key], (item) -> item != result
+        @_awaitingKeys[key] = _.without(@_awaitingKeys[key], result)
 
       setTimeout ->
         result.reject() if not result.completed()

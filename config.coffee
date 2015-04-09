@@ -27,13 +27,9 @@ define  ->
 
     tabSync:
       factory: (get, done) ->
-        require ['cord!cache/TabSync' + if not CORD_IS_BROWSER then 'Server' else ''], (tabSync) ->
-          tabSync = new tabSync()
-          tabSync.init()
-            .then ->
-              done(null, tabSync)
-            .catch (e) ->
-              done(e)
+        require ['cord!cache/TabSync' + if not CORD_IS_BROWSER then 'Server' else ''], (TabSync) ->
+          tabSync = new TabSync()
+          tabSync.init().finally(done)
 
     runtimeConfigResolver:
       deps: ['container']
