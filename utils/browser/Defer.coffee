@@ -1,32 +1,23 @@
 define ->
 
-  class Defer
-    @timeouts: []
-    @messageName: 'zero-timeout-message'
-
-    @counter: 0
-
-    @nextTick: (fn) ->
-      ###
-      Like setTimeout, but only takes a function argument.  There's
-      no time argument (always zero) and no arguments (you have to
-      use a closure).
-      ###
-      @timeouts.push(fn)
-      @counter++
-      window.postMessage(@messageName, "*")
+  messageName = 'zero-timeout-message'
+  tasks = []
 
 
-    @handleMessage: (event) ->
-      if event.source == window && event.data == Defer.messageName
-        event.stopPropagation()
-        if Defer.timeouts.length > 0
-          fn = Defer.timeouts.shift()
-          fn()
-          Defer.counter--
+  handleMessage = (event) ->
+    if event.source == window and event.data == messageName
+      event.stopPropagation()
+      if tasks.length > 0
+        fn = tasks.shift()
+        fn()
+
+  window.addEventListener('message', handleMessage, true)
 
 
-
-  window.addEventListener('message', Defer.handleMessage, true)
-
-  Defer
+  nextTick: (fn) ->
+    ###
+    Like setTimeout, but only takes a function argument.  There's no time argument (always zero) and no arguments
+     (you have to use a closure).
+    ###
+    tasks.push(fn)
+    window.postMessage(messageName, "*")
