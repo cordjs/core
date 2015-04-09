@@ -90,9 +90,13 @@ define [
           url += ( if url.lastIndexOf('?') == -1 then '?' else '&' ) + "#{@accessTokenParamName}=#{@accessToken}"
           Future.resolved([url, params])
         else
-          @_getTokensByAllMeans().spread (accessToken) =>
-            url += ( if url.lastIndexOf('?') == -1 then '?' else '&' ) + "#{@accessTokenParamName}=#{accessToken}"
-            [[url, params]]
+          @_getTokensByAllMeans()
+            .catch (error) =>
+              _console.error('Clear refresh token, because of:', error)
+              @_invalidateRefreshToken()
+            .spread (accessToken) =>
+              url += ( if url.lastIndexOf('?') == -1 then '?' else '&' ) + "#{@accessTokenParamName}=#{accessToken}"
+              [[url, params]]
 
 
     prepareAuth: ->
@@ -266,7 +270,6 @@ define [
 
           # Set refresh lock, to let other tabs know we are in progress of getting new tokens, so wait for us
           @tabSync.set(@_extRefreshName, '1')
-          refreshPromise = Future.single('OAuth2::grantAccessTokenByRefreshToken')
 
           params =
             grant_type: 'refresh_token'
@@ -275,29 +278,29 @@ define [
             client_secret: @_clientSecret
 
           params[@refreshTokenParamName] = refreshToken
-          @request.get @endpoints.accessToken, params, (result, err) =>
+
+          @request.get(@endpoints.accessToken, params).then (result, err) =>
             if result
-              if result.error # this means that refresh token is outdated
-                if result.error == 'invalid_client'
-                  _console.error("Invalid clientId or clientSecret", result)
-                refreshPromise.resolve [null, null]
-              else
-                refreshPromise.resolve [ result.access_token, result.refresh_token ]
               # Clear refresh promise, so the next time a new one will be created
               @_refreshTokenRequestPromise = null
-
               # Clear refresh lock, to let other tabs know we have new tokens
               @tabSync.set(@_extRefreshName)
+
+              if result.error # this means that refresh token is outdated
+                if result.error == 'invalid_client'
+                  new error("Invalid clientId or clientSecret " + result)
+                else
+                  new error("Unable to get access token by refresh token " + result)
+              else
+                Future.resolved([result.access_token, result.refresh_token])
+
             else if retries > 0
               _console.warn 'Error while refreshing oauth token! Will retry after pause... Error:', err
               Future.timeout(500).then =>
                 @_refreshTokenRequestPromise = null
                 @grantAccessTokenByRefreshToken(refreshToken, scope, retries - 1)
-              .link(refreshPromise)
             else
-              refreshPromise.reject(new Error("Failed to refresh oauth token! Reason: #{JSON.stringify(err)} "))
-
-          refreshPromise
+              new Error("Failed to refresh oauth token! Reason: #{JSON.stringify(err)} ")
 
       @_refreshTokenRequestPromise
 
@@ -325,8 +328,7 @@ define [
           @_storeTokens(grantedAccessToken, grantedRefreshToken)
           [[grantedAccessToken, grantedRefreshToken]]
         else
-          @_invalidateRefreshToken()
-          throw new Error('Failed to get auth token by refresh token: refresh token is outdated!')
+          new Error('Failed to get auth token by refresh token: refresh token could be outdated!')
       @_refreshPromise
 
 
