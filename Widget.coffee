@@ -1557,12 +1557,11 @@ define [
             if @childById[widgetId]
               @childById[widgetId].setSubscribedPushBinding(bindingMap)
             else
-              widgetInfo =
+              _console.warn "Widget has died, but it was not removed from childBindings",
                 id: @ctx.id
                 constructorName: @constructor.__name
                 widgetId: widgetId
                 stack: (new Error()).stack
-              _console.warn "Widget has died, but it was not removed from childBindings", widgetInfo
 
           readyConditions = []
 
