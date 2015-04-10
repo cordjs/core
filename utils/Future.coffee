@@ -1,7 +1,8 @@
 define [
   'asap/raw'
   'underscore'
-], (asap, _) ->
+  './asapInContext'
+], (asap, _, asapInContext) ->
 
   # unhandled tracking settings
   unhandledTrackingEnabled = false
