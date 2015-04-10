@@ -1,7 +1,8 @@
 define [
+  'cord!errors'
   'postal'
   'underscore'
-], (postal, _) ->
+], (errors, postal, _) ->
 
   # What kind of messages we should log
   output =
@@ -109,14 +110,16 @@ define [
 
       errorType = (error and error.type) or 'error'
 
-      if output[errorType]
+      # Report the error so that we could show it to the user
+      if errorType == 'error'
         postal.publish 'error.notify.publish',
           message: 'Произошла ошибка'
           console: true
           link: ''
           details: stringify(args)
 
-        @_log errorType, args
+      # And log the error
+      @_log errorType, args if output[errorType]
 
 
     clear: ->
