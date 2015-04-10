@@ -1,9 +1,8 @@
 define [
   'asap/raw'
   'underscore'
-  'cord!errors'
   './asapInContext'
-], (asap, _, errors, asapInContext) ->
+], (asap, _, asapInContext) ->
 
   # unhandled tracking settings
   unhandledTrackingEnabled = false
@@ -162,7 +161,6 @@ define [
         @_runAlwaysCallbacks() if @_alwaysCallbacks.length > 0
         @_clearDoneCallbacks()
         @_clearDebugTimeout() if unresolvedTrackingEnabled
-        @_clearUnhandledTracking() if unhandledTrackingEnabled and err and errors.isInternal(err)
       this
 
 
@@ -850,7 +848,8 @@ define [
               if state == 'rejected'
                 err = info.promise._callbackArgs[0]
                 reportArgs.push err
-                cons()._taggedError(info.promise._stack, ['warn'], reportArgs)
+                reportArgs.push "Future creation stack: #{info.promise._stack}"
+                cons().warn reportArgs
             delete unhandledMap[id]
       , interval
 

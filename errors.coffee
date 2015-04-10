@@ -17,9 +17,12 @@ define ->
     isCordInternal: false
 
     constructor: (message, type) ->
-      @type = type if type
       @message = message
       @isCordInternal = isInternal(@)
+      if type
+        @type = type
+      else if @isCordInternal
+        @type = 'internal'
       Error.call(this, message)
       Error.captureStackTrace?(this, arguments.callee)
 
