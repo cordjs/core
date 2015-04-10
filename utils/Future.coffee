@@ -2,7 +2,8 @@ define [
   'asap/raw'
   'underscore'
   'cord!errors'
-], (asap, _, errors) ->
+  './asapInContext'
+], (asap, _, errors, asapInContext) ->
 
   # unhandled tracking settings
   unhandledTrackingEnabled = false
@@ -16,6 +17,21 @@ define [
 
   # environment-dependent console object
   cons = -> if typeof _console != 'undefined' then _console else console
+
+  ##
+  # Shared routine callback functions that allow to avoid redundant closures creation for each call
+  ##
+  asapDoneCb = ->
+    @_runDoneCallbacks()
+    @_clearFailCallbacks()
+
+  asapFailCb = ->
+    @_runFailCallbacks()
+
+  asapFinallyCb = ->
+    @_runAlwaysCallbacks()
+    @_clearFailCallbacks() if @_state == 'resolved'
+
 
   class Future
     ###
@@ -37,9 +53,6 @@ define [
 
     # helpful to identify the future during debugging
     _name: ''
-
-    # timeout for uncompleted futures
-    _incompleteTimeout: null
 
 
     constructor: (initialCounter = 0, name = ':noname:') ->
@@ -206,9 +219,7 @@ define [
         @_doneCallbacks.push(callback)
         if @_counter == 0
           @_clearDebugTimeout()  if unresolvedTrackingEnabled
-          asap =>
-            @_runDoneCallbacks()
-            @_clearFailCallbacks()
+          asapInContext(this, asapDoneCb)
       this
 
 
@@ -223,8 +234,7 @@ define [
         @_failCallbacks.push(callback)
         if @_state == 'rejected'
           @_clearDebugTimeout() if unresolvedTrackingEnabled
-          asap =>
-            @_runFailCallbacks()
+          asapInContext(this, asapFailCb)
       @_clearUnhandledTracking() if unhandledTrackingEnabled
       this
 
@@ -238,9 +248,7 @@ define [
       @_alwaysCallbacks.push(callback)
       if @_counter == 0 or @_state == 'rejected'
         @_clearDebugTimeout() if unresolvedTrackingEnabled
-        asap =>
-          @_runAlwaysCallbacks()
-          @_clearFailCallbacks() if @_state == 'resolved'
+        asapInContext(this, asapFinallyCb)
       @_clearUnhandledTracking() if unhandledTrackingEnabled
       this
 
