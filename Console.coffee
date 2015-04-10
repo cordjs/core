@@ -15,6 +15,7 @@ define [
     outputError = config.console.error
     outputErrorTrace = !!config.console.errorTrace
     excludeErrors = config.console.excludeErrors or excludeErrors
+    joinArgs = config.console.joinArgs
 
 
   stringify = (args) ->
@@ -32,7 +33,10 @@ define [
 
   prependDate = (args) ->
     args.unshift((new Date).toString()) if not CORD_IS_BROWSER
-    args
+    if joinArgs
+      [args.join('\n')]
+    else
+      args
 
 
   appendErrorTrace = (args, error) ->
