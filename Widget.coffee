@@ -788,7 +788,7 @@ define [
 
       tmplPath = @getPath()
 
-      templateLoader.loadWidgetTemplate(tmplPath).flatMap =>
+      templateLoader.loadWidgetTemplate(tmplPath).then =>
         @markRenderStarted()
         @cleanChildren()
         @_saveContextVersionForBehaviourSubscriptions()
@@ -859,7 +859,7 @@ define [
       if Object.keys(bindings).length != 0
         @childBindings[widget.ctx.id] = bindings
 
-      result.map -> params
+      result.then -> params
 
 
     _renderExtendedTemplate: (tmpl, domInfo) ->

@@ -284,6 +284,7 @@ define [
 
       @see example 2 in class documentation block
       ###
+      console.trace 'DEPRECATION WARNING: Future.callback is deprecated, use Future.sequence instead!'
       @fork()
       order = @_order++
       @_callbackArgs ?= {}
@@ -435,6 +436,7 @@ define [
        array than callback must return an Array with single item containing the resulting Array (Array in Array).
       If this Future is rejected than the resulting Future will contain the same error.
       ###
+      console.trace 'DEPRECATION WARNING: Future.map is deprecated, use Future.then instead!'
       result = Future.single("#{@_name} -> map")
       result.withoutTimeout() if @_noTimeout or not global.config?.debug.future.trackInternalTimeouts
       @done ->
@@ -462,6 +464,7 @@ define [
       @param Function(this.result -> Future(A)) callback
       @return Future(A)
       ###
+      console.trace 'DEPRECATION WARNING: Future.flatMap is deprecated, use Future.then instead!'
       result = Future.single("#{@_name} -> flatMap")
       result.withoutTimeout() if @_noTimeout or not global.config?.debug.future.trackInternalTimeouts
       @done ->
@@ -502,7 +505,7 @@ define [
       @return Future
       ###
       those.unshift(this)
-      Future.sequence(those, "#{@_name} -> zip").map (result) -> result
+      Future.sequence(those, "#{@_name} -> zip").then (result) -> result
 
 
     @sequence: (futureList, name = ':sequence:') ->
@@ -523,7 +526,7 @@ define [
             promise.resolve()
           .fail (e) ->
             promise.reject(e)
-      promise.map -> [result]
+      promise.then -> [result]
 
 
     @select: (futureList) ->

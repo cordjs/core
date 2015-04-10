@@ -23,12 +23,12 @@ define [
       if not @_cssToGroupFuture
         @_cssToGroupFuture =
           if global.config.browserInitScriptId
-            Future.require('fs').flatMap (fs) ->
+            Future.require('fs').then (fs) ->
               r = Future.single()
               fs.exists 'conf/css-to-group-generated.js', (exists) ->
                 r.resolve(exists)
               r
-            .flatMap (exists) ->
+            .then (exists) ->
               if exists
                 Future.require('../conf/css-to-group-generated')
               else
@@ -54,7 +54,7 @@ define [
       @param Array[String] cssList list of required css-files for the page.
       @return Future[String]
       ###
-      @_getCssToGroup().map (cssToGroup) =>
+      @_getCssToGroup().then (cssToGroup) =>
         optimized =
           for css in cssList
             if cssToGroup[css]

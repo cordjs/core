@@ -224,7 +224,7 @@ define [
 
       @request.get(@endpoints.accessToken, requestParams)
         .rename('Oauth2::_grantAccessTokenByExtensions')
-        .map (result) -> [result.access_token, result.refresh_token]
+        .then (result) -> [result.access_token, result.refresh_token]
         .catchIf(
           (e) -> e instanceof httpError.InvalidResponse and e.response.statusCode == 400
           -> throw new cordError.AuthError()
@@ -246,7 +246,7 @@ define [
 
       @request.get(@endpoints.accessToken, params)
         .rename('Oauth2::grantAccessTokenByPassword')
-        .map (result) -> [result.access_token, result.refresh_token]
+        .then (result) -> [result.access_token, result.refresh_token]
         .catchIf(
           (e) -> e instanceof httpError.InvalidResponse and e.response.statusCode == 400
           -> throw new cordError.AuthError()

@@ -205,7 +205,7 @@ define [
           for serviceAlias, serviceName of services
             injectService serviceAlias, serviceName
 
-      Future.sequence(injectFutures, "Container::injectServices(#{target.constructor.name})").map -> target
+      Future.sequence(injectFutures, "Container::injectServices(#{target.constructor.name})").then -> target
 
 
     autoStartServices: (services) ->
