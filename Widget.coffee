@@ -1155,7 +1155,7 @@ define [
           else # if info.type == 'placeholder'
             orderId = 'placeholder-' + info.name
             placeholderOrder[orderId] = i
-            widget._renderPlaceholder(info.name, domInfo).then (out) ->
+            widget._renderPlaceholder(info.name, domInfo).spread (out) ->
               widget._placeholdersClasses[info.name] = info.class if info.class
               placeholderOut[placeholderOrder[orderId]] = widget.renderPlaceholderTag(info.name, out)
               promise.resolve()
@@ -1166,7 +1166,7 @@ define [
 
       promise.then =>
         @_placeholdersRenderInfo.push(info) for info in renderInfo # collecting render info for the future usage by the enclosing widget
-        [placeholderOut.join(''), renderInfo]
+        [[placeholderOut.join(''), renderInfo]] ## todo: Future refactor
 
 
     getPlaceholdersRenderInfo: ->
@@ -1223,7 +1223,7 @@ define [
           do (name) =>
             if replaceHints[name].replace
               domInfo = new DomInfo("#{ @debug('renderPlaceholders') } -> #{name}")
-              @_renderPlaceholder(name, domInfo).then (out, renderInfo) =>
+              @_renderPlaceholder(name, domInfo).spread (out, renderInfo) =>
                 $el = $(@renderPlaceholderTag(name, out))
 
                 # we should copy placeholder classes

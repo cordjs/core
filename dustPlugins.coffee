@@ -129,7 +129,7 @@ define [
       if params and params.class
         tmplWidget._placeholdersClasses[name] = params.class
 
-      tmplWidget._renderPlaceholder(name, tmplWidget._domInfo).then (out) ->
+      tmplWidget._renderPlaceholder(name, tmplWidget._domInfo).spread (out) ->
         tmplWidget.childWidgetComplete()
         chunk.end(tmplWidget.renderPlaceholderTag(name, out))
       .catch (err) ->

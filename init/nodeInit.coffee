@@ -65,7 +65,11 @@ exports.init = (baseUrl = 'public', configName = 'default', serverPort) ->
 
     profilerInit() if CORD_PROFILER_ENABLED
 
-    AppConfigLoader.ready().zip(biFuture).done (appConfig) ->
+    Future.sequence [
+      AppConfigLoader.ready()
+      biFuture
+    ]
+    .spread (appConfig) ->
       router.addRoutes(appConfig.routes)
       router.addFallbackRoutes(appConfig.fallbackRoutes) if appConfig.fallbackRoutes?
       services.proxyRoutes = appConfig.proxyRoutes

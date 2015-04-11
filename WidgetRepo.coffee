@@ -96,7 +96,11 @@ define [
             widget.router = router
           .catch (err) -> # compatibility with compiling index.html when services are not defined
             null
-          @serviceContainer.injectServices(widget).zip(injectRouterPromise).then -> widget
+          Future.sequence [
+            @serviceContainer.injectServices(widget)
+            injectRouterPromise
+          ]
+          .then -> widget
         .catch (err) =>
           @dropWidget(widget.ctx.id)
           throw err
