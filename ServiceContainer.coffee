@@ -1,9 +1,8 @@
 define [
-  'the-box'
   'cord!errors'
   'cord!utils/Future'
   'underscore'
-], (Container, errors, Future, _) ->
+], (errors, Future, _) ->
 
   class ServiceDefinition
 
