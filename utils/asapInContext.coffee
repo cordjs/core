@@ -79,8 +79,8 @@ define ->
       handleTimer = ->
         # Whichever timer succeeds will cancel both timers and
         # execute the callback.
-        clearTimeout(timeoutHandle);
-        clearInterval(intervalHandle);
+        clearTimeout(timeoutHandle)
+        clearInterval(intervalHandle)
         callback()
       # We dispatch a timeout with a specified delay of 0 for engines that
       # can reliably accommodate that request. This will usually be snapped
@@ -96,7 +96,7 @@ define ->
   if typeof window != 'undefined' and window.document
     # Browser
     BrowserMutationObserver = global.MutationObserver or global.WebKitMutationObserver
-    if typeof BrowserMutationObserver == "function"
+    if typeof BrowserMutationObserver == 'function'
       requestFlush = makeRequestCallFromMutationObserver(flush)
     else
       requestFlush = makeRequestCallFromTimer(flush)
