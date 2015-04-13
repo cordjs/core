@@ -12,11 +12,11 @@ define [
     notice: global?.config?.console.notice or false
     system: global?.config?.console.system or false
     errorTrace: global?.config?.console.errorTrace or false
+    joinArgs: global?.config?.console.joinArgs or false
 
   # Enable assertions (for development only)
   assertionsEnabled = global?.config?.debug.assertions or false
 
-  joinArgs = config.console.joinArgs if config and config.console
 
   stringify = (args) ->
     args.map (x) ->
@@ -33,7 +33,7 @@ define [
 
   addDate = (args) ->
     args.unshift((new Date).toString()) if not CORD_IS_BROWSER
-    if joinArgs
+    if output.joinArgs
       [args.join('\n')]
     else
       args
