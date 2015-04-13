@@ -288,14 +288,14 @@ define [
 
               if result.error # this means that refresh token is outdated
                 if result.error == 'invalid_client'
-                  throw new Error("Invalid clientId or clientSecret " + result)
+                  throw new Error("Invalid clientId or clientSecret #{result}")
                 else
-                  throw new Error("Unable to get access token by refresh token " + result)
+                  throw new Error("Unable to get access token by refresh token #{result}")
               else
                 [[result.access_token, result.refresh_token]]
 
             else if retries > 0
-              _console.warn 'Error while refreshing oauth token! Will retry after pause... Error:', err
+              _console.warn('Error while refreshing oauth token! Will retry after pause... Error:', err)
               Future.timeout(500).then =>
                 @_refreshTokenRequestPromise = null
                 @grantAccessTokenByRefreshToken(refreshToken, scope, retries - 1)
@@ -355,7 +355,7 @@ define [
           if response and response.code
             promise.resolve(response.code)
           else
-            promise.reject(new errors.MegaIdAuthFailed('No auth code recieved. Response:'+ JSON.stringify(response) + JSON.stringify(error)))
+            promise.reject(new errors.MegaIdAuthFailed("No auth code recieved. Response: #{JSON.stringify(response)} #{JSON.stringify(error)}"))
       promise
 
 
@@ -382,7 +382,7 @@ define [
             if response?.code
               promise.resolve(response.code)
             else
-              promise.reject(new errors.MegaIdAuthFailed('No auth code recieved. Response: ' + JSON.stringify(response) + JSON.stringify(error)))
+              promise.reject(new errors.MegaIdAuthFailed("No auth code recieved. Response: #{JSON.stringify(response)} #{JSON.stringify(error)}"))
         else
           promise.reject(new Error('config.api.oauth2.endpoints.authCodeWithoutLogin parameter is required'))
       promise
@@ -457,5 +457,5 @@ define [
           @_invalidateRefreshToken()
           promise.resolve()
         else
-          promise.reject(new Error('Bad response from authorization server: ' + JSON.stringirfy(error)))
+          promise.reject(new Error("Bad response from authorization server: #{JSON.stringirfy(error)}"))
       promise
