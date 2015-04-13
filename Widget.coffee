@@ -265,7 +265,7 @@ define [
             @ctx = params.context
           else
             @ctx = new Context(params.context)
-            @ctx.setOwnerWidget(this)
+          @ctx.setOwnerWidget(this)
         @setRepo params.repo if params.repo?
         @setServiceContainer params.serviceContainer if params.serviceContainer?
         compileMode = params.compileMode if params.compileMode?
