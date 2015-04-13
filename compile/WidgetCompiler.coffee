@@ -46,7 +46,7 @@ define [
       @param String tmplSourcePath path to the source template file (.html)
       @return Future[Nothing]
       ###
-      Future.require("cord-w!#{ widgetPath }").flatMap (WidgetClass) ->
+      Future.require("cord-w!#{ widgetPath }").then (WidgetClass) ->
         compiler = new WidgetCompiler(WidgetClass)
         compiler.compileTemplate(tmplSourcePath)
 
@@ -70,7 +70,7 @@ define [
       ###
       tmplPath = @widget.getPath()
       tmplFullPath = "./#{ pathUtils.getPublicPrefix() }/bundles/#{ @widget.getTemplatePath() }"
-      Future.call(fs.readFile, tmplSourcePath, 'utf8').flatMap (htmlString) =>
+      Future.call(fs.readFile, tmplSourcePath, 'utf8').then (htmlString) =>
         @compiledSource = dust.compile(htmlString, tmplPath)
         amdSource = "define(['dustjs-helpers'], function(dust){#{ @compiledSource }});"
         tmplFuture = Future.call(fs.writeFile, "#{ tmplFullPath }.js", amdSource)
@@ -78,7 +78,7 @@ define [
         structFuture =
           if @widget.getPath() != '/cord/core//Switcher'
             dust.loadSource(@compiledSource)
-            Future.call(dust.render, tmplPath, @getBaseContext().push(@widget.ctx)).flatMap =>
+            Future.call(dust.render, tmplPath, @getBaseContext().push(@widget.ctx)).then =>
               Future.call(fs.writeFile, "#{ tmplFullPath }.struct.js", @getStructureCode(false, true))
           else
             Future.call(fs.writeFile, "#{ tmplFullPath }.struct.js", 'define([],function(){return {};});')
