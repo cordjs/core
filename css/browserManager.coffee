@@ -2,7 +2,8 @@ define [
   'cord!utils/Defer'
   'cord!utils/Future'
   'jquery'
-], (Defer, Future, $) ->
+  'underscore'
+], (Defer, Future, $, _) ->
 
   # helpers
   doc = document
@@ -29,6 +30,28 @@ define [
     false
 
 
+  isSafari5 = ->
+    !!navigator.userAgent.match(' Safari/') &&
+      !navigator.userAgent.match(' Chrom') &&
+      !!navigator.userAgent.match(' Version/5.')
+
+
+  isWebkitNoOnloadSupport = ->
+    # Webkit: 535.23 and above supports onload on link tags.
+    [supportedMajor, supportedMinor] = [535, 23]
+    if (match = navigator.userAgent.match(/\ AppleWebKit\/(\d+)\.(\d+)/))
+      match.shift()
+      [major, minor] = [+match[0], +match[1]]
+      major < supportedMajor || major == supportedMajor && minor < supportedMinor
+
+
+  isLinkOnLoadSupport = ->
+    ###
+    Is current browser supports link.onload method
+    ###
+    not isSafari5() and not isWebkitNoOnloadSupport() and _.has(document.createElement('link'), 'onload')
+
+
   class BrowserManager
     ###
     @browser-only
@@ -47,6 +70,13 @@ define [
       @_loadedFiles = {}
       @_loadingOrder = []
       @_cssToGroup = {}
+      # Below code tested on Android 4.3 (no link.onload support) and Chrome 37.0.2062.120 (link.onload supported)
+      if isLinkOnLoadSupport()
+        # use css loading via native link.onload
+        @_loadCss = @_loadLink
+      else
+        # use css loading via img.onload hack
+        @_loadCss = @_loadImg
 
 
     load: (cssPath) ->
@@ -57,14 +87,14 @@ define [
       normPath = normalizePath(cssPath)
       if not @_loadedFiles[normPath]?
         if not @_cssToGroup[normPath]
-          @_loadedFiles[normPath] = @_loadLink("#{ cssPath }?release=#{ global.config.static.release }")
+          @_loadedFiles[normPath] = @_loadCss("#{ cssPath }?release=#{ global.config.static.release }")
           @_loadedFiles[normPath].then =>
             # memory optimization
             @_loadedFiles[normPath] = Future.resolved()
           @_loadingOrder.push(normPath)
         else
           groupId = @_cssToGroup[normPath]
-          loadPromise = @_loadLink("/assets/z/#{groupId}.css")
+          loadPromise = @_loadCss("/assets/z/#{groupId}.css")
           @_loadedFiles[css] = loadPromise for css in @_groupToCss[groupId]
           loadPromise.then =>
             # memory optimization
@@ -122,7 +152,7 @@ define [
       promise
 
 
-    _loadScript: (url, promise) ->
+    _loadScript: (url) ->
       ###
       Insert a script tag and use it's onload & onerror to know when
        the CSS is loaded, this will unfortunately also fire on other
@@ -130,6 +160,7 @@ define [
       @param String url css-file url to load
       @param Future promise future to resolve when the CSS is loaded
       ###
+      promise = Future.single("browserManager::_loadScript(#{url})")
       link = @_createLink(url)
       script = doc.createElement('script');
 
@@ -151,8 +182,10 @@ define [
       script.src = url
       head.appendChild(script)
 
+      promise
 
-    _loadImg: (url, promise) ->
+
+    _loadImg: (url) ->
       ###
       Insert a img tag and use it's onload & onerror to know when
        the CSS is loaded, this will unfortunately also fire on other
@@ -160,6 +193,7 @@ define [
       @param String url css-file url to load
       @param Future promise future to resolve when the CSS is loaded
       ###
+      promise = Future.single("browserManager::_loadImg(#{url})")
       img = doc.createElement('img');
 
       head.appendChild(@_createLink(url));
@@ -176,6 +210,8 @@ define [
         checkLoaded()
 
       img.src = url
+
+      promise
 
 
     _createLink: (url) ->

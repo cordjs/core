@@ -16,6 +16,7 @@ define [
   # Enable assertions (for development only)
   assertionsEnabled = global?.config?.debug.assertions or false
 
+  joinArgs = config.console.joinArgs if config and config.console
 
   stringify = (args) ->
     args.map (x) ->
@@ -32,7 +33,10 @@ define [
 
   addDate = (args) ->
     args.unshift((new Date).toString()) if not CORD_IS_BROWSER
-    args
+    if joinArgs
+      [args.join('\n')]
+    else
+      args
 
 
   addErrorTrace = (args, trace) ->
