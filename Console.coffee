@@ -33,10 +33,7 @@ define [
 
   addDate = (args) ->
     args.unshift((new Date).toString()) if not CORD_IS_BROWSER
-    if output.joinArgs
-      [args.join('\n')]
-    else
-      args
+    args
 
 
   addErrorTrace = (args, trace) ->
