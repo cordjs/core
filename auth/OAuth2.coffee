@@ -288,19 +288,19 @@ define [
 
               if result.error # this means that refresh token is outdated
                 if result.error == 'invalid_client'
-                  new error("Invalid clientId or clientSecret " + result)
+                  throw new Error("Invalid clientId or clientSecret #{result}")
                 else
-                  new error("Unable to get access token by refresh token " + result)
+                  throw new Error("Unable to get access token by refresh token #{result}")
               else
-                Future.resolved([result.access_token, result.refresh_token])
+                [[result.access_token, result.refresh_token]]
 
             else if retries > 0
-              _console.warn 'Error while refreshing oauth token! Will retry after pause... Error:', err
+              _console.warn('Error while refreshing oauth token! Will retry after pause... Error:', err)
               Future.timeout(500).then =>
                 @_refreshTokenRequestPromise = null
                 @grantAccessTokenByRefreshToken(refreshToken, scope, retries - 1)
             else
-              new Error("Failed to refresh oauth token! Reason: #{JSON.stringify(err)} ")
+              throw new Error("Failed to refresh oauth token! Reason: #{JSON.stringify(err)} ")
 
       @_refreshTokenRequestPromise
 
@@ -328,7 +328,7 @@ define [
           @_storeTokens(grantedAccessToken, grantedRefreshToken)
           [[grantedAccessToken, grantedRefreshToken]]
         else
-          new Error('Failed to get auth token by refresh token: refresh token could be outdated!')
+          throw new Error('Failed to get auth token by refresh token: refresh token could be outdated!')
       @_refreshPromise
 
 
@@ -355,7 +355,7 @@ define [
           if response and response.code
             promise.resolve(response.code)
           else
-            promise.reject(new errors.MegaIdAuthFailed('No auth code recieved. Response:'+ JSON.stringify(response) + JSON.stringify(error)))
+            promise.reject(new errors.MegaIdAuthFailed("No auth code recieved. Response: #{JSON.stringify(response)} #{JSON.stringify(error)}"))
       promise
 
 
@@ -382,7 +382,7 @@ define [
             if response?.code
               promise.resolve(response.code)
             else
-              promise.reject(new errors.MegaIdAuthFailed('No auth code recieved. Response: ' + JSON.stringify(response) + JSON.stringify(error)))
+              promise.reject(new errors.MegaIdAuthFailed("No auth code recieved. Response: #{JSON.stringify(response)} #{JSON.stringify(error)}"))
         else
           promise.reject(new Error('config.api.oauth2.endpoints.authCodeWithoutLogin parameter is required'))
       promise
@@ -457,5 +457,5 @@ define [
           @_invalidateRefreshToken()
           promise.resolve()
         else
-          promise.reject(new Error('Bad response from authorization server: ' + JSON.stringirfy(error)))
+          promise.reject(new Error("Bad response from authorization server: #{JSON.stringirfy(error)}"))
       promise

@@ -787,10 +787,7 @@ define [
       promise = new Future('ModelRepo::clearSingleModelCollections')
       for key, collection of @_collections
         if parseInt(collection._id) == model.id
-          promise.fork()
-          delete @_collections[key]
-          collection.invalidateCache().failAloud().then =>
-            promise.resolve()
+          promise.when(collection.euthanize())
       promise
 
 
