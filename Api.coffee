@@ -307,6 +307,14 @@ define [
           if response.headers.has('X-Target-Host')
             @emit('host.changed', response.headers.get('X-Target-Host'))
           [result, response]
+
+        .catchIf httpErrors.Network, (e) =>
+          # In case of network error, we'll try to reconnect again
+          if retryCount > 0
+            _console.warn "WARNING: request to #{url} failed because of network error #{e}. Retrying after 0.5s..."
+            Future.timeout(500).then =>
+              @_doRequest(method, url, params, retryCount - 1)
+
         .catchIf httpErrors.InvalidResponse, (e) =>
           # Handle invalid server response. i.e. 401, 403, 500 and etc..
           # We can not handle here network errors, so, it will throws to external handlers
@@ -323,11 +331,8 @@ define [
             message = response.body?._message ? response.body?.message ? response.statusText
 
             # Post could make duplicates
-            if method == 'get' and params.reconnect and
-               (not response.statusCode or response.statusCode == 500) and
-               retryCount > 0
-
-              _console.warn "WARNING: request to #{url} failed! Retrying after 0.5s..."
+            if method == 'get' and retryCount > 0
+              _console.warn "WARNING: request to #{url} failed due to invalid response. #{response} Retrying after 0.5s..."
 
               Future.timeout(500).then =>
                 @_doRequest(method, url, params, retryCount - 1)
