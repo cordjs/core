@@ -314,6 +314,8 @@ define [
             _console.warn "WARNING: request to #{url} failed because of network error #{e}. Retrying after 0.5s..."
             Future.timeout(500).then =>
               @_doRequest(method, url, params, retryCount - 1)
+          else
+            throw e
 
         .catchIf httpErrors.InvalidResponse, (e) =>
           # Handle invalid server response. i.e. 401, 403, 500 and etc..
