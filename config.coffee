@@ -1,28 +1,30 @@
 define  ->
 
   services:
-    api:
+
+    apiFactory:
       deps: ['runtimeConfigResolver', 'container', 'config', 'tabSync']
       factory: (get, done) ->
-        require ['cord!Api', 'cord!utils/Future', 'postal'], (Api, Future, postal) ->
-          container = get('container')
-          resolver = get('runtimeConfigResolver')
-          originalConfig = get('config').api
-          Future.try -> resolver.resolveConfig(originalConfig)
-            .then (apiConfig) ->
-              api = new Api(container, apiConfig)
-              container.injectServices(api)
-                .then -> api.init()
-                .then -> api.configure(apiConfig)
-                .then ->
-                  # Subscribe to runtimeConfigResolver's 'setParameter' event, and
-                  # reconfigure on event emitted
-                  resolver.on('setParameter', -> api.configure(resolver.resolveConfig(originalConfig)))
-                  api.on 'host.changed', (host) ->
-                    resolver.setParameter('BACKEND_HOST', host) if host != resolver.getParameter('BACKEND_HOST')
-                  return
-                .then -> done(null, api)
-                .then -> postal.publish('api.available')
+        require ['cord!ApiFactory'], (ApiFactory) ->
+          apiFactory = new ApiFactory(get('config').api)
+          get('container').injectServices(apiFactory).finally(done)
+
+    api:
+      deps: ['apiFactory', 'runtimeConfigResolver']
+      factory: (get, done) ->
+        require ['cord!Api', 'postal'], (Api, postal) ->
+          get('apiFactory').getApiByParams()
+            .then (api) ->
+              # Subscribe to runtimeConfigResolver's 'setParameter' event, and
+              # reconfigure on event emitted
+              resolver = get('runtimeConfigResolver')
+              resolver.on('setParameter', -> api.configure(resolver.resolveConfig(originalConfig)))
+              api.on 'host.changed', (host) ->
+                resolver.setParameter('BACKEND_HOST', host) if host != resolver.getParameter('BACKEND_HOST')
+              api
+            .then (api) ->
+              done(null, api)
+            .then -> postal.publish('api.available')
             .catch (e) ->
               done(e)
 

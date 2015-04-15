@@ -62,6 +62,15 @@ define [
       @param config Config to resolve
       @param parameters optionally one-time used parameters.
       ###
+      @resolveConfigByParams(_.extend({}, @parameters, parameters))
+
+
+    resolveConfigByParams: (config, parameters = {}) ->
+      ###
+      Make a try to resolve config. If try is successful, method returns resolved config, else it returns false
+      @param config Config to resolve
+      @param parameters optionally one-time used parameters.
+      ###
       resolvedConfig = _.cloneDeep config, (val) =>
         if _.isString(val)
           # Replace variables by regexp replace
@@ -73,8 +82,6 @@ define [
               name = matches[1]
               if parameters[name] != undefined
                 parameters[name]
-              else if @parameters[name] != undefined
-                @parameters[name]
               else
                 throw new errors.ConfigError("Parameter #{name} is not defined")
       resolvedConfig
