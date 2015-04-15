@@ -18,7 +18,7 @@ define  ->
               # Subscribe to runtimeConfigResolver's 'setParameter' event, and
               # reconfigure on event emitted
               resolver = get('runtimeConfigResolver')
-              resolver.on('setParameter', -> api.configure(resolver.resolveConfig(originalConfig)))
+              resolver.on('setParameter', -> api.configure(resolver.resolveConfig(get('config').api)))
               api.on 'host.changed', (host) ->
                 resolver.setParameter('BACKEND_HOST', host) if host != resolver.getParameter('BACKEND_HOST')
               api
