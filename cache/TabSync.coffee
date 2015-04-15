@@ -15,7 +15,7 @@ define [
 
     constructor: ->
       # Set of futures awaitng for localStorage event
-      _awaitingKeys = {}
+      @_awaitingKeys = {}
 
 
     init: ->
