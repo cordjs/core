@@ -10,7 +10,7 @@ define  ->
           get('container').injectServices(apiFactory).finally(done)
 
     api:
-      deps: ['apiFactory', 'runtimeConfigResolver']
+      deps: ['apiFactory', 'runtimeConfigResolver', 'config']
       factory: (get, done) ->
         require ['cord!Api', 'postal'], (Api, postal) ->
           get('apiFactory').getApiByParams()
