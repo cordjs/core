@@ -66,6 +66,20 @@ define [
         tags[tag] or tag
 
 
+    @unescapeTags = (input) ->
+      tags =
+        'amp': '&'
+        'lt': '<'
+        'gt': '>'
+        'nbsp': ' '
+        'quot': '"'
+        'laquo': '«'
+        'raquo': '»'
+
+      source = String(input)
+      regularExpression = new RegExp("&(#{Object.keys(tags)});", 'g')
+      source.replace regularExpression, (match, entity) -> tags[entity]
+
 
     @stripTags = (input, allowed) ->
       ###
