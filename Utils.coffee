@@ -77,7 +77,7 @@ define [
         'raquo': '»'
 
       source = String(input)
-      regularExpression = new RegExp("&(#{Object.keys(tags)});", 'g')
+      regularExpression = new RegExp("&(#{Object.keys(tags).join('|')});", 'g')
       source.replace regularExpression, (match, entity) -> tags[entity]
 
 
