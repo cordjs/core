@@ -193,8 +193,7 @@ define [
       result = @grantAccessTokenByPassword(username, password, @getScope())
       result.then (accessToken, refreshToken) =>
         @_onAccessTokenGranted(accessToken, refreshToken)
-
-      result
+        return
 
 
     _onAccessTokenGranted: (accessToken, refreshToken) ->
@@ -210,7 +209,7 @@ define [
       result = @_grantAccessTokenByExtensions(url, params, @getScope())
       result.then (accessToken, refreshToken) =>
         @_onAccessTokenGranted(accessToken, refreshToken)
-      result
+        return
 
 
     _grantAccessTokenByExtensions: (url, params, scope) ->

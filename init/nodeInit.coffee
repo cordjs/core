@@ -52,9 +52,29 @@ exports.init = (baseUrl = 'public', configName = 'default', serverPort) ->
 
     router.EventEmitter = EventEmitter
     services.router = router
-    services.fileServer = new serverStatic.Server(baseUrl)
     services.xdrProxy = xdrProxy
     services.statCollector = statCollector
+
+    fileServer = new serverStatic.Server(baseUrl)
+    fileServer.serve = fileServer.serve.bind(fileServer)
+    if devSourcesServerRootDir = process.env['DEV_SOURCES_SERVER_ROOT_DIR']
+      sourceServer = new serverStatic.Server(devSourcesServerRootDir)
+      sourceServer.serve = sourceServer.serve.bind(sourceServer)
+
+    services.staticServer = (req, res) =>
+      req.addListener 'end', (err) ->
+        Future.call(fileServer.serve, req, res).catch (err) =>
+          if sourceServer?
+            Future.call(sourceServer.serve, req, res)
+          else
+            throw err
+        .catch (err) =>
+          res.writeHead err.status, err.headers
+          if err.status is 404 or err.status is 500
+            res.end "Error #{ err.status }"
+          else
+            res.end()
+      .resume()
 
     global._console = Console
 
@@ -89,22 +109,7 @@ exports.startServer = startServer = (callback) ->
     else if req.url.indexOf('/REQUIRESTAT/collect') == 0
       services.statCollector(req, res)
     else if not services.router.process(req, res)
-
-      # Detect for custom proxyRoutes from bundle configs
-      for proxyRoute in services.proxyRoutes
-        if req.url.indexOf(proxyRoute) != -1 # cross-domain request proxy
-          services.xdrProxy(req.url, req, res)
-          return
-
-      req.addListener 'end', (err) ->
-        services.fileServer.serve req, res, (err) ->
-          if err
-            res.writeHead err.status, err.headers
-            if err.status is 404 or err.status is 500
-              res.end "Error #{ err.status }"
-            else
-              res.end()
-      .resume()
+      services.staticServer(req, res)
   .listen(global.config.server.port)
 
   require('./wsServer').start(services.nodeServer) if global.config.debug.livereload
