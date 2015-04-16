@@ -62,7 +62,7 @@ define [
       @param config Config to resolve
       @param parameters optionally one-time used parameters.
       ###
-      @resolveConfigByParams(_.extend({}, @parameters, parameters))
+      @resolveConfigByParams(config, _.extend({}, @parameters, parameters))
 
 
     resolveConfigByParams: (config, parameters = {}) ->
