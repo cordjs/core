@@ -15,7 +15,7 @@ define [
     {#widget/} block handling
     ###
     tmplWidget = context.get('_ownerWidget')
-    tmplWidget.childWidgetAdd()
+    tmplWidget.childWidgetAdd(params.type)
 
     if params.type.substr(0, 2) == './'
       params.type = "//#{tmplWidget.constructor.relativeDir}#{params.type.substr(1)}"
@@ -52,7 +52,7 @@ define [
           if not complete
             complete = true
             timeoutDomInfo.completeWith(contextDomInfo) if hasTimeout
-            tmplWidget.childWidgetComplete()
+            tmplWidget.childWidgetComplete(params.type)
             chunk.end(widget.renderRootTag(out))
           else
             TimeoutStubHelper.replaceStub(out, widget, contextDomInfo).then ($newRoot) ->
@@ -62,8 +62,9 @@ define [
             .catchIf (err) ->
               err instanceof errors.WidgetDropped or err instanceof errors.WidgetSentenced
         .catch (err) ->
-          _console.error "Error on widget #{ widget.debug() } rendering:", err
+          tmplWidget.childWidgetFailed(params.type, err)
           chunk.setError(err)
+          return
 
         if hasTimeout
           setTimeout ->
@@ -72,13 +73,15 @@ define [
               complete = true
               widget._delayedRender = true
               TimeoutStubHelper.getTimeoutHtml(tmplWidget, timeoutTemplate, widget).then (out) ->
-                tmplWidget.childWidgetComplete()
+                tmplWidget.childWidgetComplete(params.type)
                 chunk.end(widget.renderRootTag(out))
               .catch (err) ->
+                tmplWidget.childWidgetFailed(params.type, err)
                 chunk.setError(err)
           , timeout
       .catch (err) ->
         chunk.setError(err)
+        return
 
 
   deferred: (chunk, context, bodies, params) ->
@@ -93,26 +96,20 @@ define [
 
       promise = new Future(tmplWidget.debug('deferred'))
       for name in needToWait
-        do (name) ->
-          promise.fork()
-          subscription = postal.subscribe
-            topic: "widget.#{ tmplWidget.ctx.id }.change.#{ name }"
-            callback: (data) ->
-              if data.value != ':deferred'
-                promise.resolve()
-                subscription.unsubscribe()
-          tmplWidget.addTmpSubscription(subscription)
+        promise.when(tmplWidget.ctx.getPromise(name))
 
-      tmplWidget.childWidgetAdd()
+      tmplWidget.childWidgetAdd('deferred')
       chunk.map (chunk) ->
         promise.then ->
           TimeoutStubHelper.renderTemplateFile(tmplWidget, "__deferred_#{deferredId}")
         .then (out) ->
-          tmplWidget.childWidgetComplete()
+          tmplWidget.childWidgetComplete('deferred')
           chunk.end(out)
         .catch (err) ->
           _console.error "Error on widget #{ widget.debug() } #deferred rendering:", err
+          tmplWidget.childWidgetFailed('deferred', err)
           chunk.setError(err)
+          return
     else
       ''
 
@@ -123,17 +120,19 @@ define [
     Placeholder - point of extension of the widget.
     ###
     tmplWidget = context.get('_ownerWidget')
-    tmplWidget.childWidgetAdd()
+    tmplWidget.childWidgetAdd('placeholder')
     chunk.map (chunk) ->
       name = params?.name ? 'default'
       if params and params.class
         tmplWidget._placeholdersClasses[name] = params.class
 
       tmplWidget._renderPlaceholder(name, tmplWidget._domInfo).then (out) ->
-        tmplWidget.childWidgetComplete()
+        tmplWidget.childWidgetComplete('placeholder')
         chunk.end(tmplWidget.renderPlaceholderTag(name, out))
       .catch (err) ->
+        tmplWidget.childWidgetFailed('placeholder', err)
         chunk.setError(err)
+        return
 
 
   i18n: (chunk, context, bodies, params) ->
@@ -174,12 +173,11 @@ define [
       ''
     else
       chunk.map (chunk) ->
-        subscription = postal.subscribe
-          topic: "widget.#{ tmplWidget.ctx.id }.render.children.complete"
-          callback: ->
-            chunk.end(tmplWidget.widgetRepo.getTemplateCode())
-            subscription.unsubscribe()
-        tmplWidget.addSubscription(subscription)
+        tmplWidget._childWidgetCompletePromise.then ->
+          chunk.end(tmplWidget.widgetRepo.getTemplateCode())
+        .catch (error) ->
+          chunk.setError(error)
+          return
 
 
   css: (chunk, context) ->
@@ -188,12 +186,10 @@ define [
     ###
     tmplWidget = context.get('_ownerWidget')
     chunk.map (chunk) ->
-      subscription = postal.subscribe
-        topic: "widget.#{ tmplWidget.ctx.id }.render.children.complete"
-        callback: ->
-          tmplWidget.widgetRepo.getTemplateCss().then (html) ->
-            chunk.end(html)
-          .catch (error) ->
-            chunk.setError(error)
-          subscription.unsubscribe()
-      tmplWidget.addTmpSubscription(subscription)
+      tmplWidget._childWidgetCompletePromise.then ->
+        tmplWidget.widgetRepo.getTemplateCss()
+      .then (html) ->
+        chunk.end(html)
+      .catch (error) ->
+        chunk.setError(error)
+        return

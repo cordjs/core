@@ -23,6 +23,7 @@ define [
       ###
       @[':internal'] = {}
       @[':internal'].version = 0
+      @[':internal'].promises = {}
 
       initCtx = {}
 
@@ -86,8 +87,8 @@ define [
           resolvedValue = null if resolvedValue == undefined
           @setSingle name, resolvedValue
         .catch (err) =>
-          _console.error "Context.set promise failed with error: #{err}! Setting value to null...", err
-          @setSingle name, null
+          @[':internal'].promises[name].reject(err)
+          return
         return triggerChange
 
       stashChange = true
@@ -114,6 +115,9 @@ define [
 
       # never change value to 'undefined' (don't mix up with 'null' value)
       @[name] = newValue if newValue != undefined
+
+      if ':deferred' == newValue and newValue != oldValue
+        @[':internal'].promises[name] = Future.single("Deferred parameter \"#{name}\"")
 
       if triggerChange
         callbackPromise.fork() if callbackPromise
@@ -144,6 +148,9 @@ define [
             cursor: cursor
             version: curVersion
           callbackPromise.resolve() if callbackPromise
+          if ':deferred' != newValue
+            @[':internal'].promises[name]?.resolve(newValue)
+            delete @[':internal'].promises[name]
 
       triggerChange
 
@@ -161,6 +168,16 @@ define [
 
     isDeferred: (name) ->
       @[name] is ':deferred'
+
+
+    getPromise: (name) ->
+      ###
+      Returns Future of parameter's value.
+      ###
+      if @isDeferred(name)
+        @[':internal'].promises[name]
+      else
+        Future.resolved(@[name])
 
 
     isEmpty: (name) ->

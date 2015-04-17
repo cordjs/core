@@ -40,6 +40,9 @@ define [
     # timeout for uncompleted futures
     _incompleteTimeout: null
 
+    #parent future. Sets on `then` call
+    _parent: null
+
 
     constructor: (initialCounter = 0, name = ':noname:') ->
       ###
@@ -240,7 +243,7 @@ define [
         Defer.nextTick =>
           @_runAlwaysCallbacks()
           @_clearFailCallbacks() if @_state == 'resolved'
-      @_clearUnhandledTracking() if unhandledTrackingEnabled
+      @_clearUnhandledTracking() if unhandledTrackingEnabled and callback.length > 0
       this
 
 
@@ -342,6 +345,7 @@ define [
         _nameSuffix = 'then(empty)'
       result = Future.single("#{@_name} -> #{_nameSuffix}")
       result.withoutTimeout() if @_noTimeout or not global.config?.debug.future.trackInternalTimeouts
+      result._parent = this if logOriginStackTrace
       if onResolved?
         @done ->
           try
@@ -843,9 +847,16 @@ define [
                 err = info.promise._callbackArgs[0]
                 reportArgs.push(err)
                 reportArgs.push(err.stack) if err.stack
-                if info.promise._stack
-                  reportArgs.push("\n--------------------------\n")
-                  reportArgs.push(info.promise._stack)
+                pushStack = (promise) ->
+                  if promise._stack
+                    reportArgs.push("\n--------------------------\n")
+                    reportArgs.push(promise._name)
+                    reportArgs.push(info.promise._stack)
+                  if promise._parent
+                    pushStack(promise._parent)
+                  else
+                    reportArgs.push("\n==========================\n")
+                pushStack(info.promise)
                 cons().warn.apply(cons(), reportArgs)
             delete unhandledMap[id]
       , interval
