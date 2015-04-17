@@ -91,6 +91,6 @@ define [
 
 
     _handleStorageEvent: (event) =>
-      key = event.key
+      key = event.key 
       value = event.newValue
       _.each(@_awaitingKeys[key], (waitingPromise) -> waitingPromise.resolve(value))
