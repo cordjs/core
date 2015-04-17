@@ -19,6 +19,7 @@ define  ->
                   # reconfigure on event emitted
                   resolver.on('setParameter', -> api.configure(resolver.resolveConfig(originalConfig)))
                   api.on 'host.changed', (host) ->
+                    _console.log('BACKEND_HOST has been changed to:', host)
                     resolver.setParameter('BACKEND_HOST', host) if host != resolver.getParameter('BACKEND_HOST')
                   return
                 .then -> done(null, api)
