@@ -839,7 +839,8 @@ define [
             # if context value is deferred, than waiting asynchronously...
             if @ctx.isDeferred(value)
               do (name, value) =>
-                @ctx.getPromise(value).then () =>
+                @ctx.getPromise(value).then (resolvedValue) =>
+                  params[name] = resolvedValue
                   @widgetRepo.subscribePushBinding(@ctx.id, value, widget, name, @ctx.getVersion()) if isBrowser
                   return # avoid possible Future result of .subscribePushBinding
                 .link(result)
