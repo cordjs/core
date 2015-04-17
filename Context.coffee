@@ -87,7 +87,12 @@ define [
           resolvedValue = null if resolvedValue == undefined
           @setSingle name, resolvedValue
         .catch (err) =>
-          @[':internal'].promises[name].reject(err)
+          # We should keep rejected promise for possible future `getPromise(name)` call
+          # (parameter keeps deferred in this case)
+          @[':internal'].promises[name] ?= @_newParamPromise(name)
+          @[':internal'].promises[name]?.reject(err)
+          # This parameter never will never become resolved, as it rejected
+          @_clearDeferredDebug(name) if deferredTrackingEnabled
           return
         return triggerChange
 
@@ -116,9 +121,6 @@ define [
       # never change value to 'undefined' (don't mix up with 'null' value)
       @[name] = newValue if newValue != undefined
 
-      if ':deferred' == newValue and newValue != oldValue
-        @[':internal'].promises[name] = Future.single("Deferred parameter \"#{name}\"")
-
       if triggerChange
         callbackPromise.fork() if callbackPromise
         curVersion = ++@[':internal'].version
@@ -138,6 +140,10 @@ define [
               cursor: cursor
               version: curVersion
 
+        if ':deferred' != newValue and @[':internal'].promises[name]
+          @[':internal'].promises[name].resolve(newValue)
+          delete @[':internal'].promises[name]
+
         Defer.nextTick =>
           _console.log "publish widget.#{ @id }.change.#{ name }" if global.config.debug.widget
           postal.publish "widget.#{ @id }.change.#{ name }",
@@ -148,9 +154,6 @@ define [
             cursor: cursor
             version: curVersion
           callbackPromise.resolve() if callbackPromise
-          if ':deferred' != newValue
-            @[':internal'].promises[name]?.resolve(newValue)
-            delete @[':internal'].promises[name]
 
       triggerChange
 
@@ -175,6 +178,7 @@ define [
       Returns Future of parameter's value.
       ###
       if @isDeferred(name)
+        @[':internal'].promises[name] ?= @_newParamPromise(name)
         @[':internal'].promises[name]
       else
         Future.resolved(@[name])
@@ -290,6 +294,10 @@ define [
       if deferredTrackMap[@id]
         delete deferredTrackMap[@id][name]
         delete deferredTrackMap[@id]  if _.isEmpty(deferredTrackMap[@id])
+
+
+    _newParamPromise: (name) ->
+      Future.single("Context deferred parameter #{name}")
 
 
 
