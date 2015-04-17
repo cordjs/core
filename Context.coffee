@@ -90,7 +90,7 @@ define [
           # We should keep rejected promise for possible future `getPromise(name)` call
           # (parameter keeps deferred in this case)
           @[':internal'].promises[name] ?= @_newParamPromise(name)
-          @[':internal'].promises[name]?.reject(err)
+          @[':internal'].promises[name].reject(err)
           # This parameter never will never become resolved, as it rejected
           @_clearDeferredDebug(name) if deferredTrackingEnabled
           return
