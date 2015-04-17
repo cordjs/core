@@ -62,7 +62,9 @@ define [
             .catchIf (err) ->
               err instanceof errors.WidgetDropped or err instanceof errors.WidgetSentenced
         .catch (err) ->
-          tmplWidget.childWidgetFailed(params.type, err)
+          if not complete
+            complete = true
+            tmplWidget.childWidgetFailed(params.type, err)
           chunk.setError(err)
           return
 
@@ -80,6 +82,7 @@ define [
                 chunk.setError(err)
           , timeout
       .catch (err) ->
+        tmplWidget.childWidgetFailed(params.type, err)
         chunk.setError(err)
         return
 
