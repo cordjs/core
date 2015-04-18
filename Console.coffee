@@ -5,14 +5,14 @@ define [
 ], (errors, postal, _) ->
 
   # What kind of messages we should log
+  consoleConfig = global?.config?.console or {}
   output =
-    log: global?.config?.console.log or true
-    warn: global?.config?.console.warn or true
-    error: global?.config?.console.error or true
-    notice: global?.config?.console.notice or false
-    internal: global?.config?.console.internal or false
-    errorTrace: global?.config?.console.errorTrace or false
-    joinArgs: global?.config?.console.joinArgs or false
+    log: consoleConfig.log or true
+    warn: consoleConfig.warn or true
+    error: consoleConfig.error or true
+    notice: consoleConfig.notice or false
+    internal: consoleConfig.internal or false
+    errorTrace: consoleConfig.errorTrace or false
 
   # Enable assertions (for development only)
   assertionsEnabled = global?.config?.debug.assertions or false
@@ -31,8 +31,11 @@ define [
     .join(', ')
 
 
-  addDate = (args) ->
-    args.unshift((new Date).toString()) if not CORD_IS_BROWSER
+  prepareArgs = (args) ->
+    if not CORD_IS_BROWSER
+      host = global?.config?.api.backend.host
+      args.unshift host if host
+      args.unshift((new Date).toString())
     args
 
 
@@ -73,7 +76,7 @@ define [
 
         method = if console[type] then type else 'log'
         args.unshift "[#{type}]"
-        console[method] addDate(args).join(" ")
+        console[method] prepareArgs(args).join(" ")
 
 
     log: (args...) ->
