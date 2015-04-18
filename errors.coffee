@@ -7,6 +7,10 @@ define ->
     err.isCordInternal or err.message?.match /Chunk error.*(WidgetSentenced|WidgetParamsRace)/
 
 
+  getType: getType = (err) ->
+    if isInternal(err) then 'internal' else (err.type or 'error')
+
+
   CordError: class CordError extends Error
     ###
     Base error class

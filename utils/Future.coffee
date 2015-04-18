@@ -852,7 +852,7 @@ define [
                 err = info.promise._callbackArgs[0]
                 reportArgs.push err
                 reportArgs.push "Future creation stack: #{info.promise._stack}"
-                cons().warn reportArgs
+              cons().warn.apply(cons(), reportArgs)
             delete unhandledMap[id]
       , interval
 
