@@ -128,7 +128,7 @@ define [
 
           previousProcess = {}
 
-          processWidget = (rootWidgetPath, params) ->
+          processWidget = (rootWidgetPath, params, catchError = true) ->
             pr.timer 'ServerSideRouter::showWidget', ->
               # If current route requires authorization, api service should be available
               processNext = Future.single('Main process next')
@@ -152,13 +152,25 @@ define [
                       res.shouldKeepAlive = false
                       res.writeHead 200, 'Content-Type': 'text/html'
                       res.end(out)
-                .catch (err) ->
+                .catchIf (-> catchError), (err) ->
                   if err instanceof errors.AuthError
                     serviceContainer.getService('api').then (api) ->
                       api.authenticateUser()
+                  else if appConfig.errorWidget
+                    processWidget(
+                      appConfig.errorWidget
+                      error: err
+                      widget:
+                        path: rootWidgetPath
+                        params: params
+                      false
+                    ).catch (nestedErr) =>
+                      throw new Error("Error handling failed because of #{nestedErr}, original: #{err}")
                   else
-                    _console.error "FATAL ERROR: server-side rendering failed! Reason:", err
-                    displayFatalError()
+                    throw err
+                .catchIf (-> catchError), (err) ->
+                  _console.error "FATAL ERROR: server-side rendering failed! Reason:", err
+                  displayFatalError()
                 .finally ->
                   clear()
 

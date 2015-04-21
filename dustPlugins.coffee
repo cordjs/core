@@ -3,8 +3,7 @@ define [
   'cord!utils/DomInfo'
   'cord!utils/Future'
   'cord!errors'
-  'postal'
-], (TimeoutStubHelper, DomInfo, Future, errors, postal) ->
+], (TimeoutStubHelper, DomInfo, Future, errors) ->
 
   ###
   Set of dustjs plugin functions supporting CordJS templates special setup and structuring

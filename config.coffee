@@ -169,3 +169,4 @@ define  ->
         exports: 'zone'
 
   fatalErrorPageFile: 'bundles/cord/core/assets/fatal-error.html'
+  errorWidget: '/cord/core//Error'
