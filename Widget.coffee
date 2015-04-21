@@ -1628,7 +1628,7 @@ define [
                 else
                   errorInfo.stuckChildInfo.push childWidget.ready().completed()
                 i++
-              _console.warn "#{ @debug 'incompleteBrowserInit:children!' }", errorInfo
+              _console.warn "#{ @debug 'incompleteBrowserInit:children!' }", JSON.stringify(errorInfo, null, 2)
             else if not savedPromiseForTimeoutCheck.completed()
               _console.warn "#{ @debug 'incompleteBrowserInit!' } css:#{ savedConstructorCssPromise.completed() } child:#{ childWidgetsReadyPromise.completed() } selfInit:#{ selfInitBehaviour }"
             @_browserInitDebugTimeout = null
