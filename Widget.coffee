@@ -1677,8 +1677,9 @@ define [
       This method should be called when the widget's body is actually shown in the DOM.
       @param Boolean ignoreChildren if true doesn't recursively call markShown for it's child widgets
       ###
+      @_dynamicRender = false
       if not @_shown and not @_delayedRender # timeouted widget should not be marked as shown
-        child.markShown() for child in @children if not ignoreChildren
+        child.markShown() for child in @children when not child._dynamicRender if not ignoreChildren
         # _shown is necessary to protect from duplicate recursive calling of markShown() from the future's callbacks
         # this redundancy can be removed when inline-generated widgets will have appropriate detection and separation API
         @_shown = true

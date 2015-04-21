@@ -464,6 +464,7 @@ define [
       try
         checkIsSentenced(@widget)
         @widget.createChildWidget(type, name).then (newWidget) =>
+          newWidget._dynamicRender = true # cause it's dynamic widget init, we should set flag for competitive markShow child setting
           checkIsSentenced(newWidget, 'before _renderNewWidget')
           @_renderNewWidget(newWidget, params).done ($el) ->
             callback?($el, newWidget)
