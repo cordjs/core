@@ -106,10 +106,16 @@ define  ->
         done(null, navigator.userAgent)
 
       localStorage: (get, done) ->
-        require ['cord!cache/localStorage', 'localforage'], (LocalStorage, localForage) ->
+        require ['cord!cache/localStorage', 'cord!utils/Future', 'localforage'], (LocalStorage, Future, localForage) ->
           localForage.ready().then ->
-            # Resolve future (promise argument) according with Promise
             Promise::toFuture = (promise) ->
+              ###
+              Converts standart "thenable" Promise into our Future promise.
+              If an argument is given, then it will be fulfilled and returned instead of creating new Future promise.
+              @param {Future} promise - optional externally created promise to be fulfilled with this promise result
+              @return {Future}
+              ###
+              promise or= Future.single(':toFuture:')
               this
                 .then -> promise.resolve()
                 .catch (err) -> promise.reject(err)
