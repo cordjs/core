@@ -3,7 +3,8 @@ define [
   'cord!utils/DomInfo'
   'cord!utils/Future'
   'cord!errors'
-], (TimeoutStubHelper, DomInfo, Future, errors) ->
+  'underscore'
+], (TimeoutStubHelper, DomInfo, Future, errors, _) ->
 
   ###
   Set of dustjs plugin functions supporting CordJS templates special setup and structuring
@@ -90,6 +91,7 @@ define [
     ###
     {#deferred/} block handling
     ###
+    type = _.uniqueId('deferred_')
     if bodies.block?
       tmplWidget = context.get('_ownerWidget')
       deferredId = tmplWidget._deferredBlockCounter++
@@ -100,16 +102,16 @@ define [
       for name in needToWait
         promise.when(tmplWidget.ctx.getPromise(name))
 
-      tmplWidget.childWidgetAdd('deferred')
+      tmplWidget.childWidgetAdd(type)
       chunk.map (chunk) ->
         promise.then ->
           TimeoutStubHelper.renderTemplateFile(tmplWidget, "__deferred_#{deferredId}")
         .then (out) ->
-          tmplWidget.childWidgetComplete('deferred')
+          tmplWidget.childWidgetComplete(type)
           chunk.end(out)
         .catch (err) ->
           _console.error "Error on widget #{ widget.debug() } #deferred rendering:", err
-          tmplWidget.childWidgetFailed('deferred', err)
+          tmplWidget.childWidgetFailed(type, err)
           chunk.setError(err)
           return
     else
@@ -122,17 +124,18 @@ define [
     Placeholder - point of extension of the widget.
     ###
     tmplWidget = context.get('_ownerWidget')
-    tmplWidget.childWidgetAdd('placeholder')
+    type = _.uniqueId('placeholder_')
+    tmplWidget.childWidgetAdd(type)
     chunk.map (chunk) ->
       name = params?.name ? 'default'
       if params and params.class
         tmplWidget._placeholdersClasses[name] = params.class
 
       tmplWidget._renderPlaceholder(name, tmplWidget._domInfo).then (out) ->
-        tmplWidget.childWidgetComplete('placeholder')
+        tmplWidget.childWidgetComplete(type)
         chunk.end(tmplWidget.renderPlaceholderTag(name, out))
       .catch (err) ->
-        tmplWidget.childWidgetFailed('placeholder', err)
+        tmplWidget.childWidgetFailed(type, err)
         chunk.setError(err)
         return
 

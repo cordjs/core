@@ -767,6 +767,8 @@ define [
       @_behaviourContextBorderVersion = null
       @_placeholdersRenderInfo = []
       @_deferredBlockCounter = 0
+      # Widget can be re-rendered, so, we should cleanup all children
+      @cleanChildren()
 
       result = @getStructTemplate().then (tmpl) =>
         if tmpl.isExtended()
@@ -795,10 +797,10 @@ define [
 
       templateLoader.loadWidgetTemplate(tmplPath).flatMap =>
         @markRenderStarted('_renderSelfTemplate')
-        @cleanChildren()
         @_saveContextVersionForBehaviourSubscriptions()
         @_domInfo = domInfo
-        result = Future.call(dust.render, tmplPath, @getBaseContext().push(@ctx))
+        ctx = @getBaseContext().push(@ctx)
+        result = Future.call(dust.render, tmplPath, ctx)
           .rename(":call:dust.render(#{tmplPath})")
         result.finally =>
           @_domInfo = null # free for GC
@@ -1358,6 +1360,7 @@ define [
       @childByName = {}
       @childById = {}
       @childBindings = {}
+      @_childWidgetCompletePromise = null
 
 
     _resetWidgetReady: ->

@@ -247,3 +247,14 @@ define [
         value
       else
         undefined
+
+
+    @buildErrorWidgetParams: (error, originalWidget, originalWidgetParams) ->
+      ###
+      Single method for creation params of error widget
+      ###
+      error: error
+      original:
+        widget:
+          path: originalWidget
+          params: originalWidgetParams

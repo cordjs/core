@@ -56,3 +56,12 @@ define ->
       @name = 'ConfigError'
       Error.call(this, @message)
       Error.captureStackTrace?(this, arguments.callee)
+
+
+  MustTransitPage: class MustTransitPage extends Error
+    ###
+    This error should be thrown to force transition to specified page
+    ###
+    name: 'MustTransitPage'
+    constructor: (@widget, @params) ->
+      super("Transition to #{@widget} required!")

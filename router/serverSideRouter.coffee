@@ -159,10 +159,7 @@ define [
                   else if appConfig.errorWidget
                     processWidget(
                       appConfig.errorWidget
-                      error: err
-                      widget:
-                        path: rootWidgetPath
-                        params: params
+                      Utils.buildErrorWidgetParams(error, rootWidgetPath, params)
                       false
                     ).catch (nestedErr) =>
                       throw new Error("Error handling failed because of #{nestedErr}, original: #{err}")
