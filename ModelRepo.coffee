@@ -159,12 +159,11 @@ define [
       @return Collection|null
       ###
 
-      options =
+      # extraOptions should not override option keys defined here
+      options = _.extend {}, extraOptions,
         id: id
         fields: fields
         reconnect: false
-
-      options = _.extend extraOptions, options
 
       @createCollection(options)
 
