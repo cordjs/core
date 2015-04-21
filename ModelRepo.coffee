@@ -391,7 +391,7 @@ define [
             else if response
               result.push(@buildModel(response))
             callback?(result)
-            [result]
+            [result] ## todo: Future refactor
           else
             throw new Error("#{@debug('query')}: invalid response for url '#{url}' with code #{response._code}!")
       else
@@ -567,14 +567,7 @@ define [
                 selected: Int (0-based index/position of the selected model)
                 selectedPage: Int (1-based number of the page that contains the selected model)
       ###
-      result = Future.single('ModelRepo::paging')
-      if @container
-        @container.eval 'api', (api) =>
-          api.get @_buildPagingRequestUrl(params), {}, (response) =>
-            result.resolve(response)
-      else
-        result.reject('Cleaned up')
-      result
+      @api.get(@_buildPagingRequestUrl(params))
 
 
     _buildPagingRequestUrl: (params) ->
@@ -681,28 +674,24 @@ define [
             needRequest = true
             break
           currentValue = currentValue[subFields[i]]
-        if needRequest == true
-          break
+        break  if needRequest
 
       #Do request, or not
-      promise = new Future(1, 'ModelRepo::propagateFieldChange promise')
-      if needRequest
-        @container.eval 'api', (api) =>
-          apiParams =
-            _fields: fieldDefinitions.join ','
-          api.get @restResource + '/' + id, apiParams, (result, error) ->
-            promise.resolve result
-      else
-        changeset = {}
-        changeset[fieldName] = newValue
-        promise.resolve changeset
+      Future.try =>
+        if needRequest
+          @api.get @restResource + '/' + id,
+            _fields: fieldDefinitions.join(',')
+        else
+          changeset = {}
+          changeset[fieldName] = newValue
+          changeset
 
-      #Propagate new value
-      promise.done (result) =>
-        changeset = _.clone result
+      .then (changeset) =>
+        #Propagate new value
         changeset.id = id
         for key,collection of @_collections
           collection._handleModelChange changeset
+        return
 
 
     callModelAction: (id, method, action, params) ->

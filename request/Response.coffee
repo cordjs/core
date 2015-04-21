@@ -59,7 +59,7 @@ define [
       Resolve or reject promise, depend on status code of response
       ###
       if @isSuccessful()
-        promise.resolve(@body, this)
+        promise.resolve(this)
       else if @error instanceof Error
         promise.reject(@error)
       else
