@@ -1119,10 +1119,10 @@ define [
                 complete = true # should be here to avoid returning `promise` (above) and locking to it
               else
                 replaceTimeoutStub(out, timeoutDomInfo)
-            .catch (err) ->
+            .catch (err) =>
               if promise.completed()
                 # this check is to catch bug rarely appeared during tests
-                _console.error "Unexpected promise consistency error in #{@debug('_renderPlaceholder')}: #{err}", err
+                _console.error "Unexpected promise consistency error in #{@debug('_renderPlaceholder')} -> #{widget.debug('show')}: #{err}", err
               else
                 promise.reject(err)
               return
