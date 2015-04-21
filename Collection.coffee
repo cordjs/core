@@ -22,6 +22,7 @@ define [
     _filterId: null
     _filterParams: null # params for filter
     _filterFunction: null
+    _reportConfig: null
 
     _defaultRefreshPages: 3 #default amount of pages to refresh
 
@@ -156,6 +157,7 @@ define [
       filterId = options.filterId ? ''
       filterParams = options.filterParams ? ''
       filterParams = filterParams.join(',') if _.isArray(filterParams)
+      reportConfig = options.reportConfig ? ''
       filter = _.reduce options.filter , (memo, value, index) ->
         memo + index + '_' + value
       , ''
@@ -188,6 +190,7 @@ define [
         filterId
         filterParams
         filter
+        reportConfig
         orderBy
         id
         requestOptions
@@ -221,6 +224,7 @@ define [
         @_orderBy = options.orderBy ? null
         @_filterId = options.filterId ? null
         @_filterParams = options.filterParams ? null
+        @_reportConfig = options.reportConfig ? null
         @_id = options.id ? 0
         @_filter = options.filter ? {}
         @_pageSize = options.pageSize ? 0
@@ -766,6 +770,7 @@ define [
         if @_hasLimits
           result.start = @_loadedStart
           result.end = @_loadedEnd
+        result.reportConfig = @_reportConfig if @_reportConfig?
       result
 
 
@@ -1265,11 +1270,13 @@ define [
             pageSize: @_pageSize
             orderBy: @_orderBy
           params.selectedId = selectedId if selectedId
+
           if @_filterType == ':backend'
             params.filterId = @_filterId
             params.filterParams = @_filterParams if @_filterParams
 
           params.filter = @_filter if @_filter
+          params.reportConfig = @_reportConfig if @_reportConfig?
 
           @repo.paging(params).done (response) =>
             @_totalCount = if response then response.total else response
@@ -1375,6 +1382,7 @@ define [
               queryParams.filterParams = @_filterParams if @_filterParams
 
             queryParams.filter = @_filter if @_filter
+            queryParams.reportConfig = @_reportConfig if @_reportConfig?
             queryParams.start = start if start?
             queryParams.end = end  if end?
 
@@ -1531,6 +1539,7 @@ define [
       filterType: @_filterType
       filterId: @_filterId
       filterParams: @_filterParams
+      reportConfig: @_reportConfig
       orderBy: @_orderBy
       fields: @_fields
       start: @_loadedStart
@@ -1561,6 +1570,7 @@ define [
       collection._filterType = obj.filterType
       collection._filterParams = obj.filterParams
       collection._filterId = obj.filterId
+      collection._reportConfig = obj.reportConfig
       collection._orderBy = obj.orderBy
       collection._fields = obj.fields
       collection._setLoadedRange(start, obj.end)
