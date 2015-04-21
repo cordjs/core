@@ -33,6 +33,10 @@ define [
     _widgetSubscriptions: null
     _modelBindings: null
 
+    # guarantees that event handlers will not run before services are injected and `init` method is processed
+    _initPromise: null
+
+
     constructor: (widget, $domRoot) ->
       ###
       @param Widget widget
@@ -73,10 +77,18 @@ define [
       @customEvents = @constructor.customEvents if not @customEvents
       @customEvents = @customEvents() if _.isFunction(@customEvents)
 
+      # should be completed by Widget.initBehaviour when all dependencies are injected
+      @_initPromise = Future.single(@debug('init'))
+
       @refreshElements()                if @elements
-      @delegateEvents(@events)          if @events
-      @initWidgetEvents(@widgetEvents)  if @widgetEvents
-      @initCustomEvents(@customEvents)  if @customEvents
+      @_initPromise.then =>
+        @delegateEvents(@events)          if @events
+        @initWidgetEvents(@widgetEvents)  if @widgetEvents
+        @initCustomEvents(@customEvents)  if @customEvents
+
+        @_initPromise = Future.resolved() # memory optimization
+        return
+      .failOk() # the error is handled properly in Widget.initBehaviour
 
       @_callbacks = []
 
@@ -276,28 +288,36 @@ define [
       ->
         origArgs = arguments
         pr.timer "#{that.constructor.__name}::DOM('#{eventDesc}')", ->
-          m.apply(that, origArgs) if that.widget and not that.widget.isSentenced()
+          try
+            m.apply(that, origArgs) if that.widget and not that.widget.isSentenced()
+          catch err
+            _console.error "Error in DOM event handler #{that.debug(eventDesc)}: #{err}", err
         true
 
 
     _getWidgetEventMethod: (fieldName, method) ->
       m = @_getHandlerFunction(method)
-      onChangeMethod = =>
+      that = this
+      onChangeMethod = ->
+        origArgs = arguments
         data = arguments[0]
-        ctxVersionBorder = @widget._behaviourContextBorderVersion
+        ctxVersionBorder = that.widget._behaviourContextBorderVersion
         # if data.version is undefined than it's model-emitted event and need not version check
         versionOk = (not ctxVersionBorder? or not data.version? or data.version > ctxVersionBorder)
-        if not @widget.isSentenced() and data.value != ':deferred' and versionOk
+        if not that.widget.isSentenced() and data.value != ':deferred' and versionOk
           duplicate = false
           if data.cursor
-            if @widget._eventCursors[data.cursor]
-              delete @widget._eventCursors[data.cursor]
+            if that.widget._eventCursors[data.cursor]
+              delete that.widget._eventCursors[data.cursor]
               duplicate = true
             else
-              @widget._eventCursors[data.cursor] = true
+              that.widget._eventCursors[data.cursor] = true
           if not duplicate
-            @_registerModelBinding(data.value, fieldName, onChangeMethod)
-            m.apply(this, arguments)
+            that._registerModelBinding(data.value, fieldName, onChangeMethod)
+            try
+              m.apply(that, origArgs)
+            catch err
+              _console.error "Error in widget event handler #{that.debug(fieldName)}: #{err}", err
 
 
     _registerModelBinding: (value, fieldName, onChangeMethod) ->

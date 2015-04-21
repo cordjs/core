@@ -1492,6 +1492,14 @@ define [
                   @behaviour.init()
                 else
                   throw new errors.WidgetSentenced("Couldn't init behaviour #{BehaviourClass.__name} bacause widget is sentenced!")
+              # .link call is not acceptable here, because we should guarantee that behaviour's _initPromise callbacks
+              #  (they define event handlers) run before stashed events are replayed
+              .then =>
+                @behaviour._initPromise.resolve()
+                return
+              .catch (err) =>
+                @behaviour._initPromise.reject(err)
+                throw err
             else
               throw new Error("WRONG BEHAVIOUR CLASS: #{behaviourClass}")
         .catch (err) =>
