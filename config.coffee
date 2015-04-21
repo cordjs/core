@@ -169,4 +169,4 @@ define  ->
         exports: 'zone'
 
   fatalErrorPageFile: 'bundles/cord/core/assets/fatal-error.html'
-  errorWidget: '/cord/core//Error'
+  errorWidget: null # You can set error widget path here in cordjs notation
