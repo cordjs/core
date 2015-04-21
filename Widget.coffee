@@ -1490,7 +1490,7 @@ define [
           if not @_sentenced
             # TODO: move this check to the build phase
             if BehaviourClass.prototype instanceof Behaviour
-              @behaviour = new BehaviourClass(this, $domRoot)
+              @behaviour = savedBehaviour = new BehaviourClass(this, $domRoot)
               @container.injectServices(@behaviour).then =>
                 if not @_sentenced
                   @behaviour.init()
@@ -1499,10 +1499,10 @@ define [
               # .link call is not acceptable here, because we should guarantee that behaviour's _initPromise callbacks
               #  (they define event handlers) run before stashed events are replayed
               .then =>
-                @behaviour._initPromise.resolve()
+                @behaviour._initPromise.resolve()  if @behaviour == savedBehaviour # behaviour could be dropped
                 return
               .catch (err) =>
-                @behaviour._initPromise.reject(err)
+                @behaviour._initPromise.reject(err)  if @behaviour == savedBehaviour # behaviour could be dropped
                 throw err
             else
               throw new Error("WRONG BEHAVIOUR CLASS: #{behaviourClass}")
