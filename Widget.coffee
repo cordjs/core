@@ -1120,7 +1120,11 @@ define [
               else
                 replaceTimeoutStub(out, timeoutDomInfo)
             .catch (err) ->
-              promise.reject(err)
+              if promise.completed()
+                # this check is to catch bug rarely appeared during tests
+                _console.error "Unexpected promise consistency error in #{@debug('_renderPlaceholder')}: #{err}", err
+              else
+                promise.reject(err)
               return
 
           else if info.type == 'timeouted-widget'
