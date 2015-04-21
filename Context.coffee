@@ -7,7 +7,8 @@ define [
   'underscore'
   'cord!Console'
   'cord!isBrowser'
-], (Collection, Model, Defer, Future, postal, _, _console, isBrowser) ->
+  'cord!dustPlugins'
+], (Collection, Model, Defer, Future, postal, _, _console, isBrowser, dustPlugins) ->
 
   # support for deferred timeout tracking
   deferredTrackingEnabled = false
@@ -81,6 +82,9 @@ define [
       @param (optional)Future callbackPromise promise to support setWithCallback() method functionality
       @return Boolean true if the change event was triggered (the value was changed)
       ###
+      if dustPlugins[name] != undefined
+        throw new Error("You can not use \"#{name}\" as context parameter name")
+
       if newValue instanceof Future and name.substr(-7) != 'Promise' # workaround pageTitlePromise problem
         triggerChange = @setSingle(name, ':deferred')
         newValue.then (resolvedValue) =>
