@@ -1001,7 +1001,9 @@ define [
        modifications should be done only in behaviour.
       @param {String} cls Single CSS class name to be added
       ###
-      if cls
+      # we should not break __cord_dyn_classes__ state if behaviour is initialized
+      #  as it should handle root element classes itself
+      if cls and not @behaviour
         @ctx.__cord_dyn_classes__ ?= []
         @ctx.__cord_dyn_classes__.push(cls) if @ctx.__cord_dyn_classes__.indexOf(cls) == -1
 
