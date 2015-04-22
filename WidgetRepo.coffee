@@ -289,7 +289,7 @@ define [
       ###
       configPromise = Future.require('cord!AppConfigLoader').then (AppConfigLoader) ->
         AppConfigLoader.ready()
-      @_initPromise.zip(configPromise).done (any, appConfig) =>
+      Future.all([configPromise, @_initPromise]).spread (appConfig) =>
         # start services registered with autostart option
         @serviceContainer.autoStartServices(appConfig.services)
         # setup browser-side behaviour for all loaded widgets
@@ -380,20 +380,22 @@ define [
       @serviceContainer.eval 'cookie', (cookie) =>
         if cookie.get('cord_require_stat_collection_enabled')
           result.done =>
-            Future.require('jquery', 'cord!css/browserManager', 'cord!router/clientSideRouter')
-              .zip(Future.timeout(3000))
-              .then ([$, cssManager, router]) =>
-                keys = Object.keys(require.s.contexts._.defined)
-                re = /^cord(-\w)?!/
-                keys = _.filter keys, (name) ->
-                  not re.test(name)
-                $.post '/REQUIRESTAT/collect',
-                  root: router.getActualPath()
-                  definedModules: keys
-                  css: cssManager._loadingOrder
-                .done (resp) ->
-                  $('body').addClass('cord-require-stat-collected')
-                  console.warn "/REQUIRESTAT/collect response", resp
+            Future.all [
+              Future.require('jquery', 'cord!css/browserManager', 'cord!router/clientSideRouter')
+              Future.timeout(3000)
+            ]
+            .spread ([$, cssManager, router]) =>
+              keys = Object.keys(require.s.contexts._.defined)
+              re = /^cord(-\w)?!/
+              keys = _.filter keys, (name) ->
+                not re.test(name)
+              $.post '/REQUIRESTAT/collect',
+                root: router.getActualPath()
+                definedModules: keys
+                css: cssManager._loadingOrder
+              .done (resp) ->
+                $('body').addClass('cord-require-stat-collected')
+                console.warn "/REQUIRESTAT/collect response", resp
 
       @_widgetOrder = null
       result

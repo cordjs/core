@@ -837,13 +837,16 @@ define [
           models = []
           models[key] = model.toJSON() for key, model of collection.toArray()
 
-          storage.saveCollectionInfo @constructor.__name, name, collection.getTtl(),
+          saveInfoPromise = storage.saveCollectionInfo @constructor.__name, name, collection.getTtl(),
             totalCount: collection._totalCount
             start: collection._loadedStart
             end: collection._loadedEnd
             hasLimits: collection._hasLimits
             fields: collection._fields
-          .zip(storage.saveCollection(@constructor.__name, name, models))
+          Future.all [
+            saveInfoPromise
+            storage.saveCollection(@constructor.__name, name, models)
+          ]
           .then ->
             true
           .catch (err) ->

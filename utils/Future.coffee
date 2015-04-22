@@ -118,6 +118,8 @@ define [
        than callback is fired immediately.
       Should have according fork() call before.
       ###
+      #if args.length > 1
+      #  console.trace 'DEPRECATION WARNING: Future.resolve with more than one argument is deprecated!', @_stack, "\n----\n"
       if @_counter > 0
         @_counter--
         if @_state != 'rejected'
@@ -501,6 +503,7 @@ define [
       Zips the values of this and that future, and creates a new future holding the tuple of their results.
       If some of the futures have several results that they are represented as array, not "flattened".
       No result represented as undefined value.
+      @deprecated
       @param Future those another futures
       @return Future
       ###
@@ -508,7 +511,7 @@ define [
       Future.sequence(those, "#{@_name} -> zip").then (result) -> result
 
 
-    @sequence: (futureList, name = ':sequence:') ->
+    @all: (futureList, name = ':all:') ->
       ###
       Converts Array[Future[X]] to Future[Array[X]]
       @todo maybe need to support noTimeout property of futureList promises
@@ -527,6 +530,10 @@ define [
           .fail (e) ->
             promise.reject(e)
       promise.then -> [result]
+
+
+    # @deprecated alias
+    @sequence: @all
 
 
     @select: (futureList) ->
@@ -700,14 +707,15 @@ define [
     @require: (paths...) ->
       ###
       Convenient Future-wrapper for requirejs's require call.
+      Returns promise with single module if single module is requested and promise with array of modules otherwise.
       @param String* paths list of modules requirejs-format paths
-      @return Future(modules...)
+      @return {Future<Any>} or {Future<Array<Any>>}
       ###
       paths = paths[0] if paths.length == 1 and _.isArray(paths[0])
       result = @single(':require:('+ paths.join(', ') + ')')
       require paths, ->
         try
-          result.resolve.apply(result, arguments)
+          result.resolve(if arguments.length == 1 then arguments[0] else [].slice.call(arguments, 0))
         catch err
           # this catch is needed to prevent require's error callbacks to fire when error is caused
           # by th result's callbacks. Otherwise we'll try to reject already resolved promise two lines below.
@@ -851,7 +859,8 @@ define [
               if state == 'rejected'
                 err = info.promise._callbackArgs[0]
                 reportArgs.push err
-                reportArgs.push "Future creation stack: #{info.promise._stack}"
+                if info.promise._stack
+                  reportArgs.push "\n---------- Future creation stack: ----------\n#{info.promise._stack}"
               cons().warn.apply(cons(), reportArgs)
             delete unhandledMap[id]
       , interval

@@ -698,8 +698,8 @@ define [
       _console.log "#{ @debug 'inject' }", params if global.config.debug.widget
 
       @setParamsSafe(params).then =>
-        @getStructTemplate().zip(@_handleOnShow())
-      .then (tmpl) =>
+        Future.all([@getStructTemplate(), @_handleOnShow()])
+      .spread (tmpl) =>
 
         @_resetWidgetReady()
         @_behaviourContextBorderVersion = null
@@ -719,25 +719,27 @@ define [
 
             tmpl.assignWidget extendWidgetInfo.widget, extendWidget
 
-            Future.require('jquery')
-              .zip(tmpl.replacePlaceholders(extendWidgetInfo.widget, extendWidget.ctx[':placeholders'], transition))
-              .then ($) =>
-                # if there are inlines owned by this widget
-                if @_inlinesRuntimeInfo.length
-                  $el = $()
-                  # collect all placeholder roots with all inlines to pass to the behaviour
-                  $el = $el.add(domRoot) for domRoot in @_inlinesRuntimeInfo
-                else
-                  $el = undefined
+            Future.all [
+              Future.require('jquery')
+              tmpl.replacePlaceholders(extendWidgetInfo.widget, extendWidget.ctx[':placeholders'], transition)
+            ]
+            .spread ($) =>
+              # if there are inlines owned by this widget
+              if @_inlinesRuntimeInfo.length
+                $el = $()
+                # collect all placeholder roots with all inlines to pass to the behaviour
+                $el = $el.add(domRoot) for domRoot in @_inlinesRuntimeInfo
+              else
+                $el = undefined
 
-                @browserInit(extendWidget, $el)
-                  .link(readyPromise)
-                  .done => @markShown()
+              @browserInit(extendWidget, $el)
+                .link(readyPromise)
+                .done => @markShown()
 
-                readyPromise
-              .then =>
-                @_inlinesRuntimeInfo = null
-                extendWidget
+              readyPromise
+            .then =>
+              @_inlinesRuntimeInfo = null
+              extendWidget
 
           # if not extendsWidget? (if it's a new widget in extend tree)
           else
@@ -1130,9 +1132,9 @@ define [
           else if info.type == 'timeouted-widget'
             placeholderOrder[widgetId] = i
             timeoutDomInfo = new DomInfo(@debug('_renderPlaceholder:timeouted-widget:timeout'))
-            info.timeoutPromise.then (params) ->
+            widgetShowPromise = info.timeoutPromise.then (params) ->
               widget.show(params, timeoutDomInfo)
-            .zip(processTimeoutStub()).then (out) ->
+            Future.all([widgetShowPromise, processTimeoutStub()]).spread (out) ->
               replaceTimeoutStub(out, timeoutDomInfo)
             # not catching here because the promise should be fulfilled in processTimeoutStub()
             .failAloud(@debug("_renderPlaceholder:timeouted-widget:#{widget.debug()}"))
@@ -1203,7 +1205,7 @@ define [
                                  and which should not
       @return Future
       ###
-      Future.require('cord!utils/DomHelper', 'jquery').then (DomHelper, $) =>
+      Future.require('cord!utils/DomHelper', 'jquery').spread (DomHelper, $) =>
         readyPromise = new Future(@debug('replacePlaceholders:readyPromise'))
 
         ph = {}
@@ -1486,7 +1488,7 @@ define [
       behaviourClass = @getBehaviourClass()
 
       if behaviourClass
-        Future.require("cord!/#{ @getDir() }/#{ behaviourClass }", 'cord!Behaviour').then (BehaviourClass, Behaviour) =>
+        Future.require("cord!/#{ @getDir() }/#{ behaviourClass }", 'cord!Behaviour').spread (BehaviourClass, Behaviour) =>
           if not @_sentenced
             # TODO: move this check to the build phase
             if BehaviourClass.prototype instanceof Behaviour

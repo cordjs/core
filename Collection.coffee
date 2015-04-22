@@ -407,16 +407,17 @@ define [
 
       if not @_initialized
         # try to load local storage cache only when syncing first time
-        @_getModelsFromLocalCache(start, end, rangeAdjustPromise).done (models, syncStart, syncEnd) =>
+        @_getModelsFromLocalCache(start, end, rangeAdjustPromise).spread (models, syncStart, syncEnd) =>
           Defer.nextTick => # give remote sync a chance
             if not firstResultPromise.completed()
               @_fillModelList(models, syncStart, syncEnd) if not @_initialized # the check is need in case of parallel cache trial
               firstResultPromise.resolve(this)
           activateSyncPromise.resolve(false) if cacheMode # remote sync is not necessary in :cache mode
-        .fail (error) =>
+          return
+        .catch ->
           activateSyncPromise.resolve(true) if cacheMode # cache failed, need to remote sync even in :cache mode
       else # if @_initialized
-        rangeAdjustPromise.resolve(start, end)
+        rangeAdjustPromise.resolve([start, end])
         if cacheMode
           # in :cache mode we need to check if requested range is already loaded into the collection's payload
           if start? and end?
@@ -437,7 +438,7 @@ define [
       syncPromise = activateSyncPromise.then (activate) =>
         if activate
           # wait for range adjustment from the local cache
-          rangeAdjustPromise.then (syncStart, syncEnd) =>
+          rangeAdjustPromise.spread (syncStart, syncEnd) =>
             @_enqueueQuery(syncStart, syncEnd) # avoid repeated refresh-query
           .then =>
             firstResultPromise.resolve(this) if not firstResultPromise.completed()
@@ -1489,34 +1490,34 @@ define [
           else if info.hasLimits != false
             loadLocalCache = false
 
-          rangeAdjustPromise.resolve(syncStart, syncEnd)
+          rangeAdjustPromise.resolve([syncStart, syncEnd])
 
           if loadLocalCache
             Defer.nextTick => # giving backend sync ability to start HTTP-request
-              @repo.getCachedCollectionModels(@name, @_fields).done (models) =>
-                @_firstGetModelsFromCachePromise.resolve(models, syncStart, syncEnd)
-              .fail (error) =>
-                @_firstGetModelsFromCachePromise.reject(error)
+              @repo.getCachedCollectionModels(@name, @_fields).then (models) ->
+                [[models, syncStart, syncEnd]] ## todo: Future refactor
+              .link(@_firstGetModelsFromCachePromise)
           else
-            @_firstGetModelsFromCachePromise.reject("Local cache is not applicable for this sync call!")
+            @_firstGetModelsFromCachePromise.reject(new Error('Local cache is not applicable for this sync call!'))
 
         .fail (error) => # getCachedCollectionInfo
-          rangeAdjustPromise.resolve(start, end)
+          rangeAdjustPromise.resolve([start, end])
           @_firstGetModelsFromCachePromise.reject(error)
 
         @_firstGetModelsFromCachePromise
 
       else
         resultPromise = Future.single('Collection::_getModelsFromLocalCache')
-        @_firstRangeAdjustPromise.done (syncStart, syncEnd) =>
+        @_firstRangeAdjustPromise.spread (syncStart, syncEnd) =>
           # in case of repeated async cache request we can use result of the first cache request only if it's range
           #  complies with the second requested range
           if syncStart <= start and syncEnd >= end
-            rangeAdjustPromise.resolve(syncStart, syncEnd)
+            rangeAdjustPromise.resolve([syncStart, syncEnd])
             resultPromise.when @_firstGetModelsFromCachePromise
           else
-            rangeAdjustPromise.resolve(start, end)
-            resultPromise.reject("Local cache doesn't contain requested range of models!")
+            rangeAdjustPromise.resolve([start, end])
+            resultPromise.reject(new Error("Local cache doesn't contain requested range of models!"))
+          return
         resultPromise
 
 

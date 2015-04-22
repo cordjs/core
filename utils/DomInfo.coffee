@@ -67,14 +67,18 @@ define [
         result = new DomInfo("merged #{debugInfo}")
 
         filtered = infos.filter (info) -> !!info
-        domRootsPromise = filtered.map (info) -> info.domRootCreated()
-        domInsertedPromise = filtered.map (info) -> info.domInserted()
+        domRootPromises = filtered.map (info) -> info.domRootCreated()
+        domInsertedPromises = filtered.map (info) -> info.domInserted()
 
-        Future.sequence(domRootsPromise).zip(Future.require('jquery')).then (domRoots, $) ->
+        Future.all [
+          Future.all(domRootPromises)
+          Future.require('jquery')
+        ]
+        .spread (domRoots, $) ->
           roots = $()
           roots = roots.add(root) for root in domRoots
           result.setDomRoot(roots)
-          Future.sequence(domInsertedPromise)
+          Future.all(domInsertedPromises)
         .then ->
           result.markShown()
 

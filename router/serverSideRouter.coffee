@@ -92,7 +92,11 @@ define [
 
         config.api.authenticateUserCallback = =>
           if serviceContainer
-            serviceContainer.getService('loginUrl').zip(serviceContainer.getService('logoutUrl')).then (loginUrl, logoutUrl) =>
+            Future.all [
+              serviceContainer.getService('loginUrl')
+              serviceContainer.getService('logoutUrl')
+            ]
+            .spread (loginUrl, logoutUrl) =>
               response = serviceContainer.get('serverResponse')
               request = serviceContainer.get('serverRequest')
               if not (request.url.indexOf(loginUrl) >= 0)

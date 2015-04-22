@@ -35,14 +35,18 @@ define [
         # btw getting and pushing futher timeout template name from the structure template if there is one
         if tmpl.isEmpty() or not normalizedName
           tmplWidget.widgetRepo.createWidget(params.type, tmplWidget, normalizedName, tmplWidget.getBundle())
+            # tuple result is expected below, so we need to convert to an array
+            .then (widget) -> [[widget]] ## todo: Future refactor
         else if normalizedName
           tmpl.getWidgetByName(normalizedName).then (widget) ->
-            [widget, tmpl.getWidgetInfoByName(normalizedName).timeoutTemplate]
+            [[widget, tmpl.getWidgetInfoByName(normalizedName).timeoutTemplate]] ## todo: Future refactor
           .catch ->
             tmplWidget.widgetRepo.createWidget(params.type, tmplWidget, normalizedName, tmplWidget.getBundle())
+              # tuple result is expected below, so we need to convert to an array
+              .then (widget) -> [[widget]] ## todo: Future refactor
         # else impossible
 
-      .then (widget, timeoutTemplate) ->
+      .spread (widget, timeoutTemplate) ->
         complete = false
 
         tmplWidget.resolveParamRefs(widget, params).then (resolvedParams) ->
