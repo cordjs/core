@@ -110,7 +110,7 @@ define [
           tmplWidget.childWidgetComplete(type)
           chunk.end(out)
         .catch (err) ->
-          _console.error "Error on widget #{ widget.debug() } #deferred rendering:", err
+          _console.error "Error on widget #{ tmplWidget.debug() } #deferred rendering:", err
           tmplWidget.childWidgetFailed(type, err)
           chunk.setError(err)
           return

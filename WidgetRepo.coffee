@@ -583,7 +583,6 @@ define [
             @setRootWidget(oldRootWidget)
             @_currentExtendList[@_currentExtendList.indexOf(commonExistingWidget)-1].unbindChild(commonExistingWidget)
             oldExtendList[oldExtendList.indexOf(commonExistingWidget)-1].registerChild(commonExistingWidget, commonWidgetName)
-            @dropWidget(newRootWidget.ctx.id)
             @_currentExtendList = oldExtendList
             throw e
       .catchIf errors.MustReloadPage, (e) =>
