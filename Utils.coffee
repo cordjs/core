@@ -1,7 +1,8 @@
 define [
   'cord!isBrowser'
   'underscore'
-], (isBrowser, _) ->
+  'lodash'
+], (isBrowser, _, _l) ->
 
   class Utils
 
@@ -257,4 +258,4 @@ define [
       original:
         widget:
           path: originalWidget
-          params: originalWidgetParams
+          params: _l.cloneDeep(originalWidgetParams)

@@ -543,8 +543,9 @@ define [
 #      @_curTransition = transition
 
       oldRootWidget = @rootWidget
+      oldExtendList = _.clone(@_currentExtendList)
 
-      @_rebuildExtendTree(newRootWidgetPath).spread (newRootWidget, commonExistingWidget) =>
+      @_rebuildExtendTree(newRootWidgetPath).spread (newRootWidget, commonExistingWidget, commonWidgetName) =>
         # if the new root widget is already exists in the current page structure
         if newRootWidget == commonExistingWidget
           if oldRootWidget != newRootWidget
@@ -572,10 +573,18 @@ define [
             @dropWidget(oldRootWidget.ctx.id) if oldRootWidget and commonBaseWidget != oldRootWidget
             newRootWidget.shown().done -> transition.complete()
           .catch (e) =>
-            # we should cleanup this widget on error
-            @dropWidget(newRootWidget.ctx.id)
+            ###
+            Perform rollback operations of this transition:
+              - rollback root widget to the old one
+              - unbind a commonExistingWidget from widget which attached to
+              - restore extend list
+              - register commonExistingWidget to old widget
+            ###
             @setRootWidget(oldRootWidget)
-            @_currentExtendList = []
+            @_currentExtendList[@_currentExtendList.indexOf(commonExistingWidget)-1].unbindChild(commonExistingWidget)
+            oldExtendList[oldExtendList.indexOf(commonExistingWidget)-1].registerChild(commonExistingWidget, commonWidgetName)
+            @dropWidget(newRootWidget.ctx.id)
+            @_currentExtendList = oldExtendList
             throw e
       .catchIf errors.MustReloadPage, (e) =>
         throw e if not catchErrors
@@ -624,7 +633,7 @@ define [
           if newWidgetsList.length
             newWidgetsList[newWidgetsList.length - 1].registerChild(commonExistingWidget, commonWidgetName)
 
-        [[newRootWidget, commonExistingWidget]]
+        [[newRootWidget, commonExistingWidget, commonWidgetName]]
 
 
     _calculateNewExtendTree: (extendWidgetPath) ->
