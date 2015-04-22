@@ -95,7 +95,7 @@ define ->
 
   if typeof window != 'undefined' and window.document
     # Browser
-    BrowserMutationObserver = global.MutationObserver or global.WebKitMutationObserver
+    BrowserMutationObserver = window.MutationObserver or window.WebKitMutationObserver
     if typeof BrowserMutationObserver == 'function'
       requestFlush = makeRequestCallFromMutationObserver(flush)
     else
