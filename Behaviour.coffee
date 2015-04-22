@@ -369,6 +369,13 @@ define [
       @clearCallbacks()
 
 
+    _checkCleaned: ->
+      ###
+      Throws special exception if the behaviour is cleaned and should not continue to work
+      ###
+      throw new errors.BehaviourCleaned("Behaviour [#{@constructor.__name}] is already cleaned!")  if not @widget
+
+
     render: ->
       ###
       Fully re-renders and replaces all widget's contents by killing all child widgets and re-rendering own template.
@@ -380,15 +387,13 @@ define [
       #  state and replacing the DOM node in wrong place after re-render
       # this is pretty dangerous change and should attract attention when re-render isn't performed when it should be
       @widget.shown().then =>
-        if @widget?
-          if not @_renderAggregatePromise?
-            @_renderAggregatePromise = Future.single(@debug('renderAggregate'))
-            asap =>
-              @_renderAggregatePromise.when(@_render0())
-              @_renderAggregatePromise = null
-          @_renderAggregatePromise
-        else
-          throw new errors.BehaviourCleaned("Behaviour [#{@constructor.__name}] is already cleaned!")
+        @_checkCleaned()
+        if not @_renderAggregatePromise?
+          @_renderAggregatePromise = Future.single(@debug('renderAggregate'))
+          asap =>
+            @_renderAggregatePromise.when(@_render0())
+            @_renderAggregatePromise = null
+        @_renderAggregatePromise
       .catchIf (err) ->
         err.isCordInternal
       .failAloud(@debug('render'))
@@ -488,6 +493,7 @@ define [
         checkIsSentenced(@widget)
         @widget.createChildWidget(type, name).then (newWidget) =>
           checkIsSentenced(newWidget, 'before _renderNewWidget')
+          @_checkCleaned()
           @_renderNewWidget(newWidget, params).done ($el) ->
             callback?($el, newWidget)
           .then ($el) ->
@@ -539,7 +545,7 @@ define [
       .catch (err) ->
         result.reject(err)
         # preventing reporting of unhandled rejection in case of fast page switching
-        result.failOk() if err instanceof errors.WidgetSentenced
+        result.failOk()  if err instanceof errors.WidgetSentenced or err instaneof errors.BehaviourCleaned
         return
 
       result
@@ -560,4 +566,7 @@ define [
       @return String
       ###
       methodStr = if method? then "::#{ method }" else ''
-      "#{ @widget.getPath() }Behaviour(#{ @widget.ctx.id })#{ methodStr }"
+      if @widget
+        "#{ @widget.getPath() }Behaviour(#{ @widget.ctx.id })#{ methodStr }"
+      else
+        @constructor.__name + methodStr
