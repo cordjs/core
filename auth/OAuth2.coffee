@@ -88,7 +88,7 @@ define [
         @_restoreTokens()
         if tryLuck
           url += ( if url.lastIndexOf('?') == -1 then '?' else '&' ) + "#{@accessTokenParamName}=#{@accessToken}"
-          Future.resolved([url, params])
+          Future.resolved([[url, params]])
         else
           @_getTokensByAllMeans()
             .catch (error) =>
