@@ -360,12 +360,15 @@ define [
       #  state and replacing the DOM node in wrong place after re-render
       # this is pretty dangerous change and should attract attention when re-render isn't performed when it should be
       @widget.shown().then =>
-        if not @_renderAggregatePromise?
-          @_renderAggregatePromise = Future.single(@debug('renderAggregate'))
-          Defer.nextTick =>
-            @_renderAggregatePromise.when(@_render0())
-            @_renderAggregatePromise = null
-        @_renderAggregatePromise
+        if @widget?
+          if not @_renderAggregatePromise?
+            @_renderAggregatePromise = Future.single(@debug('renderAggregate'))
+            Defer.nextTick =>
+              @_renderAggregatePromise.when(@_render0())
+              @_renderAggregatePromise = null
+          @_renderAggregatePromise
+        else
+          throw new errors.BehaviourCleaned("Behaviour [#{@constructor.__name}] is already cleaned!")
       .catchIf (err) ->
         err instanceof errors.WidgetDropped or err instanceof errors.BehaviourCleaned
       .failAloud(@debug('render'))
