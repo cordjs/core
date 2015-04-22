@@ -2,12 +2,11 @@ define [
   'underscore'
   'cord!isBrowser'
   'cord!utils/Future'
-  'cord!errors'
   'eventemitter3'
   'cord!utils/Defer'
   'cord!request/errors'
   'cord!errors'
-], (_, isBrowser, Future, errors, EventEmitter, Defer, httpError, cordError) ->
+], (_, isBrowser, Future, EventEmitter, Defer, httpError, cordError) ->
 
   class OAuth2 extends EventEmitter
 
@@ -83,7 +82,7 @@ define [
       @return {Future[Tuple[String, Object]]}
       ###
       if not @isAuthAvailable()
-        Future.rejected(new Error('No OAuth2 tokens available.'))
+        Future.rejected(new cordError.AuthError('No OAuth2 tokens available.'))
       else
         @_restoreTokens()
         if tryLuck
@@ -125,7 +124,7 @@ define [
         if @refreshToken
           @_getTokensByRefreshToken()
         else
-          Future.rejected('No refresh token available')
+          Future.rejected(new cordError.AuthError('No refresh token available'))
 
 
 
@@ -287,9 +286,9 @@ define [
 
               if result.error # this means that refresh token is outdated
                 if result.error == 'invalid_client'
-                  throw new Error("Invalid clientId or clientSecret #{result}")
+                  throw new cordError.AuthError("Invalid clientId or clientSecret #{result}")
                 else
-                  throw new Error("Unable to get access token by refresh token #{result}")
+                  throw new cordError.AuthError("Unable to get access token by refresh token #{result}")
               else
                 [[result.access_token, result.refresh_token]]
 
@@ -299,7 +298,7 @@ define [
                 @_refreshTokenRequestPromise = null
                 @grantAccessTokenByRefreshToken(refreshToken, scope, retries - 1)
             else
-              throw new Error("Failed to refresh oauth token! Reason: #{JSON.stringify(err)} ")
+              throw new cordError.AuthError("Failed to refresh oauth token! Reason: #{JSON.stringify(err)} ")
 
       @_refreshTokenRequestPromise
 
@@ -327,7 +326,7 @@ define [
           @_storeTokens(grantedAccessToken, grantedRefreshToken)
           [[grantedAccessToken, grantedRefreshToken]]
         else
-          throw new Error('Failed to get auth token by refresh token: refresh token could be outdated!')
+          throw new cordError.AuthError('Failed to get auth token by refresh token: refresh token could be outdated!')
       @_refreshPromise
 
 
@@ -354,7 +353,7 @@ define [
           if response and response.code
             promise.resolve(response.code)
           else
-            promise.reject(new errors.MegaIdAuthFailed("No auth code recieved. Response: #{JSON.stringify(response)} #{JSON.stringify(error)}"))
+            promise.reject(new cordError.MegaIdAuthFailed("No auth code recieved. Response: #{JSON.stringify(response)} #{JSON.stringify(error)}"))
       promise
 
 
@@ -381,7 +380,7 @@ define [
             if response?.code
               promise.resolve(response.code)
             else
-              promise.reject(new errors.MegaIdAuthFailed("No auth code recieved. Response: #{JSON.stringify(response)} #{JSON.stringify(error)}"))
+              promise.reject(new cordError.MegaIdAuthFailed("No auth code recieved. Response: #{JSON.stringify(response)} #{JSON.stringify(error)}"))
         else
           promise.reject(new Error('config.api.oauth2.endpoints.authCodeWithoutLogin parameter is required'))
       promise
