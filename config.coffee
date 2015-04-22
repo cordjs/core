@@ -20,7 +20,9 @@ define  ->
               resolver = get('runtimeConfigResolver')
               resolver.on('setParameter', -> api.configure(resolver.resolveConfig(get('config').api)))
               api.on 'host.changed', (host) ->
-                resolver.setParameter('BACKEND_HOST', host) if host != resolver.getParameter('BACKEND_HOST')
+                if host != resolver.getParameter('BACKEND_HOST')
+                  _console.log('BACKEND_HOST has been changed to:', host)
+                  resolver.setParameter('BACKEND_HOST', host)
               api
             .then (api) ->
               done(null, api)
