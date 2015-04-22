@@ -357,7 +357,7 @@ define [
 
             # Post could make duplicates
             if method == 'get' and retryCount > 0
-              _console.warn "WARNING: request to #{url} failed due to invalid response. #{response} Retrying after 0.5s..."
+              _console.warn "WARNING: request to #{url} failed due to invalid response. #{JSON.stringify(response)} Retrying after 0.5s..."
 
               Future.timeout(500).then =>
                 @_doRequest(method, url, params, retryCount - 1)
