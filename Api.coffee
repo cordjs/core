@@ -340,7 +340,7 @@ define [
                 @_doRequest(method, url, params, retryCount - 1)
             else
               # handle API errors fallback behaviour if configured
-              errorCode = response.statusCode
+              errorCode = response.body?._code ? response.statusCode
               if errorCode? and @fallbackErrors and @fallbackErrors[errorCode]
                 fallbackInfo = _.clone(@fallbackErrors[errorCode])
                 fallbackInfo.params = _.clone(fallbackInfo.params)
