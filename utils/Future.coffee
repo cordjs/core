@@ -118,8 +118,8 @@ define [
        than callback is fired immediately.
       Should have according fork() call before.
       ###
-      #if args.length > 1
-      #  console.trace 'DEPRECATION WARNING: Future.resolve with more than one argument is deprecated!', @_stack, "\n----\n"
+      if args.length > 1
+        console.trace 'DEPRECATION WARNING: Future.resolve with more than one argument is deprecated!', @_stack, "\n----\n"
       if @_counter > 0
         @_counter--
         if @_state != 'rejected'
