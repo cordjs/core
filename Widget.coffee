@@ -289,7 +289,13 @@ define [
           id = 'rwdt-' + _.uniqueId()
         else
           id = (if isBrowser then 'b' else 'n') + 'wdt-' + _.uniqueId()
-        @ctx = new Context(id, Utils.cloneLevel2(@constructor.initialCtx))
+        @ctx = new Context(
+          id
+          if _.isFunction(@constructor.initialCtx)
+            @constructor.initialCtx()
+          else
+            Utils.cloneLevel2(@constructor.initialCtx)
+        )
         @ctx.setOwnerWidget(this)
 
       if isBrowser
