@@ -379,6 +379,8 @@ define [
                                                    sync in background
                                           :cache - return cached collection if initialized (without syncing),
                                                    or perform like :sync otherwise
+                                          :cache-only - return cached collection if initialized (without syncing),
+                                                        or reject otherwise
       @param (optional)Int start starting position of the required range
       @param (optional)Int end ending position of the required range
       @param (optional)Function(this) callback callback to call on sync completion depending on the return mode.
@@ -393,7 +395,7 @@ define [
         start = end = undefined
       returnMode = ':cache' if returnMode == ':cache-async'
       returnMode ?= ':sync'
-      cacheMode = (returnMode == ':cache')
+      cacheMode = (returnMode == ':cache' or returnMode == ':cache-only')
 
       # Special case - fixed collection
       if @_fixed
@@ -409,17 +411,24 @@ define [
       # special promise for cache mode to avoid running remote sync if unnecessary
       activateSyncPromise = Future.single('Collection::sync activateSyncPromise')
       activateSyncPromise.resolve(true) if not cacheMode
+      cacheCompletedPromise = Future.single('Collection::sync cacheCompletedPromise')
 
       if not @_initialized
         # try to load local storage cache only when syncing first time
-        @_getModelsFromLocalCache(start, end, rangeAdjustPromise).done (models, syncStart, syncEnd) =>
+        @_getModelsFromLocalCache(start, end, rangeAdjustPromise).then (models, syncStart, syncEnd) =>
           Defer.nextTick => # give remote sync a chance
             if not firstResultPromise.completed()
               @_fillModelList(models, syncStart, syncEnd) if not @_initialized # the check is need in case of parallel cache trial
               firstResultPromise.resolve(this)
           activateSyncPromise.resolve(false) if cacheMode # remote sync is not necessary in :cache mode
-        .fail (error) =>
-          activateSyncPromise.resolve(true) if cacheMode # cache failed, need to remote sync even in :cache mode
+          true
+        .catch =>
+          if returnMode == ':cache-only'
+            activateSyncPromise.resolve(false)
+          else if cacheMode
+            activateSyncPromise.resolve(true) # cache failed, need to remote sync even in :cache mode
+          false
+        .link(cacheCompletedPromise)
       else # if @_initialized
         rangeAdjustPromise.resolve(start, end)
         if cacheMode
@@ -428,14 +437,20 @@ define [
             if start >= @_loadedStart and end <= @_loadedEnd
               activateSyncPromise.resolve(false)
               firstResultPromise.resolve(this)
+              cacheCompletedPromise.resolve(true)
             else
-              activateSyncPromise.resolve(true)
+              activateSyncPromise.resolve(returnMode != ':cache-only')
+              cacheCompletedPromise.resolve(false)
           else
             if @_hasLimits == false
               activateSyncPromise.resolve(false)
               firstResultPromise.resolve(this)
+              cacheCompletedPromise.resolve(true)
             else
               activateSyncPromise.resolve(true)
+              cacheCompletedPromise.resolve(false)
+        else
+          cacheCompletedPromise.resolve(false) # not used, only to avoid future timeout
 
       # sync with backend
       # special promise for :sync mode completion
@@ -471,6 +486,13 @@ define [
               resultPromise.when(firstResultPromise)
         when ':now' then resultPromise.resolve(this)
         when ':cache' then resultPromise.when(firstResultPromise)
+        when ':cache-only'
+          cacheCompletedPromise.then (cacheHit) =>
+            if cacheHit
+              firstResultPromise
+            else
+              throw new Error('Cache sync failed in :cache-only mode')
+          .link(resultPromise)
 
       resultPromise.done =>
         callback?(this)
@@ -1182,8 +1204,6 @@ define [
       @param (optional)Int lastPage number of the last page
       @return Future(Array[Model])
       ###
-
-      # _console.log("collection.getPage (firstPage=#{firstPage}, lastPage=#{lastPage})")
 
       if arguments.length == 1
         lastPage = firstPage
