@@ -92,8 +92,8 @@ exports.startServer = startServer = (callback) ->
 
       # Detect for custom proxyRoutes from bundle configs
       for proxyRoute in services.proxyRoutes
-        if req.url.indexOf(proxyRoute) != -1 # cross-domain request proxy
-          services.xdrProxy(req.url, req, res)
+        if (_.isRegExp(proxyRoute) and proxyRoute.test(req.url)) or (_.isString(proxyRoute) and -1 != req.url.indexOf(proxyRoute))
+          services.xdrProxy(services.router, req.url, req, res)
           return
 
       req.addListener 'end', (err) ->
