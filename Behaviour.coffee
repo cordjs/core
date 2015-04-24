@@ -33,6 +33,10 @@ define [
     _widgetSubscriptions: null
     _modelBindings: null
 
+    # guarantees that event handlers will not run before services are injected and `init` method is processed
+    _initPromise: null
+
+
     constructor: (widget, $domRoot) ->
       ###
       @param Widget widget
@@ -73,10 +77,18 @@ define [
       @customEvents = @constructor.customEvents if not @customEvents
       @customEvents = @customEvents() if _.isFunction(@customEvents)
 
+      # should be completed by Widget.initBehaviour when all dependencies are injected
+      @_initPromise = Future.single(@debug('init'))
+
       @refreshElements()                if @elements
-      @delegateEvents(@events)          if @events
-      @initWidgetEvents(@widgetEvents)  if @widgetEvents
-      @initCustomEvents(@customEvents)  if @customEvents
+      @_initPromise.then =>
+        @delegateEvents(@events)          if @events
+        @initWidgetEvents(@widgetEvents)  if @widgetEvents
+        @initCustomEvents(@customEvents)  if @customEvents
+
+        @_initPromise = Future.resolved() # memory optimization
+        return
+      .failOk() # the error is handled properly in Widget.initBehaviour
 
       @_callbacks = []
 
@@ -276,28 +288,36 @@ define [
       ->
         origArgs = arguments
         pr.timer "#{that.constructor.__name}::DOM('#{eventDesc}')", ->
-          m.apply(that, origArgs) if that.widget and not that.widget.isSentenced()
+          try
+            m.apply(that, origArgs) if that.widget and not that.widget.isSentenced()
+          catch err
+            _console.error "Error in DOM event handler #{that.debug(eventDesc)}: #{err}", err
         true
 
 
     _getWidgetEventMethod: (fieldName, method) ->
       m = @_getHandlerFunction(method)
-      onChangeMethod = =>
+      that = this
+      onChangeMethod = ->
+        origArgs = arguments
         data = arguments[0]
-        ctxVersionBorder = @widget._behaviourContextBorderVersion
+        ctxVersionBorder = that.widget._behaviourContextBorderVersion
         # if data.version is undefined than it's model-emitted event and need not version check
         versionOk = (not ctxVersionBorder? or not data.version? or data.version > ctxVersionBorder)
-        if not @widget.isSentenced() and data.value != ':deferred' and versionOk
+        if not that.widget.isSentenced() and data.value != ':deferred' and versionOk
           duplicate = false
           if data.cursor
-            if @widget._eventCursors[data.cursor]
-              delete @widget._eventCursors[data.cursor]
+            if that.widget._eventCursors[data.cursor]
+              delete that.widget._eventCursors[data.cursor]
               duplicate = true
             else
-              @widget._eventCursors[data.cursor] = true
+              that.widget._eventCursors[data.cursor] = true
           if not duplicate
-            @_registerModelBinding(data.value, fieldName, onChangeMethod)
-            m.apply(this, arguments)
+            that._registerModelBinding(data.value, fieldName, onChangeMethod)
+            try
+              m.apply(that, origArgs)
+            catch err
+              _console.error "Error in widget event handler #{that.debug(fieldName)}: #{err}", err
 
 
     _registerModelBinding: (value, fieldName, onChangeMethod) ->
@@ -349,6 +369,13 @@ define [
       @clearCallbacks()
 
 
+    _checkCleaned: ->
+      ###
+      Throws special exception if the behaviour is cleaned and should not continue to work
+      ###
+      throw new errors.BehaviourCleaned("Behaviour [#{@constructor.__name}] is already cleaned!")  if not @widget
+
+
     render: ->
       ###
       Fully re-renders and replaces all widget's contents by killing all child widgets and re-rendering own template.
@@ -360,15 +387,13 @@ define [
       #  state and replacing the DOM node in wrong place after re-render
       # this is pretty dangerous change and should attract attention when re-render isn't performed when it should be
       @widget.shown().then =>
-        if @widget?
-          if not @_renderAggregatePromise?
-            @_renderAggregatePromise = Future.single(@debug('renderAggregate'))
-            asap =>
-              @_renderAggregatePromise.when(@_render0())
-              @_renderAggregatePromise = null
-          @_renderAggregatePromise
-        else
-          throw new errors.BehaviourCleaned("Behaviour [#{@constructor.__name}] is already cleaned!")
+        @_checkCleaned()
+        if not @_renderAggregatePromise?
+          @_renderAggregatePromise = Future.single(@debug('renderAggregate'))
+          asap =>
+            @_renderAggregatePromise.when(@_render0())
+            @_renderAggregatePromise = null
+        @_renderAggregatePromise
       .catchIf (err) ->
         err.isCordInternal
       .failAloud(@debug('render'))
@@ -467,7 +492,9 @@ define [
       try
         checkIsSentenced(@widget)
         @widget.createChildWidget(type, name).then (newWidget) =>
+          newWidget._dynamicRender = true # cause it's dynamic widget init, we should set flag for competitive markShow child setting
           checkIsSentenced(newWidget, 'before _renderNewWidget')
+          @_checkCleaned()
           @_renderNewWidget(newWidget, params).done ($el) ->
             callback?($el, newWidget)
           .then ($el) ->
@@ -519,7 +546,7 @@ define [
       .catch (err) ->
         result.reject(err)
         # preventing reporting of unhandled rejection in case of fast page switching
-        result.failOk() if err instanceof errors.WidgetSentenced
+        result.failOk()  if err instanceof errors.WidgetSentenced or err instaneof errors.BehaviourCleaned
         return
 
       result
@@ -540,4 +567,7 @@ define [
       @return String
       ###
       methodStr = if method? then "::#{ method }" else ''
-      "#{ @widget.getPath() }Behaviour(#{ @widget.ctx.id })#{ methodStr }"
+      if @widget
+        "#{ @widget.getPath() }Behaviour(#{ @widget.ctx.id })#{ methodStr }"
+      else
+        @constructor.__name + methodStr

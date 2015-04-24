@@ -1,9 +1,7 @@
 define [
   'underscore'
   'cord!auth/OAuth2'
-  'cord!utils/Future'
-  ''
-], (_, OAuth2, Future) ->
+], (_, OAuth2) ->
 
   class MegaplanId extends OAuth2
     ###
@@ -46,7 +44,7 @@ define [
       @getAuthCodeWithoutPassword(@getScope()).name('Api::getAccessTokenByMegaId')
         .then (code) =>
           @grantAccessTokenByMegaId(code, @getScope())
-        .then (accessToken, refreshToken, code) =>
+        .spread (accessToken, refreshToken, code) =>
           @_storeTokens(accessToken, refreshToken)
           code
 
@@ -55,24 +53,21 @@ define [
       ###
       Grant access token from backend, using Code accuired from MegaplanId on front-end
       Refreshing access tokens done via grantAccessTokenByRefreshToken
+      @return {Future<Tuple<String, String, String>>
       ###
-      promise = Future.single('OAuth2::grantAccessTokenByMegaId promise')
-      params =
+      @request.get @endpoints.accessToken,
         grant_type: 'authorization_code'
         code: code
         scope: scope
-
-      requestUrl = @endpoints.accessToken
-
-      @request.get requestUrl, params, (result) =>
+      .then (response) =>
+        result = response.body
         if result and result.access_token and result.refresh_token
-          promise.resolve(result.access_token, result.refresh_token, code)
+          [[result.access_token, result.refresh_token, code]] ## todo: Future refactor
         else
           if result?.error == 'bad_megaplan_id'
-            promise.reject(new Error('bad_megaplan_id'))
+            throw new Error('bad_megaplan_id')
           else
-            promise.reject(new Error('No response from backend server (MegaId)'))
-      promise
+            throw new Error('No response from backend server (MegaId)')
 
 
     getAccessTokenByInviteCode: (inviteCode) ->
@@ -82,7 +77,7 @@ define [
       @getAuthCodeWithoutPassword(@getScope()).name('Api::getAccessTokenByMegaId')
         .then (code) =>
           @grantAccessTokenByInviteCode(inviteCode, code, @getScope())
-        .then (accessToken, refreshToken, code) =>
+        .spread (accessToken, refreshToken, code) =>
           @_storeTokens(accessToken, refreshToken)
           code
 
@@ -91,18 +86,13 @@ define [
       ###
       Convert invite auth into MegaplanId auth, and grant access tokes
       ###
-
-      promise = Future.single('OAuth2::grantAccessTokenByInviteCode promise')
-      params =
+      @request.get @endpoints.inviteCode,
         inviteCode: inviteCode
         code: code
         scope: scope
-
-      requestUrl = @endpoints.inviteCode
-
-      @request.get requestUrl, params, (result) =>
+      .then (response) =>
+        result = response.body
         if result and result.access_token and result.refresh_token
-          promise.resolve(result.access_token, result.refresh_token, code)
+          [[result.access_token, result.refresh_token, code]] ## todo: Future refactor
         else
-          promise.reject(new Error(if _.isObject(result) and result.error then result.error else JSON.stringify(result)))
-      promise
+          throw new Error(if _.isObject(result) and result.error then result.error else JSON.stringify(result))

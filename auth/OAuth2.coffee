@@ -2,12 +2,10 @@ define [
   'underscore'
   'cord!isBrowser'
   'cord!utils/Future'
-  'cord!errors'
   'eventemitter3'
-  'cord!utils/Defer'
   'cord!request/errors'
   'cord!errors'
-], (_, isBrowser, Future, errors, EventEmitter, Defer, httpError, cordError) ->
+], (_, isBrowser, Future, EventEmitter, httpErrors, cordErrors) ->
 
   class OAuth2 extends EventEmitter
 
@@ -83,7 +81,7 @@ define [
       @return {Future[Tuple[String, Object]]}
       ###
       if not @isAuthAvailable()
-        Future.rejected(new Error('No OAuth2 tokens available.'))
+        Future.rejected(new cordErrors.AuthError('No OAuth2 tokens available.'))
       else
         @_restoreTokens()
         if tryLuck
@@ -125,8 +123,7 @@ define [
         if @refreshToken
           @_getTokensByRefreshToken()
         else
-          Future.rejected('No refresh token available')
-
+          Future.rejected(new cordErrors.AuthError('No refresh token available'))
 
 
     _invalidateAccessToken: ->
@@ -190,11 +187,9 @@ define [
       @param {String} password
       @return {Future} resolves when auth suceeded, fails in otherway
       ###
-      result = @grantAccessTokenByPassword(username, password, @getScope())
-      result.then (accessToken, refreshToken) =>
+      @grantAccessTokenByPassword(username, password, @getScope()).spread (accessToken, refreshToken) =>
         @_onAccessTokenGranted(accessToken, refreshToken)
-
-      result
+        return
 
 
     _onAccessTokenGranted: (accessToken, refreshToken) ->
@@ -206,28 +201,29 @@ define [
     # Pure Oauth2
 
     grantAccessByExtensions: (url, params) ->
-    ## Tries to grant accees by grant_type = extension (oneTimeKey, for instance)
-      result = @_grantAccessTokenByExtensions(url, params, @getScope())
-      result.then (accessToken, refreshToken) =>
+      ###
+      Tries to grant accees by grant_type = extension (oneTimeKey, for instance)
+      ###
+      @_grantAccessTokenByExtensions(url, params, @getScope()).spread (accessToken, refreshToken) =>
         @_onAccessTokenGranted(accessToken, refreshToken)
-      result
+        return
 
 
     _grantAccessTokenByExtensions: (url, params, scope) ->
-      requestParams =
+      requestParams = _.extend {}, params,
         grant_type: url
         client_id: @_clientId
         scope: scope
         json: true
 
-      requestParams = _.extend params, requestParams
-
       @request.get(@endpoints.accessToken, requestParams)
         .rename('Oauth2::_grantAccessTokenByExtensions')
-        .then (result) -> [result.access_token, result.refresh_token]
+        .then (response) ->
+          result = response.body
+          [[result.access_token, result.refresh_token]] ## todo: Future refactor
         .catchIf(
-          (e) -> e instanceof httpError.InvalidResponse and e.response.statusCode == 400
-          -> throw new cordError.AuthError()
+          (e) -> e instanceof httpErrors.InvalidResponse and e.response.statusCode == 400
+          -> throw new cordErrors.AuthError()
         )
 
 
@@ -246,10 +242,12 @@ define [
 
       @request.get(@endpoints.accessToken, params)
         .rename('Oauth2::grantAccessTokenByPassword')
-        .then (result) -> [result.access_token, result.refresh_token]
+        .then (response) ->
+          result = response.body
+          [[result.access_token, result.refresh_token]] ## todo: Future refactor
         .catchIf(
-          (e) -> e instanceof httpError.InvalidResponse and e.response.statusCode == 400
-          -> throw new cordError.AuthError()
+          (e) -> e instanceof httpErrors.InvalidResponse and e.response.statusCode == 400
+          -> throw new cordErrors.AuthError()
         )
 
 
@@ -279,28 +277,31 @@ define [
 
           params[@refreshTokenParamName] = refreshToken
 
-          @request.get(@endpoints.accessToken, params).then (result, err) =>
-            if result
-              # Clear refresh promise, so the next time a new one will be created
-              @_refreshTokenRequestPromise = null
-              # Clear refresh lock, to let other tabs know we have new tokens
-              @tabSync.set(@_extRefreshName)
+          @request.get(@endpoints.accessToken, params).then (response) =>
+            result = response.body
+            # Clear refresh promise, so the next time a new one will be created
+            @_refreshTokenRequestPromise = null
+            # Clear refresh lock, to let other tabs know we have new tokens
+            @tabSync.set(@_extRefreshName)
 
+            [[result.access_token, result.refresh_token]] ## todo: Future refactor
+
+          .catch (err) =>
+            if err instanceof httpErrors.InvalidResponse
+              result = err.response.body
               if result.error # this means that refresh token is outdated
-                if result.error == 'invalid_client'
-                  new error("Invalid clientId or clientSecret " + result)
-                else
-                  new error("Unable to get access token by refresh token " + result)
-              else
-                Future.resolved([result.access_token, result.refresh_token])
+                if result.error == 'invalid_client' # retries are helpless
+                  throw new Error("Invalid clientId or clientSecret #{result}")
+                else if result.error = 'invalid_grant' # go to login
+                  throw new cordErrors.AuthError("Unable to get access token by refresh token #{result}")
 
-            else if retries > 0
-              _console.warn 'Error while refreshing oauth token! Will retry after pause... Error:', err
+            if retries > 0
+              _console.warn('Error while refreshing oauth token! Will retry after pause... Error:', err)
               Future.timeout(500).then =>
                 @_refreshTokenRequestPromise = null
                 @grantAccessTokenByRefreshToken(refreshToken, scope, retries - 1)
             else
-              new Error("Failed to refresh oauth token! Reason: #{JSON.stringify(err)} ")
+              throw new Error("Failed to refresh oauth token! No retries left. Reason: #{JSON.stringify(err)}")
 
       @_refreshTokenRequestPromise
 
@@ -313,7 +314,7 @@ define [
       ###
       @tabSync.waitUntil(@_extRefreshName).then =>
         @_restoreTokens()
-        [[@accessToken, @refreshToken]]
+        [[@accessToken, @refreshToken]] ## todo: Future refactor
 
 
     _getTokensByRefreshToken: ->
@@ -326,9 +327,9 @@ define [
         @_refreshPromise = null
         if grantedAccessToken and grantedRefreshToken
           @_storeTokens(grantedAccessToken, grantedRefreshToken)
-          [[grantedAccessToken, grantedRefreshToken]]
+          [[grantedAccessToken, grantedRefreshToken]] ## todo: Future refactor
         else
-          new Error('Failed to get auth token by refresh token: refresh token could be outdated!')
+          throw new cordError.AuthError('Failed to get auth token by refresh token: refresh token could be outdated!')
       @_refreshPromise
 
 
@@ -336,11 +337,10 @@ define [
       ###
       Acquires OAuth2 code via login and password for two-step code-auth
       ###
-      promise = Future.single('Api::getAuthCodeByPassword promise')
-      if !isBrowser
-        promise.reject(new Error('It is only possible to get auth code at client side'))
+      if not isBrowser
+        Future.rejected(new Error('It is only possible to get auth code at client side'))
       else
-        params =
+        @request.get @endpoints.authCode,
           response_type: 'code'
           client_id: @_clientId
           login: login
@@ -349,14 +349,12 @@ define [
           scope: scope
           xhrOptions:
             withCredentials: true
-
-        requestUrl = @endpoints.authCode
-        @request.get requestUrl, params, (response, error) ->
+        .then (response) ->
+          response = response.body
           if response and response.code
-            promise.resolve(response.code)
+            response.code
           else
-            promise.reject(new errors.MegaIdAuthFailed('No auth code recieved. Response:'+ JSON.stringify(response) + JSON.stringify(error)))
-      promise
+            throw new cordErrors.MegaIdAuthFailed("No auth code recieved. Response: #{JSON.stringify(response)}")
 
 
     getAuthCodeWithoutPassword: (scope) ->
@@ -364,37 +362,40 @@ define [
       Try to acquire auth Code. Succeeds only if user has been already logged in.
       Oauth2 server uses it's cookies to identify user
       ###
-      promise = Future.single('Api::getAuthCodeWithoutPassword promise')
       if not isBrowser
-        promise.reject(new Error('It is only possible to get auth code at client side'))
+        Future.rejected(new Error('It is only possible to get auth code at client side'))
       else
-        params =
-          response_type: 'code'
-          client_id: @_clientId
-          scope: scope
-          format: 'json'
-          xhrOptions:
-            withCredentials: true
-
         requestUrl = @endpoints.authCodeWithoutLogin
         if requestUrl
-          @request.get requestUrl, params, (response, error) ->
-            if response?.code
-              promise.resolve(response.code)
+          @request.get requestUrl,
+            response_type: 'code'
+            client_id: @_clientId
+            scope: scope
+            format: 'json'
+            xhrOptions:
+              withCredentials: true
+          .then (response) ->
+            result = response.body
+            if result?.code
+              result.code
             else
-              promise.reject(new errors.MegaIdAuthFailed('No auth code recieved. Response: ' + JSON.stringify(response) + JSON.stringify(error)))
+              throw new cordErrors.MegaIdAuthFailed("No auth code received. Response: #{JSON.stringify(result)}")
+          .catchIf httpErrors.InvalidResponse, (err) ->
+            if err.response.isServerError()
+              throw err
+            else
+              throw cordErrors.MegaIdAuthFailed("Invalid auth code request! Response: #{JSON.stringify(err.response)}")
         else
-          promise.reject(new Error('config.api.oauth2.endpoints.authCodeWithoutLogin parameter is required'))
-      promise
+          Future.rejected(new Error('config.api.oauth2.endpoints.authCodeWithoutLogin parameter is required'))
 
 
     grantAccessTokenByAuhorizationCode: (code, scope) ->
       ###
       Acquires tokens by OAuth2 code
       It uses special XDRS section to send secrets into auth server
+      @return {Future<Tuple<String, String, String>>}
       ###
-      promise = Future.single('OAuth2::grantAccessTokenByAuthorizationCode promise')
-      params =
+      @request.get @endpoints.accessToken,
         grant_type: 'authorization_code'
         code: code
         client_id: @_clientId
@@ -402,13 +403,12 @@ define [
         format: 'json'
         redirect_uri: @options.redirectUri
         scope: scope
-
-      @request.get @endpoints.accessToken, params, (result) ->
+      .then (response) ->
+        result = response.body
         if result and result.access_token and result.refresh_token
-          promise.resolve([result.access_token, result.refresh_token, code])
+          [[result.access_token, result.refresh_token, code]] ## todo: Future refactor
         else
-          promise.reject(new Error('No response from authorization server'))
-      promise
+          throw new Error('Invalid response from authorization server: ' + JSON.stringify(response))
 
 
     #-----------------------------------------------------------------------------------------------------------------
@@ -441,21 +441,18 @@ define [
     doAuthLogout: ->
       ###
       Logout for normal Auth2 procedure
+      @return {Future<undefined>}
       ###
-      promise = Future.single('OAuth2::doAuthLogout promise')
-      params =
+      @request.get @endpoints.logout,
         dataType: 'json',
         format: 'json'
         xhrOptions:
           withCredentials: true
-
-      requestUrl = @endpoints.logout
-
-      @request.get requestUrl, params, (result) =>
+      .then (response) =>
+        result = response.body
         if result and result.status == 'success'
           @_invalidateAccessToken()
           @_invalidateRefreshToken()
-          promise.resolve()
+          return
         else
-          promise.reject(new Error('Bad response from authorization server: ' + JSON.stringirfy(error)))
-      promise
+          throw new Error("Bad response from authorization server: #{JSON.stringirfy(response)}")

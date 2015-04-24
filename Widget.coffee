@@ -27,6 +27,8 @@ define [
     templateLoader.loadTemplate tmplPath, ->
       callback null, ''
 
+  dust.silenceErrors = true
+
   predefinedBaseContextWithPlugins = dust.makeBase(dustPlugins)
 
   # special shared promise for the empty struct templates to avoid redundant promise allocation
@@ -59,7 +61,9 @@ define [
 
     # internals
     _renderStarted: false
-    _childWidgetCounter: 0
+    # Future, that waits for child widget rendering complete
+    _childWidgetCompletePromise: null
+    _hasWidgetInitializer: false # indicates, that current widget's template has a {#widgetInitialize /} block
 
     _structTemplate: null
     _isExtended: false
@@ -285,7 +289,13 @@ define [
           id = 'rwdt-' + _.uniqueId()
         else
           id = (if isBrowser then 'b' else 'n') + 'wdt-' + _.uniqueId()
-        @ctx = new Context(id, Utils.cloneLevel2(@constructor.initialCtx))
+        @ctx = new Context(
+          id
+          if _.isFunction(@constructor.initialCtx)
+            @constructor.initialCtx()
+          else
+            Utils.cloneLevel2(@constructor.initialCtx)
+        )
         @ctx.setOwnerWidget(this)
 
       if isBrowser
@@ -564,7 +574,7 @@ define [
       @synchronous
       @throws validation errors
       ###
-      _console.log "#{ @debug 'setParams' } -> ", params if global.config.debug.widget
+      @_log "#{ @debug 'setParams' } -> ", params
       if @constructor.params?
         rules = @constructor._paramRules
         processedRules = {}
@@ -625,7 +635,7 @@ define [
       @return Future(String)
       ###
       @setParamsSafe(params).then =>
-        _console.log "#{ @debug 'show' } -> params:", params, " context:", @ctx if global.config.debug.widget
+        @_log "#{ @debug 'show' } -> params:", params, " context:", @ctx
         @_handleOnShow()
       .then =>
         @renderTemplate(domInfo)
@@ -695,11 +705,11 @@ define [
       @param {PageTransition} transition
       @return {Future[Widget]} common base widget found in extend-tree
       ###
-      _console.log "#{ @debug 'inject' }", params if global.config.debug.widget
+      @_log "#{ @debug 'inject' }", params
 
       @setParamsSafe(params).then =>
-        @getStructTemplate().zip(@_handleOnShow())
-      .then (tmpl) =>
+        Future.all([@getStructTemplate(), @_handleOnShow()])
+      .spread (tmpl) =>
 
         @_resetWidgetReady()
         @_behaviourContextBorderVersion = null
@@ -719,25 +729,27 @@ define [
 
             tmpl.assignWidget extendWidgetInfo.widget, extendWidget
 
-            Future.require('jquery')
-              .zip(tmpl.replacePlaceholders(extendWidgetInfo.widget, extendWidget.ctx[':placeholders'], transition))
-              .then ($) =>
-                # if there are inlines owned by this widget
-                if @_inlinesRuntimeInfo.length
-                  $el = $()
-                  # collect all placeholder roots with all inlines to pass to the behaviour
-                  $el = $el.add(domRoot) for domRoot in @_inlinesRuntimeInfo
-                else
-                  $el = undefined
+            Future.all [
+              Future.require('jquery')
+              tmpl.replacePlaceholders(extendWidgetInfo.widget, extendWidget.ctx[':placeholders'], transition)
+            ]
+            .spread ($) =>
+              # if there are inlines owned by this widget
+              if @_inlinesRuntimeInfo.length
+                $el = $()
+                # collect all placeholder roots with all inlines to pass to the behaviour
+                $el = $el.add(domRoot) for domRoot in @_inlinesRuntimeInfo
+              else
+                $el = undefined
 
-                @browserInit(extendWidget, $el)
-                  .link(readyPromise)
-                  .done => @markShown()
+              @browserInit(extendWidget, $el)
+                .link(readyPromise)
+                .done => @markShown()
 
-                readyPromise
-              .then =>
-                @_inlinesRuntimeInfo = null
-                extendWidget
+              readyPromise
+            .then =>
+              @_inlinesRuntimeInfo = null
+              extendWidget
 
           # if not extendsWidget? (if it's a new widget in extend tree)
           else
@@ -757,12 +769,14 @@ define [
       @param DomInfo domInfo DOM creating and inserting promise container
       @return Future(String)
       ###
-      _console.log @debug('renderTemplate') if global.config.debug.widget
+      @_log @debug('renderTemplate')
 
       @_resetWidgetReady() # allowing to call browserInit() after template re-render is reasonable
       @_behaviourContextBorderVersion = null
       @_placeholdersRenderInfo = []
       @_deferredBlockCounter = 0
+      # Widget can be re-rendered, so, we should cleanup all children
+      @cleanChildren()
 
       result = @getStructTemplate().then (tmpl) =>
         if tmpl.isExtended()
@@ -774,6 +788,7 @@ define [
         # memory optimization
         @_renderPromise = Future.resolved()  if @_renderPromise == savedRenderPromise
         return # do not keep rendered template string to allow GC
+      .failOk() # supress Unhandled Rejection for .then-created promise
 
       result
 
@@ -784,19 +799,20 @@ define [
       @param DomInfo domInfo DOM creating and inserting promise container
       @return Future(String)
       ###
-      _console.log @debug('_renderSelfTemplate') if global.config.debug.widget
+      @_log @debug('_renderSelfTemplate')
 
       tmplPath = @getPath()
 
       templateLoader.loadWidgetTemplate(tmplPath).then =>
-        @markRenderStarted()
-        @cleanChildren()
+        @markRenderStarted('_renderSelfTemplate')
         @_saveContextVersionForBehaviourSubscriptions()
         @_domInfo = domInfo
-        result = Future.call(dust.render, tmplPath, @getBaseContext().push(@ctx))
+        ctx = @getBaseContext().push(@ctx)
+        result = Future.call(dust.render, tmplPath, ctx)
+          .rename(":call:dust.render(#{tmplPath})")
         result.finally =>
           @_domInfo = null # free for GC
-        @markRenderFinished()
+        @markRenderFinished('_renderSelfTemplate')
         result
 
 
@@ -832,11 +848,12 @@ define [
 
             # if context value is deferred, than waiting asynchronously...
             if @ctx.isDeferred(value)
-              result.fork()
               do (name, value) =>
-                @subscribeValueChange params, name, value, =>
+                @ctx.getPromise(value).then (resolvedValue) =>
+                  params[name] = resolvedValue
                   @widgetRepo.subscribePushBinding(@ctx.id, value, widget, name, @ctx.getVersion()) if isBrowser
-                  result.resolve()
+                  return # avoid possible Future result of .subscribePushBinding
+                .link(result)
 
             # otherwise just getting it's value synchronously
             else
@@ -884,16 +901,19 @@ define [
       @param DomInfo domInfo DOM creating and inserting promise container
       @return Future(String)
       ###
-      _console.log "#{ @constructor.__name }::renderInline(#{ inlineName })" if global.config.debug.widget
+      @_log "#{ @constructor.__name }::renderInline(#{ inlineName })"
 
       if @ctx[':inlines'][inlineName]?
-        tmplPath = "#{ @getDir() }/#{ @ctx[':inlines'][inlineName].template }.html"
+        tmplPath = @getDir() + '/' + @ctx[':inlines'][inlineName].template + '.html'
         templateLoader.loadToDust(tmplPath).then =>
           @_saveContextVersionForBehaviourSubscriptions()
           @_domInfo = DomInfo.merge([@_domInfo, domInfo], inlineName + " " + tmplPath)
+          @markRenderStarted("renderInline(#{inlineName})")
           result = Future.call(dust.render, tmplPath, @getBaseContext().push(@ctx))
+            .rename(":renderInline:dust.render(#{tmplPath})")
           result.finally =>
             @_domInfo = null # free for GC
+          @markRenderFinished("renderInline(#{inlineName})")
           result
       else
         Future.rejected(new Error("Trying to render unknown inline (name = #{ inlineName })!"))
@@ -999,7 +1019,9 @@ define [
        modifications should be done only in behaviour.
       @param {String} cls Single CSS class name to be added
       ###
-      if cls
+      # we should not break __cord_dyn_classes__ state if behaviour is initialized
+      #  as it should handle root element classes itself
+      if cls and not @behaviour
         @ctx.__cord_dyn_classes__ ?= []
         @ctx.__cord_dyn_classes__.push(cls) if @ctx.__cord_dyn_classes__.indexOf(cls) == -1
 
@@ -1119,16 +1141,20 @@ define [
                 complete = true # should be here to avoid returning `promise` (above) and locking to it
               else
                 replaceTimeoutStub(out, timeoutDomInfo)
-            .catch (err) ->
-              promise.reject(err)
+            .catch (err) =>
+              if promise.completed()
+                # this check is to catch bug rarely appeared during tests
+                _console.error "Unexpected promise consistency error in #{@debug('_renderPlaceholder')} -> #{widget.debug('show')}: #{err}", err
+              else
+                promise.reject(err)
               return
 
           else if info.type == 'timeouted-widget'
             placeholderOrder[widgetId] = i
             timeoutDomInfo = new DomInfo(@debug('_renderPlaceholder:timeouted-widget:timeout'))
-            info.timeoutPromise.then (params) ->
+            widgetShowPromise = info.timeoutPromise.then (params) ->
               widget.show(params, timeoutDomInfo)
-            .zip(processTimeoutStub()).then (out) ->
+            Future.all([widgetShowPromise, processTimeoutStub()]).spread (out) ->
               replaceTimeoutStub(out, timeoutDomInfo)
             # not catching here because the promise should be fulfilled in processTimeoutStub()
             .failAloud(@debug("_renderPlaceholder:timeouted-widget:#{widget.debug()}"))
@@ -1150,7 +1176,9 @@ define [
               renderInfo.push(type: 'inline', name: info.name, widget: widget)
               promise.resolve()
               return
-            .catch (err) -> promise.reject(err)
+            .catch (err) ->
+              promise.reject(err)
+              return
 
           else # if info.type == 'placeholder'
             orderId = 'placeholder-' + info.name
@@ -1160,7 +1188,9 @@ define [
               placeholderOut[placeholderOrder[orderId]] = widget.renderPlaceholderTag(info.name, out)
               promise.resolve()
               return
-            .catch (err) -> promise.reject(err)
+            .catch (err) ->
+              promise.reject(err)
+              return
 
           i++
 
@@ -1199,7 +1229,7 @@ define [
                                  and which should not
       @return Future
       ###
-      Future.require('cord!utils/DomHelper', 'jquery').then (DomHelper, $) =>
+      Future.require('cord!utils/DomHelper', 'jquery').spread (DomHelper, $) =>
         readyPromise = new Future(@debug('replacePlaceholders:readyPromise'))
 
         ph = {}
@@ -1344,6 +1374,7 @@ define [
       @childByName = {}
       @childById = {}
       @childBindings = {}
+      @_childWidgetCompletePromise = null
 
 
     _resetWidgetReady: ->
@@ -1482,16 +1513,24 @@ define [
       behaviourClass = @getBehaviourClass()
 
       if behaviourClass
-        Future.require("cord!/#{ @getDir() }/#{ behaviourClass }", 'cord!Behaviour').then (BehaviourClass, Behaviour) =>
+        Future.require("cord!/#{ @getDir() }/#{ behaviourClass }", 'cord!Behaviour').spread (BehaviourClass, Behaviour) =>
           if not @_sentenced
             # TODO: move this check to the build phase
             if BehaviourClass.prototype instanceof Behaviour
-              @behaviour = new BehaviourClass(this, $domRoot)
+              @behaviour = savedBehaviour = new BehaviourClass(this, $domRoot)
               @container.injectServices(@behaviour).then =>
                 if not @_sentenced
                   @behaviour.init()
                 else
                   throw new errors.WidgetSentenced("Couldn't init behaviour #{BehaviourClass.__name} bacause widget is sentenced!")
+              # .link call is not acceptable here, because we should guarantee that behaviour's _initPromise callbacks
+              #  (they define event handlers) run before stashed events are replayed
+              .then =>
+                @behaviour._initPromise.resolve()  if @behaviour == savedBehaviour # behaviour could be dropped
+                return
+              .catch (err) =>
+                @behaviour._initPromise.reject(err)  if @behaviour == savedBehaviour # behaviour could be dropped
+                throw err
             else
               throw new Error("WRONG BEHAVIOUR CLASS: #{behaviourClass}")
         .catch (err) =>
@@ -1543,7 +1582,7 @@ define [
       @param (optional)jQuery domRoot injected DOM root for the widget or it's children
       @return Future()
       ###
-      _console.log "#{ @debug 'browserInit' }" if global.config.debug.widget
+      @_log "#{ @debug 'browserInit' }"
 
       if not @_browserInitialized and not @_delayedRender and not @_sentenced
         @_browserInitialized = true
@@ -1616,7 +1655,7 @@ define [
                 else
                   errorInfo.stuckChildInfo.push childWidget.ready().completed()
                 i++
-              _console.warn "#{ @debug 'incompleteBrowserInit:children!' }", errorInfo
+              _console.warn "#{ @debug 'incompleteBrowserInit:children!' }", JSON.stringify(errorInfo, null, 2)
             else if not savedPromiseForTimeoutCheck.completed()
               _console.warn "#{ @debug 'incompleteBrowserInit!' } css:#{ savedConstructorCssPromise.completed() } child:#{ childWidgetsReadyPromise.completed() } selfInit:#{ selfInitBehaviour }"
             @_browserInitDebugTimeout = null
@@ -1664,8 +1703,9 @@ define [
       This method should be called when the widget's body is actually shown in the DOM.
       @param Boolean ignoreChildren if true doesn't recursively call markShown for it's child widgets
       ###
+      @_dynamicRender = false
       if not @_shown and not @_delayedRender # timeouted widget should not be marked as shown
-        child.markShown() for child in @children if not ignoreChildren
+        child.markShown() for child in @children when not child._dynamicRender if not ignoreChildren
         # _shown is necessary to protect from duplicate recursive calling of markShown() from the future's callbacks
         # this redundancy can be removed when inline-generated widgets will have appropriate detection and separation API
         @_shown = true
@@ -1674,24 +1714,70 @@ define [
         @emit 'show'
 
 
-    markRenderStarted: ->
-      @_renderInProgress = true
+    _log: (args...) ->
+      _console.log.apply(_console, args) if global.config.debug.widget
 
 
-    markRenderFinished: ->
-      @_renderInProgress = false
-      if @_childWidgetCounter == 0
-        postal.publish "widget.#{ @ctx.id }.render.children.complete", {}
+    hasWidgetInitializer: ->
+      ###
+      Method called from {#widgetInitializer /} block
+      ###
+      @_hasWidgetInitializer = true
 
 
-    childWidgetAdd: ->
-      @_childWidgetCounter++
+    markRenderStarted: (from) ->
+      ###
+      This method should be called before dust.render call
+      ###
+      @_log @debug("markRenderStarted(#{from})")
+      # Widget can be re-rendered, so we should re-create promise on that case
+      if @_childWidgetCompletePromise and not @_childWidgetCompletePromise.completed()
+        @_childWidgetCompletePromise.fork()
+      else
+        @_childWidgetCompletePromise = new Future(1, @debug("Widget::_childWidgetCompletePromise"))
+        @_childWidgetCompletePromise.done =>
+          @onRenderChildrenComplete?()
+          @_childWidgetCompletePromise = Future.resolved()
+      return
 
 
-    childWidgetComplete: ->
-      @_childWidgetCounter--
-      if @_childWidgetCounter == 0 and not @_renderInProgress
-        postal.publish "widget.#{ @ctx.id }.render.children.complete", {}
+    markRenderFinished: (from) ->
+      ###
+      This method should be called right after dust.render call
+      ###
+      @_log @debug("markRenderFinished(#{from}) with counter == "), @_childWidgetCompletePromise._counter
+      if not @_hasWidgetInitializer
+        @_childWidgetCompletePromise.failOk() # Child widgets breaks dust.render call, so, suppress unnecessary
+                                              # double-catch of error
+      @_childWidgetCompletePromise.resolve()
+      return
+
+
+    childWidgetAdd: (type) ->
+      ###
+      Add another child widget for this widget
+      ###
+      @_log @debug("childWidgetAdd(#{type}) with counter == "), @_childWidgetCompletePromise._counter
+      @_childWidgetCompletePromise.fork()
+      return
+
+
+    childWidgetComplete: (type) ->
+      ###
+      Marks one of child widgets rendered successfully
+      ###
+      @_log @debug("childWidgetComplete(#{type}) with counter == "), @_childWidgetCompletePromise._counter
+      @_childWidgetCompletePromise.resolve()
+      return
+
+
+    childWidgetFailed: (type, error) ->
+      ###
+      Marks one of child widgets fails to render
+      ###
+      @_log @debug("childWidgetFailed(#{type}) with counter == "), @_childWidgetCompletePromise._counter
+      @_childWidgetCompletePromise.reject(error)
+      return
 
 
     subscribeValueChange: (params, name, value, callback) ->

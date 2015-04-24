@@ -213,7 +213,6 @@ define [
 
 
     _invalidateAllCollectionsWithField: (repoName, fieldName) ->
-      promise = Future.single("localStorage::_invalidateAllCollectionsWithField #{repoName} #{fieldName} promise")
       @storage.length().then (length) =>
         promises = []
         for index in [0..length-1]
@@ -227,7 +226,7 @@ define [
                     promises.push(@_clearItem key)
 
         Promise.all(promises)
-      .toFuture(promise)
+      .toFuture()
 
 
     _clearItem: (key) ->
@@ -244,8 +243,6 @@ define [
 
 
     _invalidateAllCollections: (repoName) ->
-      promise = Future.single("localStorage::_invalidateAllCollections #{repoName} promise")
-
       @storage.length().then (length) =>
         promises = []
         for index in [1..length-1]
@@ -253,4 +250,4 @@ define [
             if key and key.slice(-5) == ':info' and key.indexOf(repoName) >= 0
               promises.push(@_clearItem key)
         Promise.all(promises)
-      .toFuture(promise)
+      .toFuture()

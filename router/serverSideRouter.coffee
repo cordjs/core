@@ -92,7 +92,11 @@ define [
 
         config.api.authenticateUserCallback = =>
           if serviceContainer
-            serviceContainer.getService('loginUrl').zip(serviceContainer.getService('logoutUrl')).then (loginUrl, logoutUrl) =>
+            Future.all [
+              serviceContainer.getService('loginUrl')
+              serviceContainer.getService('logoutUrl')
+            ]
+            .spread (loginUrl, logoutUrl) =>
               response = serviceContainer.get('serverResponse')
               request = serviceContainer.get('serverRequest')
               if not (request.url.indexOf(loginUrl) >= 0)
@@ -128,7 +132,7 @@ define [
 
           previousProcess = {}
 
-          processWidget = (rootWidgetPath, params) ->
+          processWidget = (rootWidgetPath, params, catchError = true) ->
             pr.timer 'ServerSideRouter::showWidget', ->
               # If current route requires authorization, api service should be available
               processNext = Future.single('Main process next')
@@ -136,7 +140,9 @@ define [
                 serviceContainer.getService('api')
                   .then => processNext.resolve()
                   # on api service failure, we should redirect user to login page
-                  .catch => config.api.authenticateUserCallback()
+                  .catch =>
+                    config.api.authenticateUserCallback()
+                    processNext.clear()
               else
                 processNext.resolve()
 
@@ -152,13 +158,24 @@ define [
                       res.shouldKeepAlive = false
                       res.writeHead 200, 'Content-Type': 'text/html'
                       res.end(out)
-                .catch (err) ->
+                .catchIf (-> catchError), (err) ->
                   if err instanceof errors.AuthError
                     serviceContainer.getService('api').then (api) ->
                       api.authenticateUser()
+                  else if appConfig.errorWidget
+                    processWidget(
+                      appConfig.errorWidget
+                      Utils.buildErrorWidgetParams(err, rootWidgetPath, params)
+                      false
+                    ).catch (nestedErr) =>
+                      console.error('Error handling failed because of: ', nestedErr, nestedErr.stack)
+                      console.error('Original error: ', err, err.stack)
+                      throw nestedErr
                   else
-                    _console.error "FATAL ERROR: server-side rendering failed! Reason:", err
-                    displayFatalError()
+                    throw err
+                .catchIf (-> catchError), (err) ->
+                  console.error "FATAL ERROR: server-side rendering failed! Reason:", err, err.stack
+                  displayFatalError()
                 .finally ->
                   clear()
 
