@@ -45,7 +45,8 @@ define ->
         # Manually shift all values starting at the index back to the
         # beginning of the queue.
         scan = 0
-        while scan < index
+        len = queue.length - index
+        while scan < len
           queue[scan] = queue[scan + index]
           scan++
         queue.length -= index
