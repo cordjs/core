@@ -22,9 +22,9 @@ define [
       @param {Object|String} arg1 initial context values or widget ID
       @param (optional) {Object} arg2 initial context values (if first value is ID
       ###
-      @[':internal'] = {}
-      @[':internal'].version = 0
-      @[':internal'].promises = {}
+      @[':internal'] =
+        version: 0
+        promises: {}
 
       initCtx = {}
 
@@ -86,6 +86,7 @@ define [
         throw new Error("You can not use \"#{name}\" as context parameter name")
 
       if newValue instanceof Future and name.substr(-7) != 'Promise' # workaround pageTitlePromise problem
+        # TODO Add this Future to Widget (Widget::addPromise) ???
         triggerChange = @setSingle(name, ':deferred')
         newValue.then (resolvedValue) =>
           resolvedValue = null if resolvedValue == undefined
@@ -301,7 +302,7 @@ define [
 
 
     _newParamPromise: (name) ->
-      Future.single("Context deferred parameter #{name}")
+      Future.single(@_ownerWidget.debug("<<<ctx.#{name}>>>"))
 
 
 
