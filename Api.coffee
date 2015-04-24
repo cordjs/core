@@ -310,7 +310,7 @@ define [
 
         .catchIf httpErrors.Network, (e) =>
           # In case of network error, we'll try to reconnect again
-          if retryCount > 0
+          if retryCount > 0 and method == 'get'
             _console.warn "WARNING: request to #{url} failed because of network error #{e}. Retrying after 0.5s..."
             Future.timeout(500).then =>
               @_doRequest(method, url, params, retryCount - 1)
@@ -340,7 +340,7 @@ define [
                 @_doRequest(method, url, params, retryCount - 1)
             else
               # handle API errors fallback behaviour if configured
-              errorCode = response.statusCode
+              errorCode = response.body?._code ? response.statusCode
               if errorCode? and @fallbackErrors and @fallbackErrors[errorCode]
                 fallbackInfo = _.clone(@fallbackErrors[errorCode])
                 fallbackInfo.params = _.clone(fallbackInfo.params)
