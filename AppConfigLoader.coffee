@@ -93,6 +93,7 @@ define [
               fallbackApiErrors[error] = fallback
 
           fatalErrorPageFile = config.fatalErrorPageFile  if config.fatalErrorPageFile
+          errorWidget = config.errorWidget if config.errorWidget
 
         AppConfigLoader._promise.resolve
           routes: routes
@@ -100,6 +101,7 @@ define [
           fallbackRoutes: fallbackRoutes
           fallbackApiErrors: fallbackApiErrors
           fatalErrorPageFile: fatalErrorPageFile
+          errorWidget: errorWidget
           proxyRoutes: proxyRoutes
 
 

@@ -396,6 +396,7 @@ define [
       if not params.id?
         urlParams.push("_filter=#{ params.filterId }") if params.filterId?
         urlParams.push("_filterParams=#{ params.filterParams }") if params.filterParams?
+        urlParams.push("_reportConfig=#{ params.reportConfig }") if params.reportConfig?
         urlParams.push("_page=#{ params.page }") if params.page?
         urlParams.push("_pagesize=#{ params.pageSize }") if params.pageSize?
         # important! adding 1 to the params.end to compensate semantics:
@@ -551,6 +552,7 @@ define [
       urlParams = []
       urlParams.push("_filter=#{ params.filterId }") if params.filterId?
       urlParams.push("_filterParams=#{ params.filterParams }") if params.filterParams?
+      urlParams.push("_reportConfig=#{ params.reportConfig }") if params.reportConfig?
       urlParams.push("_pagesize=#{ params.pageSize }") if params.pageSize?
       urlParams.push("_sortby=#{ params.orderBy }") if params.orderBy?
       urlParams.push("_selectedId=#{ params.selectedId }") if params.selectedId
@@ -585,6 +587,7 @@ define [
       apiParams._selectedId = params.selectedId if params.selectedId?
       apiParams._filter = params.filterId if params.filterId?
       apiParams._filterParams = params.filterParams if params.filterParams?
+      apiParams._reportConfig = params.reportConfig if params.reportConfig?
       if params.filter
         for filterField of params.filter
           apiParams[filterField] = params.filter[filterField]

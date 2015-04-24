@@ -81,7 +81,7 @@ define [
       @return {Future[Tuple[String, Object]]}
       ###
       if not @isAuthAvailable()
-        Future.rejected(new Error('No OAuth2 tokens available.'))
+        Future.rejected(new cordErrors.AuthError('No OAuth2 tokens available.'))
       else
         @_restoreTokens()
         if tryLuck
@@ -123,8 +123,7 @@ define [
         if @refreshToken
           @_getTokensByRefreshToken()
         else
-          Future.rejected('No refresh token available')
-
+          Future.rejected(new cordErrors.AuthError('No refresh token available'))
 
 
     _invalidateAccessToken: ->
@@ -294,7 +293,7 @@ define [
                 if result.error == 'invalid_client' # retries are helpless
                   throw new Error("Invalid clientId or clientSecret #{result}")
                 else if result.error = 'invalid_grant' # go to login
-                  throw new cordErrors.AuthError("Unable to get access token by refresh token. Refresh toke #{result}")
+                  throw new cordErrors.AuthError("Unable to get access token by refresh token #{result}")
 
             if retries > 0
               _console.warn('Error while refreshing oauth token! Will retry after pause... Error:', err)
@@ -330,7 +329,7 @@ define [
           @_storeTokens(grantedAccessToken, grantedRefreshToken)
           [[grantedAccessToken, grantedRefreshToken]] ## todo: Future refactor
         else
-          throw new Error('Failed to get auth token by refresh token: refresh token could be outdated!')
+          throw new cordError.AuthError('Failed to get auth token by refresh token: refresh token could be outdated!')
       @_refreshPromise
 
 
@@ -355,7 +354,7 @@ define [
           if response and response.code
             response.code
           else
-            throw new cordErrors.MegaIdAuthFailed("No auth code recieved. Response: #{JSON.stringify(response)} #{JSON.stringify(error)}")
+            throw new cordErrors.MegaIdAuthFailed("No auth code recieved. Response: #{JSON.stringify(response)}")
 
 
     getAuthCodeWithoutPassword: (scope) ->

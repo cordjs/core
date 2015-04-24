@@ -66,3 +66,12 @@ define ->
 
   ConfigError: class ConfigError extends CordError
     name: 'ConfigError'
+
+
+  MustTransitPage: class MustTransitPage extends CordError
+    ###
+    This error should be thrown to force transition to specified page
+    ###
+    name: 'MustTransitPage'
+    constructor: (@widget, @params) ->
+      super("Transition to #{@widget} required!")
