@@ -86,7 +86,7 @@ define [
         throw new Error("You can not use \"#{name}\" as context parameter name")
 
       if newValue instanceof Future and name.substr(-7) != 'Promise' # workaround pageTitlePromise problem
-        # TODO Add this Future to Widget (Widget::addPromise) ???
+        @_ownerWidget?.addPromise(newValue)
         triggerChange = @setSingle(name, ':deferred')
         newValue.then (resolvedValue) =>
           resolvedValue = null if resolvedValue == undefined

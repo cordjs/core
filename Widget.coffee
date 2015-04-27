@@ -397,7 +397,23 @@ define [
 
     addPromise: (promise) ->
       @_promises.push promise
+      # Add a error-handling of Future on widget ready
+      failHandler = @_onPromiseFail
+      if @_widgetReadyPromise and not @_widgetReadyPromise.completed()
+        @_widgetReadyPromise.done -> promise.fail(failHandler)
+      else
+        promise.fail(failHandler)
       promise
+
+
+    _onPromiseFail: (e) =>
+      ###
+      This callback called on any promise unhandled error
+      ###
+      postal.publish 'widget.promise.error',
+        widget: this
+        error: e
+      return
 
 
     _cleanPromises: ->

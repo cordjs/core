@@ -73,6 +73,12 @@ define  ->
             .then -> done(null, redirector)
             .catch (e) -> done(e)
 
+    errorHelper:
+      deps: ['container']
+      factory: (get, done) ->
+        require ['cord!ErrorHelper'], (ErrorHelper) ->
+          get('container').injectServices(new ErrorHelper()).finally(done)
+
     ':server':
       request:
         factory: (get, done) ->

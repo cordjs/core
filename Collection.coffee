@@ -1220,15 +1220,12 @@ define [
         else
           @_models
 
-      promise = Future.single('Collection::getPage')
-
       #sometimes collection could be toren apart, check for this case
-      if @_loadedStart <= start and (@_loadedEnd >= end || @_totalCount == @_loadedEnd + 1) and @isConsistent((sliced = slice())) == true
-        promise.resolve(sliced)
+      (if @_loadedStart <= start and (@_loadedEnd >= end || @_totalCount == @_loadedEnd + 1) and @isConsistent((sliced = slice())) == true
+        Future.resolved(sliced)
       else
-        @sync ':async', start, end, =>
-          promise.resolve(slice())
-      promise
+        @sync(':async', start, end).then -> [slice()] ## todo: Future refactor
+      ).rename('Collection::getPage')
 
 
     getPagingInfo: (selectedId, refresh) ->
