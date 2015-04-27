@@ -8,7 +8,7 @@ define [
     @inject: ['container', 'runtimeConfigResolver']
 
 
-    constructor: (@defaultConfig) ->
+    constructor: () ->
       #Here we'll cache ready api objects
       @_cachedApi = {}
 
@@ -36,7 +36,7 @@ define [
           else
             api = new Api(@container, apiConfig)
             @container.injectServices(api)
-              .then => api.init()
-              .then => api.configure(apiConfig)
+              .then -> api.init()
+              .then -> api.configure(apiConfig)
               .then => @_cachedApi[key] = api
 

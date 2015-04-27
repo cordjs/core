@@ -6,14 +6,14 @@ define  ->
       deps: ['runtimeConfigResolver', 'container', 'config', 'tabSync']
       factory: (get, done) ->
         require ['cord!ApiFactory'], (ApiFactory) ->
-          apiFactory = new ApiFactory(get('config').api)
+          apiFactory = new ApiFactory()
           get('container').injectServices(apiFactory).finally(done)
 
     api:
       deps: ['apiFactory', 'runtimeConfigResolver', 'config']
       factory: (get, done) ->
         require ['cord!Api', 'postal'], (Api, postal) ->
-          get('apiFactory').getApiByParams()
+          get('apiFactory').getApiByConfigParams(get('config').api)
             .then (api) ->
               # Subscribe to runtimeConfigResolver's 'setParameter' event, and
               # reconfigure on event emitted
