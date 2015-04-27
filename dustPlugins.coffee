@@ -65,6 +65,8 @@ define [
           if not complete
             complete = true
             tmplWidget.childWidgetFailed(params.type, err)
+          throw err
+        .catch (err) ->
           chunk.setError(err)
           return
 
@@ -79,10 +81,15 @@ define [
                 chunk.end(widget.renderRootTag(out))
               .catch (err) ->
                 tmplWidget.childWidgetFailed(params.type, err)
+                throw err
+              .catch (err) ->
                 chunk.setError(err)
+                return
           , timeout
       .catch (err) ->
         tmplWidget.childWidgetFailed(params.type, err)
+        throw err
+      .catch (err) ->
         chunk.setError(err)
         return
 
@@ -110,8 +117,10 @@ define [
           tmplWidget.childWidgetComplete(type)
           chunk.end(out)
         .catch (err) ->
-          _console.error "Error on widget #{ tmplWidget.debug() } #deferred rendering:", err
           tmplWidget.childWidgetFailed(type, err)
+          throw err
+        .catch (err) ->
+          _console.error "Error on widget #{ tmplWidget.debug() } #deferred rendering:", err
           chunk.setError(err)
           return
     else
@@ -136,6 +145,8 @@ define [
         chunk.end(tmplWidget.renderPlaceholderTag(name, out))
       .catch (err) ->
         tmplWidget.childWidgetFailed(type, err)
+        throw err
+      .catch (err) ->
         chunk.setError(err)
         return
 
