@@ -58,20 +58,27 @@ define [
       else if args.length == 1
         pairs = args[0]
         if typeof pairs == 'object'
-          @setSingle(key, value) for key, value of pairs
+          @_setSingle(key, value) for key, value of pairs
         else
           throw new Error("Invalid argument! Single argument must be key-value pair (object).")
       else
-        @setSingle args[0], args[1]
+        @_setSingle args[0], args[1]
       return
 
 
     setSingle: (name, newValue, callbackPromise) ->
       ###
+      @deprecated Use Context::set() instead
+      ###
+      console.trace 'DEPRECATED WARNING: ctx.setSingle is deprecated, use ctx.set instead!'
+      @_setSingle(name, newValue, callbackPromise)
+
+
+    _setSingle: (name, newValue, callbackPromise) ->
+      ###
       Sets single context param's value.
       If value type is Future then automatically sets to deferred and then to the resolved value
        when the promise completes.
-      @deprecated Use Context::set() instead
       @param String name param name
       @param Any newValue param value
       @param (optional)Future callbackPromise promise to support setWithCallback() method functionality
@@ -82,10 +89,10 @@ define [
 
       if newValue instanceof Future and name.substr(-7) != 'Promise' # workaround pageTitlePromise problem
         # TODO Add this Future to Widget (Widget::addPromise) ???
-        triggerChange = @setSingle(name, ':deferred')
+        triggerChange = @_setSingle(name, ':deferred')
         newValue.then (resolvedValue) =>
           resolvedValue = null if resolvedValue == undefined
-          @setSingle name, resolvedValue
+          @_setSingle name, resolvedValue
         .catch (err) =>
           # We should keep rejected promise for possible future `getPromise(name)` call
           # (parameter keeps deferred in this case)
@@ -160,13 +167,13 @@ define [
 
     setDeferred: (args...) ->
       for name in args
-        @setSingle(name, ':deferred')
+        @_setSingle(name, ':deferred')
 
 
     setServerDeferred: (args...) ->
       if not isBrowser
         for name in args
-          @setSingle(name, ':deferred')
+          @_setSingle(name, ':deferred')
 
 
     isDeferred: (name) ->
@@ -199,7 +206,7 @@ define [
       @return Future
       ###
       callbackPromise = new Future('Context::setWithFeedback')
-      @setSingle(name, value, callbackPromise)
+      @_setSingle(name, value, callbackPromise)
       callbackPromise
 
 
