@@ -397,7 +397,23 @@ define [
 
     addPromise: (promise) ->
       @_promises.push promise
+      # Add a error-handling of Future on widget ready
+      failHandler = @_onPromiseFail
+      if @_widgetReadyPromise and not @_widgetReadyPromise.completed()
+        @_widgetReadyPromise.done -> promise.fail(failHandler)
+      else
+        promise.fail(failHandler)
       promise
+
+
+    _onPromiseFail: (e) =>
+      ###
+      This callback called on any promise unhandled error
+      ###
+      postal.publish 'widget.promise.error',
+        widget: this
+        error: e
+      return
 
 
     _cleanPromises: ->
@@ -1745,6 +1761,7 @@ define [
       ###
       This method should be called right after dust.render call
       ###
+      throw new new errors.WidgetSentenced("Widget #{@constructor.__name} is sentenced!") if @isSentenced()
       @_log @debug("markRenderFinished(#{from}) with counter == "), @_childWidgetCompletePromise._counter
       if not @_hasWidgetInitializer
         @_childWidgetCompletePromise.failOk() # Child widgets breaks dust.render call, so, suppress unnecessary
@@ -1757,6 +1774,7 @@ define [
       ###
       Add another child widget for this widget
       ###
+      throw new new errors.WidgetSentenced("Widget #{@constructor.__name} is sentenced!") if @isSentenced()
       @_log @debug("childWidgetAdd(#{type}) with counter == "), @_childWidgetCompletePromise._counter
       @_childWidgetCompletePromise.fork()
       return
@@ -1766,6 +1784,7 @@ define [
       ###
       Marks one of child widgets rendered successfully
       ###
+      throw new new errors.WidgetSentenced("Widget #{@constructor.__name} is sentenced!") if @isSentenced()
       @_log @debug("childWidgetComplete(#{type}) with counter == "), @_childWidgetCompletePromise._counter
       @_childWidgetCompletePromise.resolve()
       return
@@ -1775,6 +1794,7 @@ define [
       ###
       Marks one of child widgets fails to render
       ###
+      throw new new errors.WidgetSentenced("Widget #{@constructor.__name} is sentenced!") if @isSentenced()
       @_log @debug("childWidgetFailed(#{type}) with counter == "), @_childWidgetCompletePromise._counter
       @_childWidgetCompletePromise.reject(error)
       return
