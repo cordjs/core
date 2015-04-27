@@ -58,12 +58,14 @@ define [
       else if args.length == 1
         pairs = args[0]
         if typeof pairs == 'object'
-          @_setSingle(key, value) for key, value of pairs
+          changed = false
+          for key, value of pairs
+            changed = true  if @_setSingle(key, value)
+          changed
         else
           throw new Error("Invalid argument! Single argument must be key-value pair (object).")
       else
         @_setSingle args[0], args[1]
-      return
 
 
     setSingle: (name, newValue, callbackPromise) ->
