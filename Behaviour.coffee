@@ -211,6 +211,13 @@ define [
       @_callbacks = []
 
 
+    addPromise: (promise) ->
+      ###
+      For simplify call @addPromise from Behaviour
+      ###
+      @widget.addPromise(promise)
+
+
     delegateEvents: (events) ->
       if typeof window.zone != 'undefined'
         tmpZone = window.zone
