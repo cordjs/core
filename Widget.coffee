@@ -1761,7 +1761,7 @@ define [
       ###
       This method should be called right after dust.render call
       ###
-      throw new new errors.WidgetSentenced("Widget #{@constructor.__name} is sentenced!") if @isSentenced()
+      throw new errors.WidgetSentenced("Widget #{@constructor.__name} is sentenced!") if @isSentenced()
       @_log @debug("markRenderFinished(#{from}) with counter == "), @_childWidgetCompletePromise._counter
       if not @_hasWidgetInitializer
         @_childWidgetCompletePromise.failOk() # Child widgets breaks dust.render call, so, suppress unnecessary
@@ -1774,7 +1774,7 @@ define [
       ###
       Add another child widget for this widget
       ###
-      throw new new errors.WidgetSentenced("Widget #{@constructor.__name} is sentenced!") if @isSentenced()
+      throw new errors.WidgetSentenced("Widget #{@constructor.__name} is sentenced!") if @isSentenced()
       @_log @debug("childWidgetAdd(#{type}) with counter == "), @_childWidgetCompletePromise._counter
       @_childWidgetCompletePromise.fork()
       return
@@ -1784,7 +1784,7 @@ define [
       ###
       Marks one of child widgets rendered successfully
       ###
-      throw new new errors.WidgetSentenced("Widget #{@constructor.__name} is sentenced!") if @isSentenced()
+      throw new errors.WidgetSentenced("Widget #{@constructor.__name} is sentenced!") if @isSentenced()
       @_log @debug("childWidgetComplete(#{type}) with counter == "), @_childWidgetCompletePromise._counter
       @_childWidgetCompletePromise.resolve()
       return
@@ -1794,7 +1794,7 @@ define [
       ###
       Marks one of child widgets fails to render
       ###
-      throw new new errors.WidgetSentenced("Widget #{@constructor.__name} is sentenced!") if @isSentenced()
+      throw new errors.WidgetSentenced("Widget #{@constructor.__name} is sentenced!") if @isSentenced()
       @_log @debug("childWidgetFailed(#{type}) with counter == "), @_childWidgetCompletePromise._counter
       @_childWidgetCompletePromise.reject(error)
       return
