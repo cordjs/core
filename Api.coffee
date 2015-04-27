@@ -212,16 +212,7 @@ define [
 
 
     get: (url, params, callback) ->
-      if _.isFunction(params)
-        callback = params
-        params = {}
-      @send 'get', url, params, (response, error) =>
-        if error
-          setTimeout =>
-            @send 'get', url, params, callback
-          , 10
-        else
-          callback?(response, error)
+      @send 'get', url, params, callback
 
 
     post: (url, params, callback) ->
@@ -250,6 +241,9 @@ define [
         params: 'object'
         callback: 'function'
       validatedArgs.method = args[0]
+
+      if validatedArgs.callback
+        console.trace 'DEPRECATION WARNING: callback-style Api::send result is deprecated, use promise-style result instead!', validatedArgs.callback
 
       requestPromise = (
         if validatedArgs.params.noAuthTokens
