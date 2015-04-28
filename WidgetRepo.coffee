@@ -357,7 +357,14 @@ define [
           widget: widget
           namedChilds: namedChilds
 
-        @serviceContainer.injectServices(widget).link(@_parentPromises[ctx.id]).then =>
+        injectRouterPromise = @serviceContainer.getService('router').then (router) ->
+          widget.router = router
+
+        Future.all [
+          @serviceContainer.injectServices(widget)
+          injectRouterPromise
+        ]
+        .link(@_parentPromises[ctx.id]).then =>
           if parentId?
             @_parentPromises[parentId].then =>
               @widgets[parentId].widget.registerChild(widget, @widgets[parentId].namedChilds[ctx.id] ? null)
