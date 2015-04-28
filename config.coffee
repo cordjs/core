@@ -13,7 +13,7 @@ define  ->
       deps: ['apiFactory', 'runtimeConfigResolver', 'config']
       factory: (get, done) ->
         require ['cord!Api', 'postal'], (Api, postal) ->
-          get('apiFactory').getApiByConfigParams(get('config').api)
+          get('apiFactory').getApiByDefaultParams(get('config').api)
             .then (api) ->
               # Subscribe to runtimeConfigResolver's 'setParameter' event, and
               # reconfigure on event emitted
