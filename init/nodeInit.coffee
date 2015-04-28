@@ -85,7 +85,7 @@ exports.init = (baseUrl = 'public', configName = 'default', serverPort) ->
 
     profilerInit() if CORD_PROFILER_ENABLED
 
-    Future.sequence [
+    Future.all [
       AppConfigLoader.ready()
       biFuture
     ]

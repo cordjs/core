@@ -98,7 +98,7 @@ define [
             widget.router = router
           .catch (err) -> # compatibility with compiling index.html when services are not defined
             null
-          Future.sequence [
+          Future.all [
             @serviceContainer.injectServices(widget)
             injectRouterPromise
           ]
@@ -334,7 +334,7 @@ define [
 
       @_parentPromises[ctx.id] = Future.single("WidgetRepo::parentPromise(#{widgetPath}, #{ctx.id})")
 
-      Future.sequence([
+      Future.all([
         Future.require("cord-w!#{ widgetPath }")
         Context.fromJSON(ctx, @serviceContainer)
         @_unserializeModelBindings(modelBindings)
@@ -385,7 +385,7 @@ define [
           @_currentExtendList.push(widget)
       # initializing DOM bindings of widgets in reverse order (leafs of widget tree - first)
       bindPromises = (@bind(id) for id in @_widgetOrder.reverse())
-      result = Future.sequence(bindPromises)
+      result = Future.all(bindPromises)
       @serviceContainer.eval 'cookie', (cookie) =>
         if cookie.get('cord_require_stat_collection_enabled')
           result.done =>

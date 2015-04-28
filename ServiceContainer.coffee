@@ -106,7 +106,7 @@ define [
       def = @_definitions[name]
       @_pendingFactories[name] = Future.single("Factory of service #{name}")
       # Ensure, that all of dependencies are loaded before factory call
-      Future.sequence(def.deps.map((dep) => @getService(dep)), "Deps for `#{name}`").then (services) =>
+      Future.all(def.deps.map((dep) => @getService(dep)), "Deps for `#{name}`").then (services) =>
         # call a factory with 2 parameters, get & done. On done resolve a result.
 
         deps = _.object(def.deps, services)
@@ -205,7 +205,7 @@ define [
           for serviceAlias, serviceName of services
             injectService serviceAlias, serviceName
 
-      Future.sequence(injectFutures, "Container::injectServices(#{target.constructor.name})").then -> target
+      Future.all(injectFutures, "Container::injectServices(#{target.constructor.name})").then -> target
 
 
     autoStartServices: (services) ->

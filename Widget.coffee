@@ -202,7 +202,7 @@ define [
         if not restoreMode
           Future.require('cord!css/browserManager').then (cssManager) =>
             promises = (cssManager.load(cssFile) for cssFile in @::getCssFiles())
-            Future.sequence(promises)
+            Future.all(promises)
           .then =>
             # memory optimization
             @_cssPromise = Future.resolved()
@@ -1625,7 +1625,7 @@ define [
             if not childWidget._delayedRender
               readyConditions.push(childWidget.browserInit(stopPropagateWidget, $domRoot))
 
-          childWidgetsReadyPromise = Future.sequence(readyConditions)
+          childWidgetsReadyPromise = Future.all(readyConditions)
           childWidgetsReadyPromise.catchIf (err) -> err.isCordInternal # prevent reporting internal exceptions
 
           readyConditions.push(@constructor._cssPromise)
@@ -1636,7 +1636,7 @@ define [
             selfInitBehaviour = true
 
           savedPromiseForTimeoutCheck = @_widgetReadyPromise
-          Future.sequence(readyConditions).then =>
+          Future.all(readyConditions).then =>
             if @_browserInitDebugTimeout
               clearTimeout(@_browserInitDebugTimeout)
               @_browserInitDebugTimeout = null

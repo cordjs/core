@@ -290,7 +290,7 @@ define [
 
       @see example 2 in class documentation block
       ###
-      console.trace 'DEPRECATION WARNING: Future.callback is deprecated, use Future.sequence instead!'
+      console.trace 'DEPRECATION WARNING: Future.callback is deprecated, use Future.all instead!'
       @fork()
       order = @_order++
       @_callbackArgs ?= {}
@@ -512,8 +512,9 @@ define [
       @param Future those another futures
       @return Future
       ###
+      console.trace 'DEPRECATION WARNING: Future.zip is deprecated, use Future.all instead!'
       those.unshift(this)
-      Future.sequence(those, "#{@_name} -> zip").then (result) -> result
+      Future.all(those, "#{@_name} -> zip").then (result) -> result
 
 
     @all: (futureList, name = ':all:') ->
@@ -534,11 +535,13 @@ define [
             promise.resolve()
           .fail (e) ->
             promise.reject(e)
-      promise.then -> [result]
+      promise.then -> [result] ## todo: Future refactor
 
 
     # @deprecated alias
-    @sequence: @all
+    @sequence: (futureList, name = ':sequence:') ->
+      console.trace 'DEPRECATION WARNING: Future.sequence alias is deprecated, use Future.all instead!'
+      @all(futureList, name)
 
 
     @select: (futureList) ->
