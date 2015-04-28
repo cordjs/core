@@ -6,21 +6,23 @@ define  ->
       deps: ['runtimeConfigResolver', 'container', 'config', 'tabSync']
       factory: (get, done) ->
         require ['cord!ApiFactory'], (ApiFactory) ->
-          apiFactory = new ApiFactory(get('config').api)
+          apiFactory = new ApiFactory()
           get('container').injectServices(apiFactory).finally(done)
 
     api:
       deps: ['apiFactory', 'runtimeConfigResolver', 'config']
       factory: (get, done) ->
         require ['cord!Api', 'postal'], (Api, postal) ->
-          get('apiFactory').getApiByParams()
+          get('apiFactory').getApiByConfigParams(get('config').api)
             .then (api) ->
               # Subscribe to runtimeConfigResolver's 'setParameter' event, and
               # reconfigure on event emitted
               resolver = get('runtimeConfigResolver')
               resolver.on('setParameter', -> api.configure(resolver.resolveConfig(get('config').api)))
               api.on 'host.changed', (host) ->
-                resolver.setParameter('BACKEND_HOST', host) if host != resolver.getParameter('BACKEND_HOST')
+                if host != resolver.getParameter('BACKEND_HOST')
+                  _console.log('BACKEND_HOST has been changed to:', host)
+                  resolver.setParameter('BACKEND_HOST', host)
               api
             .then (api) ->
               done(null, api)
@@ -73,6 +75,12 @@ define  ->
             .then -> done(null, redirector)
             .catch (e) -> done(e)
 
+    errorHelper:
+      deps: ['container']
+      factory: (get, done) ->
+        require ['cord!ErrorHelper'], (ErrorHelper) ->
+          get('container').injectServices(new ErrorHelper()).finally(done)
+
     ':server':
       request:
         factory: (get, done) ->
@@ -106,10 +114,16 @@ define  ->
         done(null, navigator.userAgent)
 
       localStorage: (get, done) ->
-        require ['cord!cache/localStorage', 'localforage'], (LocalStorage, localForage) ->
+        require ['cord!cache/localStorage', 'cord!utils/Future', 'localforage'], (LocalStorage, Future, localForage) ->
           localForage.ready().then ->
-            # Resolve future (promise argument) according with Promise
             Promise::toFuture = (promise) ->
+              ###
+              Converts standart "thenable" Promise into our Future promise.
+              If an argument is given, then it will be fulfilled and returned instead of creating new Future promise.
+              @param {Future} promise - optional externally created promise to be fulfilled with this promise result
+              @return {Future}
+              ###
+              promise or= Future.single(':toFuture:')
               this
                 .then -> promise.resolve()
                 .catch (err) -> promise.reject(err)
@@ -170,3 +184,4 @@ define  ->
         exports: 'zone'
 
   fatalErrorPageFile: 'bundles/cord/core/assets/fatal-error.html'
+  errorWidget: null # You can set error widget path here in cordjs notation

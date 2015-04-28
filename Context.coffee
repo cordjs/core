@@ -7,7 +7,8 @@ define [
   'underscore'
   'cord!Console'
   'cord!isBrowser'
-], (Collection, Model, Future, asap, postal, _, _console, isBrowser) ->
+  'cord!dustPlugins'
+], (Collection, Model, Future, asap, postal, _, _console, isBrowser, dustPlugins) ->
 
   # support for deferred timeout tracking
   deferredTrackingEnabled = false
@@ -21,8 +22,9 @@ define [
       @param {Object|String} arg1 initial context values or widget ID
       @param (optional) {Object} arg2 initial context values (if first value is ID
       ###
-      @[':internal'] = {}
-      @[':internal'].version = 0
+      @[':internal'] =
+        version: 0
+        promises: {}
 
       initCtx = {}
 
@@ -56,33 +58,51 @@ define [
       else if args.length == 1
         pairs = args[0]
         if typeof pairs == 'object'
-          @setSingle(key, value) for key, value of pairs
+          changed = false
+          for key, value of pairs
+            changed = true  if @_setSingle(key, value)
+          changed
         else
           throw new Error("Invalid argument! Single argument must be key-value pair (object).")
       else
-        @setSingle args[0], args[1]
-      return
+        @_setSingle args[0], args[1]
 
 
     setSingle: (name, newValue, callbackPromise) ->
       ###
+      @deprecated Use Context::set() instead
+      ###
+      console.trace 'DEPRECATED WARNING: ctx.setSingle is deprecated, use ctx.set instead!'
+      @_setSingle(name, newValue, callbackPromise)
+
+
+    _setSingle: (name, newValue, callbackPromise) ->
+      ###
       Sets single context param's value.
       If value type is Future then automatically sets to deferred and then to the resolved value
        when the promise completes.
-      @deprecated Use Context::set() instead
       @param String name param name
       @param Any newValue param value
       @param (optional)Future callbackPromise promise to support setWithCallback() method functionality
       @return Boolean true if the change event was triggered (the value was changed)
       ###
+      if dustPlugins[name] != undefined
+        throw new Error("You can not use \"#{name}\" as context parameter name")
+
       if newValue instanceof Future and name.substr(-7) != 'Promise' # workaround pageTitlePromise problem
-        triggerChange = @setSingle(name, ':deferred')
+        @_ownerWidget?.addPromise(newValue)
+        triggerChange = @_setSingle(name, ':deferred')
         newValue.then (resolvedValue) =>
           resolvedValue = null if resolvedValue == undefined
-          @setSingle name, resolvedValue
+          @_setSingle name, resolvedValue
         .catch (err) =>
-          _console.error "Context.set promise failed with error: #{err}! Setting value to null...", err
-          @setSingle name, null
+          # We should keep rejected promise for possible future `getPromise(name)` call
+          # (parameter keeps deferred in this case)
+          @[':internal'].promises[name] ?= @_newParamPromise(name)
+          @[':internal'].promises[name].reject(err)
+          # This parameter never will never become resolved, as it rejected
+          @_clearDeferredDebug(name) if deferredTrackingEnabled
+          return
         return triggerChange
 
       stashChange = true
@@ -129,6 +149,10 @@ define [
               cursor: cursor
               version: curVersion
 
+        if ':deferred' != newValue and @[':internal'].promises[name]
+          @[':internal'].promises[name].resolve(newValue)
+          delete @[':internal'].promises[name]
+
         asap =>
           _console.log "publish widget.#{ @id }.change.#{ name }" if global.config.debug.widget
           postal.publish "widget.#{ @id }.change.#{ name }",
@@ -145,17 +169,28 @@ define [
 
     setDeferred: (args...) ->
       for name in args
-        @setSingle(name, ':deferred')
+        @_setSingle(name, ':deferred')
 
 
     setServerDeferred: (args...) ->
       if not isBrowser
         for name in args
-          @setSingle(name, ':deferred')
+          @_setSingle(name, ':deferred')
 
 
     isDeferred: (name) ->
       @[name] is ':deferred'
+
+
+    getPromise: (name) ->
+      ###
+      Returns Future of parameter's value.
+      ###
+      if @isDeferred(name)
+        @[':internal'].promises[name] ?= @_newParamPromise(name)
+        @[':internal'].promises[name]
+      else
+        Future.resolved(@[name])
 
 
     isEmpty: (name) ->
@@ -173,7 +208,7 @@ define [
       @return Future
       ###
       callbackPromise = new Future('Context::setWithFeedback')
-      @setSingle(name, value, callbackPromise)
+      @_setSingle(name, value, callbackPromise)
       callbackPromise
 
 
@@ -270,6 +305,10 @@ define [
       if deferredTrackMap[@id]
         delete deferredTrackMap[@id][name]
         delete deferredTrackMap[@id]  if _.isEmpty(deferredTrackMap[@id])
+
+
+    _newParamPromise: (name) ->
+      Future.single(@_ownerWidget.debug("<<<ctx.#{name}>>>"))
 
 
 

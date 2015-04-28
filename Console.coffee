@@ -5,14 +5,14 @@ define [
 ], (errors, postal, _) ->
 
   # What kind of messages we should log
+  consoleConfig = global?.config?.console or {}
   output =
-    log: global?.config?.console.log or true
-    warn: global?.config?.console.warn or true
-    error: global?.config?.console.error or true
-    notice: global?.config?.console.notice or false
-    system: global?.config?.console.system or false
-    errorTrace: global?.config?.console.errorTrace or false
-    joinArgs: global?.config?.console.joinArgs or false
+    log: consoleConfig.log or true
+    warn: consoleConfig.warn or true
+    error: consoleConfig.error or true
+    notice: consoleConfig.notice or false
+    internal: consoleConfig.internal or false
+    errorTrace: consoleConfig.errorTrace or false
 
   # Enable assertions (for development only)
   assertionsEnabled = global?.config?.debug.assertions or false
@@ -31,8 +31,11 @@ define [
     .join(', ')
 
 
-  addDate = (args) ->
-    args.unshift((new Date).toString()) if not CORD_IS_BROWSER
+  prepareArgs = (args) ->
+    if not CORD_IS_BROWSER
+      host = global?.config?.api.backend.host
+      args.unshift host if host
+      args.unshift((new Date).toString())
     args
 
 
@@ -65,15 +68,15 @@ define [
             message: stringify(args)
             console: true
 
-        # Add trace information for non-error types
+        # Add trace information
         if output.errorTrace and (type == 'warn' or type == 'error')
           addErrorTrace args, "    ------------------\n" + @_trace()
         else
-          args.push @_trace().split("\n")[0]
+          args.push @_trace().split("\n")[0].trim()
 
         method = if console[type] then type else 'log'
         args.unshift "[#{type}]"
-        console[method] addDate(args).join(" ")
+        console[method] prepareArgs(args).join(" ")
 
 
     log: (args...) ->
@@ -81,18 +84,32 @@ define [
 
 
     warn: (args...) ->
-      @_log 'warn', args
+      @_taggedError [], 'warn', args
 
 
     error: (args...) ->
-      @_taggedError @_trace(), ['error'], args
+      @_taggedError [], 'error', args
+
+
+    _minErrorType: (type1, type2) ->
+      typeWeight =
+        error: 5
+        warn: 4
+        log: 3
+        notice: 2
+        internal: 1
+
+      weight1 = typeWeight[type1] or typeWeight['log']
+      weight2 = typeWeight[type2] or typeWeight['log']
+
+      if weight1 > weight2 then type2 else type1
 
 
     taggedError: (tags, args...) ->
-      @_taggedError @_trace(), tags, args
+      @_taggedError tags, args, 'error'
 
 
-    _taggedError: (trace, tags, args) ->
+    _taggedError: (tags, errorType, args) ->
       ###
       Smart console.error:
        * appends stack-trace of Error-typed argument if configured
@@ -101,15 +118,17 @@ define [
       @param {Array} tags - tags for logging, e.g. ['error'] | ['warning']
       @param {Any} args - usual console.error arguments
       ###
-      if output.errorTrace
-        error = _.find(args, (item) -> item and item.stack)
-        if error and error.stack
-          trace = error.stack
-          # Remove errors from args. We already have a stack trace
-          args = _.filter args, (item) -> not item.stack
-        addErrorTrace args, trace
 
-      errorType = (error and error.type) or 'error'
+      # Get error type from args
+      for item in args
+        if item.stack
+          errorType = @_minErrorType(errorType, errors.getType(item))
+
+      args = _.map args, (item) ->
+        if item.stack
+          if output.errorTrace then item.stack else item.message
+        else
+          item
 
       # Report the error so that we could show it to the user
       if errorType == 'error'

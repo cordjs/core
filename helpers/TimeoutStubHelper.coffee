@@ -19,12 +19,16 @@ define [
       @param DomInfo domInfo special helper object holding futures about context DOM creating and inserting
       @return Future[jQuery] new DOM root to be used by the enclosed widgets
       ###
-      Future.require('jquery', 'cord!utils/DomHelper').then ($, DomHelper) ->
+      Future.require('jquery', 'cord!utils/DomHelper').spread ($, DomHelper) ->
         $newRoot = $(widget.renderRootTag(html))
         # _delayedRender flag MUST be unset here (not before) to avoid interference of another browserInit during
         #  async Future.require() above
         widget._delayedRender = false
-        widget.browserInit($newRoot).zip(domInfo.domRootCreated()).then (any, $contextRoot) ->
+        Future.all [
+          domInfo.domRootCreated()
+          widget.browserInit($newRoot)
+        ]
+        .spread ($contextRoot) ->
           oldElement = $('#'+widget.ctx.id, $contextRoot)
           if oldElement.length == 0
             console.error "Wrong contextRoot in replaceTimeoutStub for #{ widget.debug() }!", $contextRoot

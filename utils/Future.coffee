@@ -53,6 +53,9 @@ define [
     # helpful to identify the future during debugging
     _name: ''
 
+    #parent future. Sets on `then` call
+    _parent: null
+
 
     constructor: (initialCounter = 0, name = ':noname:') ->
       ###
@@ -118,6 +121,8 @@ define [
        than callback is fired immediately.
       Should have according fork() call before.
       ###
+      if args.length > 1
+        console.trace 'DEPRECATION WARNING: Future.resolve with more than one argument is deprecated!', @_stack, "\n----\n"
       if @_counter > 0
         @_counter--
         if @_state != 'rejected'
@@ -148,19 +153,20 @@ define [
        when fail-method is called.
       Only first call of this method is important. Any subsequent calls does nothing but decrementing the counter.
       ###
-      @_counter--
-      if @_counter < 0
+      if @_counter > 0
+        @_counter--
+        if @_state != 'rejected'
+          @_state = 'rejected'
+          @_callbackArgs = [err ? new Error("Future[#{@_name}] rejected without error message!")]
+          @_runFailCallbacks() if @_failCallbacks.length > 0
+          @_runAlwaysCallbacks() if @_alwaysCallbacks.length > 0
+          @_clearDoneCallbacks()
+          @_clearDebugTimeout() if unresolvedTrackingEnabled
+      else
         throw new Error(
           "Future::reject is called more times than Future::fork! [#{@_name}], state = #{@_state}, [#{@_callbackArgs}]"
         )
 
-      if @_state != 'rejected'
-        @_state = 'rejected'
-        @_callbackArgs = [err ? new Error("Future[#{@_name}] rejected without error message!")]
-        @_runFailCallbacks() if @_failCallbacks.length > 0
-        @_runAlwaysCallbacks() if @_alwaysCallbacks.length > 0
-        @_clearDoneCallbacks()
-        @_clearDebugTimeout() if unresolvedTrackingEnabled
       this
 
 
@@ -247,7 +253,7 @@ define [
       if @_counter == 0 or @_state == 'rejected'
         @_clearDebugTimeout() if unresolvedTrackingEnabled
         asapInContext(this, asapFinallyCb)
-      @_clearUnhandledTracking() if unhandledTrackingEnabled
+      @_clearUnhandledTracking() if unhandledTrackingEnabled and callback.length > 0
       this
 
 
@@ -350,6 +356,7 @@ define [
         _nameSuffix = 'then(empty)'
       result = Future.single("#{@_name} -> #{_nameSuffix}")
       result.withoutTimeout() if @_noTimeout or not global.config?.debug.future.trackInternalTimeouts
+      result._parent = this if logOriginStackTrace
       if onResolved?
         @done ->
           try
@@ -501,6 +508,7 @@ define [
       Zips the values of this and that future, and creates a new future holding the tuple of their results.
       If some of the futures have several results that they are represented as array, not "flattened".
       No result represented as undefined value.
+      @deprecated
       @param Future those another futures
       @return Future
       ###
@@ -508,7 +516,7 @@ define [
       Future.sequence(those, "#{@_name} -> zip").then (result) -> result
 
 
-    @sequence: (futureList, name = ':sequence:') ->
+    @all: (futureList, name = ':all:') ->
       ###
       Converts Array[Future[X]] to Future[Array[X]]
       @todo maybe need to support noTimeout property of futureList promises
@@ -527,6 +535,10 @@ define [
           .fail (e) ->
             promise.reject(e)
       promise.then -> [result]
+
+
+    # @deprecated alias
+    @sequence: @all
 
 
     @select: (futureList) ->
@@ -700,14 +712,15 @@ define [
     @require: (paths...) ->
       ###
       Convenient Future-wrapper for requirejs's require call.
+      Returns promise with single module if single module is requested and promise with array of modules otherwise.
       @param String* paths list of modules requirejs-format paths
-      @return Future(modules...)
+      @return {Future<Any>} or {Future<Array<Any>>}
       ###
       paths = paths[0] if paths.length == 1 and _.isArray(paths[0])
       result = @single(':require:('+ paths.join(', ') + ')')
       require paths, ->
         try
-          result.resolve.apply(result, arguments)
+          result.resolve(if arguments.length == 1 then arguments[0] else [].slice.call(arguments, 0))
         catch err
           # this catch is needed to prevent require's error callbacks to fire when error is caused
           # by th result's callbacks. Otherwise we'll try to reject already resolved promise two lines below.
@@ -850,9 +863,18 @@ define [
               ]
               if state == 'rejected'
                 err = info.promise._callbackArgs[0]
-                reportArgs.push err
-                reportArgs.push "Future creation stack: #{info.promise._stack}"
-                cons().warn reportArgs
+                reportArgs.push(err)
+                reportArgs.push(err.stack) if err.stack
+                pushStack = (promise) ->
+                  if promise._stack
+                    reportArgs.push("\n---------- '#{promise._name}' creation stack ----------\n")
+                    reportArgs.push(info.promise._stack)
+                  if promise._parent
+                    pushStack(promise._parent)
+                  else
+                    reportArgs.push("\n==========================\n")
+                pushStack(info.promise)
+              cons().warn.apply(cons(), reportArgs)
             delete unhandledMap[id]
       , interval
 

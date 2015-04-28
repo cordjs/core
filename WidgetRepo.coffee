@@ -10,7 +10,9 @@ define [
   'cord!utils/Future'
   'postal'
   'underscore'
-], (Collection, Context, cssHelper, deferAggregator, errors, isBrowser, Model, ModelRepo, Future, postal, _) ->
+  'cord!AppConfigLoader'
+  'cord!Utils'
+], (Collection, Context, cssHelper, deferAggregator, errors, isBrowser, Model, ModelRepo, Future, postal, _, AppConfigLoader, Utils) ->
 
   class WidgetRepo
 
@@ -289,7 +291,7 @@ define [
       ###
       configPromise = Future.require('cord!AppConfigLoader').then (AppConfigLoader) ->
         AppConfigLoader.ready()
-      @_initPromise.zip(configPromise).done (any, appConfig) =>
+      Future.all([configPromise, @_initPromise]).spread (appConfig) =>
         # start services registered with autostart option
         @serviceContainer.autoStartServices(appConfig.services)
         # setup browser-side behaviour for all loaded widgets
@@ -380,20 +382,22 @@ define [
       @serviceContainer.eval 'cookie', (cookie) =>
         if cookie.get('cord_require_stat_collection_enabled')
           result.done =>
-            Future.require('jquery', 'cord!css/browserManager', 'cord!router/clientSideRouter')
-              .zip(Future.timeout(3000))
-              .then ([$, cssManager, router]) =>
-                keys = Object.keys(require.s.contexts._.defined)
-                re = /^cord(-\w)?!/
-                keys = _.filter keys, (name) ->
-                  not re.test(name)
-                $.post '/REQUIRESTAT/collect',
-                  root: router.getActualPath()
-                  definedModules: keys
-                  css: cssManager._loadingOrder
-                .done (resp) ->
-                  $('body').addClass('cord-require-stat-collected')
-                  console.warn "/REQUIRESTAT/collect response", resp
+            Future.all [
+              Future.require('jquery', 'cord!css/browserManager', 'cord!router/clientSideRouter')
+              Future.timeout(3000)
+            ]
+            .spread ([$, cssManager, router]) =>
+              keys = Object.keys(require.s.contexts._.defined)
+              re = /^cord(-\w)?!/
+              keys = _.filter keys, (name) ->
+                not re.test(name)
+              $.post '/REQUIRESTAT/collect',
+                root: router.getActualPath()
+                definedModules: keys
+                css: cssManager._loadingOrder
+              .done (resp) ->
+                $('body').addClass('cord-require-stat-collected')
+                console.warn "/REQUIRESTAT/collect response", resp
 
       @_widgetOrder = null
       result
@@ -525,7 +529,7 @@ define [
         @_nextTransitionPromise
 
 
-    transitPage: (newRootWidgetPath, params, transition) ->
+    transitPage: (newRootWidgetPath, params, transition, catchErrors = true) ->
       ###
       Initiates client-side transition of the page.
       This means smart changing of the layout of the page and re-rendering the widget according to the given new
@@ -545,8 +549,9 @@ define [
 #      @_curTransition = transition
 
       oldRootWidget = @rootWidget
+      oldExtendList = _.clone(@_currentExtendList)
 
-      @_rebuildExtendTree(newRootWidgetPath).spread (newRootWidget, commonExistingWidget) =>
+      @_rebuildExtendTree(newRootWidgetPath).spread (newRootWidget, commonExistingWidget, commonWidgetName) =>
         # if the new root widget is already exists in the current page structure
         if newRootWidget == commonExistingWidget
           if oldRootWidget != newRootWidget
@@ -562,7 +567,6 @@ define [
             .then =>
               @dropWidget(oldRootWidget.ctx.id)
               transition.complete()
-            .failAloud("WidgetRepo::transitPage:#{newRootWidgetPath}:getStructTemplate")
           else
             # if the new widget is the same as the current root, than this is just params change and we should only push
             # new params to the root widget
@@ -574,12 +578,41 @@ define [
           newRootWidget.inject(params, commonExistingWidget, transition).then (commonBaseWidget) =>
             @dropWidget(oldRootWidget.ctx.id) if oldRootWidget and commonBaseWidget != oldRootWidget
             newRootWidget.shown().done -> transition.complete()
-          .failAloud("WidgetRepo::transitPage:#{newRootWidgetPath}:inject")
-      .catch (err) ->
-        if err instanceof errors.MustReloadPage
-          location.reload()
-        else
-          throw err
+          .catch (e) =>
+            ###
+            Perform rollback operations of this transition:
+              - rollback root widget to the old one
+              - unbind a commonExistingWidget from widget which attached to
+              - restore extend list
+              - register commonExistingWidget to old widget
+            ###
+            @setRootWidget(oldRootWidget)
+            @_currentExtendList[@_currentExtendList.indexOf(commonExistingWidget)-1].unbindChild(commonExistingWidget)
+            oldExtendList[oldExtendList.indexOf(commonExistingWidget)-1].registerChild(commonExistingWidget, commonWidgetName)
+            @_currentExtendList = oldExtendList
+            throw e
+      .catchIf errors.MustReloadPage, (e) =>
+        throw e if not catchErrors
+        location.reload()
+      .catchIf errors.MustTransitPage, (e) =>
+        throw e if not catchErrors
+        @transitPage(e.widget, e.params, transition)
+      .catchIf (-> catchErrors), (err) =>
+        # If there is error widget, transit to it
+        AppConfigLoader.ready().then (appConfig) =>
+          if appConfig.errorWidget
+            @transitPage(appConfig.errorWidget, Utils.buildErrorWidgetParams(err, newRootWidgetPath, params), transition, false)
+            .catch (err1) =>
+              if err1 instanceof errors.MustReloadPage
+                throw new Error("FATAL: Error widget should have common widget in parents with #{newRootWidgetPath}")
+              else
+                throw err1
+            .failAloud('Error widget rendering error')
+
+          else
+            throw err
+      .failAloud("WidgetRepo::transitPage(\"#{newRootWidgetPath}\")")
+
 
 
     _rebuildExtendTree: (newRootWidgetPath) ->
@@ -605,7 +638,7 @@ define [
           if newWidgetsList.length
             newWidgetsList[newWidgetsList.length - 1].registerChild(commonExistingWidget, commonWidgetName)
 
-        [[newRootWidget, commonExistingWidget]]
+        [[newRootWidget, commonExistingWidget, commonWidgetName]]
 
 
     _calculateNewExtendTree: (extendWidgetPath) ->

@@ -8,6 +8,18 @@ define [
   'cord!request/errors'
 ], (Utils, Future, _, postal, AppConfigLoader, EventEmitter, httpErrors) ->
 
+  withResponseFutureExtendFn = ->
+    ###
+    Special non-closure function which is injected into the promise returned by Api::_doRequest() method.
+     It can be used to get lower-level Response instance with helpful response info instead of parsed JSON response body.
+     Example: `api.get('getInfo').withResponse().then (response) -> response.statusCode`
+    @see Api::send()
+    @return {Future<Response>}
+    ###
+    self = this
+    @then -> self.__apiResponse
+
+
   class Api extends EventEmitter
 
     @inject: ['cookie', 'request', 'tabSync']
@@ -200,16 +212,7 @@ define [
 
 
     get: (url, params, callback) ->
-      if _.isFunction(params)
-        callback = params
-        params = {}
-      @send 'get', url, params, (response, error) =>
-        if error
-          setTimeout =>
-            @send 'get', url, params, callback
-          , 10
-        else
-          callback?(response, error)
+      @send 'get', url, params, callback
 
 
     post: (url, params, callback) ->
@@ -239,13 +242,28 @@ define [
         callback: 'function'
       validatedArgs.method = args[0]
 
-      requestPromise =
+      if validatedArgs.callback
+        console.trace 'DEPRECATION WARNING: callback-style Api::send result is deprecated, use promise-style result instead!', validatedArgs.callback
+
+      requestPromise = (
         if validatedArgs.params.noAuthTokens
           url = "#{@options.protocol}://#{@options.host}/#{@options.urlPrefix}#{validatedArgs.url}"
           @_doRequest(validatedArgs.method, url, validatedArgs.params, validatedArgs.params.retryCount ? 5)
         else
           @_prepareRequestArgs(validatedArgs).then (preparedArgs) =>
             @_doRequest(preparedArgs.method, preparedArgs.url, preparedArgs.params, preparedArgs.params.retryCount ? 5)
+      ).then (response) ->
+        # hack: injecting response instance into the returning promise to support injected `withResponse` method
+        requestPromise.__apiResponse = response
+        # default behaviour is to return parsed JSON body
+        if Array.isArray(response.body) # we should wrap array result to return an array
+          [response.body] ## todo: Future refactor
+        else
+          response.body
+
+
+      # extending returned promise with special `withResponse` method
+      requestPromise.withResponse = withResponseFutureExtendFn
 
       requestPromise.done (response) ->
         validatedArgs.callback?(response)
@@ -295,21 +313,21 @@ define [
       @param {String} url Fully-qualified URL
       @param {Object} params Request params according to the curly spec
       @param {Int} retryCount Maximum number of retries before give up in case of errors (where applicable)
-      @return {Future[Object]} response object like in curly
+      @return {Future<Response>} response object like in curly
       ###
       requestParams = _.clone(params)
       delete requestParams.originalArgs
       @authPromise.then (authModule) =>
-        @request[method](url, requestParams).then (result, response) =>
+        @request[method](url, requestParams).then (response) =>
           # If backend want to change host, override it
           # Event should be handler by api service factory
           if response.headers.has('X-Target-Host')
             @emit('host.changed', response.headers.get('X-Target-Host'))
-          [result, response]
+          response
 
         .catchIf httpErrors.Network, (e) =>
           # In case of network error, we'll try to reconnect again
-          if retryCount > 0
+          if retryCount > 0 and method == 'get'
             _console.warn "WARNING: request to #{url} failed because of network error #{e}. Retrying after 0.5s..."
             Future.timeout(500).then =>
               @_doRequest(method, url, params, retryCount - 1)
@@ -333,13 +351,13 @@ define [
 
             # Post could make duplicates
             if method == 'get' and retryCount > 0
-              _console.warn "WARNING: request to #{url} failed due to invalid response. #{response} Retrying after 0.5s..."
+              _console.warn "WARNING: request to #{url} failed due to invalid response. #{JSON.stringify(response)} Retrying after 0.5s..."
 
               Future.timeout(500).then =>
                 @_doRequest(method, url, params, retryCount - 1)
             else
               # handle API errors fallback behaviour if configured
-              errorCode = response.statusCode
+              errorCode = response.body?._code ? response.statusCode
               if errorCode? and @fallbackErrors and @fallbackErrors[errorCode]
                 fallbackInfo = _.clone(@fallbackErrors[errorCode])
                 fallbackInfo.params = _.clone(fallbackInfo.params)

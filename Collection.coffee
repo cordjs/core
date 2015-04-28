@@ -21,6 +21,7 @@ define [
     _filterId: null
     _filterParams: null # params for filter
     _filterFunction: null
+    _reportConfig: null
 
     _defaultRefreshPages: 3 #default amount of pages to refresh
 
@@ -155,6 +156,7 @@ define [
       filterId = options.filterId ? ''
       filterParams = options.filterParams ? ''
       filterParams = filterParams.join(',') if _.isArray(filterParams)
+      reportConfig = options.reportConfig ? ''
       filter = _.reduce options.filter , (memo, value, index) ->
         memo + index + '_' + value
       , ''
@@ -187,6 +189,7 @@ define [
         filterId
         filterParams
         filter
+        reportConfig
         orderBy
         id
         requestOptions
@@ -220,6 +223,7 @@ define [
         @_orderBy = options.orderBy ? null
         @_filterId = options.filterId ? null
         @_filterParams = options.filterParams ? null
+        @_reportConfig = options.reportConfig ? null
         @_id = options.id ? 0
         @_filter = options.filter ? {}
         @_pageSize = options.pageSize ? 0
@@ -374,6 +378,8 @@ define [
                                                    sync in background
                                           :cache - return cached collection if initialized (without syncing),
                                                    or perform like :sync otherwise
+                                          :cache-only - return cached collection if initialized (without syncing),
+                                                        or reject otherwise
       @param (optional)Int start starting position of the required range
       @param (optional)Int end ending position of the required range
       @param (optional)Function(this) callback callback to call on sync completion depending on the return mode.
@@ -388,7 +394,7 @@ define [
         start = end = undefined
       returnMode = ':cache' if returnMode == ':cache-async'
       returnMode ?= ':sync'
-      cacheMode = (returnMode == ':cache')
+      cacheMode = (returnMode == ':cache' or returnMode == ':cache-only')
 
       # Special case - fixed collection
       if @_fixed
@@ -404,40 +410,53 @@ define [
       # special promise for cache mode to avoid running remote sync if unnecessary
       activateSyncPromise = Future.single('Collection::sync activateSyncPromise')
       activateSyncPromise.resolve(true) if not cacheMode
+      cacheCompletedPromise = Future.single('Collection::sync cacheCompletedPromise')
 
       if not @_initialized
         # try to load local storage cache only when syncing first time
-        @_getModelsFromLocalCache(start, end, rangeAdjustPromise).done (models, syncStart, syncEnd) =>
+        @_getModelsFromLocalCache(start, end, rangeAdjustPromise).spread (models, syncStart, syncEnd) =>
           Defer.nextTick => # give remote sync a chance
             if not firstResultPromise.completed()
               @_fillModelList(models, syncStart, syncEnd) if not @_initialized # the check is need in case of parallel cache trial
               firstResultPromise.resolve(this)
           activateSyncPromise.resolve(false) if cacheMode # remote sync is not necessary in :cache mode
-        .fail (error) =>
-          activateSyncPromise.resolve(true) if cacheMode # cache failed, need to remote sync even in :cache mode
+          true
+        .catch ->
+          if returnMode == ':cache-only'
+            activateSyncPromise.resolve(false)
+          else if cacheMode
+            activateSyncPromise.resolve(true) # cache failed, need to remote sync even in :cache mode
+          false
+        .link(cacheCompletedPromise)
       else # if @_initialized
-        rangeAdjustPromise.resolve(start, end)
+        rangeAdjustPromise.resolve([start, end])
         if cacheMode
           # in :cache mode we need to check if requested range is already loaded into the collection's payload
           if start? and end?
             if start >= @_loadedStart and end <= @_loadedEnd
               activateSyncPromise.resolve(false)
               firstResultPromise.resolve(this)
+              cacheCompletedPromise.resolve(true)
             else
-              activateSyncPromise.resolve(true)
+              activateSyncPromise.resolve(returnMode != ':cache-only')
+              cacheCompletedPromise.resolve(false)
           else
             if @_hasLimits == false
               activateSyncPromise.resolve(false)
               firstResultPromise.resolve(this)
+              cacheCompletedPromise.resolve(true)
             else
               activateSyncPromise.resolve(true)
+              cacheCompletedPromise.resolve(false)
+        else
+          cacheCompletedPromise.resolve(false) # not used, only to avoid future timeout
 
       # sync with backend
       # special promise for :sync mode completion
       syncPromise = activateSyncPromise.then (activate) =>
         if activate
           # wait for range adjustment from the local cache
-          rangeAdjustPromise.then (syncStart, syncEnd) =>
+          rangeAdjustPromise.spread (syncStart, syncEnd) =>
             @_enqueueQuery(syncStart, syncEnd) # avoid repeated refresh-query
           .then =>
             firstResultPromise.resolve(this) if not firstResultPromise.completed()
@@ -466,6 +485,13 @@ define [
               resultPromise.when(firstResultPromise)
         when ':now' then resultPromise.resolve(this)
         when ':cache' then resultPromise.when(firstResultPromise)
+        when ':cache-only'
+          cacheCompletedPromise.then (cacheHit) =>
+            if cacheHit
+              firstResultPromise
+            else
+              throw new Error('Cache sync failed in :cache-only mode')
+          .link(resultPromise)
 
       resultPromise.done =>
         callback?(this)
@@ -763,6 +789,7 @@ define [
         if @_hasLimits
           result.start = @_loadedStart
           result.end = @_loadedEnd
+        result.reportConfig = @_reportConfig if @_reportConfig?
       result
 
 
@@ -1175,8 +1202,6 @@ define [
       @return Future(Array[Model])
       ###
 
-      # _console.log("collection.getPage (firstPage=#{firstPage}, lastPage=#{lastPage})")
-
       if arguments.length == 1
         lastPage = firstPage
 
@@ -1192,15 +1217,12 @@ define [
         else
           @_models
 
-      promise = Future.single('Collection::getPage')
-
       #sometimes collection could be toren apart, check for this case
-      if @_loadedStart <= start and (@_loadedEnd >= end || @_totalCount == @_loadedEnd + 1) and @isConsistent((sliced = slice())) == true
-        promise.resolve(sliced)
+      (if @_loadedStart <= start and (@_loadedEnd >= end || @_totalCount == @_loadedEnd + 1) and @isConsistent((sliced = slice())) == true
+        Future.resolved(sliced)
       else
-        @sync ':async', start, end, =>
-          promise.resolve(slice())
-      promise
+        @sync(':async', start, end).then -> [slice()] ## todo: Future refactor
+      ).rename('Collection::getPage')
 
 
     getPagingInfo: (selectedId, refresh) ->
@@ -1262,11 +1284,13 @@ define [
             pageSize: @_pageSize
             orderBy: @_orderBy
           params.selectedId = selectedId if selectedId
+
           if @_filterType == ':backend'
             params.filterId = @_filterId
             params.filterParams = @_filterParams if @_filterParams
 
           params.filter = @_filter if @_filter
+          params.reportConfig = @_reportConfig if @_reportConfig?
 
           @repo.paging(params).done (response) =>
             @_totalCount = if response then response.total else response
@@ -1372,6 +1396,7 @@ define [
               queryParams.filterParams = @_filterParams if @_filterParams
 
             queryParams.filter = @_filter if @_filter
+            queryParams.reportConfig = @_reportConfig if @_reportConfig?
             queryParams.start = start if start?
             queryParams.end = end  if end?
 
@@ -1489,34 +1514,34 @@ define [
           else if info.hasLimits != false
             loadLocalCache = false
 
-          rangeAdjustPromise.resolve(syncStart, syncEnd)
+          rangeAdjustPromise.resolve([syncStart, syncEnd])
 
           if loadLocalCache
             Defer.nextTick => # giving backend sync ability to start HTTP-request
-              @repo.getCachedCollectionModels(@name, @_fields).done (models) =>
-                @_firstGetModelsFromCachePromise.resolve(models, syncStart, syncEnd)
-              .fail (error) =>
-                @_firstGetModelsFromCachePromise.reject(error)
+              @repo.getCachedCollectionModels(@name, @_fields).then (models) ->
+                [[models, syncStart, syncEnd]] ## todo: Future refactor
+              .link(@_firstGetModelsFromCachePromise)
           else
-            @_firstGetModelsFromCachePromise.reject("Local cache is not applicable for this sync call!")
+            @_firstGetModelsFromCachePromise.reject(new Error('Local cache is not applicable for this sync call!'))
 
         .fail (error) => # getCachedCollectionInfo
-          rangeAdjustPromise.resolve(start, end)
+          rangeAdjustPromise.resolve([start, end])
           @_firstGetModelsFromCachePromise.reject(error)
 
         @_firstGetModelsFromCachePromise
 
       else
         resultPromise = Future.single('Collection::_getModelsFromLocalCache')
-        @_firstRangeAdjustPromise.done (syncStart, syncEnd) =>
+        @_firstRangeAdjustPromise.spread (syncStart, syncEnd) =>
           # in case of repeated async cache request we can use result of the first cache request only if it's range
           #  complies with the second requested range
           if syncStart <= start and syncEnd >= end
-            rangeAdjustPromise.resolve(syncStart, syncEnd)
+            rangeAdjustPromise.resolve([syncStart, syncEnd])
             resultPromise.when @_firstGetModelsFromCachePromise
           else
-            rangeAdjustPromise.resolve(start, end)
-            resultPromise.reject("Local cache doesn't contain requested range of models!")
+            rangeAdjustPromise.resolve([start, end])
+            resultPromise.reject(new Error("Local cache doesn't contain requested range of models!"))
+          return
         resultPromise
 
 
@@ -1528,6 +1553,7 @@ define [
       filterType: @_filterType
       filterId: @_filterId
       filterParams: @_filterParams
+      reportConfig: @_reportConfig
       orderBy: @_orderBy
       fields: @_fields
       start: @_loadedStart
@@ -1558,6 +1584,7 @@ define [
       collection._filterType = obj.filterType
       collection._filterParams = obj.filterParams
       collection._filterId = obj.filterId
+      collection._reportConfig = obj.reportConfig
       collection._orderBy = obj.orderBy
       collection._fields = obj.fields
       collection._setLoadedRange(start, obj.end)
