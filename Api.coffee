@@ -32,6 +32,10 @@ define [
     # Default auth module, check out config.api.defaultAuthModule
     defaultAuthModule: 'OAuth2'
 
+    # Default retry parameters
+    retryCount: 3
+    retryInterval: 200
+    retryTimeout: 20000
 
     constructor: (serviceContainer) ->
       @fallbackErrors = {}
@@ -248,10 +252,10 @@ define [
       requestPromise = (
         if validatedArgs.params.noAuthTokens
           url = "#{@options.protocol}://#{@options.host}/#{@options.urlPrefix}#{validatedArgs.url}"
-          @_doRequest(validatedArgs.method, url, validatedArgs.params, validatedArgs.params.retryCount ? 5)
+          @_doRequest(validatedArgs.method, url, validatedArgs.params, validatedArgs.params.retryCount ? @retryCount, validatedArgs.params.retryInterval ? @retryInterval)
         else
           @_prepareRequestArgs(validatedArgs).then (preparedArgs) =>
-            @_doRequest(preparedArgs.method, preparedArgs.url, preparedArgs.params, preparedArgs.params.retryCount ? 5)
+            @_doRequest(preparedArgs.method, preparedArgs.url, preparedArgs.params, preparedArgs.params.retryCount ? @retryCount, validatedArgs.params.retryInterval ? @retryInterval)
       ).then (response) ->
         # hack: injecting response instance into the returning promise to support injected `withResponse` method
         requestPromise.__apiResponse = response
@@ -305,7 +309,7 @@ define [
       @authPromise.then (authModule) => authModule.injectAuthParams(url, params)
 
 
-    _doRequest: (method, url, params, retryCount = 5) ->
+    _doRequest: (method, url, params, retryCount = @retryCount, retryTill = Date.now() + @retryTimeout) ->
       ###
       Performs actual HTTP request with the given params.
       Smartly handles different edge cases (i.e. auth errors) - tries to fix them and repeats recursively.
@@ -313,6 +317,7 @@ define [
       @param {String} url Fully-qualified URL
       @param {Object} params Request params according to the curly spec
       @param {Int} retryCount Maximum number of retries before give up in case of errors (where applicable)
+      @param {Int} retryTill When we should stop trying to make a request in format of Date.now(). 0 for no timeout
       @return {Future<Response>} response object like in curly
       ###
       requestParams = _.clone(params)
@@ -327,9 +332,10 @@ define [
 
         .catchIf httpErrors.Network, (e) =>
           # In case of network error, we'll try to reconnect again
-          if retryCount > 0 and method == 'get'
-            _console.warn "WARNING: request to #{url} failed because of network error #{e}. Retrying after 0.5s..."
-            Future.timeout(500).then =>
+          if retryCount > 0 and method == 'get' and ( retryTill == 0 or retryTill >= Date.now() )
+            _console.warn "WARNING: request to #{url} failed because of network error #{e}. Retrying after #{@retryInterval/1000}s..."
+
+            Future.timeout(@retryInterval).then =>
               @_doRequest(method, url, params, retryCount - 1)
           else
             throw e
@@ -340,7 +346,7 @@ define [
           response = e.response
           isAuthFailed = authModule.isAuthFailed(response.body)
           # if auth failed normally, we try to resuurect auth and try again
-          if isAuthFailed and not params.skipAuth and retryCount > 0
+          if isAuthFailed and not params.skipAuth and retryCount > 0 and ( retryTill == 0 or retryTill >= Date.now() )
             # need to use originalArgs here to workaround situation when API host is changed during request
             @_prepareRequestArgs(params.originalArgs).then (preparedArgs) =>
               @_doRequest(preparedArgs.method, preparedArgs.url, preparedArgs.params, retryCount - 1)
@@ -350,10 +356,10 @@ define [
             message = response.body?._message ? response.body?.message ? response.statusText
 
             # Post could make duplicates
-            if method == 'get' and retryCount > 0
-              _console.warn "WARNING: request to #{url} failed due to invalid response. #{JSON.stringify(response)} Retrying after 0.5s..."
+            if method == 'get' and retryCount > 0 and ( retryTill == 0 or retryTill >= Date.now() )
+              _console.warn "WARNING: request to #{url} failed due to invalid response. #{JSON.stringify(response)} Retrying after #{@retryInterval/1000}s..."
 
-              Future.timeout(500).then =>
+              Future.timeout(@retryInterval).then =>
                 @_doRequest(method, url, params, retryCount - 1)
             else
               # handle API errors fallback behaviour if configured
@@ -374,7 +380,7 @@ define [
 
               # otherwise just notify the user
               else
-                message = 'Ошибка ' + (if response.statusCode != undefined then (' ' + response.statusCode)) + ': ' + message
+                message = 'Error ' + (if response.statusCode != undefined then (' ' + response.statusCode)) + ': ' + message
                 postal.publish 'error.notify.publish',
                   link: ''
                   message: message
