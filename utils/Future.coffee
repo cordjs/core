@@ -544,7 +544,7 @@ define [
       @all(futureList, name)
 
 
-    @select: (futureList) ->
+    @race: (futureList) ->
       ###
       Returns new future which completes successfully when one of the given futures completes successfully (which comes
        first). Resulting future resolves with that first-completed future's result. All subsequent completing
@@ -554,7 +554,7 @@ define [
       @return Future[X]
       @todo maybe need to support noTimeout property of futureList promises
       ###
-      result = @single(':select:')
+      result = @single(':race:')
       ready = false
       failCounter = futureList.length
       for f in futureList
