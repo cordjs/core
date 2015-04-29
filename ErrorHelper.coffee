@@ -8,7 +8,7 @@ define [
 
     getMessageHr: (error) ->
       @translator.translate2(
-        if error instanceof httpErrors.Http
+        if error instanceof httpErrors.Network
           'Network error'
         else
           'Common error'

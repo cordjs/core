@@ -823,8 +823,7 @@ define [
         @markRenderStarted('_renderSelfTemplate')
         @_saveContextVersionForBehaviourSubscriptions()
         @_domInfo = domInfo
-        ctx = @getBaseContext().push(@ctx)
-        result = Future.call(dust.render, tmplPath, ctx)
+        result = Future.call(dust.render, tmplPath, @getBaseContext().push(@ctx))
           .rename(":call:dust.render(#{tmplPath})")
         result.finally =>
           @_domInfo = null # free for GC

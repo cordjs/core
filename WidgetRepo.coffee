@@ -556,7 +556,7 @@ define [
 #      @_curTransition = transition
 
       oldRootWidget = @rootWidget
-      oldExtendList = _.clone(@_currentExtendList)
+      oldExtendList = @_currentExtendList
 
       @_rebuildExtendTree(newRootWidgetPath).spread (newRootWidget, commonExistingWidget, commonWidgetName) =>
         # if the new root widget is already exists in the current page structure
@@ -594,8 +594,8 @@ define [
               - register commonExistingWidget to old widget
             ###
             @setRootWidget(oldRootWidget)
-            @_currentExtendList[@_currentExtendList.indexOf(commonExistingWidget)-1].unbindChild(commonExistingWidget)
-            oldExtendList[oldExtendList.indexOf(commonExistingWidget)-1].registerChild(commonExistingWidget, commonWidgetName)
+            @_currentExtendList[@_currentExtendList.indexOf(commonExistingWidget) - 1].unbindChild(commonExistingWidget)
+            oldExtendList[oldExtendList.indexOf(commonExistingWidget) - 1].registerChild(commonExistingWidget, commonWidgetName)
             @_currentExtendList = oldExtendList
             throw e
       .catchIf errors.MustReloadPage, (e) =>
@@ -609,12 +609,12 @@ define [
         AppConfigLoader.ready().then (appConfig) =>
           if appConfig.errorWidget
             @transitPage(appConfig.errorWidget, Utils.buildErrorWidgetParams(err, newRootWidgetPath, params), transition, false)
-            .catch (err1) =>
-              if err1 instanceof errors.MustReloadPage
-                throw new Error("FATAL: Error widget should have common widget in parents with #{newRootWidgetPath}")
-              else
-                throw err1
-            .failAloud('Error widget rendering error')
+              .catch (err1) ->
+                if err1 instanceof errors.MustReloadPage
+                  throw new Error("FATAL: Error widget should have common widget in parents with #{newRootWidgetPath}")
+                else
+                  throw err1
+              .failAloud('Error widget rendering error')
 
           else
             throw err
