@@ -37,7 +37,7 @@ define [
 
   # low-level widget debug logging function
   widgetTrace =
-    if global.config.debug.widget
+    if global.config?.debug.widget
       (args...) -> _console.log.apply(_console, args)
     else
       _.noop
