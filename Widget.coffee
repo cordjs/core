@@ -633,6 +633,7 @@ define [
       else
         for key in params
           _console.warn "#{ @debug() } doesn't accept any params, '#{ key }' given!"
+      return
 
 
     _handleOnShow: ->
@@ -1219,7 +1220,7 @@ define [
 
       promise.then =>
         @_placeholdersRenderInfo.push(info) for info in renderInfo # collecting render info for the future usage by the enclosing widget
-        [[placeholderOut.join(''), renderInfo]] ## todo: Future refactor
+        [placeholderOut.join(''), renderInfo]
 
 
     getPlaceholdersRenderInfo: ->

@@ -62,7 +62,7 @@ define [
       .then (response) =>
         result = response.body
         if result and result.access_token and result.refresh_token
-          [[result.access_token, result.refresh_token, code]] ## todo: Future refactor
+          [result.access_token, result.refresh_token, code]
         else
           if result?.error == 'bad_megaplan_id'
             throw new Error('bad_megaplan_id')
@@ -93,6 +93,6 @@ define [
       .then (response) =>
         result = response.body
         if result and result.access_token and result.refresh_token
-          [[result.access_token, result.refresh_token, code]] ## todo: Future refactor
+          [result.access_token, result.refresh_token, code]
         else
           throw new Error(if _.isObject(result) and result.error then result.error else JSON.stringify(result))

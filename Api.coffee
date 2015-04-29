@@ -260,10 +260,9 @@ define [
         # hack: injecting response instance into the returning promise to support injected `withResponse` method
         requestPromise.__apiResponse = response
         # default behaviour is to return parsed JSON body
-        if Array.isArray(response.body) # we should wrap array result to return an array
-          [response.body] ## todo: Future refactor
-        else
-          response.body
+        if Array.isArray(response.body) and response.body.length == 1
+          response.body.__canHaveLengthOne = true
+        response.body
 
 
       # extending returned promise with special `withResponse` method

@@ -1221,7 +1221,7 @@ define [
       (if @_loadedStart <= start and (@_loadedEnd >= end || @_totalCount == @_loadedEnd + 1) and @isConsistent((sliced = slice())) == true
         Future.resolved(sliced)
       else
-        @sync(':async', start, end).then -> [slice()] ## todo: Future refactor
+        @sync(':async', start, end).then -> slice()
       ).rename('Collection::getPage')
 
 
@@ -1418,7 +1418,7 @@ define [
           else
             # append or prepend - not triggering events
             @_fillModelList models, start, end
-            @repo.cacheCollection(this)
+            @repo.cacheCollection(this).failAloud(@debug('cacheCollection'))
 
           @_initialized = true
 
@@ -1519,7 +1519,7 @@ define [
           if loadLocalCache
             Defer.nextTick => # giving backend sync ability to start HTTP-request
               @repo.getCachedCollectionModels(@name, @_fields).then (models) ->
-                [[models, syncStart, syncEnd]] ## todo: Future refactor
+                [models, syncStart, syncEnd]
               .link(@_firstGetModelsFromCachePromise)
           else
             @_firstGetModelsFromCachePromise.reject(new Error('Local cache is not applicable for this sync call!'))

@@ -94,7 +94,7 @@ define [
               @_invalidateRefreshToken()
             .spread (accessToken) =>
               url += ( if url.lastIndexOf('?') == -1 then '?' else '&' ) + "#{@accessTokenParamName}=#{accessToken}"
-              [[url, params]]
+              [url, params]
 
 
     prepareAuth: ->
@@ -220,7 +220,7 @@ define [
         .rename('Oauth2::_grantAccessTokenByExtensions')
         .then (response) ->
           result = response.body
-          [[result.access_token, result.refresh_token]] ## todo: Future refactor
+          [result.access_token, result.refresh_token]
         .catchIf(
           (e) -> e instanceof httpErrors.InvalidResponse and e.response.statusCode == 400
           -> throw new cordErrors.AuthError()
@@ -244,7 +244,7 @@ define [
         .rename('Oauth2::grantAccessTokenByPassword')
         .then (response) ->
           result = response.body
-          [[result.access_token, result.refresh_token]] ## todo: Future refactor
+          [result.access_token, result.refresh_token]
         .catchIf(
           (e) -> e instanceof httpErrors.InvalidResponse and e.response.statusCode == 400
           -> throw new cordErrors.AuthError()
@@ -284,7 +284,7 @@ define [
             # Clear refresh lock, to let other tabs know we have new tokens
             @tabSync.set(@_extRefreshName)
 
-            [[result.access_token, result.refresh_token]] ## todo: Future refactor
+            [result.access_token, result.refresh_token]
 
           .catch (err) =>
             if err instanceof httpErrors.InvalidResponse
@@ -314,7 +314,7 @@ define [
       ###
       @tabSync.waitUntil(@_extRefreshName).then =>
         @_restoreTokens()
-        [[@accessToken, @refreshToken]] ## todo: Future refactor
+        [@accessToken, @refreshToken]
 
 
     _getTokensByRefreshToken: ->
@@ -327,7 +327,7 @@ define [
         @_refreshPromise = null
         if grantedAccessToken and grantedRefreshToken
           @_storeTokens(grantedAccessToken, grantedRefreshToken)
-          [[grantedAccessToken, grantedRefreshToken]] ## todo: Future refactor
+          [grantedAccessToken, grantedRefreshToken]
         else
           throw new cordError.AuthError('Failed to get auth token by refresh token: refresh token could be outdated!')
       @_refreshPromise
@@ -406,7 +406,7 @@ define [
       .then (response) ->
         result = response.body
         if result and result.access_token and result.refresh_token
-          [[result.access_token, result.refresh_token, code]] ## todo: Future refactor
+          [result.access_token, result.refresh_token, code]
         else
           throw new Error('Invalid response from authorization server: ' + JSON.stringify(response))
 

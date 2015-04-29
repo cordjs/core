@@ -645,7 +645,7 @@ define [
           if newWidgetsList.length
             newWidgetsList[newWidgetsList.length - 1].registerChild(commonExistingWidget, commonWidgetName)
 
-        [[newRootWidget, commonExistingWidget, commonWidgetName]]
+        [newRootWidget, commonExistingWidget, commonWidgetName]
 
 
     _calculateNewExtendTree: (extendWidgetPath) ->
@@ -663,7 +663,7 @@ define [
           widget.getStructTemplate().then (tmpl) =>
             if not tmpl.isEmpty() and tmpl.struct.extend
               @_recScanExtendTree(tmpl).spread (newWidgetsList, commonExistingWidget, commonWidgetName) ->
-                [[[widget].concat(newWidgetsList), commonExistingWidget, commonWidgetName]]
+                [[widget].concat(newWidgetsList), commonExistingWidget, commonWidgetName]
             else
               throw new errors.MustReloadPage
 
@@ -683,6 +683,6 @@ define [
           widget.getStructTemplate().then (tmpl) =>
             if not tmpl.isEmpty() and tmpl.struct.extend
               @_recScanExtendTree(tmpl).spread (newWidgetsList, commonExistingWidget, commonWidgetName) ->
-                [[[widget].concat(newWidgetsList), commonExistingWidget, commonWidgetName]]
+                [[widget].concat(newWidgetsList), commonExistingWidget, commonWidgetName]
             else
               throw new errors.MustReloadPage

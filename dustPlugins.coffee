@@ -36,14 +36,14 @@ define [
         if tmpl.isEmpty() or not normalizedName
           tmplWidget.widgetRepo.createWidget(params.type, tmplWidget, normalizedName, tmplWidget.getBundle())
             # tuple result is expected below, so we need to convert to an array
-            .then (widget) -> [[widget]] ## todo: Future refactor
+            .then (widget) -> [widget, null]
         else if normalizedName
           tmpl.getWidgetByName(normalizedName).then (widget) ->
-            [[widget, tmpl.getWidgetInfoByName(normalizedName).timeoutTemplate]] ## todo: Future refactor
+            [widget, tmpl.getWidgetInfoByName(normalizedName).timeoutTemplate]
           .catch ->
             tmplWidget.widgetRepo.createWidget(params.type, tmplWidget, normalizedName, tmplWidget.getBundle())
               # tuple result is expected below, so we need to convert to an array
-              .then (widget) -> [[widget]] ## todo: Future refactor
+              .then (widget) -> [widget, null]
         # else impossible
 
       .spread (widget, timeoutTemplate) ->

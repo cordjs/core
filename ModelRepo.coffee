@@ -378,7 +378,7 @@ define [
             else if response
               result.push(@buildModel(response))
             callback?(result)
-            [result] ## todo: Future refactor
+            result
           else
             throw new Error("#{@debug('query')}: invalid response for url '#{url}' with code #{response._code}!")
       else
@@ -838,7 +838,7 @@ define [
         @container.getService('localStorage').then (storage) =>
           # prepare models for cache
           models = []
-          models[key] = model.toJSON() for key, model of collection.toArray()
+          models[i] = model.toJSON() for model, i in collection.toArray()
 
           saveInfoPromise = storage.saveCollectionInfo @constructor.__name, name, collection.getTtl(),
             totalCount: collection._totalCount
@@ -887,7 +887,7 @@ define [
           result = []
           for m, index in models
             result[index] = @buildModel(m) if m
-          [result] # todo: Future refactor
+          result
       else
         Future.rejected(new Error('ModelRepo::getCachedCollectionModels is not applicable on server-side!'))
 

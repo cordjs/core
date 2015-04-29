@@ -505,7 +505,7 @@ define [
           @_renderNewWidget(newWidget, params).done ($el) ->
             callback?($el, newWidget)
           .then ($el) ->
-            [[$el, newWidget]]
+            [$el, newWidget]
       catch err
         Future.rejected(err)
 
@@ -548,7 +548,7 @@ define [
           else throw new Error("Invalid insert position: #{insertPosition}!")
         ).then ->
           newWidget.markShown()
-          [[$el, newWidget]]
+          [$el, newWidget]
       .then (res) -> result.resolve(res)
       .catch (err) ->
         result.reject(err)

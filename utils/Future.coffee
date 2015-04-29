@@ -357,6 +357,7 @@ define [
       result = Future.single("#{@_name} -> #{_nameSuffix}")
       result.withoutTimeout() if @_noTimeout or not global.config?.debug.future.trackInternalTimeouts
       result._parent = this if logOriginStackTrace
+      self = this
       if onResolved?
         @done ->
           try
@@ -364,7 +365,10 @@ define [
             if res instanceof Future
               result.when(res)
             else if _.isArray(res)
-              result.resolve.apply(result, res)
+              if res.length == 1 and _.isArray(res[0]) and not res.__canHaveLengthOne
+                cons().warn "DEPRECATION WARNING: returning of array in array as 'then' callback result hack detected for promise with name '#{result._name}'. This behaviour is deprecated, return just array without any wrapper!", self._stack
+                res = res[0]
+              result.resolve(res)
             else
               result.resolve(res)
           catch err
@@ -381,7 +385,10 @@ define [
             if res instanceof Future
               result.when(res)
             else if _.isArray(res)
-              result.resolve.apply(result, res)
+              if res.length == 1 and _.isArray(res[0])
+                cons().warn "DEPRECATION WARNING: returning of array in array as 'catch' callback result hack detected for promise with name '#{result._name}'. This behaviour is deprecated, return just array without any wrapper!", self._stack
+                res = res[0]
+              result.resolve(res)
             else
               result.resolve(res)
           catch err1
@@ -527,15 +534,14 @@ define [
       for f, i in futureList
         do (i) ->
           promise.fork()
-          f.done (res...) ->
-            result[i] = switch res.length
-              when 1 then res[0]
-              when 0 then undefined
-              else res
+          f.done (res) ->
+            result[i] = res
             promise.resolve()
           .fail (e) ->
             promise.reject(e)
-      promise.then -> [result] ## todo: Future refactor
+      promise.then ->
+        result.__canHaveLengthOne = true  if result.length == 1
+        result
 
 
     # @deprecated alias
