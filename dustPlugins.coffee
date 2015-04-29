@@ -102,12 +102,12 @@ define [
     ###
     {#deferred/} block handling
     ###
-    type = _.uniqueId('deferred_')
     if bodies.block?
       tmplWidget = context.get('_ownerWidget')
       deferredId = tmplWidget._deferredBlockCounter++
       deferredKeys = params.params.split(/[, ]/)
       needToWait = (name for name in deferredKeys when tmplWidget.ctx.isDeferred(name))
+      type = 'deferred_'+deferredId
 
       promise = new Future(tmplWidget.debug('deferred'))
       for name in needToWait

@@ -102,4 +102,5 @@ define [
 
         response.completePromise(promise)
         argssss.callback body, error if typeof argssss.callback == 'function'
-      promise.then()
+
+      promise
