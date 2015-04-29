@@ -35,6 +35,14 @@ define [
   predefinedEmptyRawStructPromise = Future.resolved({})
 
 
+  # low-level widget debug logging function
+  widgetTrace =
+    if global.config.debug.widget
+      (args...) -> _console.log.apply(_console, args)
+    else
+      _.noop
+
+
   class Widget extends Module
     @include Monologue.prototype
 
@@ -60,7 +68,7 @@ define [
     rootTag: 'div'
 
     # internals
-    _renderStarted: false
+
     # Future, that waits for child widget rendering complete
     _childWidgetCompletePromise: null
     _hasWidgetInitializer: false # indicates, that current widget's template has a {#widgetInitialize /} block
@@ -285,17 +293,17 @@ define [
       @resetChildren()
 
       if not @ctx?
-        if compileMode
-          id = 'rwdt-' + _.uniqueId()
-        else
-          id = (if isBrowser then 'b' else 'n') + 'wdt-' + _.uniqueId()
-        @ctx = new Context(
-          id
+        id =
+          if compileMode
+            'rwdt-' + _.uniqueId()
+          else
+            (if isBrowser then 'b' else 'n') + 'wdt-' + _.uniqueId()
+        initial =
           if _.isFunction(@constructor.initialCtx)
             @constructor.initialCtx()
           else
             Utils.cloneLevel2(@constructor.initialCtx)
-        )
+        @ctx = new Context(id, initial)
         @ctx.setOwnerWidget(this)
 
       if isBrowser
@@ -590,7 +598,7 @@ define [
       @synchronous
       @throws validation errors
       ###
-      @_log "#{ @debug 'setParams' } -> ", params
+      widgetTrace "#{ @debug 'setParams' } -> ", params
       if @constructor.params?
         rules = @constructor._paramRules
         processedRules = {}
@@ -651,7 +659,7 @@ define [
       @return Future(String)
       ###
       @setParamsSafe(params).then =>
-        @_log "#{ @debug 'show' } -> params:", params, " context:", @ctx
+        widgetTrace "#{ @debug 'show' } -> params:", params, " context:", @ctx
         @_handleOnShow()
       .then =>
         @renderTemplate(domInfo)
@@ -721,7 +729,7 @@ define [
       @param {PageTransition} transition
       @return {Future[Widget]} common base widget found in extend-tree
       ###
-      @_log "#{ @debug 'inject' }", params
+      widgetTrace "#{ @debug 'inject' }", params
 
       @setParamsSafe(params).then =>
         Future.all([@getStructTemplate(), @_handleOnShow()])
@@ -785,7 +793,7 @@ define [
       @param DomInfo domInfo DOM creating and inserting promise container
       @return Future(String)
       ###
-      @_log @debug('renderTemplate')
+      widgetTrace @debug('renderTemplate')
 
       @_resetWidgetReady() # allowing to call browserInit() after template re-render is reasonable
       @_behaviourContextBorderVersion = null
@@ -815,7 +823,7 @@ define [
       @param DomInfo domInfo DOM creating and inserting promise container
       @return Future(String)
       ###
-      @_log @debug('_renderSelfTemplate')
+      widgetTrace @debug('_renderSelfTemplate')
 
       tmplPath = @getPath()
 
@@ -916,7 +924,7 @@ define [
       @param DomInfo domInfo DOM creating and inserting promise container
       @return Future(String)
       ###
-      @_log "#{ @constructor.__name }::renderInline(#{ inlineName })"
+      widgetTrace "#{ @constructor.__name }::renderInline(#{ inlineName })"
 
       if @ctx[':inlines'][inlineName]?
         tmplPath = @getDir() + '/' + @ctx[':inlines'][inlineName].template + '.html'
@@ -1597,7 +1605,7 @@ define [
       @param (optional)jQuery domRoot injected DOM root for the widget or it's children
       @return Future()
       ###
-      @_log "#{ @debug 'browserInit' }"
+      widgetTrace "#{ @debug 'browserInit' }"
 
       if not @_browserInitialized and not @_delayedRender and not @_sentenced
         @_browserInitialized = true
@@ -1729,10 +1737,6 @@ define [
         @emit 'show'
 
 
-    _log: (args...) ->
-      _console.log.apply(_console, args) if global.config.debug.widget
-
-
     hasWidgetInitializer: ->
       ###
       Method called from {#widgetInitializer /} block
@@ -1744,7 +1748,7 @@ define [
       ###
       This method should be called before dust.render call
       ###
-      @_log @debug("markRenderStarted(#{from})")
+      widgetTrace @debug("markRenderStarted(#{from})")
       # Widget can be re-rendered, so we should re-create promise on that case
       if @_childWidgetCompletePromise and not @_childWidgetCompletePromise.completed()
         @_childWidgetCompletePromise.fork()
@@ -1761,7 +1765,7 @@ define [
       This method should be called right after dust.render call
       ###
       throw new errors.WidgetSentenced("Widget #{@constructor.__name} is sentenced!") if @isSentenced()
-      @_log @debug("markRenderFinished(#{from}) with counter == "), @_childWidgetCompletePromise._counter
+      widgetTrace @debug("markRenderFinished(#{from}) with counter == "), @_childWidgetCompletePromise._counter
       if not @_hasWidgetInitializer
         @_childWidgetCompletePromise.failOk() # Child widgets breaks dust.render call, so, suppress unnecessary
                                               # double-catch of error
@@ -1774,7 +1778,7 @@ define [
       Add another child widget for this widget
       ###
       throw new errors.WidgetSentenced("Widget #{@constructor.__name} is sentenced!") if @isSentenced()
-      @_log @debug("childWidgetAdd(#{type}) with counter == "), @_childWidgetCompletePromise._counter
+      widgetTrace @debug("childWidgetAdd(#{type}) with counter == "), @_childWidgetCompletePromise._counter
       @_childWidgetCompletePromise.fork()
       return
 
@@ -1784,7 +1788,7 @@ define [
       Marks one of child widgets rendered successfully
       ###
       throw new errors.WidgetSentenced("Widget #{@constructor.__name} is sentenced!") if @isSentenced()
-      @_log @debug("childWidgetComplete(#{type}) with counter == "), @_childWidgetCompletePromise._counter
+      widgetTrace @debug("childWidgetComplete(#{type}) with counter == "), @_childWidgetCompletePromise._counter
       @_childWidgetCompletePromise.resolve()
       return
 
@@ -1794,7 +1798,7 @@ define [
       Marks one of child widgets fails to render
       ###
       throw new errors.WidgetSentenced("Widget #{@constructor.__name} is sentenced!") if @isSentenced()
-      @_log @debug("childWidgetFailed(#{type}) with counter == "), @_childWidgetCompletePromise._counter
+      widgetTrace @debug("childWidgetFailed(#{type}) with counter == "), @_childWidgetCompletePromise._counter
       @_childWidgetCompletePromise.reject(error)
       return
 
