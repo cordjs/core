@@ -440,6 +440,7 @@ define [
             else
               activateSyncPromise.resolve(returnMode != ':cache-only')
               cacheCompletedPromise.resolve(false)
+              firstResultPromise.resolve(this) if returnMode == ':cache-only'
           else
             if @_hasLimits == false
               activateSyncPromise.resolve(false)
@@ -448,6 +449,7 @@ define [
             else
               activateSyncPromise.resolve(true)
               cacheCompletedPromise.resolve(false)
+              firstResultPromise.resolve(this) if returnMode == ':cache-only'
         else
           cacheCompletedPromise.resolve(false) # not used, only to avoid future timeout
 
