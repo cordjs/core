@@ -23,18 +23,27 @@ define [
         $newRoot = $(widget.renderRootTag(html))
         # _delayedRender flag MUST be unset here (not before) to avoid interference of another browserInit during
         #  async Future.require() above
-        widget._delayedRender = false
+        widget.unsetDelayedRender()
+        # we should browser-init and mark-shown not only rendered widget, but also it's placeholders actual content widgets
+        # but we shouldn't touch delayed widgets with their own timeout stub settings, they will care about initialization theirself
+        affectedWidgets = [widget].concat(widget.getNonDelayedPlaceholderWidgetsDeep())
+        browserInitPromises = (w.browserInit($newRoot) for w in affectedWidgets)
+
         Future.all [
           domInfo.domRootCreated()
-          widget.browserInit($newRoot)
+          Future.all(browserInitPromises)
         ]
         .spread ($contextRoot) ->
           oldElement = $('#'+widget.ctx.id, $contextRoot)
           if oldElement.length == 0
             console.error "Wrong contextRoot in replaceTimeoutStub for #{ widget.debug() }!", $contextRoot
-          DomHelper.replace(oldElement, $newRoot).done ->
-            domInfo.domInserted().done ->
-              widget.markShown()
+          result = DomHelper.replace(oldElement, $newRoot)
+          result.then ->
+            domInfo.domInserted()
+          .then ->
+            w.markShown() for w in affectedWidgets
+            return
+          result
         .then ->
           $newRoot
 

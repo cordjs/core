@@ -418,12 +418,12 @@ define [
         # harakiri: this is need to avoid interference of subsequent async calls of the @render() for the same widget
         widget._cleanBehaviour()
         # dirty hack to prevent interfered browserInit() triggered by concurrently running Widget::inject()
-        widget._delayedRender = true
+        widget.setDelayedRender()
         widget.renderTemplate(domInfo).then (out) ->
           $newWidgetRoot = $(widget.renderRootTag(out))
           domInfo.setDomRoot($newWidgetRoot)
           # unlocking flag to allow browserInit to proceed (see comment above)
-          widget._delayedRender = false
+          widget.unsetDelayedRender()
           widget.browserInit($newWidgetRoot).then ->
             $newWidgetRoot.attr('style', $rootEl.attr('style'))
             DomHelper.replace($rootEl, $newWidgetRoot)

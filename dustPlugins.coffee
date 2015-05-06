@@ -79,7 +79,7 @@ define [
             # if the widget has not been rendered within given timeout, render stub template from the {:timeout} block
             if not complete
               complete = true
-              widget._delayedRender = true
+              widget.setDelayedRender()
               TimeoutStubHelper.getTimeoutHtml(tmplWidget, timeoutTemplate, widget).then (out) ->
                 tmplWidget.childWidgetComplete(params.type)
                 chunk.end(widget.renderRootTag(out))
