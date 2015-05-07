@@ -51,6 +51,12 @@ define [
       @_showPromise.when(anotherDomInfo.domInserted())
 
 
+    clearPromises: ->
+      @_domRootPromise.clear()
+      @_showPromise.clear()
+      return
+
+
     @fake: ->
       result = new DomInfo('fake')
       result._domRootPromise.reject(new Error("DOM root from fake DomInfo should not be used!")).failOk()

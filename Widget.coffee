@@ -354,6 +354,8 @@ define [
           @_widgetReadyPromise.clear()
           @_widgetReadyPromise = Future.rejected(new errors.WidgetDropped('widget is cleaned!'))
           @_widgetReadyPromise.clear()
+      @_domInfo.clearPromises() if @_domInfo
+      return
 
 
     _cleanBehaviour: ->
@@ -1219,6 +1221,7 @@ define [
               , info.timeout
 
             widget.show(info.params, timeoutDomInfo).then (out) ->
+              delete info.params # avoid redundant passing from server to browser
               if not complete
                 # in case of no timeout just linking to the upper DOM info
                 timeoutDomInfo.completeWith(domInfo) if hasTimeout
@@ -1239,6 +1242,7 @@ define [
             placeholderOrder[widgetId] = i
             timeoutDomInfo = new DomInfo(@debug('_renderPlaceholder:timeouted-widget:timeout'))
             widgetShowPromise = info.timeoutPromise.then (params) ->
+              delete info.timeoutPromise  # memory optimization, not necessary, ready for GC
               widget.show(params, timeoutDomInfo)
             Future.all([widgetShowPromise, processTimeoutStub()]).spread (out) ->
               replaceTimeoutStub(out, timeoutDomInfo)
@@ -1460,6 +1464,7 @@ define [
       @childByName = {}
       @childById = {}
       @childBindings = {}
+      @_childWidgetCompletePromise.clear()  if @_childWidgetCompletePromise
       @_childWidgetCompletePromise = null
 
 
