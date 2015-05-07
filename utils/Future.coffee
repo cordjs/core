@@ -897,8 +897,6 @@ define [
       args.push("\n" + filterStack(promise._stack, promise._name, promise._parent?._stack))
     if promise._parent
       recCollectLongStackTrace(promise._parent, args)
-    else
-      args.push("\n=======================================================")
     return
 
 
