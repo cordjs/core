@@ -244,7 +244,7 @@ define [
 
     toJSON: ->
       result = {}
-      for key, value of this
+      for key, value of this when this.hasOwnProperty(key)
         if value instanceof Collection
           result[key] = value.serializeLink()
         else if value instanceof Model
