@@ -12,7 +12,10 @@ define [
   unresolvedTrackingEnabled = false
   unresolvedMap = null
 
-  logOriginStackTrace = !!global.config?.debug.future.logOriginStackTrace
+  longStackTraceEnabled = false
+  # mutable global context promise changed before and after `then` callback processing
+  # to properly detect "parent" promise for long stack-traces
+  currentContextPromise = null
 
   # environment-dependent console object
   cons = -> if typeof _console != 'undefined' then _console else console
@@ -71,8 +74,11 @@ define [
       @_alwaysCallbacks = []
       @_name = name
 
-      if logOriginStackTrace
+      if longStackTraceEnabled
         @_stack = (new Error).stack
+        # defining 'parent' promise as a promise whose `then` callback execution created this promise
+        # used to construct beautiful long stack trace
+        @_parent = currentContextPromise  if currentContextPromise
 
       @_initDebugTimeout() if unresolvedTrackingEnabled
       @_initUnhandledTracking() if unhandledTrackingEnabled
@@ -356,12 +362,14 @@ define [
         _nameSuffix = 'then(empty)'
       result = Future.single("#{@_name} -> #{_nameSuffix}")
       result.withoutTimeout() if @_noTimeout or not global.config?.debug.future.trackInternalTimeouts
-      result._parent = this if logOriginStackTrace
       self = this
       if onResolved?
         @done ->
+          prevContextPromise = currentContextPromise
+          currentContextPromise = self
           try
             res = onResolved.apply(null, arguments)
+            currentContextPromise = prevContextPromise
             if res instanceof Future
               result.when(res)
             else if _.isArray(res)
@@ -372,6 +380,7 @@ define [
             else
               result.resolve(res)
           catch err
+            currentContextPromise = prevContextPromise
             if result.completed()
               throw err
             else
@@ -380,8 +389,11 @@ define [
         @done -> result.resolve.apply(result, arguments)
       if onRejected?
         @fail (err) ->
+          prevContextPromise = currentContextPromise
+          currentContextPromise = self
           try
             res = onRejected.call(null, err)
+            currentContextPromise = prevContextPromise
             if res instanceof Future
               result.when(res)
             else if _.isArray(res)
@@ -392,6 +404,7 @@ define [
             else
               result.resolve(res)
           catch err1
+            currentContextPromise = prevContextPromise
             if result.completed()
               throw err1
             else
@@ -801,6 +814,13 @@ define [
       @_clearUnhandledTracking() if unhandledTrackingEnabled
 
 
+    toJSON: ->
+      ###
+      Serialization of promises is not supported.
+      ###
+      null
+
+
     # debugging
 
     _initUnhandledTracking: ->
@@ -837,6 +857,51 @@ define [
 
 
 
+  splitAndRawFilterStack = (stackStr) ->
+    ###
+    @param {String} stackArr
+    @return {Array<String>}
+    ###
+    stackStr
+      .split("\n")
+      .slice(1)
+      .filter (x) ->
+        x.indexOf('Future.js') == -1 and x.indexOf('require.js') == -1
+
+
+  filterStack = (stackStr, promiseName, parentStackStr) ->
+    ###
+    Beautifies and returns given stack-trace string.
+    Filters Future.js and require.js lines. Also filters lines intersecting with the parent promise stack trace.
+    @param {String} stackStr
+    @param {String} promiseName
+    @param {String} parentStackStr
+    @return {String}
+    ###
+    stackArr = splitAndRawFilterStack(stackStr)
+    if parentStackStr
+      parentStackArr = splitAndRawFilterStack(parentStackStr)
+      stackArr = _.difference(stackArr, parentStackArr)
+    stackArr
+      .map (x) -> x + (if longStackTraceAppendName and promiseName then " [#{promiseName}]" else '')
+      .join("\n")
+
+
+  recCollectLongStackTrace = (promise, args) ->
+    ###
+    Recursively collects beautified long stack-trace for the hierarhy of promises into the given args array.
+    @param {Future} promise
+    @param {Array} args
+    ###
+    if promise._stack
+      args.push("\n" + filterStack(promise._stack, promise._name, promise._parent?._stack))
+    if promise._parent
+      recCollectLongStackTrace(promise._parent, args)
+    else
+      args.push("\n=======================================================")
+    return
+
+
   initTimeoutTracker = ->
     ###
     Initializes infinite checking of promises with unhandled failure result.
@@ -857,7 +922,8 @@ define [
             pr = info.promise
             if pr.state() == 'pending' and pr._counter > 0
               reportArgs = ["Future timed out [#{pr._name}] (#{elapsed / 1000} seconds), counter = #{pr._counter}"]
-              reportArgs.push(pr._stack)  if pr._stack
+              reportArgs.push("\n" + filterStack(pr._stack))  if pr._stack
+              recCollectLongStackTrace(info.promise, reportArgs)
               cons().warn.apply(cons(), reportArgs)
             delete unresolvedMap[id]
 
@@ -872,22 +938,16 @@ define [
               ]
               if state == 'rejected'
                 err = info.promise._callbackArgs[0]
-                reportArgs.push(err)
-                reportArgs.push(err.stack) if err.stack
-                pushStack = (promise) ->
-                  if promise._stack
-                    reportArgs.push("\n---------- '#{promise._name}' creation stack ----------\n")
-                    reportArgs.push(info.promise._stack)
-                  if promise._parent
-                    pushStack(promise._parent)
-                  else
-                    reportArgs.push("\n==========================\n")
-                pushStack(info.promise)
+                reportArgs.push("\n#{err}")
+                reportArgs.push("\n" + filterStack(err.stack))
+                recCollectLongStackTrace(info.promise, reportArgs)
               cons().warn.apply(cons(), reportArgs)
             delete unhandledMap[id]
       , interval
 
 
+  longStackTraceEnabled = !!global.config?.debug.future.longStackTrace.enable
+  longStackTraceAppendName = !!global.config?.debug.future.longStackTrace.appendPromiseName
   unhandledTrackingEnabled = !!global.config?.debug.future.trackUnhandled.enable
   unresolvedTrackingEnabled = !!global.config?.debug.future.timeout
   initTimeoutTracker()  if unhandledTrackingEnabled or unresolvedTrackingEnabled
