@@ -1763,6 +1763,8 @@ define [
       for paramName, ctxName of bindingMap
         @widgetRepo.subscribePushBinding @ctx.id, ctxName, widget, paramName
 
+      return
+
 
     ready: ->
       ###
