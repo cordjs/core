@@ -44,7 +44,7 @@ define [
     _doneCallbacks: null
     _failCallbacks: null
     _alwaysCallbacks: null
-    _callbackArgs: null
+    _settledValue: undefined
 
     _locked: false
     # completed by any way
@@ -131,7 +131,7 @@ define [
       if @_counter > 0
         @_counter--
         if @_state != 'rejected'
-          @_callbackArgs = [args] if args.length > 0
+          @_settledValue = args[0]
           if @_counter == 0
             # For the cases when there is no done function
             @_state = 'resolved' if @_locked
@@ -144,13 +144,13 @@ define [
       else
         nameStr = if @_name then " (name = #{@_name})" else ''
         throw new Error(
-          "Future::resolve() is called more times than Future::fork!#{nameStr} state = #{@_state}, [#{@_callbackArgs}]"
+          "Future::resolve() is called more times than Future::fork!#{nameStr} state = #{@_state}, [#{@_settledValue}]"
         )
 
       this
 
 
-    reject: (err) ->
+    reject: (reason) ->
       ###
       Indicates that the promise is rejected (failed) and fail-callbacks should be called.
       If there are some arguments passed then they are passed unchanged to the fail-callbacks.
@@ -162,20 +162,20 @@ define [
         @_counter--
         if @_state != 'rejected'
           @_state = 'rejected'
-          @_callbackArgs = [err ? new Error("Future[#{@_name}] rejected without error message!")]
+          @_settledValue = reason ? new Error("Future[#{@_name}] rejected without error message!")
           @_runFailCallbacks() if @_failCallbacks.length > 0
           @_runAlwaysCallbacks() if @_alwaysCallbacks.length > 0
           @_clearDoneCallbacks()
           @_clearDebugTimeout() if unresolvedTrackingEnabled
       else
         throw new Error(
-          "Future::reject is called more times than Future::fork! [#{@_name}], state = #{@_state}, [#{@_callbackArgs}]"
+          "Future::reject is called more times than Future::fork! [#{@_name}], state = #{@_state}, [#{@_settledValue}]"
         )
 
       this
 
 
-    complete: (err, args...) ->
+    complete: (err, value) ->
       ###
       Completes this promise either with successful of failure result depending on the arguments.
       If first argument is not null than the promise is completed with reject using first argument as an error.
@@ -185,7 +185,7 @@ define [
       if err?
         @reject(err)
       else
-        @resolve.apply(this, args)
+        @resolve(value)
 
 
     when: ->
@@ -201,8 +201,8 @@ define [
         @fork() if not @_locked
         self.withoutTimeout()  if promise._noTimeout or not global.config?.debug.future.trackInternalTimeouts
         promise
-          .done(-> self.resolve.apply(self, arguments))
-          .fail(-> self.reject.apply(self, arguments))
+          .done (value) -> self.resolve(value)
+          .fail (reason) -> self.reject(reason)
       this
 
 
@@ -338,11 +338,11 @@ define [
       result.withoutTimeout() if @_noTimeout or not global.config?.debug.future.trackInternalTimeouts
       self = this
       if onResolved?
-        @done ->
+        @done (value) ->
           prevContextPromise = currentContextPromise
           currentContextPromise = self
           try
-            res = onResolved.apply(null, arguments)
+            res = onResolved.call(null, value)
             currentContextPromise = prevContextPromise
             if res instanceof Future
               result.when(res)
@@ -360,7 +360,7 @@ define [
             else
               result.reject(err)
       else
-        @done -> result.resolve.apply(result, arguments)
+        @done (value) -> result.resolve(value)
       if onRejected?
         @fail (err) ->
           prevContextPromise = currentContextPromise
@@ -594,13 +594,13 @@ define [
       @_alwaysCallbacks = []
       @_completed = true
 
-      if @_state == 'resolved'
-        # for successfully completed future we must add null-error first argument.
-        args = [null]
-        args = args.concat(@_callbackArgs[0])  if @_callbackArgs?
-      else
-        # for rejected future there is no need to flatten argument as there is only one error.
-        args = @_callbackArgs
+      args =
+        if @_state == 'resolved'
+          # for successfully completed future we must add null-error first argument.
+          [null, @_settledValue]
+        else
+          # for rejected future there is no need to flatten argument as there is only one error.
+          [@_settledValue]
 
       callback.apply(null, args) for callback in callbacksCopy
 
@@ -611,12 +611,7 @@ define [
       @param Array(Function) callbacks
       ###
       @_completed = true
-
-      if @_callbackArgs?
-        args = [].concat(@_callbackArgs[0])
-        callback.apply(null, args) for callback in callbacks
-      else
-        callback() for callback in callbacks
+      callback(@_settledValue) for callback in callbacks
 
 
     # syntax-sugar constructors
@@ -629,15 +624,13 @@ define [
       (new Future(1, name)).lock()
 
 
-    @resolved: ->
+    @resolved: (value) ->
       ###
       Returns the future already resolved with the given arguments.
       @return Future
       ###
-      if arguments.length
-        result = @single(':resolved:')
-        result.resolve.apply(result, arguments)
-        result
+      if value != undefined
+        @single(':resolved:').resolve(value)
       else
         preallocatedResolvedEmptyPromise
 
@@ -902,7 +895,7 @@ define [
                   "after #{elapsed / 1000} seconds!"
               ]
               if state == 'rejected'
-                err = info.promise._callbackArgs[0]
+                err = info.promise._settledValue
                 reportArgs.push("\n#{err}")
                 reportArgs.push("\n" + filterStack(err.stack))
                 recCollectLongStackTrace(info.promise, reportArgs)
