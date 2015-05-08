@@ -94,12 +94,11 @@ define [
     ###
 
     # Get error type from args
-    for item in args
-      if item.stack
-        errorType = _minErrorType(errorType, errors.getType(item))
+    for item in args when item and item.stack
+      errorType = _minErrorType(errorType, errors.getType(item))
 
     args = args.map (item) ->
-      if item.stack
+      if item and item.stack
         if output.errorTrace then "\n#{item.stack}\n" else item.message
       else
         item
