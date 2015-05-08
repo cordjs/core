@@ -44,7 +44,6 @@ define [
     _doneCallbacks: null
     _failCallbacks: null
     _alwaysCallbacks: null
-    _order: 0
     _callbackArgs: null
 
     _locked: false
@@ -56,7 +55,7 @@ define [
     # helpful to identify the future during debugging
     _name: ''
 
-    #parent future. Sets on `then` call
+    # parent promise. Set according to `then` callback context when promise is created
     _parent: null
 
 
@@ -282,34 +281,6 @@ define [
       This method is useful when the failure result is expected and it's OK not to handle it.
       ###
       @fail(_.noop)
-
-
-    callback: (neededArgs...) ->
-      ###
-      Generates callback proxy function to be used in return-in-async-callback functions
-       which allows to avoid callback-indentation hell by merging callback callback calls
-       of several such functions into one callback which is called when all async functions
-       are complete.
-
-      All arguments of aggregated callbacks are passed to 'done'-defined callback in order of calling
-       'callback' method.
-
-      @see example 2 in class documentation block
-      ###
-      console.trace 'DEPRECATION WARNING: Future.callback is deprecated, use Future.all instead!'
-      @fork()
-      order = @_order++
-      @_callbackArgs ?= {}
-      (args...) =>
-        if @_state != 'rejected'
-          if neededArgs.length
-            result = []
-            for i in neededArgs
-              result.push args[i]
-          else
-            result = args
-          @_callbackArgs[order] = result
-        @resolve()
 
 
     completed: ->
@@ -598,7 +569,7 @@ define [
       # this is need to avoid duplicate callback calling in case of recursive coming here from callback function
       callbacksCopy = @_doneCallbacks
       @_doneCallbacks = []
-      @_runCallbacks(callbacksCopy, true)
+      @_runCallbacks(callbacksCopy)
 
 
     _runFailCallbacks: ->
@@ -623,10 +594,7 @@ define [
       if @_state == 'resolved'
         # for successfully completed future we must add null-error first argument.
         args = [null]
-        if @_callbackArgs?
-          len = if @_order > 0 then @_order else @_callbackArgs.length
-          for i in [0..len-1]
-            args = args.concat(@_callbackArgs[i])
+        args = args.concat(@_callbackArgs[0])  if @_callbackArgs?
       else
         # for rejected future there is no need to flatten argument as there is only one error.
         args = @_callbackArgs
@@ -634,7 +602,7 @@ define [
       callback.apply(null, args) for callback in callbacksCopy
 
 
-    _runCallbacks: (callbacks, flattenArgs = false) ->
+    _runCallbacks: (callbacks) ->
       ###
       Helper-method to run list of callbacks.
       @param Array(Function) callbacks
@@ -642,13 +610,7 @@ define [
       @_completed = true
 
       if @_callbackArgs?
-        args = []
-        if flattenArgs
-          len = if @_order > 0 then @_order else @_callbackArgs.length
-          for i in [0..len-1]
-            args = args.concat(@_callbackArgs[i])
-        else
-          args = @_callbackArgs
+        args = [].concat(@_callbackArgs[0])
         callback.apply(null, args) for callback in callbacks
       else
         callback() for callback in callbacks
