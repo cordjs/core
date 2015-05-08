@@ -1103,7 +1103,7 @@ define [
       for widget in @_getPlaceholderWidgets()
         if widget._delayedRenderNestedCounter == 0
           result.push(widget)
-          result.push(w) for w in widget.getNonDelayedPlaceholderWidgetsDeep()
+          result = result.concat(widget.getNonDelayedPlaceholderWidgetsDeep())
       result
 
 
