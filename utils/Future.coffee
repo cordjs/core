@@ -268,10 +268,13 @@ define [
       ###
       name = @_name
       @fail (err) =>
-        reportArgs = ["Future(#{name})::failAloud#{ if message then " with message: #{message}" else '' }", err]
+        reportArgs = ["Future(#{name})::failAloud#{ if message then " with message: #{message}" else '' }"]
+        if err
+          reportArgs.push("\n#{err}")
+          reportArgs.push("\n" + filterStack(err.stack))
         if @_stack
-          reportArgs.push("\n---------------\n")
-          reportArgs.push(@_stack)
+          reportArgs.push("\n---------------")
+          recCollectLongStackTrace(this, reportArgs)
         cons().error.apply(cons(), reportArgs)
 
 
@@ -828,7 +831,9 @@ define [
       .split("\n")
       .slice(1)
       .filter (x) ->
-        x.indexOf('Future.js') == -1 and x.indexOf('require.js') == -1
+        x.indexOf('Future.js') == -1 and
+        x.indexOf('require.js') == -1 and
+        x.indexOf('raw.js') == -1
 
 
   filterStack = (stackStr, promiseName, parentStackStr) ->
