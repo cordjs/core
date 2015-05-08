@@ -399,8 +399,8 @@ define [
       @_callbacks = []
 
 
-    createPromise: (initialCounter = 0, name = '') ->
-      promise = new Future initialCounter, name
+    createPromise: (name = '') ->
+      promise = Future.single(name)
       @_promises.push promise
       promise
 
