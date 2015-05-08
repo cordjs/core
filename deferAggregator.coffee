@@ -37,12 +37,13 @@ define [
         asap ->
           df.promise.resolve()
 
-        df.promise.done =>
+        df.promise.then =>
           widget.setParamsSafe(df.params).catchIf (err) ->
             err instanceof errors.WidgetParamsRace
           .failAloud(widget.debug('DeferAggregator'))
 
           delete @defers[id]
+      return
 
 
 
