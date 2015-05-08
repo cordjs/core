@@ -58,6 +58,7 @@ define [
             timeoutDomInfo.completeWith(contextDomInfo) if hasTimeout
             tmplWidget.childWidgetComplete(params.type)
             chunk.end(widget.renderRootTag(out))
+            return
           else
             TimeoutStubHelper.replaceStub(out, widget, contextDomInfo).then ($newRoot) ->
               timeoutDomInfo.setDomRoot($newRoot)
@@ -83,6 +84,7 @@ define [
               TimeoutStubHelper.getTimeoutHtml(tmplWidget, timeoutTemplate, widget).then (out) ->
                 tmplWidget.childWidgetComplete(params.type)
                 chunk.end(widget.renderRootTag(out))
+                return
               .catch (err) ->
                 tmplWidget.childWidgetFailed(params.type, err)
                 throw err
@@ -120,6 +122,7 @@ define [
         .then (out) ->
           tmplWidget.childWidgetComplete(type)
           chunk.end(out)
+          return
         .catch (err) ->
           tmplWidget.childWidgetFailed(type, err)
           throw err
@@ -147,6 +150,7 @@ define [
       tmplWidget._renderPlaceholder(name, tmplWidget._domInfo).spread (out) ->
         tmplWidget.childWidgetComplete(type)
         chunk.end(tmplWidget.renderPlaceholderTag(name, out))
+        return
       .catch (err) ->
         tmplWidget.childWidgetFailed(type, err)
         throw err
@@ -195,6 +199,7 @@ define [
       chunk.map (chunk) ->
         tmplWidget._childWidgetCompletePromise.then ->
           chunk.end(tmplWidget.widgetRepo.getTemplateCode())
+          return
         .catch (error) ->
           chunk.setError(error)
           return
@@ -210,6 +215,7 @@ define [
         tmplWidget.widgetRepo.getTemplateCss()
       .then (html) ->
         chunk.end(html)
+        return
       .catch (error) ->
         chunk.setError(error)
         return

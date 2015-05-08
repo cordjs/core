@@ -320,6 +320,7 @@ define [
               if bodies.block?
                 @_renderBodyBlock(bodies.block, widget).done ->
                   chunk.end('')
+                  return
                 .failAloud("WidgetCompiler::#extend:#{@widget.debug()}:#{params.type}")
               else
                 console.warn "WARNING: Extending layout #{ params.type } with nothing!"
@@ -371,6 +372,7 @@ define [
                 timeoutTemplatePromise
             .then ->
               chunk.end('')
+              return
             .failAloud("WidgetCompiler::#widget:#{@widget.debug()}:#{params.type}")
 
 
@@ -400,6 +402,7 @@ define [
                 ]
                 .then ->
                   chunk.end('')
+                  return
                 .failAloud("WidgetCompiler::#inline:#{@widget.debug()}")
 
             else
@@ -447,6 +450,7 @@ define [
               ]
               .then ->
                 chunk.end('')
+                return
               .failAloud("WidgetCompiler::#deferred:#{@widget.debug()}")
           else
             console.warn "WARNING: empty deferred block in widget #{ @widget.constructor.name }(#{ @widget.ctx.id })"
