@@ -212,18 +212,19 @@ define [
       Future.all(promises).then -> result
 
 
-    initRepo: (repoServiceName, collections, promise) ->
+    initRepo: (repoServiceName, collections) ->
       ###
       Helper method used in generated initialization code to restore models came from server in the browser
       @browser-only
       @param String repoServiceName name of the model repository service name
       @param Object collections list of serialized registered collections keyed with their names
       @param Future promise a promise that must be resolved when collections are initialized
+      @return {Future<undefined>}
       ###
       collections = JSON.parse(decodeURIComponent(escape(collections))) # decode utf-8 and parse
 
-      @serviceContainer.eval repoServiceName, (repo) ->
-        repo.setCollections(collections).done -> promise.resolve()
+      @serviceContainer.getService(repoServiceName).then (repo) ->
+        repo.setCollections(collections)
 
 
     getModelsInitCode: ->
@@ -235,8 +236,23 @@ define [
       for key, val of @serviceContainer.allInstances()
         if val instanceof ModelRepo
           escapedString = unescape(encodeURIComponent(JSON.stringify(val))).replace(/[\\']/g, '\\$&')
-          result.push("wi.initRepo('#{ key }', '#{ escapedString }', p.fork());")
-      result.join("\n")
+          result.push("wi.initRepo('#{ key }', '#{ escapedString }')")
+      result.join(",\n      ")
+
+
+    restoreModelLinks: (initRepoPromises) ->
+      ###
+      Restores model links after transmitting models from server to browser during initial page loading.
+      Utility method called from cord core initialization function.
+      @param {Array<Future>} initRepoPromises - array of repo initialization promises
+      @return {Future<undefined>}
+      ###
+      Future.all [
+        @serviceContainer.getService('modelProxy')
+        Future.all(initRepoPromises)
+      ]
+      .spread (modelProxy) ->
+        modelProxy.restoreLinks()
 
 
     getTemplateCode: ->
@@ -258,20 +274,15 @@ define [
       </script>
       <script data-main="#{initUrl}" src="#{baseUrl}vendor/requirejs/require.js?release=#{global.config.static.release}"></script>
       <script>
-          function cordcorewidgetinitializerbrowser(wi) {
-            requirejs(['cord!utils/Future'], function(Future) {
-              p = new Future('WidgetRepo::templateCode');
-              #{ @getModelsInitCode() }
-              wi.getServiceContainer().eval('modelProxy', function(modelProxy) {
-                p.done(function() {
-                  modelProxy.restoreLinks().done(function() {
-                    #{ @rootWidget.getInitCode() }
-                    wi.endInit();
-                  });
-                });
-              });
-            });
-          };
+        function cordcorewidgetinitializerbrowser(wi) {
+          var repoPromises = [
+            #{ @getModelsInitCode() }
+          ];
+          return wi.restoreModelLinks(repoPromises).then(function() {
+      #{ @rootWidget.getInitCode() }
+            wi.endInit();
+          });
+        };
       </script>
       """
 

@@ -339,27 +339,26 @@ define [
                                       as a value
       @browser-only
       ###
-      result = new Future('ModelRepo::setCollections result')
       @_collections = {}
-      for name, info of collections
-        do (info, name) =>
-          collectionClassPromise =
-            if info.canonicalPath?
-              Future.require("cord-m!#{ info.canonicalPath }")
-            else
-              Future.resolved(Collection)
+      promises =
+        for name, info of collections
+          do (info, name) =>
+            collectionClassPromise =
+              if info.canonicalPath?
+                Future.require("cord-m!#{ info.canonicalPath }")
+              else
+                Future.resolved(Collection)
 
-          collectionClassPromise.then (CollectionClass) =>
-            info.collectionClass = CollectionClass
-            collection = Collection.fromJSON(this, name, info)
-            #Assume that collection from backend is always fresh
-            collection.updateLastQueryTime()
-            @_registerCollection(name, collection)
-            @container.injectServices(collection).then ->
-              collection.browserInit?()
-              return
-          .link(result)
-      result
+            collectionClassPromise.then (CollectionClass) =>
+              info.collectionClass = CollectionClass
+              collection = Collection.fromJSON(this, name, info)
+              #Assume that collection from backend is always fresh
+              collection.updateLastQueryTime()
+              @_registerCollection(name, collection)
+              @container.injectServices(collection).then ->
+                collection.browserInit?()
+                return
+      Future.all(promises).then -> undefined
 
 
     # REST related

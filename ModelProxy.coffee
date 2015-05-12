@@ -52,4 +52,4 @@ define [
               return
           )
 
-      Future.all(promises)
+      Future.all(promises).then -> undefined

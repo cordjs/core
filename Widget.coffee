@@ -1406,8 +1406,9 @@ define [
       jsonParams = [namedChilds, @childBindings, serializedModelBindings]
       jsonParamsString = (jsonParams.map (x) -> JSON.stringify(x)).join(',')
 
+      # indentation is mandatory to beautify page source formatting
       """
-      wi.init('#{ @getPath() }','#{ ctxString }',#{ jsonParamsString },#{ @_isExtended }#{ parentStr });
+            wi.init('#{ @getPath() }','#{ ctxString }',#{ jsonParamsString },#{ @_isExtended }#{ parentStr });
       #{ (widget.getInitCode(@ctx.id) for widget in @children).join '' }
       """
 
