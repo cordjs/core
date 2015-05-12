@@ -26,27 +26,30 @@ define [
 
 
     restoreLinks: ->
-      promise = new Future
+      promises = []
 
       for link in @_modelLinks
-        promise.fork()
-        Model.unserializeLink(link.object[link.field], @container).then (model) ->
-          link.object[link.field] = model
-          promise.resolve()
+        promises.push(
+          Model.unserializeLink(link.object[link.field], @container).then (model) ->
+            link.object[link.field] = model
+            return
+        )
 
       for link in @_collectionLinks
-        promise.fork()
-        Collection.unserializeLink(link.object[link.field], @container).then (collection) ->
-          link.object[link.field] = collection
-          promise.resolve()
+        promises.push(
+          Collection.unserializeLink(link.object[link.field], @container).then (collection) ->
+            link.object[link.field] = collection
+            return
+        )
 
       for link in @_arrayLinks
         storedLinks = link.object[link.field]
         link.object[link.field] = []
         for item in storedLinks
-          promise.fork()
-          Model.unserializeLink(item, @container).then (model) ->
-            link.object[link.field].push(model)
-            promise.resolve()
+          promises.push(
+            Model.unserializeLink(item, @container).then (model) ->
+              link.object[link.field].push(model)
+              return
+          )
 
-      promise
+      Future.all(promises)
