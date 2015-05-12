@@ -331,7 +331,7 @@ define [
 
         .catchIf httpErrors.Network, (e) =>
           # In case of network error, we'll try to reconnect again
-          if retryCount > 0 and method == 'get' and ( retryTill == 0 or retryTill >= Date.now() )
+          if retryCount > 0 and method == 'get' and (retryTill == 0 or retryTill >= Date.now())
             _console.warn "WARNING: request to #{url} failed because of network error #{e}. Retrying after #{@retryInterval/1000}s..."
 
             Future.timeout(@retryInterval).then =>
