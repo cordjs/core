@@ -513,19 +513,29 @@ define [
 
     @all: (futureList, name = ':all:') ->
       ###
-      Converts Array[Future[X]] to Future[Array[X]]
+      Converts Array<Thenable<Any>|Any> to Future<Array<Any>>
+      If the given array's element is thenable then it's eventual resolved value is put to the result array,
+       otherwise the element is passed to the result array as-is.
+      @param {Array<Any>} futureList
+      @param {String} name - result promise debug name
+      @return {Future<Array<Any>>}
       @todo maybe need to support noTimeout property of futureList promises
       ###
       promise = new Future(name)
       result = []
       for f, i in futureList
         do (i) ->
-          promise.fork()
-          f.done (res) ->
-            result[i] = res
-            promise.resolve()
-          .fail (e) ->
-            promise.reject(e)
+          if f and typeof f.then == 'function'
+            promise.fork()
+            f.then(
+              (res) ->
+                result[i] = res
+                promise.resolve()
+              (e) ->
+                promise.reject(e)
+            )
+          else
+            result[i] = f
       promise.then ->
         result.__canHaveLengthOne = true  if result.length == 1
         result
