@@ -72,7 +72,7 @@ define [
       if options.collectionClass
         throw new Error("Extended collections should be created using ModelRepo::createExtendedCollection() method!")
       name = options.collectionName or Collection.generateName(options)
-      if @_collections[name]? and @_collections[name].isConsistent()
+      if @_collections[name]? and @_collections[name].isConsistent() and not options.renew
         collection = @_collections[name]
       else
         options = _.clone(options)
