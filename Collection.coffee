@@ -228,13 +228,11 @@ define [
         @_filter = options.filter ? {}
         @_pageSize = options.pageSize ? 0
 
-        @_fillModelList(options.models, options.start, options.end) if _.isArray(options.models)
+        @_fillModelList(_.values(options.models), options.start, options.end) if options.models
 
       #special case - fixed collections, when model are already provided and we have no need to do anything with them
       if options.fixed && options.models
         @_fixed = true
-        @_byId = options.models
-        @_models = _.values options.models
 
       @_requestParams = options.requestParams ? {}
       @_tags = {}
