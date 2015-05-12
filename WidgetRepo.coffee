@@ -196,22 +196,20 @@ define [
       @param Object serializedBindings
       @param Function(Object) callback "result" callback with the converted map
       ###
-      promise = new Future('WidgetRepo::_unserializeModelBindings')
       result = {}
-      for key, value of serializedBindings
-        do (key) =>
-          if Collection.isSerializedLink(value)
-            promise.fork()
-            Collection.unserializeLink value, @serviceContainer, (collection) ->
-              result[key] = model: collection
-              promise.resolve()
-          else if Model.isSerializedLink(value)
-            promise.fork()
-            Model.unserializeLink value, @serviceContainer, (model) ->
-              result[key] = model: model
-              promise.resolve()
+      promises =
+        for key, value of serializedBindings
+          do (key) =>
+            if Collection.isSerializedLink(value)
+              Collection.unserializeLink(value, @serviceContainer).then (collection) ->
+                result[key] = model: collection
+                return
+            else if Model.isSerializedLink(value)
+              Model.unserializeLink(value, @serviceContainer).then (model) ->
+                result[key] = model: model
+                return
 
-      promise.then -> result
+      Future.all(promises).then -> result
 
 
     initRepo: (repoServiceName, collections, promise) ->

@@ -1,8 +1,9 @@
 define [
   'cord!Module'
   'cord!Collection'
+  'cord!utils/Future'
   'underscore'
-], (Module, Collection, _) ->
+], (Module, Collection, Future, _) ->
 
   class Model extends Module
 
@@ -217,16 +218,16 @@ define [
       _.isString(serialized) and serialized.substr(0, 7) == ':model:'
 
 
-    @unserializeLink: (serialized, ioc, callback) ->
+    @unserializeLink: (serialized, ioc) ->
       ###
       Converts serialized link to model to link of the model instance in it's collection
-      @param String serialized
-      @param Box ioc service container needed to get model repository service by name
-      @param Function(Model) callback "returning" callback
+      @param {String|Model} serialized
+      @param {ServiceContainer} ioc - service container needed to get model repository service by name
+      @param {Future<Model>}
       ###
       if serialized instanceof Model
-        callback(serialized)
+        Future.resolved(serialized)
       else
         [modelId, serializedCollection] = serialized.substr(7).split('/')
-        Collection.unserializeLink serializedCollection, ioc, (collection) ->
-          callback(collection.get(modelId))
+        Collection.unserializeLink(serializedCollection, ioc).then (collection) ->
+          collection.get(modelId)

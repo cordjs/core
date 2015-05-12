@@ -1622,20 +1622,20 @@ define [
       _.isString(serialized) and serialized.substr(0, 12) == ':collection:'
 
 
-    @unserializeLink: (serialized, ioc, callback) ->
+    @unserializeLink: (serialized, ioc) ->
       ###
       Converts serialized link to collection to link of the collection instance from the model repository
-      @param String serialized
-      @param Box ioc service container needed to get model repository service by name
-      @param Function(Collection) callback "returning" callback
+      @param {String|Collection} serialized
+      @param {ServiceContainer} ioc -service container needed to get model repository service by name
+      @return {Future<Collection>}
       ###
       if serialized instanceof Collection
-        callback(serialized)
+        Future.resolved(serialized)
       else
         [repoClass, collectionName] = serialized.substr(12).split(':')
         repoServiceName = repoClass.charAt(0).toLowerCase() + repoClass.slice(1)
-        ioc.eval repoServiceName, (repo) ->
-          callback(repo.getCollection(collectionName))
+        ioc.getService(repoServiceName).then (repo) ->
+          repo.getCollection(collectionName)
 
 
     _setLoadedRange: (start, end) ->

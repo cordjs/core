@@ -261,30 +261,36 @@ define [
 
 
     @fromJSON: (obj, ioc) ->
-      promise = new Future('Context::fromJSON')
-      for key, value of obj
-        do (key, value) ->
-          if Collection.isSerializedLink(value)
-            promise.fork()
-            Collection.unserializeLink value, ioc, (collection) ->
-              obj[key] = collection
-              promise.resolve()
-          else if Model.isSerializedLink(value)
-            promise.fork()
-            Model.unserializeLink value, ioc, (model) ->
-              obj[key] = model
-              promise.resolve()
-          else if _.isArray(value) and Model.isSerializedLink(value[0])
-            obj[key] = []
-            for link in value
-              promise.fork()
-              Model.unserializeLink link, ioc, (model) ->
-                obj[key].push(model)
-                promise.resolve()
-          else
-            obj[key] = value
+      ###
+      Unserializes data came from server to browser
+      @param {Object} obj - serialized data
+      @param {ServiceContainer} ioc - service container need to unserialize collection and model links
+      @return {Future<Context>}
+      ###
+      promises =
+        for key, value of obj
+          do (key, value) ->
+            if Collection.isSerializedLink(value)
+              Collection.unserializeLink(value, ioc).then (collection) ->
+                obj[key] = collection
+                return
+            else if Model.isSerializedLink(value)
+              Model.unserializeLink(value, ioc).then (model) ->
+                obj[key] = model
+                return
+            else if _.isArray(value) and Model.isSerializedLink(value[0])
+              obj[key] = []
+              Future.all(
+                for link in value
+                  Model.unserializeLink(link, ioc).then (model) ->
+                    obj[key].push(model)
+                    return
+              )
+            else
+              obj[key] = value
+              return
 
-      promise.then => new this(obj)
+      Future.all(promises).then => new this(obj)
 
 
     clearDeferredTimeouts: ->

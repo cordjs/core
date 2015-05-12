@@ -30,13 +30,13 @@ define [
 
       for link in @_modelLinks
         promise.fork()
-        Model.unserializeLink link.object[link.field], @container, (model) ->
+        Model.unserializeLink(link.object[link.field], @container).then (model) ->
           link.object[link.field] = model
           promise.resolve()
 
       for link in @_collectionLinks
         promise.fork()
-        Collection.unserializeLink link.object[link.field], @container, (collection) ->
+        Collection.unserializeLink(link.object[link.field], @container).then (collection) ->
           link.object[link.field] = collection
           promise.resolve()
 
@@ -45,7 +45,7 @@ define [
         link.object[link.field] = []
         for item in storedLinks
           promise.fork()
-          Model.unserializeLink item, @container, (model) ->
+          Model.unserializeLink(item, @container).then (model) ->
             link.object[link.field].push(model)
             promise.resolve()
 
