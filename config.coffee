@@ -118,7 +118,7 @@ define  ->
           localForage.ready().then ->
             Promise::toFuture = (promise) ->
               ###
-              Converts standart "thenable" Promise into our Future promise.
+              Converts conventional "thenable" Promise into our Future promise.
               If an argument is given, then it will be fulfilled and returned instead of creating new Future promise.
               @param {Future} promise - optional externally created promise to be fulfilled with this promise result
               @return {Future}
