@@ -800,6 +800,20 @@ define [
         result
 
 
+    renderAdditionalTemplate: (templateName, simpleContext...) ->
+      ###
+      Render any Additional template, belonging to this widget
+      @param String templateName - additional template file name without extensions, e.g. 'secondTemplate'
+      @param Object simpleContext - context object
+      @return Future()
+      ###
+      tmplPath = @getPath()
+      templateLoader.loadAdditionalTemplate(tmplPath, templateName).then =>
+        context = @getBaseContext()
+        context = context.push(aContext) for aContext in simpleContext
+        Future.call(dust.render, "cord!/#{ @getDir() }/#{ templateName }", context)
+
+
     resolveParamRefs: (widget, params) ->
       ###
       Waits until child widget param values referenced using '^' sing to deferred context values are ready.

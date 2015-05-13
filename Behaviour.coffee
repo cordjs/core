@@ -349,6 +349,13 @@ define [
       @clearCallbacks()
 
 
+    renderAdditionalTemplate: () ->
+      ###
+      Syntax sugar, look at Widget.renderAdditionalTemplate()
+      ###
+      @widget.renderAdditionalTemplate.apply(@widget, arguments)
+
+
     render: ->
       ###
       Fully re-renders and replaces all widget's contents by killing all child widgets and re-rendering own template.

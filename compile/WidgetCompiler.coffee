@@ -8,7 +8,9 @@ define [
   'dustjs-helpers'
   'pathUtils'
   'fs'
-], (Future, _, dust, pathUtils, fs) ->
+  'path'
+], (Future, _, dust, pathUtils, fs, path) ->
+
 
   dustPartialsPreventionCallback = (tmplPath, callback) ->
     ###
@@ -68,20 +70,37 @@ define [
       @param String tmplSourcePath path to the source template file (.html)
       @return Future[Nothing]
       ###
+      parts = tmplSourcePath.split('/')
+      fileName = parts.pop()
+      lastDirName = parts[parts.length - 1]
+      ext = path.extname(fileName)
+      fileWithoutExt = fileName.slice(0, -ext.length)
+
+      isMainTemplate = lastDirName == fileWithoutExt
+
       tmplPath = @widget.getPath()
-      tmplFullPath = "./#{ pathUtils.getPublicPrefix() }/bundles/#{ @widget.getTemplatePath() }"
+
+      if isMainTemplate
+        tmplFullPath = "./#{ pathUtils.getPublicPrefix() }/bundles/#{ @widget.getTemplatePath() }"
+      else
+        tmplFullPath = "./#{ pathUtils.getPublicPrefix() }/bundles/#{ @widget.getDir() }/#{ fileName }"
+        tmplPath = "cord!/#{ @widget.getDir() }/#{ fileWithoutExt }"
+
       Future.call(fs.readFile, tmplSourcePath, 'utf8').then (htmlString) =>
         @compiledSource = dust.compile(htmlString, tmplPath)
         amdSource = "define(['dustjs-helpers'], function(dust){#{ @compiledSource }});"
         tmplFuture = Future.call(fs.writeFile, "#{ tmplFullPath }.js", amdSource)
 
         structFuture =
-          if @widget.getPath() != '/cord/core//Switcher'
-            dust.loadSource(@compiledSource)
-            Future.call(dust.render, tmplPath, @getBaseContext().push(@widget.ctx)).then =>
-              Future.call(fs.writeFile, "#{ tmplFullPath }.struct.js", @getStructureCode(false, true))
+          if isMainTemplate
+            if @widget.getPath() != '/cord/core//Switcher'
+              dust.loadSource(@compiledSource)
+              Future.call(dust.render, tmplPath, @getBaseContext().push(@widget.ctx)).then =>
+                Future.call(fs.writeFile, "#{ tmplFullPath }.struct.js", @getStructureCode(false, true))
+            else
+              Future.call(fs.writeFile, "#{ tmplFullPath }.struct.js", 'define([],function(){return {};});')
           else
-            Future.call(fs.writeFile, "#{ tmplFullPath }.struct.js", 'define([],function(){return {};});')
+            Future.resolved()
 
         tmplFuture.zip(structFuture)
 
