@@ -7,6 +7,10 @@ define ->
     err.isCordInternal or err.message?.match /Chunk error.*(WidgetSentenced|WidgetParamsRace)/
 
 
+  getType: getType = (err) ->
+    if isInternal(err) then 'internal' else (err.type or 'error')
+
+
   CordError: class CordError extends Error
     ###
     Base error class
@@ -62,3 +66,12 @@ define ->
 
   ConfigError: class ConfigError extends CordError
     name: 'ConfigError'
+
+
+  MustTransitPage: class MustTransitPage extends CordError
+    ###
+    This error should be thrown to force transition to specified page
+    ###
+    name: 'MustTransitPage'
+    constructor: (@widget, @params) ->
+      super("Transition to #{@widget} required!")

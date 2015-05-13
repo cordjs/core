@@ -68,7 +68,7 @@ define [
       ###
       Compiles given template file for the owner widget.
       @param String tmplSourcePath path to the source template file (.html)
-      @return Future[Nothing]
+      @return {Future<undefined>}
       ###
       parts = tmplSourcePath.split('/')
       fileName = parts.pop()
@@ -89,7 +89,7 @@ define [
       Future.call(fs.readFile, tmplSourcePath, 'utf8').then (htmlString) =>
         @compiledSource = dust.compile(htmlString, tmplPath)
         amdSource = "define(['dustjs-helpers'], function(dust){#{ @compiledSource }});"
-        tmplFuture = Future.call(fs.writeFile, "#{ tmplFullPath }.js", amdSource)
+        tmplPromise = Future.call(fs.writeFile, "#{ tmplFullPath }.js", amdSource)
 
         structFuture =
           if isMainTemplate
@@ -98,11 +98,11 @@ define [
               Future.call(dust.render, tmplPath, @getBaseContext().push(@widget.ctx)).then =>
                 Future.call(fs.writeFile, "#{ tmplFullPath }.struct.js", @getStructureCode(false, true))
             else
-              Future.call(fs.writeFile, "#{ tmplFullPath }.struct.js", 'define([],function(){return {};});')
-          else
-            Future.resolved()
+              Future.resolved()
 
-        tmplFuture.zip(structFuture)
+        Future.all [tmplPromise, structPromise]
+      .then ->
+        return
 
 
     registerWidget: (widget, name, timeout, timeoutTemplateName) ->
@@ -356,10 +356,10 @@ define [
 
               if bodies.timeout? and params.timeout? and params.timeout >= 0
                 timeoutTemplateName = "__timeout_#{ @_timeoutBlockCounter++ }"
-                timeoutTemplateFuture = @_saveSubTemplate(bodies.timeout, timeoutTemplateName)
+                timeoutTemplatePromise = @_saveSubTemplate(bodies.timeout, timeoutTemplateName)
               else
                 timeoutTemplateName = null
-                timeoutTemplateFuture = Future.resolved()
+                timeoutTemplatePromise = Future.resolved()
 
               hasNonEmptyBody = (bodies.block and not emptyBodyRe.test(bodies.block.toString()))
 
@@ -380,11 +380,14 @@ define [
 
 
               if hasNonEmptyBody
-                @_renderBodyBlock(bodies.block, widget).zip(timeoutTemplateFuture).done ->
-                  chunk.end('')
+                Future.all [
+                  @_renderBodyBlock(bodies.block, widget)
+                  timeoutTemplatePromise
+                ]
               else
-                timeoutTemplateFuture.done ->
-                  chunk.end('')
+                timeoutTemplatePromise
+            .then ->
+              chunk.end('')
             .failAloud("WidgetCompiler::#widget:#{@widget.debug()}:#{params.type}")
 
 
@@ -404,11 +407,15 @@ define [
                 sw = context.surroundingWidget
 
                 templateName = "__inline_#{ name }"
-                templateSaveFuture = @_saveSubTemplate(bodies.block, templateName)
+                templateSavePromise = @_saveSubTemplate(bodies.block, templateName)
 
                 @addPlaceholderInline sw, ph, @widget, templateName, name, tag, cls
 
-                @_renderBodyBlock(bodies.block).zip(templateSaveFuture).done ->
+                Future.all [
+                  @_renderBodyBlock(bodies.block)
+                  templateSavePromise
+                ]
+                .then ->
                   chunk.end('')
                 .failAloud("WidgetCompiler::#inline:#{@widget.debug()}")
 
@@ -451,10 +458,12 @@ define [
             # it's a little bit wonky but have no other good choice
             deferredId = @_deferredBlockCounter++
             chunk.map (chunk) =>
-              @_saveSubTemplate(bodies.block, "__deferred_#{ deferredId }")
-                .zip @_renderBodyBlock(bodies.block)
-                .failAloud("WidgetCompiler::#deferred:#{@widget.debug()}")
-                .done ->
-                  chunk.end('')
+              Future.all [
+                @_saveSubTemplate(bodies.block, "__deferred_#{ deferredId }")
+                @_renderBodyBlock(bodies.block)
+              ]
+              .then ->
+                chunk.end('')
+              .failAloud("WidgetCompiler::#deferred:#{@widget.debug()}")
           else
             console.warn "WARNING: empty deferred block in widget #{ @widget.constructor.name }(#{ @widget.ctx.id })"

@@ -6,10 +6,11 @@ define [
   'cord!PageTransition'
   'cord!ServiceContainer'
   'cord!WidgetRepo'
+  'cord!utils/Future'
   'monologue' + (if CORD_IS_BROWSER then '' else '.js')
   'jquery'
 ], (AppConfigLoader, _console, cssManager,
-    clientSideRouter, PageTransition, ServiceContainer, WidgetRepo, Monologue, $) ->
+    clientSideRouter, PageTransition, ServiceContainer, WidgetRepo, Future, Monologue, $) ->
 
   class ClientFallback
 
@@ -63,7 +64,11 @@ define [
       serviceContainer.set 'config', global.config
 
       global.config.api.authenticateUserCallback = ->
-        serviceContainer.getService('loginUrl').zip(serviceContainer.getService('logoutUrl')).then (loginUrl, logoutUrl) ->
+        Future.all [
+          serviceContainer.getService('loginUrl')
+          serviceContainer.getService('logoutUrl')
+        ]
+        .spread (loginUrl, logoutUrl) ->
           loginUrl = loginUrl.replace(/^\/|\/$/g, "")
           logoutUrl = logoutUrl.replace(/^\/|\/$/g, "")
           backPath = clientSideRouter.getCurrentPath()

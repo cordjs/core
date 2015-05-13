@@ -25,6 +25,9 @@ define [
     send: (method, url, params, callback) ->
       method = method.toLowerCase()
 
+      if callback
+        console.trace 'DEPRECATION WARNING: callback-style Request::send result is deprecated, use promise-style result instead!'
+
       _console.warn('Unknown method:' + method) if method not in @METHODS
 
       method = 'del' if method is 'delete'
@@ -99,4 +102,5 @@ define [
 
         response.completePromise(promise)
         argssss.callback body, error if typeof argssss.callback == 'function'
-      promise.then()
+
+      promise

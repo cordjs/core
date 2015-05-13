@@ -31,7 +31,7 @@ exports.init = (baseUrl = 'public', configName = 'default', serverPort) ->
 
   # setting of this callback is necessary to avoid throwing global unhandled exception by requirejs when file not found
   requirejs.onError = (err) ->
-    console.error 'ERROR while loading in REQUIREJS:', err
+    console.error 'ERROR while loading in REQUIREJS:', err, err.stack
 
   requirejs.config
     paths: require('../requirejs/pathConfig')
@@ -109,6 +109,12 @@ exports.startServer = startServer = (callback) ->
     else if req.url.indexOf('/REQUIRESTAT/collect') == 0
       services.statCollector(req, res)
     else if not services.router.process(req, res)
+      # Detect for custom proxyRoutes from bundle configs
+      for proxyRoute in services.proxyRoutes
+        if (_.isRegExp(proxyRoute) and proxyRoute.test(req.url)) or (_.isString(proxyRoute) and -1 != req.url.indexOf(proxyRoute))
+          services.xdrProxy(services.router, req.url, req, res)
+          return
+
       services.staticServer(req, res)
   .listen(global.config.server.port)
 
