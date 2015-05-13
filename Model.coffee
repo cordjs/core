@@ -77,16 +77,18 @@ define [
         key = key.toJSON() if key instanceof Model
         attrs = key
       else
-        (attrs = {})[key] = val
+        attrs = {}
+        attrs[key] = val
 
+      changed = false
       for key, val of attrs
         if not _.isEqual(@[key], val)
           @_changed[key] = @[key] if not @_changed[key]?
           @[key] = val
           @_fieldNames.push(key) if @_fieldNames.indexOf(key) == -1
-          if aloud
-            @collection.emit("model.#{ @id }.change", this)
+          changed = true
 
+      @collection.emit("model.#{ @id }.change", this) if aloud and changed
       this
 
 
