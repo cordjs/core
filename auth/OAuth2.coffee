@@ -41,8 +41,15 @@ define [
       if not @endpoints or not @endpoints.accessToken
         throw new Error('OAuth2::constructor error: at least endpoints.accessToken must be defined.')
       # setting actual values of secret information if they are available
-      @_clientId     = global.config.secrets.clientId      if global.config?.secrets?.clientId?
-      @_clientSecret = global.config.secrets.clientSecret  if global.config?.secrets?.clientSecret?
+      if @options.secrets?.clientId?
+        @_clientId = @options.secrets.clientId
+      else
+        @_clientId     = global.config.secrets.clientId      if global.config?.secrets?.clientId?
+
+      if @options.secrets?.clientSecret?
+        @_clientSecret = @options.secrets.clientSecret
+      else
+        @_clientSecret = global.config.secrets.clientSecret  if global.config?.secrets?.clientSecret?
 
 
     isAuthFailed: (response) ->

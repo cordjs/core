@@ -376,6 +376,13 @@ define [
       @clearCallbacks()
 
 
+    renderAdditionalTemplate: () ->
+      ###
+      Syntax sugar, look at Widget.renderAdditionalTemplate()
+      ###
+      @widget.renderAdditionalTemplate.apply(@widget, arguments)
+
+
     _checkCleaned: ->
       ###
       Throws special exception if the behaviour is cleaned and should not continue to work

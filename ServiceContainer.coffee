@@ -110,11 +110,11 @@ define [
         # call a factory with 2 parameters, get & done. On done resolve a result.
 
         deps = _.object(def.deps, services)
-        get = (name) ->
-          if _(deps).has(name)
-            deps[name]
+        get = (depName) ->
+          if _(deps).has(depName)
+            deps[depName]
           else
-            throw new Error("Service #{name} is not loaded yet. Did you forget to specify it in `deps` section?")
+            throw new Error("Service #{depName} is not loaded yet. Did you forget to specify it in `deps` section of #{name}?")
 
         locked = false
         done = (err, instance) =>
