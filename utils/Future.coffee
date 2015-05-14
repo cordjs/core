@@ -1,8 +1,7 @@
 define [
-  'asap/raw'
   'underscore'
   './asapInContext'
-], (asap, _, asapInContext) ->
+], (_, asapInContext) ->
 
   # unhandled tracking settings
   unhandledTrackingEnabled = false
@@ -19,21 +18,6 @@ define [
 
   # environment-dependent console object
   cons = -> if typeof _console != 'undefined' then _console else console
-
-  ##
-  # Shared routine callback functions that allow to avoid redundant closures creation for each call
-  ##
-  asapDoneCb = ->
-    @_runDoneCallbacks()
-    @_clearFailCallbacks()
-
-  asapFailCb = ->
-    @_runFailCallbacks()
-
-  asapFinallyCb = ->
-    @_runAlwaysCallbacks()
-    @_clearFailCallbacks() if @_state == 'resolved'
-
 
   class Future
     ###
@@ -118,7 +102,7 @@ define [
       this
 
 
-    resolve: (args...) ->
+    resolve: (value) ->
       ###
       Indicates that one of the waiting values is ready.
       If there are some arguments passed then they are passed unchanged to the done-callbacks.
@@ -126,12 +110,10 @@ define [
        than callback is fired immediately.
       Should have according fork() call before.
       ###
-      if args.length > 1
-        console.trace 'DEPRECATION WARNING: Future.resolve with more than one argument is deprecated!', @_stack, "\n----\n"
       if @_counter > 0
         @_counter--
-        if @_state != 'rejected'
-          @_settledValue = args[0]
+        if @_state != 'rejected' and @_doneCallbacks
+          @_settledValue = value
           if @_counter == 0
             # For the cases when there is no done function
             @_state = 'resolved' if @_locked
@@ -160,12 +142,12 @@ define [
       ###
       if @_counter > 0
         @_counter--
-        if @_state != 'rejected'
+        if @_state != 'rejected' and @_failCallbacks  # empty failCallbacks means cleared (cancelled) promise
           @_state = 'rejected'
           @_settledValue = reason ? new Error("Future[#{@_name}] rejected without error message!")
+          @_clearDoneCallbacks()
           @_runFailCallbacks() if @_failCallbacks.length > 0
           @_runAlwaysCallbacks() if @_alwaysCallbacks.length > 0
-          @_clearDoneCallbacks()
           @_clearDebugTimeout() if unresolvedTrackingEnabled
       else
         throw new Error(
@@ -201,8 +183,8 @@ define [
         @fork() if not @_locked
         self.withoutTimeout()  if promise._noTimeout or not global.config?.debug.future.trackInternalTimeouts
         promise
-          .done (value) -> self.resolve(value)
-          .fail (reason) -> self.reject(reason)
+          ._done(@resolve, this)
+          ._fail(@reject, this)
       this
 
 
@@ -224,9 +206,18 @@ define [
       If all waiting values are already resolved then callback is fired immedialtely.
       If done method is called several times than all passed functions will be called.
       ###
-      if @_state != 'rejected'
-        @_doneCallbacks.push(callback)
-        if @_counter == 0
+      @_done(callback)
+
+
+    _done: (cb, ctx, arg) ->
+      ###
+      Appends given callback to the resolved task queue and triggers its execution asynchronously if needed.
+      ###
+      if @_state != 'rejected' and @_doneCallbacks
+        addCallbackToQueue(@_doneCallbacks, cb, ctx, arg)
+        # queue length == 3 means that the above addition is the first task in the queue and the queue
+        # is not in the process of execution (flushing) and it need to be triggered
+        if @_counter == 0 and (@_doneCallbacks.length == 3 or @_state == 'pending')
           @_clearDebugTimeout()  if unresolvedTrackingEnabled
           asapInContext(this, asapDoneCb)
       this
@@ -239,9 +230,18 @@ define [
       If fail method is called several times than all passed functions will be called.
       ###
       throw new Error("Invalid argument for Future.fail(): #{ callback }. [#{@_name}]") if not _.isFunction(callback)
-      if @_state != 'resolved'
-        @_failCallbacks.push(callback)
-        if @_state == 'rejected'
+      @_fail(callback)
+
+
+    _fail: (cb, ctx, arg) ->
+      ###
+      Appends given callback to the failed task queue and triggers its execution asynchronously if needed.
+      ###
+      if @_state != 'resolved' and @_failCallbacks
+        addCallbackToQueue(@_failCallbacks, cb, ctx, arg)
+        # queue length == 3 means that the above addition is the first task in the queue and the queue
+        # is not in the process of execution (flushing) and it need to be triggered
+        if @_state == 'rejected' and @_failCallbacks.length == 3
           @_clearDebugTimeout() if unresolvedTrackingEnabled
           asapInContext(this, asapFailCb)
       @_clearUnhandledTracking() if unhandledTrackingEnabled
@@ -266,16 +266,7 @@ define [
       ###
       Adds often-used scenario of fail that just loudly reports the error
       ###
-      name = @_name
-      @fail (err) =>
-        reportArgs = ["Future(#{name})::failAloud#{ if message then " with message: #{message}" else '' }"]
-        if err
-          reportArgs.push("\n#{err}")
-          reportArgs.push("\n" + filterStack(err.stack))
-        if @_stack
-          reportArgs.push("\n---------------")
-          recCollectLongStackTrace(this, reportArgs)
-        cons().error.apply(cons(), reportArgs)
+      @_fail(failAloudCb, this, message)
 
 
     failOk: ->
@@ -283,7 +274,7 @@ define [
       Registers empty fail handler for the Future to prevent it to be reported in unhandled failure tracking.
       This method is useful when the failure result is expected and it's OK not to handle it.
       ###
-      @fail(_.noop)
+      @_fail(_.noop)
 
 
     completed: ->
@@ -336,55 +327,14 @@ define [
         _nameSuffix = 'then(empty)'
       result = Future.single("#{@_name} -> #{_nameSuffix}")
       result.withoutTimeout() if @_noTimeout or not global.config?.debug.future.trackInternalTimeouts
-      self = this
-      if onResolved?
-        @done (value) ->
-          prevContextPromise = currentContextPromise
-          currentContextPromise = self
-          try
-            res = onResolved.call(null, value)
-            currentContextPromise = prevContextPromise
-            if res instanceof Future
-              result.when(res)
-            else if _.isArray(res)
-              if res.length == 1 and _.isArray(res[0]) and not res.__canHaveLengthOne
-                cons().warn "DEPRECATION WARNING: returning of array in array as 'then' callback result hack detected for promise with name '#{result._name}'. This behaviour is deprecated, return just array without any wrapper!", self._stack
-                res = res[0]
-              result.resolve(res)
-            else
-              result.resolve(res)
-          catch err
-            currentContextPromise = prevContextPromise
-            if result.completed()
-              throw err
-            else
-              result.reject(err)
+      if typeof onResolved == 'function'
+        @_done(thenHandleCb, result, onResolved)
       else
-        @done (value) -> result.resolve(value)
-      if onRejected?
-        @fail (err) ->
-          prevContextPromise = currentContextPromise
-          currentContextPromise = self
-          try
-            res = onRejected.call(null, err)
-            currentContextPromise = prevContextPromise
-            if res instanceof Future
-              result.when(res)
-            else if _.isArray(res)
-              if res.length == 1 and _.isArray(res[0])
-                cons().warn "DEPRECATION WARNING: returning of array in array as 'catch' callback result hack detected for promise with name '#{result._name}'. This behaviour is deprecated, return just array without any wrapper!", self._stack
-                res = res[0]
-              result.resolve(res)
-            else
-              result.resolve(res)
-          catch err1
-            currentContextPromise = prevContextPromise
-            if result.completed()
-              throw err1
-            else
-              result.reject(err1)
+        @_done(@resolve, result)
+      if typeof onRejected == 'function'
+        @_fail(thenHandleCb, result, onRejected)
       else
-        @fail (err) -> result.reject(err)
+        @_fail(@reject, result)
       result
 
 
@@ -575,24 +525,18 @@ define [
 
     _runDoneCallbacks: ->
       ###
-      Fires resulting callback functions defined by done with right list of arguments.
+      Triggers execution of onResolved callbacks waiting for this promise.
       ###
       @_state = 'resolved'
       @_clearUnhandledTracking() if unhandledSoftTracking and not @_locked
-      # this is need to avoid duplicate callback calling in case of recursive coming here from callback function
-      callbacksCopy = @_doneCallbacks
-      @_doneCallbacks = []
-      @_runCallbacks(callbacksCopy)
+      flushCallbackQueue(@_doneCallbacks, @_settledValue)
 
 
     _runFailCallbacks: ->
       ###
-      Fires resulting callback functions defined by fail with right list of arguments.
+      Triggers execution of onRejected callbacks waiting for this promise.
       ###
-      # this is need to avoid duplicate callback calling in case of recursive coming here from callback function
-      callbacksCopy = @_failCallbacks
-      @_failCallbacks = []
-      @_runCallbacks(callbacksCopy)
+      flushCallbackQueue(@_failCallbacks, @_settledValue)
 
 
     _runAlwaysCallbacks: ->
@@ -613,15 +557,6 @@ define [
           [@_settledValue]
 
       callback.apply(null, args) for callback in callbacksCopy
-
-
-    _runCallbacks: (callbacks) ->
-      ###
-      Helper-method to run list of callbacks.
-      @param Array(Function) callbacks
-      ###
-      @_completed = true
-      callback(@_settledValue) for callback in callbacks
 
 
     # syntax-sugar constructors
@@ -761,11 +696,13 @@ define [
 
 
     _clearDoneCallbacks: ->
-      @_doneCallbacks = []
+      # Separate method for this simple operation is need to support async-aware profiler (to overwrite this method)
+      @_doneCallbacks = null
 
 
     _clearFailCallbacks: ->
-      @_failCallbacks = []
+      # Separate method for this simple operation is need to support async-aware profiler (to overwrite this method)
+      @_failCallbacks = null
 
 
     clear: ->
@@ -780,6 +717,7 @@ define [
       @_alwaysCallbacks = []
       @_clearDebugTimeout() if unresolvedTrackingEnabled
       @_clearUnhandledTracking() if unhandledTrackingEnabled
+      return
 
 
     toJSON: ->
@@ -824,6 +762,140 @@ define [
       fn.apply(cons, args)
 
 
+  ##
+  # TRY-CATCH OPTIMIZATION TRICK (stolen from bluebird)
+  ##
+
+  # Try catch is not supported in optimizing
+  # compiler, so it is isolated
+  errorObj = e: {}
+  tryCatchTarget = undefined
+  tryCatcher = ->
+    try
+      tryCatchTarget.apply(this, arguments)
+    catch e
+      errorObj.e = e
+      errorObj
+
+  tryCatch = (fn) ->
+    tryCatchTarget = fn
+    tryCatcher
+
+
+  ##
+  # Shared routine callback functions that allow to avoid redundant closures creation for each call
+  ##
+
+  asapDoneCb = ->
+    # see Future._done
+    @_clearFailCallbacks()
+    @_runDoneCallbacks()
+
+
+  asapFailCb = ->
+    # see Future._fail
+    @_runFailCallbacks()
+
+
+  asapFinallyCb = ->
+    # see Future._finally
+    @_runAlwaysCallbacks()
+    @_clearFailCallbacks() if @_state == 'resolved'
+
+
+  failAloudCb = (err, message) ->
+    # see Future.failAloud
+    reportArgs = ["Future(#{@_name})::failAloud#{ if message then " with message: #{message}" else '' }"]
+    if err
+      reportArgs.push("\n#{err}")
+      reportArgs.push("\n" + filterStack(err.stack))
+    if @_stack
+      reportArgs.push("\n---------------")
+      recCollectLongStackTrace(this, reportArgs)
+    cons().error.apply(cons(), reportArgs)
+
+
+  thenHandleCb = (value, fn) ->
+    # see Future.then
+    prevContextPromise = currentContextPromise
+    currentContextPromise = this
+    res = tryCatch(fn).call(null, value)
+    currentContextPromise = prevContextPromise
+    if res == errorObj
+      if @completed()
+        throw res.e
+      else
+        @reject(res.e)
+    else if res instanceof Future
+      @when(res)
+    else if _.isArray(res)
+      if res.length == 1 and _.isArray(res[0]) and not res.__canHaveLengthOne
+        cons().warn "DEPRECATION WARNING: returning of array in array as 'then' callback result hack detected for promise with name '#{@_name}'. This behaviour is deprecated, return just array without any wrapper!", this._stack
+        res = res[0]
+      @resolve(res)
+    else
+      @resolve(res)
+    return
+
+
+  ##
+  # TASK QUEUE HANDLING ROUTINES
+  ##
+
+  addCallbackToQueue = (queue, fn, ctx, passArg) ->
+    ###
+    DRY method adding task to the given task queue
+    ###
+    queue[queue.length] = fn
+    queue[queue.length] = ctx
+    queue[queue.length] = passArg
+    return
+
+
+  capacity = 1024
+
+  flushCallbackQueue = (queue, settledValue) ->
+    ###
+    Executes all tasks from the given queue.
+    Task - three consequent elements of the array interpreted as:
+     * first - the callback function
+     * second - the context object for which function should be called (can be empty)
+     * third - any additional argument passed to the callback function as a second argument after the given settledValue
+    During execution new tasks may be appended to the queue by the previous tasks, they are also executed.
+    At the end the task queue is cleaned.
+    The technique is copied from the asap library.
+    @param {Array} queue
+    @param {Any} settledValue - the resulting value of the promise (success or failure)
+    ###
+    index = 0
+    while index < queue.length
+      currentIndex = index
+      # Advance the index before calling the task. This ensures that we will
+      # begin flushing on the next task the task throws an error.
+      index += 3;
+      queue[currentIndex].call(queue[currentIndex + 1], settledValue, queue[currentIndex + 2])
+      # Prevent leaking memory for long chains of recursive calls to `asap`.
+      # If we call `asap` within tasks scheduled by `asap`, the queue will
+      # grow, but to avoid an O(n) walk for every task we execute, we don't
+      # shift tasks off the queue after they have been executed.
+      # Instead, we periodically shift 1024 tasks off the queue.
+      if index > capacity
+        # Manually shift all values starting at the index back to the
+        # beginning of the queue.
+        scan = 0
+        len = queue.length - index
+        while scan < len
+          queue[scan] = queue[scan + index]
+          scan++
+        queue.length -= index
+        index = 0
+    queue.length = 0
+    return
+
+
+  ##
+  # DEBUGGING SUPPORT FUNCTIONS
+  ##
 
   splitAndRawFilterStack = (stackStr) ->
     ###
@@ -836,6 +908,7 @@ define [
       .filter (x) ->
         x.indexOf('Future.js') == -1 and
         x.indexOf('require.js') == -1 and
+        x.indexOf('/r.js') == -1 and
         x.indexOf('raw.js') == -1
 
 
