@@ -1415,7 +1415,7 @@ define [
         serializedModelBindings[key] = mb.model.serializeLink()
 
       # filter bad unicode characters before sending data to browser
-      ctxString = unescape(encodeURIComponent(JSON.stringify(@ctx))).replace(/[\\']/g, '\\$&')
+      ctxString = unescape(encodeURIComponent(JSON.stringify(@ctx))).replace(/[\\']/g, '\\$&').replace(/<\/script>/g, '<\\/script>')
 
       jsonParams = [namedChilds, @childBindings, serializedModelBindings]
       jsonParamsString = (jsonParams.map (x) -> JSON.stringify(x)).join(',')

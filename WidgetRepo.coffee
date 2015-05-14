@@ -235,9 +235,9 @@ define [
       result = []
       for key, val of @serviceContainer.allInstances()
         if val instanceof ModelRepo
-          escapedString = unescape(encodeURIComponent(JSON.stringify(val))).replace(/[\\']/g, '\\$&')
-          result.push("wi.initRepo('#{ key }', '#{ escapedString }')")
-      result.join(",\n      ")
+          escapedString = unescape(encodeURIComponent(JSON.stringify(val))).replace(/[\\']/g, '\\$&').replace(/<\/script>/g, '<\\/script>')
+          result.push("wi.initRepo('#{ key }', '#{ escapedString }', p.fork());")
+      result.join("\n")
 
 
     restoreModelLinks: (initRepoPromises) ->
