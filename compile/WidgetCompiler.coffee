@@ -79,6 +79,8 @@ define [
 
       tmplPath = @widget.getPath()
 
+      # Determine if we compile main widget template (with the samne name) or additional one.
+      # For an additional template other dustjs name used and structure file is not needed
       if isMainTemplate
         tmplFullPath = "./#{ pathUtils.getPublicPrefix() }/bundles/#{ @widget.getTemplatePath() }"
       else
