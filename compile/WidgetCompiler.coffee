@@ -11,7 +11,6 @@ define [
   'path'
 ], (Future, _, dust, pathUtils, fs, path) ->
 
-
   dustPartialsPreventionCallback = (tmplPath, callback) ->
     ###
     Special callback for dust.onLoad to prevent loading of partials during widget compilation
@@ -91,14 +90,16 @@ define [
         amdSource = "define(['dustjs-helpers'], function(dust){#{ @compiledSource }});"
         tmplPromise = Future.call(fs.writeFile, "#{ tmplFullPath }.js", amdSource)
 
-        structFuture =
+        structPromise =
           if isMainTemplate
             if @widget.getPath() != '/cord/core//Switcher'
               dust.loadSource(@compiledSource)
               Future.call(dust.render, tmplPath, @getBaseContext().push(@widget.ctx)).then =>
                 Future.call(fs.writeFile, "#{ tmplFullPath }.struct.js", @getStructureCode(false, true))
             else
-              Future.resolved()
+              Future.call(fs.writeFile, "#{ tmplFullPath }.struct.js", 'define([],function(){return {};});')
+          else
+            Future.resolved()
 
         Future.all [tmplPromise, structPromise]
       .then ->
