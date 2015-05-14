@@ -376,7 +376,7 @@ define [
       @clearCallbacks()
 
 
-    renderAdditionalTemplate: () ->
+    renderAdditionalTemplate: ->
       ###
       Syntax sugar, look at Widget.renderAdditionalTemplate()
       ###
