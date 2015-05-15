@@ -27,7 +27,6 @@ define [
     _counter: 0
     _doneCallbacks: null
     _failCallbacks: null
-    _alwaysCallbacks: null
     _settledValue: undefined
 
     _locked: false
@@ -54,7 +53,6 @@ define [
       @_counter = initialCounter
       @_doneCallbacks = []
       @_failCallbacks = []
-      @_alwaysCallbacks = []
       @_name = name
 
       if longStackTraceEnabled
@@ -119,7 +117,6 @@ define [
             @_state = 'resolved' if @_locked
             @_clearUnhandledTracking() if unhandledSoftTracking and @_locked
             @_runDoneCallbacks() if @_doneCallbacks.length > 0
-            @_runAlwaysCallbacks() if @_alwaysCallbacks.length > 0
             @_clearFailCallbacks() if @_state == 'resolved'
             @_clearDebugTimeout() if unresolvedTrackingEnabled
           # not changing state to 'resolved' here because it is possible to call fork() again if done hasn't called yet
@@ -147,7 +144,6 @@ define [
           @_settledValue = reason ? new Error("Future[#{@_name}] rejected without error message!")
           @_clearDoneCallbacks()
           @_runFailCallbacks() if @_failCallbacks.length > 0
-          @_runAlwaysCallbacks() if @_alwaysCallbacks.length > 0
           @_clearDebugTimeout() if unresolvedTrackingEnabled
       else
         throw new Error(
@@ -253,13 +249,18 @@ define [
       Defines callback function to be called when future is completed by any mean.
       Callback arguments are using popular semantics with first-argument-as-an-error (Left) and other arguments
        are successful results of the future.
+      Returns a new promise completed with this promise result (successful or rejected) after the callback is executed.
+      Unlike `then` the callback cannot modify the resulting value with one exception:
+       if the callback throws error then the resulting promise is rejected with that error.
+      @param {Function} callback
+      @return {Future<Any>}
       ###
-      @_alwaysCallbacks.push(callback)
-      if @_counter == 0 or @_state == 'rejected'
-        @_clearDebugTimeout() if unresolvedTrackingEnabled
-        asapInContext(this, asapFinallyCb)
+      result = Future.single("#{@_name} -> finally")
+      result.withoutTimeout()  if @_noTimeout or not global.config?.debug.future.trackInternalTimeouts
+      @_done(finallyDoneCb, result, callback)
+      @_fail(finallyFailCb, result, callback)
       @_clearUnhandledTracking() if unhandledTrackingEnabled and callback.length > 0
-      this
+      result
 
 
     failAloud: (message) ->
@@ -431,20 +432,8 @@ define [
 
 
     andThen: (callback) ->
-      ###
-      Creates and returns a new future with the same result as this future but completed only after invoking
-       of the given callback-function. Callback is called on any result of the future.
-      Arguments of the callback has the same meaning as always()-callbacks.
-      This method allows for establishing order of callbacks.
-      @param Function(err, results...) callback
-      @return Future(this.result)
-      ###
-      result = Future.single("#{@_name} -> andThen")
-      result.withoutTimeout() if @_noTimeout or not global.config?.debug.future.trackInternalTimeouts
-      this.finally ->
-        callback.apply(null, arguments)
-        result.complete.apply(result, arguments)
-      result
+      console.trace 'DEPRECATION WARNING: Future.andThen alias is deprecated, use Future.finally instead!'
+      @finally(callback)
 
 
     zip: (those...) ->
@@ -537,26 +526,6 @@ define [
       Triggers execution of onRejected callbacks waiting for this promise.
       ###
       flushCallbackQueue(@_failCallbacks, @_settledValue)
-
-
-    _runAlwaysCallbacks: ->
-      ###
-      Fires resulting callback functions defined by always with right list of arguments.
-      ###
-      @_state = 'resolved' if @_state == 'pending'
-      callbacksCopy = @_alwaysCallbacks
-      @_alwaysCallbacks = []
-      @_completed = true
-
-      args =
-        if @_state == 'resolved'
-          # for successfully completed future we must add null-error first argument.
-          [null, @_settledValue]
-        else
-          # for rejected future there is no need to flatten argument as there is only one error.
-          [@_settledValue]
-
-      callback.apply(null, args) for callback in callbacksCopy
 
 
     # syntax-sugar constructors
@@ -714,7 +683,6 @@ define [
       return if this == preallocatedResolvedEmptyPromise
       @_clearDoneCallbacks()
       @_clearFailCallbacks()
-      @_alwaysCallbacks = []
       @_clearDebugTimeout() if unresolvedTrackingEnabled
       @_clearUnhandledTracking() if unhandledTrackingEnabled
       return
@@ -797,12 +765,6 @@ define [
     @_runFailCallbacks()
 
 
-  asapFinallyCb = ->
-    # see Future._finally
-    @_runAlwaysCallbacks()
-    @_clearFailCallbacks() if @_state == 'resolved'
-
-
   failAloudCb = (err, message) ->
     # see Future.failAloud
     reportArgs = ["Future(#{@_name})::failAloud#{ if message then " with message: #{message}" else '' }"]
@@ -835,6 +797,40 @@ define [
       @resolve(res)
     else
       @resolve(res)
+    return
+
+
+  finallyDoneCb = (value, fn) ->
+    # see Future.finally
+    prevContextPromise = currentContextPromise
+    currentContextPromise = this
+    res = tryCatch(fn).call(null, null, value)
+    currentContextPromise = prevContextPromise
+    if res == errorObj
+      if @completed()
+        throw res.e
+      else
+        @reject(res.e)
+    else
+      @resolve(value)
+    return
+
+
+  finallyFailCb = (reason, fn) ->
+    # see Future.finally
+    prevContextPromise = currentContextPromise
+    currentContextPromise = this
+    res = tryCatch(fn).call(null, reason)
+    currentContextPromise = prevContextPromise
+    if res == errorObj
+      if @completed()
+        throw res.e
+      else
+        @reject(res.e)
+    else
+      # doesn't need to take responsibility for the parent promise's error
+      @_clearUnhandledTracking()  if unhandledTrackingEnabled
+      @reject(reason)
     return
 
 
@@ -980,7 +976,7 @@ define [
               if state == 'rejected'
                 err = info.promise._settledValue
                 reportArgs.push("\n#{err}")
-                reportArgs.push("\n" + filterStack(err.stack))
+                reportArgs.push("\n" + filterStack(err.stack))  if err.stack
                 recCollectLongStackTrace(info.promise, reportArgs)
               cons().warn.apply(cons(), reportArgs)
             delete unhandledMap[id]

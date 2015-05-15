@@ -578,7 +578,7 @@ define [
 
         @_lastSetParams = Future.single()
 
-        @_nextSetParamsCallback = =>
+        @_nextSetParamsCallback = ->
           if @_sentenced
             x = new errors.WidgetParamsRace("#{ @debug('setParamsSafe') } is called for sentenced widget!", 'notice')
             @_lastSetParams.reject(x)
@@ -588,6 +588,7 @@ define [
             .link(@_lastSetParams)
           @_nextSetParamsCallback = null
           @_lastSetParams = null
+          return
 
         @_lastSetParams
 

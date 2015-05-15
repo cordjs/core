@@ -33,18 +33,19 @@ define [
     reset: (name) ->
       ###
       Reset service.
+      @return {Future<undefined>}
       ###
       # reset pending service only after instantiation
-      promise = Future.single("Reset of '#{name}'")
       if _(@_pendingFactories).has(name)
-        @_pendingFactories[name].finally =>
+        @_pendingFactories[name].catch ->
+          return
+        .then =>
           delete @_instances[name]
           delete @_pendingFactories[name]
-          promise.resolve()
+          return
       else
         delete @_instances[name]
-        promise.resolve()
-      promise
+        Future.resolved()
 
 
     set: (name, instance) ->

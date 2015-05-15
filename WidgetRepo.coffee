@@ -424,7 +424,7 @@ define [
     bind: (widgetId) ->
       if @widgets[widgetId]?
         w = @widgets[widgetId].widget
-        w.initBehaviour().andThen ->
+        w.initBehaviour().finally ->
           w.markShown(ignoreChildren = true)
       else
         Future.rejected(new Error("Try to use uninitialized widget with id = #{widgetId}"))
