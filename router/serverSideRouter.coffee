@@ -168,13 +168,13 @@ define [
                       Utils.buildErrorWidgetParams(err, rootWidgetPath, params)
                       false
                     ).catch (nestedErr) =>
-                      console.error('Error handling failed because of: ', nestedErr, nestedErr.stack)
-                      console.error('Original error: ', err, err.stack)
+                      _console.error('Error handling failed because of: ', nestedErr, nestedErr.stack)
+                      _console.error('Original error: ', err, err.stack)
                       throw nestedErr
                   else
                     throw err
                 .catchIf (-> catchError), (err) ->
-                  console.error "FATAL ERROR: server-side rendering failed! Reason:", err, err.stack
+                  _console.error "FATAL ERROR: server-side rendering failed! Reason:", err, err.stack
                   displayFatalError()
                 .finally ->
                   clear()
