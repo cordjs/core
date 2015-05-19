@@ -313,8 +313,6 @@ define [
       Implements 'then'-semantics to be compatible with standard JS Promise.
       Both arguments are optional but at least on of them must be defined!
       @param (optional)Function onResolved callback to be evaluated in case of successful resolving of the promise
-                                           This is the same as using of combination of map() or flatMap()
-                                           (depending of the callback's returned type).
                                            If the Future returned then it's result is proxied to the then-result Future.
                                            Returned Array is spread into same number of callback arguments.
                                            If exception is thrown then it's wrapped into rejected Future and returned.
@@ -486,29 +484,27 @@ define [
       @all(futureList, name)
 
 
-    @race: (futureList) ->
+    @any: (futureList) ->
       ###
       Returns new future which completes successfully when one of the given futures completes successfully (which comes
        first). Resulting future resolves with that first-completed future's result. All subsequent completing
        futures are ignored.
       Result completes with failure if all of the given futures fails.
-      @param Array[Future[X]] futureList
-      @return Future[X]
+      @param {Array<Future<Any>>} futureList
+      @return {Future<Any>}
       @todo maybe need to support noTimeout property of futureList promises
       ###
       result = @single(':race:')
       ready = false
       failCounter = futureList.length
       for f in futureList
-        do (f) ->
-          f.done ->
-            if not ready
-              result.when(f)
-              ready = true
-          .fail ->
-            failCounter--
-            if failCounter == 0
-              result.reject("All selecting futures have failed!")
+        f.done (value) ->
+          if not ready
+            ready = true
+            result.resolve(value)
+        .fail (err) ->
+          failCounter--
+          result.reject(err)  if failCounter == 0
       result
 
 
@@ -607,14 +603,14 @@ define [
       ###
       Convenient Future-wrapper for requirejs's require call.
       Returns promise with single module if single module is requested and promise with array of modules otherwise.
-      @param String* paths list of modules requirejs-format paths
+      @param {String*|Array<String>} paths - list of modules requirejs-format paths
       @return {Future<Any>} or {Future<Array<Any>>}
       ###
       paths = paths[0] if paths.length == 1 and _.isArray(paths[0])
       result = @single(':require:('+ paths.join(', ') + ')')
       require paths, ->
         try
-          result.resolve(if arguments.length == 1 then arguments[0] else [].slice.call(arguments, 0))
+          result.resolve(if arguments.length == 1 then arguments[0] else Array.prototype.slice.call(arguments, 0))
         catch err
           # this catch is needed to prevent require's error callbacks to fire when error is caused
           # by th result's callbacks. Otherwise we'll try to reject already resolved promise two lines below.
@@ -650,7 +646,6 @@ define [
       @_clearDebugTimeout()  if unresolvedTrackingEnabled
       @_noTimeout = true
       this
-
 
 
     _initDebugTimeout: ->
