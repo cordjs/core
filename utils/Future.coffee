@@ -208,6 +208,11 @@ define [
     _done: (cb, ctx, arg) ->
       ###
       Appends given callback to the resolved task queue and triggers its execution asynchronously if needed.
+      @param {Function} cb - callback function to be called when the promise completes successfully
+                             promise result value will be passed to the callback as a first argument
+      @param {Object|null} ctx - optional context (this) object to be used for the callback
+      @param {Any} arg - optional second argument to be passed to the callback function besides the promise result
+      @return {Future} this promise (for chaining)
       ###
       if @_state != 'rejected' and @_doneCallbacks
         addCallbackToQueue(@_doneCallbacks, cb, ctx, arg)
@@ -232,6 +237,11 @@ define [
     _fail: (cb, ctx, arg) ->
       ###
       Appends given callback to the failed task queue and triggers its execution asynchronously if needed.
+      @param {Function} cb - callback function to be called when the promise is rejected
+                             promise's reject reason will be passed to the callback as a first argument
+      @param {Object|null} ctx - optional context (this) object to be used for the callback
+      @param {Any} arg - optional second argument to be passed to the callback function besides the promise result
+      @return {Future} this promise (for chaining)
       ###
       if @_state != 'resolved' and @_failCallbacks
         addCallbackToQueue(@_failCallbacks, cb, ctx, arg)
