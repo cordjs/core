@@ -218,7 +218,7 @@ define [
         addCallbackToQueue(@_doneCallbacks, cb, ctx, arg)
         # queue length == 3 means that the above addition is the first task in the queue and the queue
         # is not in the process of execution (flushing) and it need to be triggered
-        if @_counter == 0 and (@_doneCallbacks.length == 3 or @_state == 'pending')
+        if @_counter == 0 and @_doneCallbacks.length == 3
           @_clearDebugTimeout()  if unresolvedTrackingEnabled
           asapInContext(this, asapDoneCb)
       this
