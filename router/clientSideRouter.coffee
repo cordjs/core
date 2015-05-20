@@ -64,10 +64,10 @@ define [
           @_currentPath = newPath
           true
         else
-          _console.warn("No widget for path #{newPath}", routeInfo)
+          console.warn("No widget for path #{newPath}", routeInfo, @routes)
           false
       else
-        _console.warn("No route for path #{newPath}", routeInfo)
+        console.warn("No route for path #{newPath}", routeInfo, @routes)
         false
 
 
