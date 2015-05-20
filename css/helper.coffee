@@ -58,9 +58,8 @@ define [
         optimized =
           for css in cssList
             css = normalizePath(css)
-            key = '/' + css
-            if cssToGroup[key]
-              "#{baseUrl}assets/z/#{cssToGroup[key]}.css"
+            if cssToGroup[css]
+              "#{baseUrl}assets/z/#{cssToGroup[css]}.css"
             else
               # anti-cache suffix is needed only for direct-links, not for the optimized groups
               "#{baseUrl}#{css}?release=#{global.config.static.release}"
@@ -75,7 +74,7 @@ define [
       @return String
       ###
       throw new Error("Css path: '#{shortPath}' is not a string.") if not _.isString(shortPath)
-      if shortPath.substr(0, 1) != '/' and shortPath.indexOf '//' == -1
+      if shortPath.charAt(0) != '/' and shortPath.indexOf '//' == -1
         # context of current widget
         shortPath += '.css' if shortPath.substr(-4) != '.css'
         "#{baseUrl}bundles/#{contextWidget.getDir()}/#{shortPath}"

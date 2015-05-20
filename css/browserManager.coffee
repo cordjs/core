@@ -10,15 +10,17 @@ define [
   head = doc.head || doc.getElementsByTagName('head')[0]
   a = doc.createElement('a')
 
+  baseUrl = if global.config?.localFsMode then '' else '/'
+
   normalizePath = (path) ->
     ###
-    Cuts query params from path
+    Cuts query params and leading slash from the css path
     ###
+    start = if path.charAt(0) == '/' then 1 else 0
     idx = path.lastIndexOf('?')
-    if idx == -1
-      path
-    else
-      path.substr(0, idx)
+    end = if idx == -1 then undefined else idx
+    path.substr(start, end)
+
 
   isLoaded = (url) ->
     # Get absolute url by assigning to a link and reading it back below
@@ -87,14 +89,14 @@ define [
       normPath = normalizePath(cssPath)
       if not @_loadedFiles[normPath]?
         if not @_cssToGroup[normPath]
-          @_loadedFiles[normPath] = @_loadCss("#{ cssPath }?release=#{ global.config.static.release }")
+          @_loadedFiles[normPath] = @_loadCss("#{ baseUrl }#{ normPath }?release=#{ global.config.static.release }")
           @_loadedFiles[normPath].then =>
             # memory optimization
             @_loadedFiles[normPath] = Future.resolved()
           @_loadingOrder.push(normPath)
         else
           groupId = @_cssToGroup[normPath]
-          loadPromise = @_loadCss("/assets/z/#{groupId}.css")
+          loadPromise = @_loadCss("#{baseUrl}assets/z/#{groupId}.css")
           @_loadedFiles[css] = loadPromise for css in @_groupToCss[groupId]
           loadPromise.then =>
             # memory optimization
@@ -113,7 +115,7 @@ define [
       that = this
       $("head > link[rel='stylesheet']").each -> # cannot use fat-arrow here!!
         normPath = normalizePath($(this).attr('href'))
-        if result = normPath.match /\/assets\/z\/([^\.]+)\.css$/
+        if result = normPath.match /assets\/z\/([^\.]+)\.css$/
           groupId = result[1]
           that._loadedFiles[css] = true for css in that._groupToCss[groupId]
         else
