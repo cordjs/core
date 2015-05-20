@@ -792,6 +792,13 @@ define [
       @_clearUnhandledTracking() if unhandledTrackingEnabled
 
 
+    toJSON: ->
+      ###
+      Serialization of promises is not supported.
+      ###
+      null
+
+
     # debugging
 
     _initUnhandledTracking: ->
