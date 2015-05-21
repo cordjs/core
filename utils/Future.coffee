@@ -41,6 +41,9 @@ define [
     # parent promise. Set according to `then` callback context when promise is created
     _parent: null
 
+    # context object (this) for the promise callbacks set using `bind` method
+    _boundTo: undefined
+
 
     constructor: (initialCounter = 0, name = ':noname:') ->
       ###
@@ -202,7 +205,7 @@ define [
       If all waiting values are already resolved then callback is fired immedialtely.
       If done method is called several times than all passed functions will be called.
       ###
-      @_done(callback)
+      @_done(callback, @_boundTo)
 
 
     _done: (cb, ctx, arg) ->
@@ -231,7 +234,7 @@ define [
       If fail method is called several times than all passed functions will be called.
       ###
       throw new Error("Invalid argument for Future.fail(): #{ callback }. [#{@_name}]") if not _.isFunction(callback)
-      @_fail(callback)
+      @_fail(callback, @_boundTo)
 
 
     _fail: (cb, ctx, arg) ->
@@ -266,6 +269,7 @@ define [
       @return {Future<Any>}
       ###
       result = Future.single("#{@_name} -> finally")
+      result._boundTo = @_boundTo
       result.withoutTimeout()  if @_noTimeout or not global.config?.debug.future.trackInternalTimeouts
       @_done(finallyDoneCb, result, callback)
       @_fail(finallyFailCb, result, callback)
@@ -318,6 +322,29 @@ define [
       this
 
 
+    bind: (thisArg) ->
+      ###
+      Creates a promise that follows this promise, but is bound to the given thisArg value.
+      A bound promise will call its handlers with the bound value set to this. Additionally promises derived
+       from a bound promise will also be bound promises with the same thisArg binding as the original promise.
+      If thisArg is a Future, its resolution will be awaited for and the bound value will be the promise's
+       fulfillment value. If thisArg rejects then the returned promise is rejected with the thisArg's rejection reason.
+      Note that this means you cannot use this without checking inside catch handlers for promises that bind to promise
+       because in case of rejection of thisArg, this will be undefined
+      @param {Object} thisArg
+      @return {Future<thisFutureType>}
+      ###
+      result = Future.single("#{@_name} -> bind")
+      if thisArg instanceof Future
+        thisArg._done(bindResolvedCb, this, result)
+        thisArg._fail(@reject, result)
+      else
+        result._boundTo = thisArg
+        @_done(@resolve, result)
+        @_fail(@reject, result)
+      result
+
+
     then: (onResolved, onRejected, _nameSuffix = 'then') ->
       ###
       Implements 'then'-semantics to be compatible with standard JS Promise.
@@ -335,6 +362,7 @@ define [
       if not onResolved? and not onRejected?
         _nameSuffix = 'then(empty)'
       result = Future.single("#{@_name} -> #{_nameSuffix}")
+      result._boundTo = @_boundTo
       result.withoutTimeout() if @_noTimeout or not global.config?.debug.future.trackInternalTimeouts
       if typeof onResolved == 'function'
         @_done(thenHandleCb, result, onResolved)
@@ -381,11 +409,20 @@ define [
 
     spread: (onResolved, onRejected) ->
       ###
-      Like then but expands Array result of the Future to the multiple arguments of the onResolved function call.
+      Like then but expands Array result of the Future to the multiple arguments of the onResolved or onRejected function call.
       ###
-      this.then (array) ->
-        onResolved.apply(null, array)
-      , onRejected
+      result = Future.single("#{@_name} -> spread")
+      result._boundTo = @_boundTo
+      result.withoutTimeout() if @_noTimeout or not global.config?.debug.future.trackInternalTimeouts
+      if typeof onResolved == 'function'
+        @_done(spreadHandleCb, result, onResolved)
+      else
+        @_done(@resolve, result)
+      if typeof onRejected == 'function'
+        @_fail(spreadHandleCb, result, onRejected)
+      else
+        @_fail(@reject, result)
+      result
 
 
     map: (callback) ->
@@ -786,7 +823,7 @@ define [
     # see Future.then
     prevContextPromise = currentContextPromise
     currentContextPromise = this
-    res = tryCatch(fn).call(null, value)
+    res = tryCatch(fn).call(@_boundTo, value)
     currentContextPromise = prevContextPromise
     if res == errorObj
       if @completed()
@@ -797,7 +834,30 @@ define [
       @when(res)
     else if _.isArray(res)
       if res.length == 1 and _.isArray(res[0]) and not res.__canHaveLengthOne
-        cons().warn "DEPRECATION WARNING: returning of array in array as 'then' callback result hack detected for promise with name '#{@_name}'. This behaviour is deprecated, return just array without any wrapper!", this._stack
+        cons().warn "DEPRECATION WARNING: returning of array in array as promise callback result hack detected for promise with name '#{@_name}'. This behaviour is deprecated, return just array without any wrapper!", this._stack
+        res = res[0]
+      @resolve(res)
+    else
+      @resolve(res)
+    return
+
+
+  spreadHandleCb = (value, fn) ->
+    # see Future.spread
+    prevContextPromise = currentContextPromise
+    currentContextPromise = this
+    res = tryCatch(fn).apply(@_boundTo, value)
+    currentContextPromise = prevContextPromise
+    if res == errorObj
+      if @completed()
+        throw res.e
+      else
+        @reject(res.e)
+    else if res instanceof Future
+      @when(res)
+    else if _.isArray(res)
+      if res.length == 1 and _.isArray(res[0]) and not res.__canHaveLengthOne
+        cons().warn "DEPRECATION WARNING: returning of array in array as promise callback result hack detected for promise with name '#{@_name}'. This behaviour is deprecated, return just array without any wrapper!", this._stack
         res = res[0]
       @resolve(res)
     else
@@ -809,7 +869,7 @@ define [
     # see Future.finally
     prevContextPromise = currentContextPromise
     currentContextPromise = this
-    res = tryCatch(fn).call(null, null, value)
+    res = tryCatch(fn).call(@_boundTo, null, value)
     currentContextPromise = prevContextPromise
     if res == errorObj
       if @completed()
@@ -825,7 +885,7 @@ define [
     # see Future.finally
     prevContextPromise = currentContextPromise
     currentContextPromise = this
-    res = tryCatch(fn).call(null, reason)
+    res = tryCatch(fn).call(@_boundTo, reason)
     currentContextPromise = prevContextPromise
     if res == errorObj
       if @completed()
@@ -837,6 +897,13 @@ define [
       @_clearUnhandledTracking()  if unhandledTrackingEnabled
       @reject(reason)
     return
+
+
+  bindResolvedCb = (resolvedThisArg, result) ->
+    # see Future.bind
+    result._boundTo = resolvedThisArg
+    @_done(@resolve, result)
+    @_fail(@reject, result)
 
 
   ##

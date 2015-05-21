@@ -208,10 +208,10 @@ define [
       ###
       @_cssPromise =
         if not restoreMode
-          Future.require('cord!css/browserManager').then (cssManager) =>
+          Future.require('cord!css/browserManager').bind(this).then (cssManager) ->
             promises = (cssManager.load(cssFile) for cssFile in @::getCssFiles())
             Future.all(promises)
-          .then =>
+          .then ->
             # memory optimization
             @_cssPromise = Future.resolved()
             return
@@ -662,10 +662,10 @@ define [
       @final
       @return Future(String)
       ###
-      @setParamsSafe(params).then =>
+      @setParamsSafe(params).bind(this).then ->
         widgetTrace "#{ @debug 'show' } -> params:", params, " context:", @ctx
         @_handleOnShow()
-      .then =>
+      .then ->
         @renderTemplate(domInfo)
 
 
@@ -735,9 +735,9 @@ define [
       ###
       widgetTrace "#{ @debug 'inject' }", params
 
-      @setParamsSafe(params).then =>
+      @setParamsSafe(params).bind(this).then ->
         Future.all([@getStructTemplate(), @_handleOnShow()])
-      .spread (tmpl) =>
+      .spread (tmpl) ->
 
         @_resetWidgetReady()
         @_behaviourContextBorderVersion = null
@@ -761,7 +761,7 @@ define [
               Future.require('jquery')
               tmpl.replacePlaceholders(extendWidgetInfo.widget, extendWidget.ctx[':placeholders'], transition)
             ]
-            .spread ($) =>
+            .bind(this).spread ($) ->
               # if there are inlines owned by this widget
               if @_inlinesRuntimeInfo.length
                 $el = $()
@@ -775,16 +775,16 @@ define [
                 .done => @markShown()
 
               readyPromise
-            .then =>
+            .then ->
               @_inlinesRuntimeInfo = null
               extendWidget
 
           # if not extendsWidget? (if it's a new widget in extend tree)
           else
             tmpl.getWidget(extendWidgetInfo.widget).then (extendWidget) =>
-              @resolveParamRefs(extendWidget, extendWidgetInfo.params).then (params) =>
+              @resolveParamRefs(extendWidget, extendWidgetInfo.params).bind(this).then (params) ->
                 extendWidget.inject(params, commonExistingWidget, transition)
-              .then (commonBaseWidget) =>
+              .then (commonBaseWidget) ->
                 @browserInit(extendWidget).done => @markShown()
                 commonBaseWidget
         else
@@ -806,13 +806,13 @@ define [
       # Widget can be re-rendered, so, we should cleanup all children
       @cleanChildren()
 
-      result = @getStructTemplate().then (tmpl) =>
+      result = @getStructTemplate().bind(this).then (tmpl) ->
         if tmpl.isExtended()
           @_renderExtendedTemplate(tmpl, domInfo)
         else
           @_renderSelfTemplate(domInfo)
 
-      @_renderPromise = savedRenderPromise = result.then =>
+      @_renderPromise = savedRenderPromise = result.then ->
         # memory optimization
         @_renderPromise = Future.resolved()  if @_renderPromise == savedRenderPromise
         return # do not keep rendered template string to allow GC
@@ -1620,27 +1620,27 @@ define [
       behaviourClass = @getBehaviourClass()
 
       if behaviourClass
-        Future.require("cord!/#{ @getDir() }/#{ behaviourClass }", 'cord!Behaviour').spread (BehaviourClass, Behaviour) =>
+        Future.require("cord!/#{ @getDir() }/#{ behaviourClass }", 'cord!Behaviour').bind(this).spread (BehaviourClass, Behaviour) ->
           if not @_sentenced
             # TODO: move this check to the build phase
             if BehaviourClass.prototype instanceof Behaviour
               @behaviour = savedBehaviour = new BehaviourClass(this, $domRoot)
-              @container.injectServices(@behaviour).then =>
+              @container.injectServices(@behaviour).bind(this).then ->
                 if not @_sentenced
                   @behaviour.init()
                 else
                   throw new errors.WidgetSentenced("Couldn't init behaviour #{BehaviourClass.__name} bacause widget is sentenced!")
               # .link call is not acceptable here, because we should guarantee that behaviour's _initPromise callbacks
               #  (they define event handlers) run before stashed events are replayed
-              .then =>
+              .then ->
                 @behaviour._initPromise.resolve()  if @behaviour == savedBehaviour # behaviour could be dropped
                 return
-              .catch (err) =>
+              .catch (err) ->
                 @behaviour._initPromise.reject(err)  if @behaviour == savedBehaviour # behaviour could be dropped
                 throw err
             else
               throw new Error("WRONG BEHAVIOUR CLASS: #{behaviourClass}")
-        .catch (err) =>
+        .catch (err) ->
           if not err.isCordInternal
             _console.error "#{ @debug 'initBehaviour' } --> error occurred while loading behaviour:", err
             postal.publish 'error.notify.publish',
@@ -1727,13 +1727,13 @@ define [
             selfInitBehaviour = true
 
           savedPromiseForTimeoutCheck = @_widgetReadyPromise
-          Future.all(readyConditions).then =>
+          Future.all(readyConditions).bind(this).then ->
             if @_browserInitDebugTimeout
               clearTimeout(@_browserInitDebugTimeout)
               @_browserInitDebugTimeout = null
             return # leave _widgetReadyPromise clean to ease GC
           .link(@_widgetReadyPromise)
-          .then =>
+          .then ->
             @emit 'render.complete'
             # memory optimization
             @_widgetReadyPromise = Future.resolved() if @_widgetReadyPromise == savedPromiseForTimeoutCheck
