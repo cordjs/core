@@ -66,7 +66,8 @@ define [
         else
           false
       else
-        console.warn("No route for path. Path: #{newPath}, routeInfo: #{JSON.stringify(routeInfo)}, routes: #{JSON.stringify(@routes)}")
+        Future.rejected(new Error("No route for path. Path: #{newPath}, routeInfo: #{JSON.stringify(routeInfo)}, routes: #{JSON.stringify(@routes)}")).failAloud()
+        console.trace("No route for path. Path: #{newPath}, routeInfo: #{JSON.stringify(routeInfo)}, routes: #{JSON.stringify(@routes)}")
         false
 
 
