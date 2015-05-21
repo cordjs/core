@@ -17,7 +17,7 @@ define [
     Cuts query params and leading slash from the css path
     ###
     start = if path.charAt(0) == '/' then 1 else 0
-    idx = path.lastIndexOf('?')
+    idx = path.indexOf('?')
     end = if idx == -1 then undefined else idx
     path.substr(start, end)
 
