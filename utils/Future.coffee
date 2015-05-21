@@ -737,6 +737,13 @@ define [
       null
 
 
+    toJSON: ->
+      ###
+      Serialization of promises is not supported.
+      ###
+      null
+
+
     # debugging
 
     _initUnhandledTracking: ->

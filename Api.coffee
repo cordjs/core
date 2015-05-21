@@ -391,6 +391,5 @@ define [
               e.params = params
               e.statusCode = response.statusCode
               e.statusText = response.statusText
-              e.originalError = e
               throw e
       .rename("Api::_doRequest(#{method}, #{url})")

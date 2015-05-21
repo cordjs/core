@@ -4,13 +4,16 @@ define [
 
   class ErrorHelper
 
-    @inject: ['translator']
+    @inject: ['translator', 'config']
 
     getMessageHr: (error) ->
-      @translator.translate2(
+      message = @translator.translate2(
         if error instanceof httpErrors.Network
           'Network error'
         else
           'Common error'
         context: 'errors'
       )
+      message += ": #{error.message}" if @config.debug.showMobileErrors
+
+      message

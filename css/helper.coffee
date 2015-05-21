@@ -25,7 +25,7 @@ define [
           if global.config.browserInitScriptId
             Future.require('fs').then (fs) ->
               r = Future.single()
-              fs.exists 'conf/css-to-group-generated.js', (exists) ->
+              fs.exists 'target/conf/css-to-group-generated.js', (exists) ->
                 r.resolve(exists)
               r
             .then (exists) ->
@@ -57,11 +57,12 @@ define [
       @_getCssToGroup().then (cssToGroup) =>
         optimized =
           for css in cssList
+            css = normalizePath(css)
             if cssToGroup[css]
               "#{baseUrl}assets/z/#{cssToGroup[css]}.css"
             else
               # anti-cache suffix is needed only for direct-links, not for the optimized groups
-              "#{css}?release=#{global.config.static.release}"
+              "#{baseUrl}#{css}?release=#{global.config.static.release}"
         _.map(_.uniq(optimized), @getHtmlLink).join('')
 
 
@@ -73,7 +74,7 @@ define [
       @return String
       ###
       throw new Error("Css path: '#{shortPath}' is not a string.") if not _.isString(shortPath)
-      if shortPath.substr(0, 1) != '/' and shortPath.indexOf '//' == -1
+      if shortPath.charAt(0) != '/' and shortPath.indexOf '//' == -1
         # context of current widget
         shortPath += '.css' if shortPath.substr(-4) != '.css'
         "#{baseUrl}bundles/#{contextWidget.getDir()}/#{shortPath}"
@@ -96,6 +97,17 @@ define [
             relativePath += '.css' if relativePath.substr(-4) != '.css'
 
           "#{baseUrl}bundles#{info.bundle}/widgets/#{relativePath}"
+
+
+
+  normalizePath = (path) ->
+    ###
+    Cuts query params and leading slash from the css path
+    ###
+    start = if path.charAt(0) == '/' then 1 else 0
+    idx = path.lastIndexOf('?')
+    end = if idx == -1 then undefined else idx
+    path.substr(start, end)
 
 
   new Helper
