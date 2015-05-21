@@ -51,10 +51,7 @@ define [
           _console.warn("Api.prepareAuth failed because of:", e)
           false
 
-    console.warn("browserInit::init #{window.location.href}")
-
     configInitFuture = AppConfigLoader.ready().then (appConfig) ->
-      console.warn("browserInit::init::clientSideRouter: #{JSON.stringify(appConfig.routes)}")
       clientSideRouter.addRoutes(appConfig.routes)
       clientSideRouter.addFallbackRoutes(appConfig.fallbackRoutes)
       for serviceName, info of appConfig.services
