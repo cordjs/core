@@ -19,7 +19,7 @@ define [
     start = if path.charAt(0) == '/' then 1 else 0
     idx = path.indexOf('?')
     end = if idx == -1 then undefined else idx
-    path.substr(start, end)
+    path.slice(start, end)
 
 
   isLoaded = (url) ->
