@@ -40,6 +40,7 @@ define [
         services = {}
         fallbackRoutes = {}
         fallbackApiErrors = {}
+        proxyRoutes = []
 
         processRoutes = (source, destination, bundle) ->
           for route, params of source
@@ -50,7 +51,15 @@ define [
           # todo: may be it should be reported when there are duplicate routes?
           _.extend(destination, source)
 
+        fatalErrorPageFile = undefined
+
         for config, i in args
+          if config.proxyRoutes
+            if _.isArray(config.proxyRoutes)
+              proxyRoutes = proxyRoutes.concat(config.proxyRoutes)
+            else
+              proxyRoutes.push(config.proxyRoutes)
+
           if config.fallbackRoutes?
             processRoutes config.fallbackRoutes, fallbackRoutes, application[i]
 
@@ -83,11 +92,18 @@ define [
             for error, fallback of config.fallbackApiErrors
               fallbackApiErrors[error] = fallback
 
+          fatalErrorPageFile = config.fatalErrorPageFile  if config.fatalErrorPageFile
+          errorWidget = config.errorWidget if config.errorWidget
+
         AppConfigLoader._promise.resolve
           routes: routes
           services: services
           fallbackRoutes: fallbackRoutes
           fallbackApiErrors: fallbackApiErrors
+          fatalErrorPageFile: fatalErrorPageFile
+          errorWidget: errorWidget
+          proxyRoutes: proxyRoutes
+
 
     # start loading immediately on class loading
     @_load()

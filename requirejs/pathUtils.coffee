@@ -4,7 +4,7 @@ define ->
 
   class PathUtils
 
-    _publicPrefix: 'preved'
+    _publicPrefix: 'preved' # Medved
 
     setPublicPrefix: (prefix) ->
       @_publicPrefix = prefix

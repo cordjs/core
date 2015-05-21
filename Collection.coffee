@@ -1,16 +1,15 @@
 define [
   'cord!isBrowser'
   'cord!Module'
+  'cord!errors'
   'cord!utils/Defer'
   'cord!utils/Future'
   'monologue' + (if CORD_IS_BROWSER then '' else '.js')
   'underscore'
-], (isBrowser, Module, Defer, Future, Monologue, _) ->
+], (isBrowser, Module, errors, Defer, Future, Monologue, _) ->
 
-  class ModelNotExists extends Error
-
-    constructor: (@message) ->
-      @name = 'ModelNotExists'
+  class ModelNotExists extends errors.CordError
+    name: 'ModelNotExists'
 
 
   class Collection extends Module
@@ -22,6 +21,7 @@ define [
     _filterId: null
     _filterParams: null # params for filter
     _filterFunction: null
+    _reportConfig: null
 
     _defaultRefreshPages: 3 #default amount of pages to refresh
 
@@ -156,6 +156,7 @@ define [
       filterId = options.filterId ? ''
       filterParams = options.filterParams ? ''
       filterParams = filterParams.join(',') if _.isArray(filterParams)
+      reportConfig = options.reportConfig ? ''
       filter = _.reduce options.filter , (memo, value, index) ->
         memo + index + '_' + value
       , ''
@@ -173,7 +174,9 @@ define [
       id = options.id ? 0
       pageSize = if options.pageSize then options.pageSize else ''
 
-      collectionVersion = global.config.static.collection
+      collectionVersion = global.config.static.release
+
+      emitOnAny = if options._emitChangeOnAny then 'emitOnAny' else 'notEmitOnAny'
 
       tagz = if options.tags then _.keys(options.tags).sort().join('_') else ''
 
@@ -186,11 +189,13 @@ define [
         filterId
         filterParams
         filter
+        reportConfig
         orderBy
         id
         requestOptions
         pageSize
         tagz
+        emitOnAny
       ].join('|').replace(/\:/g, '')
 
 
@@ -205,6 +210,7 @@ define [
       @_filterType = options.filterType ? ':backend'
       @_fields = options.fields ? []
       @_reconnect = options.reconnect ? false
+      @_emitChangeOnAny = options.emitChangeOnAny ? false
 
       if options.model
         @_fillModelList [options.model]
@@ -217,17 +223,16 @@ define [
         @_orderBy = options.orderBy ? null
         @_filterId = options.filterId ? null
         @_filterParams = options.filterParams ? null
+        @_reportConfig = options.reportConfig ? null
         @_id = options.id ? 0
         @_filter = options.filter ? {}
         @_pageSize = options.pageSize ? 0
 
-        @_fillModelList(options.models, options.start, options.end) if _.isArray(options.models)
+        @_fillModelList(_.values(options.models), options.start, options.end) if options.models
 
       #special case - fixed collections, when model are already provided and we have no need to do anything with them
       if options.fixed && options.models
         @_fixed = true
-        @_byId = options.models
-        @_models = _.values options.models
 
       @_requestParams = options.requestParams ? {}
       @_tags = {}
@@ -371,6 +376,8 @@ define [
                                                    sync in background
                                           :cache - return cached collection if initialized (without syncing),
                                                    or perform like :sync otherwise
+                                          :cache-only - return cached collection if initialized (without syncing),
+                                                        or reject otherwise
       @param (optional)Int start starting position of the required range
       @param (optional)Int end ending position of the required range
       @param (optional)Function(this) callback callback to call on sync completion depending on the return mode.
@@ -385,7 +392,7 @@ define [
         start = end = undefined
       returnMode = ':cache' if returnMode == ':cache-async'
       returnMode ?= ':sync'
-      cacheMode = (returnMode == ':cache')
+      cacheMode = (returnMode == ':cache' or returnMode == ':cache-only')
 
       # Special case - fixed collection
       if @_fixed
@@ -401,52 +408,71 @@ define [
       # special promise for cache mode to avoid running remote sync if unnecessary
       activateSyncPromise = Future.single('Collection::sync activateSyncPromise')
       activateSyncPromise.resolve(true) if not cacheMode
+      cacheCompletedPromise = Future.single('Collection::sync cacheCompletedPromise')
 
       if not @_initialized
         # try to load local storage cache only when syncing first time
-        @_getModelsFromLocalCache(start, end, rangeAdjustPromise).done (models, syncStart, syncEnd) =>
+        @_getModelsFromLocalCache(start, end, rangeAdjustPromise).spread (models, syncStart, syncEnd) =>
           Defer.nextTick => # give remote sync a chance
             if not firstResultPromise.completed()
               @_fillModelList(models, syncStart, syncEnd) if not @_initialized # the check is need in case of parallel cache trial
               firstResultPromise.resolve(this)
           activateSyncPromise.resolve(false) if cacheMode # remote sync is not necessary in :cache mode
-        .fail (error) =>
-          activateSyncPromise.resolve(true) if cacheMode # cache failed, need to remote sync even in :cache mode
+          true
+        .catch ->
+          if returnMode == ':cache-only'
+            activateSyncPromise.resolve(false)
+          else if cacheMode
+            activateSyncPromise.resolve(true) # cache failed, need to remote sync even in :cache mode
+          false
+        .link(cacheCompletedPromise)
       else # if @_initialized
-        rangeAdjustPromise.resolve(start, end)
+        rangeAdjustPromise.resolve([start, end])
         if cacheMode
           # in :cache mode we need to check if requested range is already loaded into the collection's payload
           if start? and end?
             if start >= @_loadedStart and end <= @_loadedEnd
               activateSyncPromise.resolve(false)
               firstResultPromise.resolve(this)
+              cacheCompletedPromise.resolve(true)
             else
-              activateSyncPromise.resolve(true)
+              activateSyncPromise.resolve(returnMode != ':cache-only')
+              cacheCompletedPromise.resolve(false)
+              firstResultPromise.resolve(this) if returnMode == ':cache-only'
           else
             if @_hasLimits == false
               activateSyncPromise.resolve(false)
               firstResultPromise.resolve(this)
+              cacheCompletedPromise.resolve(true)
             else
               activateSyncPromise.resolve(true)
+              cacheCompletedPromise.resolve(false)
+              firstResultPromise.resolve(this) if returnMode == ':cache-only'
+        else
+          cacheCompletedPromise.resolve(false) # not used, only to avoid future timeout
 
       # sync with backend
       # special promise for :sync mode completion
       syncPromise = activateSyncPromise.then (activate) =>
         if activate
           # wait for range adjustment from the local cache
-          rangeAdjustPromise.then (syncStart, syncEnd) =>
+          rangeAdjustPromise.spread (syncStart, syncEnd) =>
             @_enqueueQuery(syncStart, syncEnd) # avoid repeated refresh-query
           .then =>
             firstResultPromise.resolve(this) if not firstResultPromise.completed()
             this
         else
           this
+      .catch (err) ->
+        firstResultPromise.reject(err) if not firstResultPromise.completed()
+        throw err
 
       # handling different behaviours of return modes
       resultPromise = Future.single('Collection::sync resultPromise')
       switch returnMode
         when ':sync' then resultPromise.when(syncPromise)
         when ':async'
+          syncPromise.failOk()
           if start? and end?
             if start >= @_loadedStart and end <= @_loadedEnd
               resultPromise.resolve(this)
@@ -459,6 +485,13 @@ define [
               resultPromise.when(firstResultPromise)
         when ':now' then resultPromise.resolve(this)
         when ':cache' then resultPromise.when(firstResultPromise)
+        when ':cache-only'
+          cacheCompletedPromise.then (cacheHit) =>
+            if cacheHit
+              firstResultPromise
+            else
+              throw new Error('Cache sync failed in :cache-only mode')
+          .link(resultPromise)
 
       resultPromise.done =>
         callback?(this)
@@ -500,8 +533,6 @@ define [
     toArray: ->
       # This method returns array of loaded models.
       # Warning! Probably you should not use this function for paged collections, but getPage()
-      if @_pageSize > 0
-        _console.warn('Warning, collection.toArray() was used for paged collection!', @debug())
       @_models
 
 
@@ -578,15 +609,15 @@ define [
       Useful for potentilally huge collections
       ###
       # _console.log "#{ @repo.restResource } partialRefresh: (startPage=#{startPage}, maxPages=#{maxPages}, minRefreshInterval=#{minRefreshInterval})"
+      return Future.resolved(this) if @_fixed
+
       startPage = Number(startPage)
       maxPages = Number(maxPages)
 
       # This is actually for debugging purposes
       if isNaN(startPage) or isNaN(maxPages) or startPage < 1 or maxPages <1
-        return _console.error('collection.partialRefresh called with wront parameters startPage, maxPages',
-        startPage,
-        maxPages,
-        (new Error()).stack)
+        error =  new Error("collection.partialRefresh called with wront parameters startPage: #{startPage}, maxPages: #{maxPage}")
+        return Future.rejected(error)
 
       if minRefreshInterval >= 0 and @getLastQueryTimeDiff() > minRefreshInterval
         @_refreshInProgress = true
@@ -594,6 +625,8 @@ define [
           @_fullReload()
         else
           @_simplePageRefresh(startPage, maxPages)
+      else
+        Future.resolved()
 
 
     refresh: (currentId, maxPages = @_defaultRefreshPages, minRefreshInterval = 0, emitModelChangeExcept = true) ->
@@ -608,13 +641,15 @@ define [
 
       #_console.log "#{ @repo.restResource } refresh: (currentId=#{currentId}, emitModelChangeExcept=#{emitModelChangeExcept}, maxPages=#{maxPages})"
 
+      return Future.resolved(this) if @_fixed
+
       # Try to catch some architectural errors
       if isNaN(Number(currentId))
-        _console.error('collection.refresh called with wrong parameter currentId', currentId, (new Error()).stack)
+        _console.error('collection.refresh called with wrong parameter currentId', currentId, new Error())
         return
 
       if maxPages < 1
-        _console.error('collection.refresh called with wrong parameter maxPages', maxPages, (new Error()).stack)
+        _console.error('collection.refresh called with wrong parameter maxPages', maxPages, new Error())
 
       return if not (minRefreshInterval >= 0 and @getLastQueryTimeDiff() > minRefreshInterval)
 
@@ -667,8 +702,9 @@ define [
       ###
       # _console.log "#{ @repo.restResource } _simplePageRefresh: (startPage=#{startPage}, maxPages=#{maxPages}, loadedPages=#{loadedPages}) ->"
       if startPage < 1 or maxPages < 1
-        _console.error('collection._simplePageRefresh got bad parameters.')
-
+        error = new Error('collection._simplePageRefresh got bad parameters.')
+        _console.error(error)
+        Future.rejected(error)
       else
         start = (startPage - 1) * @_pageSize
         end = startPage * @_pageSize - 1
@@ -679,6 +715,7 @@ define [
             @_simplePageRefresh(startPage + 1, maxPages, loadedPages + 1)
         else
           @_refreshInProgress = false
+          Future.resolved()
 
 
     _sophisticatedRefreshPage: (page, startPage, endPage, maxPages = @_defaultRefreshPages, direction = 'down', loadedPages = 0) ->
@@ -752,6 +789,7 @@ define [
         if @_hasLimits
           result.start = @_loadedStart
           result.end = @_loadedEnd
+        result.reportConfig = @_reportConfig if @_reportConfig?
       result
 
 
@@ -790,6 +828,11 @@ define [
 
       changedModels = {}
       changedModels[model.id] = model
+
+      if @_loadedStart > @_loadedEnd
+        @_loadedStart = @_loadedEnd = 0
+      else
+        @_loadedEnd++
 
       @emit 'change', {firstPage: modelPage, lastPage: modelPage, models: changedModels}
 
@@ -838,7 +881,7 @@ define [
 
       # This means that previously collection was empty and something new has arrived
 
-      oldListCount = @_models.length
+      oldListCount = 0
       oldList = _.clone(@_models)
 
       if (start? and end?) and (start < end)
@@ -849,15 +892,16 @@ define [
           return true
         ###
 
-        loadingStart = start
-        loadingEnd = end
+        loadingStart = oldListStart = start
+        loadingEnd = oldListEnd = end
         @_models = _.clone(@_models)
       else
-        loadingStart = 0
+        loadingStart = oldListStart = 0
+        oldListEnd = oldList.length - 1
         loadingEnd = newList.length - 1
         @_models = []
 
-      firstChangedIndex = oldListCount
+      firstChangedIndex = @_models.length
       lastChangedIndex = 0
 
       deleted = false
@@ -869,9 +913,14 @@ define [
       for item in newList
         newListIds[item.id] = item
 
-      for model in oldList
+      for i in [oldListStart..oldListEnd] by 1
+        model = oldList[i]
+
         # Бывает так, что в списке моделей есть пропуски... Надо с этим разобраться.
         continue if not model
+
+        oldListCount++
+
         if not newListIds[model.id]
           deletedModels[model.id] = model
           deleted = true
@@ -905,7 +954,7 @@ define [
       @_loadedStart = loadingStart if loadingStart < @_loadedStart
       if loadingEnd > @_loadedEnd
         @_loadedEnd = loadingEnd
-      else if loadingEnd =-1 and @_loadedEnd == -1
+      else if loadingEnd == -1 and @_loadedEnd == -1
         @_loadedEnd = 0
 
       @_reindexModels()
@@ -1049,7 +1098,6 @@ define [
       @param Int level internal counter of recursion level
       @return Boolean true if the destination object was changed
       ###
-
       result = false
 
       for key, val of src
@@ -1077,7 +1125,8 @@ define [
           if @_recursiveCompareAndChange(val, dst[key], level + 1)
             result = true
 
-        else if typeof val == typeof dst[key] and not _.isEqual(val, dst[key])
+        # typeof null == typeof {}, but we dont want it
+        else if typeof val == typeof dst[key] and val != null and dst[key] != null and not _.isEqual(val, dst[key])
           dst[key] = _.clone(val)
           result = true
 
@@ -1133,6 +1182,12 @@ define [
           isSourceModel = changeInfo._sourceModel == model
           if isSourceModel or modelHasReallyChanged
             @emit("model.#{ changeInfo.id }.change", model)
+            if @_emitChangeOnAny
+              if not @_globalChangeEmitRequired
+                Defer.nextTick =>
+                  @_globalChangeEmitRequired = false
+                  @emit('change', {})
+              @_globalChangeEmitRequired = true
 
 
     # paging related
@@ -1146,8 +1201,6 @@ define [
       @param (optional)Int lastPage number of the last page
       @return Future(Array[Model])
       ###
-
-      # _console.log("collection.getPage (firstPage=#{firstPage}, lastPage=#{lastPage})")
 
       if arguments.length == 1
         lastPage = firstPage
@@ -1164,15 +1217,12 @@ define [
         else
           @_models
 
-      promise = Future.single('Collection::getPage')
-
       #sometimes collection could be toren apart, check for this case
-      if @_loadedStart <= start and (@_loadedEnd >= end || @_totalCount == @_loadedEnd + 1) and @isConsistent((sliced = slice())) == true
-        promise.resolve(sliced)
+      (if @_loadedStart <= start and (@_loadedEnd >= end || @_totalCount == @_loadedEnd + 1) and @isConsistent((sliced = slice())) == true
+        Future.resolved(sliced)
       else
-        @sync ':async', start, end, =>
-          promise.resolve(slice())
-      promise
+        @sync(':async', start, end).then -> slice()
+      ).rename('Collection::getPage')
 
 
     getPagingInfo: (selectedId, refresh) ->
@@ -1215,7 +1265,7 @@ define [
         localCalculated = false
         if @_totalCount? && @_totalCount > 0
           if selectedId
-            if (m = @_byId[selectedId])?
+            if (m = @_byId[selectedId])? or @_totalCount == 0 # Empty collection is a valid collection as well
               index = @_models.indexOf(m)
               result.resolve
                 total: @_totalCount
@@ -1234,11 +1284,13 @@ define [
             pageSize: @_pageSize
             orderBy: @_orderBy
           params.selectedId = selectedId if selectedId
+
           if @_filterType == ':backend'
             params.filterId = @_filterId
             params.filterParams = @_filterParams if @_filterParams
 
           params.filter = @_filter if @_filter
+          params.reportConfig = @_reportConfig if @_reportConfig?
 
           @repo.paging(params).done (response) =>
             @_totalCount = if response then response.total else response
@@ -1296,7 +1348,7 @@ define [
           @_queryQueue.loadingStart = start = undefined
           @_queryQueue.loadingEnd = end = undefined
 
-      if ( not end? || (end - start > 50) ) && not @_id && not @repo._debugCanDoUnlimit
+      if ( not end? || (end - start > 5000) ) && not @_id && not @repo._debugCanDoUnlimit
         _console.warn 'ACHTUNG!!! Me bumped into unlimited query: end =', end, 'start =', start, @repo.restResource
 
       # detecting if there are queries in the queue which already cover required range
@@ -1344,6 +1396,7 @@ define [
               queryParams.filterParams = @_filterParams if @_filterParams
 
             queryParams.filter = @_filter if @_filter
+            queryParams.reportConfig = @_reportConfig if @_reportConfig?
             queryParams.start = start if start?
             queryParams.end = end  if end?
 
@@ -1365,7 +1418,7 @@ define [
           else
             # append or prepend - not triggering events
             @_fillModelList models, start, end
-            @repo.cacheCollection(this)
+            @repo.cacheCollection(this).failAloud(@debug('cacheCollection'))
 
           @_initialized = true
 
@@ -1376,6 +1429,9 @@ define [
             throw new Error("Inconsistent query queue: #{ queryList }, #{ waitForQuery }!")
 
           this
+#        .catch (error) =>
+#          _console.error "#{@constructor.__name}::_enqueueQuery() query failed:", error
+#          false
 
         waitForQuery =
           start: start
@@ -1458,34 +1514,34 @@ define [
           else if info.hasLimits != false
             loadLocalCache = false
 
-          rangeAdjustPromise.resolve(syncStart, syncEnd)
+          rangeAdjustPromise.resolve([syncStart, syncEnd])
 
           if loadLocalCache
             Defer.nextTick => # giving backend sync ability to start HTTP-request
-              @repo.getCachedCollectionModels(@name, @_fields).done (models) =>
-                @_firstGetModelsFromCachePromise.resolve(models, syncStart, syncEnd)
-              .fail (error) =>
-                @_firstGetModelsFromCachePromise.reject(error)
+              @repo.getCachedCollectionModels(@name, @_fields).then (models) ->
+                [models, syncStart, syncEnd]
+              .link(@_firstGetModelsFromCachePromise)
           else
-            @_firstGetModelsFromCachePromise.reject("Local cache is not applicable for this sync call!")
+            @_firstGetModelsFromCachePromise.reject(new Error('Local cache is not applicable for this sync call!'))
 
         .fail (error) => # getCachedCollectionInfo
-          rangeAdjustPromise.resolve(start, end)
+          rangeAdjustPromise.resolve([start, end])
           @_firstGetModelsFromCachePromise.reject(error)
 
         @_firstGetModelsFromCachePromise
 
       else
         resultPromise = Future.single('Collection::_getModelsFromLocalCache')
-        @_firstRangeAdjustPromise.done (syncStart, syncEnd) =>
+        @_firstRangeAdjustPromise.spread (syncStart, syncEnd) =>
           # in case of repeated async cache request we can use result of the first cache request only if it's range
           #  complies with the second requested range
           if syncStart <= start and syncEnd >= end
-            rangeAdjustPromise.resolve(syncStart, syncEnd)
+            rangeAdjustPromise.resolve([syncStart, syncEnd])
             resultPromise.when @_firstGetModelsFromCachePromise
           else
-            rangeAdjustPromise.resolve(start, end)
-            resultPromise.reject("Local cache doesn't contain requested range of models!")
+            rangeAdjustPromise.resolve([start, end])
+            resultPromise.reject(new Error("Local cache doesn't contain requested range of models!"))
+          return
         resultPromise
 
 
@@ -1497,6 +1553,7 @@ define [
       filterType: @_filterType
       filterId: @_filterId
       filterParams: @_filterParams
+      reportConfig: @_reportConfig
       orderBy: @_orderBy
       fields: @_fields
       start: @_loadedStart
@@ -1508,7 +1565,9 @@ define [
       pageSize: @_pageSize
       canonicalPath: @constructor.path ? null
       initialized: @_initialized
+      emitChangeOnAny: @_emitChangeOnAny
       _accessPoint: @_accessPoint
+      _fixed: !!@_fixed
 
 
     @fromJSON: (repo, name, obj) ->
@@ -1525,18 +1584,21 @@ define [
       collection._filterType = obj.filterType
       collection._filterParams = obj.filterParams
       collection._filterId = obj.filterId
+      collection._reportConfig = obj.reportConfig
       collection._orderBy = obj.orderBy
       collection._fields = obj.fields
       collection._setLoadedRange(start, obj.end)
       collection._hasLimits = obj.hasLimits
       collection._totalCount = obj.totalCount
       collection._filter = obj.filter
-      collection._requestParams = obj._requestParams
+      collection._requestParams = obj.requestParams
       collection._pageSize = obj.pageSize
+      collection._emitChangeOnAny = obj.emitChangeOnAny
       collection._accessPoint = obj._accessPoint
-
       collection._reindexModels()
+      collection.injectTags()
       collection._initialized = obj.initialized || (collection._models.length > 0)
+      collection._fixed = !!obj._fixed
 
       collection
 
@@ -1558,20 +1620,20 @@ define [
       _.isString(serialized) and serialized.substr(0, 12) == ':collection:'
 
 
-    @unserializeLink: (serialized, ioc, callback) ->
+    @unserializeLink: (serialized, ioc) ->
       ###
       Converts serialized link to collection to link of the collection instance from the model repository
-      @param String serialized
-      @param Box ioc service container needed to get model repository service by name
-      @param Function(Collection) callback "returning" callback
+      @param {String|Collection} serialized
+      @param {ServiceContainer} ioc -service container needed to get model repository service by name
+      @return {Future<Collection>}
       ###
       if serialized instanceof Collection
-        callback(serialized)
+        Future.resolved(serialized)
       else
         [repoClass, collectionName] = serialized.substr(12).split(':')
         repoServiceName = repoClass.charAt(0).toLowerCase() + repoClass.slice(1)
-        ioc.eval repoServiceName, (repo) ->
-          callback(repo.getCollection(collectionName))
+        ioc.getService(repoServiceName).then (repo) ->
+          repo.getCollection(collectionName)
 
 
     _setLoadedRange: (start, end) ->

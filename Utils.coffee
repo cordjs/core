@@ -1,7 +1,8 @@
 define [
   'cord!isBrowser'
   'underscore'
-], (isBrowser, _) ->
+  'lodash'
+], (isBrowser, _, _l) ->
 
   class Utils
 
@@ -65,6 +66,20 @@ define [
       source.replace /[&<>]/g, (tag) ->
         tags[tag] or tag
 
+
+    @unescapeTags = (input) ->
+      tags =
+        'amp': '&'
+        'lt': '<'
+        'gt': '>'
+        'nbsp': ' '
+        'quot': '"'
+        'laquo': '«'
+        'raquo': '»'
+
+      source = String(input)
+      regularExpression = new RegExp("&(#{Object.keys(tags).join('|')});", 'g')
+      source.replace regularExpression, (match, entity) -> tags[entity]
 
 
     @stripTags = (input, allowed) ->
@@ -156,8 +171,19 @@ define [
     @getIconColorById = (id) ->
       id = parseInt(id)
       id = 0 if isNaN(id)
+
       colors = ['#A6E8C7', '#FFDE8F', '#A9E1F2', '#F1B8C9', '#C7C9FA', '#C3EDAE']
+
       return colors[id % colors.length];
+
+
+    @getIconIndexById = (id) ->
+      id = parseInt(id)
+      id = 0 if isNaN(id)
+
+      colors = ['#A6E8C7', '#FFDE8F', '#A9E1F2', '#F1B8C9', '#C7C9FA', '#C3EDAE']
+
+      return (id % colors.length) + 1;
 
 
     @fixFirefoxEventOffset = (event) ->
@@ -213,3 +239,23 @@ define [
         when 2 then enc = enc.slice(0, -1) + '='
 
       enc
+
+
+    @substituteTemplate: (value, templates) ->
+      if _.isString(value)
+        for template,realValue of templates
+          value = value.replace(template, realValue)
+        value
+      else
+        undefined
+
+
+    @buildErrorWidgetParams: (error, originalWidget, originalWidgetParams) ->
+      ###
+      Single method for creation params of error widget
+      ###
+      error: error
+      original:
+        widget:
+          path: originalWidget
+          params: _l.cloneDeep(originalWidgetParams)

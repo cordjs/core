@@ -57,7 +57,9 @@ define [
 
 
     onTimerParamChange: (timer) ->
-      @ctx.set(isSlowestDisable: not timer.children)
+      @ctx.set
+        timer: timer
+        isSlowestDisable: not timer.children
 
 
     expandSlowestPath: ->

@@ -1,17 +1,20 @@
 define [
   'cord!AppConfigLoader'
+  'cord!errors'
   'cord!router/Router'
   'cord!ServiceContainer'
   'cord!WidgetRepo'
+  'cord!Utils'
   'cord!utils/DomInfo'
   'cord!utils/Future'
   'cord!utils/profiler/profiler'
   'cord!utils/sha1'
   'fs'
   if CORD_PROFILER_ENABLED then 'mkdirp' else undefined
-  'underscore'
+  'lodash'
   'url'
-], (AppConfigLoader, Router, ServiceContainer, WidgetRepo, DomInfo, Future, pr, sha1, fs, mkdirp, _, url) ->
+  'monologue' + (if CORD_IS_BROWSER then '' else '.js')
+], (AppConfigLoader, errors, Router, ServiceContainer, WidgetRepo, Utils, DomInfo, Future, pr, sha1, fs, mkdirp, _, url, Monologue) ->
 
   class ServerSideFallback
 
@@ -42,7 +45,7 @@ define [
 
       @_currentPath = req.url
 
-      routeInfo = pr.call(this, 'matchRoute', path.pathname) # timer name is constructed automatically
+      routeInfo = pr.call(this, 'matchRoute', path.pathname + path.search) # timer name is constructed automatically
 
       if routeInfo
         serverProfilerUid = @_initProfilerDump()
@@ -54,52 +57,56 @@ define [
         serviceContainer = new ServiceContainer
         serviceContainer.set 'container', serviceContainer
 
-        ###
-          Другого места получить из первых рук запрос-ответ нет
-        ###
-
         serviceContainer.set 'serverRequest', req
         serviceContainer.set 'serverResponse', res
+
         serviceContainer.set 'router', this
 
-        ###
-          Конфиги
-        ###
-        appConfig = _.clone(global.appConfig)
-        # second level crutch
-        appConfig.browser = _.clone(global.appConfig.browser)
-        appConfig.node = _.clone(global.appConfig.node)
+        # Prepare configs for particular request
+        appConfig = @prepareConfigForRequest(req)
 
-        appConfig.browser.calculateByRequest?(req)
-        appConfig.node.calculateByRequest?(req)
+        # monologue to debug mode
+        Monologue.debug = true if global.config.debug.monologue != undefined and global.config.debug.monologue
 
         widgetRepo = new WidgetRepo(serverProfilerUid)
 
         clear = =>
+          ###
+          Kinda GC after request processing
+          ###
           if serviceContainer?
             for serviceName in serviceContainer.getNames()
               if serviceContainer.isReady(serviceName)
                 serviceContainer.eval serviceName, (service) ->
-                  service.clear?()
+                  service.clear?() if _.isObject(service)
 
             serviceContainer.set 'router', null
             serviceContainer = null
           widgetRepo = null
 
         config = appConfig.node
-        loginUrl = config.api.loginUrl or 'user/login'
-        logoutUrl = config.api.logoutUrl or 'user/logout'
-        config.api.authenticateUserCallback = =>
-          if serviceContainer
-            response = serviceContainer.get 'serverResponse'
-            request = serviceContainer.get 'serverRequest'
-            if not (request.url.indexOf(loginUrl) >= 0 or request.url.indexOf(logoutUrl) >= 0)
-              @redirect("/#{loginUrl}/?back=#{request.url}", response)
-              clear()
-          false
+        global.config = config
 
         serviceContainer.set 'config', config
         serviceContainer.set 'appConfig', appConfig
+
+        config.api.authenticateUserCallback = =>
+          if serviceContainer
+            Future.all [
+              serviceContainer.getService('loginUrl')
+              serviceContainer.getService('logoutUrl')
+            ]
+            .spread (loginUrl, logoutUrl) =>
+              response = serviceContainer.get('serverResponse')
+              request = serviceContainer.get('serverRequest')
+              if not (request.url.indexOf(loginUrl) >= 0)
+                loginUrl = loginUrl.replace(/^\/|\/$/g, "")
+                @redirect("/#{loginUrl}/?back=#{if request.url.indexOf(logoutUrl) >= 0 then '' else request.url}", response)
+                clear()
+            .catch (error) ->
+              _console.error('Unable to obtain loginUrl or logoutUrl, please, check configs:' + error.trace())
+
+          false
 
         serviceContainer.set 'widgetRepo', widgetRepo
         widgetRepo.setServiceContainer(serviceContainer)
@@ -107,35 +114,86 @@ define [
         widgetRepo.setRequest(req)
         widgetRepo.setResponse(res)
 
+        res.setHeader('x-info', config.static.release) if config.static.release?
+
         eventEmitter = new @EventEmitter()
         fallback = new ServerSideFallback(eventEmitter, this)
 
         serviceContainer.set 'fallback', fallback
 
-        AppConfigLoader.ready().done (appConfig) ->
+        AppConfigLoader.ready().then (appConfig) ->
           pr.timer 'ServerSideRouter::defineServices', =>
             for serviceName, info of appConfig.services
               do (info) ->
-                serviceContainer.def serviceName, info.deps, (get, done) ->
-                  info.factory.call(serviceContainer, get, done)
+                throw new Error("Service '#{serviceName}' does not have a defined factory") if undefined == info.factory
+                throw new Error("Service '#{serviceName}' has invalid factory definition") if not _.isFunction(info.factory)
+                serviceContainer.def(serviceName, info.deps, info.factory.bind(serviceContainer))
+            serviceContainer.autoStartServices(appConfig.services)
 
           previousProcess = {}
 
-          processWidget = (rootWidgetPath, params) =>
+          processWidget = (rootWidgetPath, params, catchError = true) ->
             pr.timer 'ServerSideRouter::showWidget', ->
-              widgetRepo.createWidget(rootWidgetPath).then (rootWidget) ->
-                rootWidget._isExtended = true
-                widgetRepo.setRootWidget(rootWidget)
-                previousProcess.showPromise = rootWidget.show(params, DomInfo.fake())
-                previousProcess.showPromise.done (out) ->
-                  eventEmitter.removeAllListeners('fallback')
-                  # prevent browser to use the same connection
-                  res.shouldKeepAlive = false
-                  res.writeHead 200, 'Content-Type': 'text/html'
-                  res.end(out)
-                  # todo: may be need some cleanup before?
+              # If current route requires authorization, api service should be available
+              processNext = Future.single('Main process next')
+              if routeInfo.route?.requireAuth
+                serviceContainer.getService('api')
+                  .then => processNext.resolve()
+                  # on api service failure, we should redirect user to login page
+                  .catch =>
+                    config.api.authenticateUserCallback()
+                    processNext.clear()
+              else
+                processNext.resolve()
+
+              processNext.then =>
+                widgetRepo.createWidget(rootWidgetPath).then (rootWidget) ->
+                  if widgetRepo
+                    rootWidget._isExtended = true
+                    widgetRepo.setRootWidget(rootWidget)
+                    previousProcess.showPromise = rootWidget.show(params, DomInfo.fake())
+                    previousProcess.showPromise.done (out) ->
+                      eventEmitter.removeAllListeners('fallback')
+                      # prevent browser to use the same connection
+                      res.shouldKeepAlive = false
+                      res.writeHead 200, 'Content-Type': 'text/html'
+                      res.end(out)
+                .catchIf (-> catchError), (err) ->
+                  if err instanceof errors.AuthError
+                    serviceContainer.getService('api').then (api) ->
+                      api.authenticateUser()
+                  else if appConfig.errorWidget
+                    processWidget(
+                      appConfig.errorWidget
+                      Utils.buildErrorWidgetParams(err, rootWidgetPath, params)
+                      false
+                    ).catch (nestedErr) =>
+                      _console.error('Error handling failed because of: ', nestedErr, nestedErr.stack)
+                      _console.error('Original error: ', err, err.stack)
+                      throw nestedErr
+                  else
+                    throw err
+                .catchIf (-> catchError), (err) ->
+                  _console.error "FATAL ERROR: server-side rendering failed! Reason:", err, err.stack
+                  displayFatalError()
+                .finally ->
                   clear()
-              .failAloud("ServerSideRouter::processWidget:#{rootWidgetPath}")
+
+
+          displayFatalError = ->
+            fatalErrorPageFile = 'public/' + appConfig.fatalErrorPageFile
+            res.writeHead(500, 'Unexpected Error!', 'Content-type': 'text/html')
+            Future.call(fs.readFile, fatalErrorPageFile, 'utf8').then (data) ->
+              res.end(data)
+            .catch (err) ->
+              _console.error "Error while reading fatal error page html: #{err}. Falling back to the inline version.", err
+              res.end """
+                <html>
+                  <head><title>Error 500</title></head>
+                  <body><h1>Unexpected Error occurred!</h1></body>
+                </html>
+              """
+
 
           eventEmitter.once 'fallback', (args) =>
             if previousProcess.showPromise
@@ -199,6 +257,90 @@ define [
       else
         ''
 
+
+    prepareConfigForRequest: (request) ->
+      ###
+      Deep clone config and substitute {TEMPLATES}
+
+      Examples of templates:
+
+      {TIMESTAMP} = '1234568977'
+      {NODE} = 'megaplan2.megaplan.ru:18181'
+      {NODE_PROTO} = 'megaplan2.megaplan.ru:18181'
+      {XDR} = if SERVER then '{NODE_PROTO}://{NODE}/XDR/' else ''
+
+      {ACCOUNT} = 'megaplan2',
+      {DOMAIN} = '.megaplan.ru',
+
+      {BACKEND} = common.api.backend.host variable
+      {BACKEND_PROTO} = common.api.backend.protocol variable
+      ###
+
+      # Prepare templates values
+
+      # prepare what we can first
+      xProto = if request.headers['x-forwarded-proto'] == 'on' then 'https' else 'http'
+      ServerSideRouter.replaceConfigVarsByHost(global.appConfig, request.headers.host, xProto)
+
+
+    @replaceConfigVarsByHost: (config, hostFromRequest, xProto) ->
+      ###
+      Deep clones config with replacement known {VARS} in string parameters
+      @param config - input config object
+      @param host(String)
+      @param xProto - value of {X_PROTO} variable
+      ###
+      dotIndex = hostFromRequest.indexOf('.')
+
+      throw new Error("Please, define the 'server' section in config.") if not config.node.server
+      throw new Error("Please, define the 'api.backend' section in config.") if not config.node.api.backend
+
+      serverHost = config.node.server.host
+      serverProto = config.node.server.protocol or ''
+      serverPort  = config.node.server.port
+
+      backendProto = config.node.api.backend.protocol or 'http'
+
+      templates =
+        '{X_PROTO}': xProto
+        '{TIMESTAMP}': new Date().getTime()
+        '{ACCOUNT}': hostFromRequest.substr(0, dotIndex)
+        '{DOMAIN}': hostFromRequest.substr(dotIndex)
+        '{X_HOST}': hostFromRequest
+
+      serverProto = Utils.substituteTemplate(serverProto, templates)
+      backendProto  = Utils.substituteTemplate(backendProto, templates)
+
+      templates['{NODE_PROTO}'] = serverProto
+      templates['{BACKEND_PROTO}'] = backendProto
+      templates['{NODE}'] = serverHost + (if serverPort then ':' + serverPort else '')
+      templates['{NODE_HOST}'] = serverHost
+
+      if config.browser.xdr
+        xdr = Utils.substituteTemplate(config.browser.xdr, templates)
+      else
+        xdr = serverProto + '://' + serverHost + (if serverPort then ':' + serverPort else '') + '/XDR/'
+
+      if config.browser.xdrs
+        xdrs = Utils.substituteTemplate(config.browser.xdrs, templates)
+      else
+        xdrs = serverProto + '://' + serverHost + (if serverPort then ':' + serverPort else '') + '/XDRS/'
+
+      if config.node.api.backend.host
+        backend = Utils.substituteTemplate(config.node.api.backend.host, templates)
+      else
+        backend = hostFromRequest
+
+      templates['{BACKEND}'] = backend
+      templates['{XDR}'] = xdr
+      templates['{XDRS}'] = xdrs
+
+      context =
+        templates: templates
+
+      _.cloneDeep config, (value) ->
+        Utils.substituteTemplate(value, this.templates)
+      , context
 
 
   new ServerSideRouter

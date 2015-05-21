@@ -8,7 +8,8 @@ define ->
   normalize: (name) ->
     if name.indexOf('bundles/') != 0
       if name.indexOf('//') != -1
-        throw "cord! extension can not be used with shorted path notation (using //): [#{ name }]!"
+        console.error 'Error in cord!normalize: ' +
+          "cord! extension can not be used with shorted path notation (using //): [#{name}]!"
       if name.substr(0, 1) != '/'
         nameParts = name.split '@'
         if nameParts.length == 2
@@ -18,7 +19,7 @@ define ->
           bundle = '/cord/core'
         name = "#{ bundle }/#{ name }"
       else if name.indexOf('@') != -1
-        throw "Bundle spec for fully-qualified name is not supported!"
+        console.error "Error in cord!normalize: Bundle spec for fully-qualified name [#{name}] is not supported!"
 
       'bundles' + name
     else

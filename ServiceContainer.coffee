@@ -1,28 +1,58 @@
 define [
-  'the-box'
+  'cord!errors'
   'cord!utils/Future'
   'underscore'
-], (Container, Future, _) ->
+], (errors, Future, _) ->
 
-  class ServiceContainer extends Container
+  class ServiceDefinition
 
-    isDefined: (path) ->
+    constructor: (@name, @deps, @factory, @container) ->
+
+
+
+  class ServiceContainer
+
+    constructor: ->
+      # registered definitions. Keys are name, values are instance of ServiceDefinition
+      @_definitions = {}
+      # already resolved services. Keys are name of service
+      @_instances = {}
+      # futures of already scheduled service factories. Keys are name, values are futures
+      @_pendingFactories = {}
+
+
+    isDefined: (name) ->
       ###
-      Is sevice defined
+      Is service defined
       @param string path - Service name
       @return bool
       ###
-      path = @_resolve(path)
-      !!(@['_box_' + path] or  @['_box_val_' + path])
+      _(@_definitions).has(name) or _(@_instances).has(name)
 
 
-    reset: (path) ->
+    reset: (name) ->
       ###
-      Reset services
+      Reset service.
+      @return {Future<undefined>}
       ###
-      p = @._resolve(path)
-      @['_box_val_' + p] = null
-      @
+      # reset pending service only after instantiation
+      if _(@_pendingFactories).has(name)
+        @_pendingFactories[name].catch ->
+          return
+        .then =>
+          delete @_instances[name]
+          delete @_pendingFactories[name]
+          return
+      else
+        delete @_instances[name]
+        Future.resolved()
+
+
+    set: (name, instance) ->
+      @reset(name)
+      @_instances[name] = instance
+      @_pendingFactories[name] = Future.resolved(instance)
+      this
 
 
     getNames: ->
@@ -30,10 +60,115 @@ define [
       Get all defined services
       @return array
       ###
-      _.map _.filter(Object.keys(@), (key) ->
-        key.indexOf('_box_') > -1 and key.indexOf('_box_val_') == -1
-      ), (key) ->
-        key.replace '_box_', ''
+      _.union(_(@_definitions).keys(), _(@_instances).keys())
+
+
+    allInstances: ->
+      ###
+      This method returns map with all initialized instances. Name of services are in keys
+      ###
+      _.clone(@_instances)
+
+
+    def: (name, deps, factory) ->
+      ###
+      Registers a new service definition in container
+      ###
+      if _.isFunction(deps) and factory == undefined
+        factory = deps
+        deps = []
+      @_definitions[name] = new ServiceDefinition(name, deps ? [], factory, this)
+
+
+    eval: (name, readyCb) ->
+      ###
+      Evaluates a service, on ready call
+      Deprecated, please use getService()!
+      ###
+      @getService(name)
+        .then (instance) ->
+          readyCb?(instance)
+          return # Avoid to possible Future result of readyCb
+        .catch (e) -> throw new Error("Eval for service `#{name}` failed with #{e}")
+
+
+    getService: (name) ->
+      ###
+      Returns service by it's name. Like `eval` but promise-like.
+      @param {String} serviceName
+      @return {Future[Any]}
+      ###
+      return @_pendingFactories[name].then() if _(@_pendingFactories).has(name)
+
+      # Call a factory for a service
+      if not _(@_definitions).has(name)
+        return Future.rejected(new Error("There is no registered definition for called service '#{name}'"))
+
+      def = @_definitions[name]
+      @_pendingFactories[name] = Future.single("Factory of service #{name}")
+      # Ensure, that all of dependencies are loaded before factory call
+      Future.all(def.deps.map((dep) => @getService(dep)), "Deps for `#{name}`").then (services) =>
+        # call a factory with 2 parameters, get & done. On done resolve a result.
+
+        deps = _.object(def.deps, services)
+        get = (depName) ->
+          if _(deps).has(depName)
+            deps[depName]
+          else
+            throw new Error("Service #{depName} is not loaded yet. Did you forget to specify it in `deps` section of #{name}?")
+
+        locked = false
+        done = (err, instance) =>
+          try
+            throw new Error('Done was already called') if locked
+            locked = true
+            if err?
+              throw err
+            else if instance instanceof Error
+              throw instance
+            else
+              @_instances[name] = instance
+              @_pendingFactories[name].resolve(instance)
+          catch err
+            @_pendingFactories[name].reject(err)
+          return # we should not return future from this callback!
+
+        res =
+          try
+            def.factory(get, done)
+          catch factoryError
+            factoryError
+
+        if res instanceof Error
+          done(res)
+        else if def.factory.length < 2
+          if res instanceof Future
+            res
+              .then (instance) => done(null, instance)
+              .catch (error) => done(error)
+          else
+            done(null, res)
+      .catch (e) =>
+        @_pendingFactories[name].reject(e)
+        return # we should not return rejected future from this callback!
+
+      @_pendingFactories[name].catch (e) =>
+        # Remove rejected factory from map
+        delete @_pendingFactories[name]
+        throw e
+
+
+    isReady: (name) ->
+      _(@_instances).has(name)
+
+
+    get: (name) =>
+      ###
+      Gets service in a synchronized mode. This method passed as `get` callback to factory of service def
+      ###
+      if not @isReady(name)
+        throw new Error("Service #{name} is not loaded yet. Did you forget to specify it in `deps` section?")
+      @_instances[name]
 
 
     injectServices: (target) ->
@@ -44,7 +179,7 @@ define [
       @param Object target the instance to be injected to
       @return Future completed when all services asyncronously loaded and assigned into the target object
       ###
-      injectPromise = new Future("Container::injectServices(#{target.constructor.name})")
+      injectFutures = []
 
       if target.constructor.inject
         if _.isFunction target.constructor.inject
@@ -54,17 +189,13 @@ define [
 
         injectService = (serviceAlias, serviceName) =>
           if @isDefined(serviceName)
-            injectPromise.fork()
-            try
-              @eval serviceName, (service) ->
-                _console.log "Container::injectServices -> eval(#{ serviceName }) for target #{ target.constructor.name } finished success" if global.config?.debug.service
-
-                target[serviceAlias] = service
-                injectPromise.resolve()
-            catch e
-              _console.error "Container::injectServices -> eval(#{ serviceName }) for target #{ target.constructor.name } fail: #{ e.message }"
-              target[serviceAlias] = undefined
-              injectPromise.resolve()
+            injectFutures.push(
+              @getService(serviceName)
+                .then (service) =>
+                  target[serviceAlias] = service
+                  return
+                .name("Inject #{serviceName} to #{target.constructor.name}")
+            )
           else
             _console.warn "Container::injectServices #{ serviceName } for target #{ target.constructor.name } is not defined" if global.config?.debug.service
 
@@ -75,5 +206,20 @@ define [
           for serviceAlias, serviceName of services
             injectService serviceAlias, serviceName
 
+      Future.all(injectFutures, "Container::injectServices(#{target.constructor.name})").then -> target
 
-      injectPromise
+
+    autoStartServices: (services) ->
+      ###
+      Auto-starts services from the given list which has `autoStart` flag enabled.
+      Returns immediately, doesn't wait for the services.
+      @param {Object} services Service description map from the bundle configs.
+      ###
+      for serviceName, info of services when info.autoStart
+        do (serviceName) =>
+          @getService(serviceName).catch (error) ->
+            if not (error instanceof errors.AuthError) and
+               not (error instanceof errors.ConfigError)  # supress "no BACKEND_HOST" error
+              _console.warn "Container::autoStartServices::getService(#{serviceName}) " +
+                            " failed with error: ", error
+      return

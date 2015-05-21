@@ -8,7 +8,8 @@ define [
   'dustjs-helpers'
   'pathUtils'
   'fs'
-], (Future, _, dust, pathUtils, fs) ->
+  'path'
+], (Future, _, dust, pathUtils, fs, path) ->
 
   dustPartialsPreventionCallback = (tmplPath, callback) ->
     ###
@@ -46,7 +47,7 @@ define [
       @param String tmplSourcePath path to the source template file (.html)
       @return Future[Nothing]
       ###
-      Future.require("cord-w!#{ widgetPath }").flatMap (WidgetClass) ->
+      Future.require("cord-w!#{ widgetPath }").then (WidgetClass) ->
         compiler = new WidgetCompiler(WidgetClass)
         compiler.compileTemplate(tmplSourcePath)
 
@@ -66,24 +67,45 @@ define [
       ###
       Compiles given template file for the owner widget.
       @param String tmplSourcePath path to the source template file (.html)
-      @return Future[Nothing]
+      @return {Future<undefined>}
       ###
+      parts = tmplSourcePath.split('/')
+      fileName = parts.pop()
+      lastDirName = parts[parts.length - 1]
+      ext = path.extname(fileName)
+      fileWithoutExt = fileName.slice(0, -ext.length)
+
+      isMainTemplate = lastDirName == fileWithoutExt
+
       tmplPath = @widget.getPath()
-      tmplFullPath = "./#{ pathUtils.getPublicPrefix() }/bundles/#{ @widget.getTemplatePath() }"
-      Future.call(fs.readFile, tmplSourcePath, 'utf8').flatMap (htmlString) =>
+
+      # Determine if we compile main widget template (with the samne name) or additional one.
+      # For an additional template other dustjs name used and structure file is not needed
+      if isMainTemplate
+        tmplFullPath = "./#{ pathUtils.getPublicPrefix() }/bundles/#{ @widget.getTemplatePath() }"
+      else
+        tmplFullPath = "./#{ pathUtils.getPublicPrefix() }/bundles/#{ @widget.getDir() }/#{ fileName }"
+        tmplPath = "cord!/#{ @widget.getDir() }/#{ fileWithoutExt }"
+
+      Future.call(fs.readFile, tmplSourcePath, 'utf8').then (htmlString) =>
         @compiledSource = dust.compile(htmlString, tmplPath)
         amdSource = "define(['dustjs-helpers'], function(dust){#{ @compiledSource }});"
-        tmplFuture = Future.call(fs.writeFile, "#{ tmplFullPath }.js", amdSource)
+        tmplPromise = Future.call(fs.writeFile, "#{ tmplFullPath }.js", amdSource)
 
-        structFuture =
-          if @widget.getPath() != '/cord/core//Switcher'
-            dust.loadSource(@compiledSource)
-            Future.call(dust.render, tmplPath, @getBaseContext().push(@widget.ctx)).flatMap =>
-              Future.call(fs.writeFile, "#{ tmplFullPath }.struct.js", @getStructureCode(false, true))
+        structPromise =
+          if isMainTemplate
+            if @widget.getPath() != '/cord/core//Switcher'
+              dust.loadSource(@compiledSource)
+              Future.call(dust.render, tmplPath, @getBaseContext().push(@widget.ctx)).then =>
+                Future.call(fs.writeFile, "#{ tmplFullPath }.struct.js", @getStructureCode(false, true))
+            else
+              Future.call(fs.writeFile, "#{ tmplFullPath }.struct.js", 'define([],function(){return {};});')
           else
-            Future.call(fs.writeFile, "#{ tmplFullPath }.struct.js", 'define([],function(){return {};});')
+            Future.resolved()
 
-        tmplFuture.zip(structFuture)
+        Future.all [tmplPromise, structPromise]
+      .then ->
+        return
 
 
     registerWidget: (widget, name, timeout, timeoutTemplateName) ->
@@ -318,6 +340,7 @@ define [
               if bodies.block?
                 @_renderBodyBlock(bodies.block, widget).done ->
                   chunk.end('')
+                  return
                 .failAloud("WidgetCompiler::#extend:#{@widget.debug()}:#{params.type}")
               else
                 console.warn "WARNING: Extending layout #{ params.type } with nothing!"
@@ -337,10 +360,10 @@ define [
 
               if bodies.timeout? and params.timeout? and params.timeout >= 0
                 timeoutTemplateName = "__timeout_#{ @_timeoutBlockCounter++ }"
-                timeoutTemplateFuture = @_saveSubTemplate(bodies.timeout, timeoutTemplateName)
+                timeoutTemplatePromise = @_saveSubTemplate(bodies.timeout, timeoutTemplateName)
               else
                 timeoutTemplateName = null
-                timeoutTemplateFuture = Future.resolved()
+                timeoutTemplatePromise = Future.resolved()
 
               hasNonEmptyBody = (bodies.block and not emptyBodyRe.test(bodies.block.toString()))
 
@@ -361,11 +384,15 @@ define [
 
 
               if hasNonEmptyBody
-                @_renderBodyBlock(bodies.block, widget).zip(timeoutTemplateFuture).done ->
-                  chunk.end('')
+                Future.all [
+                  @_renderBodyBlock(bodies.block, widget)
+                  timeoutTemplatePromise
+                ]
               else
-                timeoutTemplateFuture.done ->
-                  chunk.end('')
+                timeoutTemplatePromise
+            .then ->
+              chunk.end('')
+              return
             .failAloud("WidgetCompiler::#widget:#{@widget.debug()}:#{params.type}")
 
 
@@ -385,12 +412,17 @@ define [
                 sw = context.surroundingWidget
 
                 templateName = "__inline_#{ name }"
-                templateSaveFuture = @_saveSubTemplate(bodies.block, templateName)
+                templateSavePromise = @_saveSubTemplate(bodies.block, templateName)
 
                 @addPlaceholderInline sw, ph, @widget, templateName, name, tag, cls
 
-                @_renderBodyBlock(bodies.block).zip(templateSaveFuture).done ->
+                Future.all [
+                  @_renderBodyBlock(bodies.block)
+                  templateSavePromise
+                ]
+                .then ->
                   chunk.end('')
+                  return
                 .failAloud("WidgetCompiler::#inline:#{@widget.debug()}")
 
             else
@@ -432,10 +464,13 @@ define [
             # it's a little bit wonky but have no other good choice
             deferredId = @_deferredBlockCounter++
             chunk.map (chunk) =>
-              @_saveSubTemplate(bodies.block, "__deferred_#{ deferredId }")
-                .zip @_renderBodyBlock(bodies.block)
-                .failAloud("WidgetCompiler::#deferred:#{@widget.debug()}")
-                .done ->
-                  chunk.end('')
+              Future.all [
+                @_saveSubTemplate(bodies.block, "__deferred_#{ deferredId }")
+                @_renderBodyBlock(bodies.block)
+              ]
+              .then ->
+                chunk.end('')
+                return
+              .failAloud("WidgetCompiler::#deferred:#{@widget.debug()}")
           else
             console.warn "WARNING: empty deferred block in widget #{ @widget.constructor.name }(#{ @widget.ctx.id })"

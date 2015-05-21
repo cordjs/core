@@ -17,8 +17,29 @@ define [
       Future.require("#{ pathConfig.bundles }/#{ info.relativeDirPath }/#{ info.dirName }.html")
 
 
+  loadAdditionalTemplate: (path, templateName) ->
+    ###
+    Loads additional widget template
+    @params String path - widgets full path
+    @params String templatename - additional template file name without any extansions
+    @return Future()
+    ###
+    info = cord.getFullInfo(path)
+    if dust.cache["cord!/#{ info.relativeDirPath }/#{ templateName }"]
+      Future.resolved()
+    else
+      Future.require("cord!/#{ info.relativeDirPath }/#{ templateName }.html")
+
+
   loadTemplate: (path, callback) ->
-    require ["cord-t!" + path], ->
+    ###
+    dustjs.onLoad handler
+    ###
+    if path.indexOf('!') == -1
+      fullPath = "cord-t!" + path
+    else
+      fullPath = path + '.html'
+    require [fullPath], ->
       callback()
 
 

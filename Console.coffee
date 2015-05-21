@@ -1,81 +1,146 @@
 define [
+  'cord!errors'
   'postal'
-], (postal) ->
+  'underscore'
+], (errors, postal, _) ->
+  ###
+  System console wrapper with nice configurable debugging and logging features
+  ###
 
-  class Console
-    ###
+  # What kind of messages we should log
+  consoleConfig = global?.config?.console or {}
+  output =
+    log: consoleConfig.log or true
+    warn: consoleConfig.warn or true
+    error: consoleConfig.error or true
+    notice: consoleConfig.notice or false
+    internal: consoleConfig.internal or false
+    errorTrace: consoleConfig.errorTrace or false
+    appendConsoleCallTrace: consoleConfig.appendConsoleCallTrace or false
 
-      Обертка для консоли, служит для того, чтобы включать/выключать вывод в конфиге
-
-    ###
-
-    @getConfig: ->
-      @config = global.config if @config == undefined
-      @config
-
-
-    @stringify: (args) ->
-      result = ''
-
-      for arg in args
-        if arg instanceof Object
-          try
-            # TypeError: Converting circular structure to JSON
-            result += JSON.stringify(arg) + ', '
-            result += JSON.stringify(arg[3].stack) if arg[3] != undefined and arg[3].stack != ''
-          catch
-            result += arg + ', '
-        else
-          result += arg + ', '
-
-      return result
+  # Enable assertions (for development only)
+  assertionsEnabled = global?.config?.debug.assertions or false
 
 
-    @log: ->
-      config = @getConfig()
-
-      console.log.apply console, arguments if config?.console.log or not config
-
-      # postal?.publish 'log', JSON.stringify(arguments)
-      return
-
-
-    @warn: ->
-      config = @getConfig()
-
-      console.warn.apply console, arguments if config?.console.warn or not config
-
-      message = Console.stringify arguments
-      postal.publish 'logger.log.publish', { tags: ['warning'], params: {warning: message} }
-      # postal?.publish 'log', JSON.stringify(arguments)
-      return
-
-
-    @error: ->
-      Console.taggedError ['error'], arguments
-      args =
+  stringify = (args) ->
+    args.map (x) ->
+      if x instanceof Object
         try
-          JSON.stringify(arguments)
-        catch
           # TypeError: Converting circular structure to JSON
-          arguments
-          
-      # postal?.publish 'log', args
+          JSON.stringify(x)
+        catch
+          x
+      else
+        x
+    .join(', ')
 
 
-    @taggedError: (tags, args...) ->
-      config = @getConfig()
-
-      console.error.apply console, arguments if config?.console.error or not config
-
-      message = Console.stringify args
-      postal.publish 'error.notify.publish', { message: 'Произошла ошибка', link: '', details: message }
-      postal.publish 'logger.log.publish', { tags: tags, params: {error: message} }
-
-      return
+  prepareArgs = (args) ->
+    if not CORD_IS_BROWSER
+      host = global?.config?.api.backend.host
+      args.unshift host if host
+      args.unshift((new Date).toString())
+    args
 
 
-    @clear: ->
-      console.clear?()
+  getConsoleCallTraceLine = ->
+    ###
+    Returns first line without Console.js from the current call stack-trace.
+    @return {String|undefined}
+    ###
+    lines = (new Error).stack.split("\n").slice(1)
+    _.find lines, (x) ->
+      x.indexOf('/cord/core/Console.js') == -1
 
-      return
+
+  _log = (type, args) ->
+    if output[type]
+      postal.publish 'logger.log.publish',
+        tags: [type]
+        params:
+          message: stringify(args)
+          console: true
+
+      # Add console call trace line
+      args.push("\n_console.#{type} called here:\n" + getConsoleCallTraceLine())  if output.appendConsoleCallTrace
+
+      method = if console[type] then type else 'log'
+      args.unshift "[#{type}]"
+      console[method] prepareArgs(args).join(" ")
+
+
+  _minErrorType = (type1, type2) ->
+    typeWeight =
+      error: 5
+      warn: 4
+      log: 3
+      notice: 2
+      internal: 1
+
+    weight1 = typeWeight[type1] or typeWeight['log']
+    weight2 = typeWeight[type2] or typeWeight['log']
+
+    if weight1 > weight2 then type2 else type1
+
+
+  _taggedError = (tags, errorType, args) ->
+    ###
+    Smart console.error:
+     * appends stack-trace of Error-typed argument if configured
+     * sends error information to logger
+     * displays error in console if configured
+    @param {Array} tags - tags for logging, e.g. ['error'] | ['warning']
+    @param {Any} args - usual console.error arguments
+    ###
+
+    # Get error type from args
+    for item in args when item and item.stack
+      errorType = _minErrorType(errorType, errors.getType(item))
+
+    args = args.map (item) ->
+      if item and item.stack
+        if output.errorTrace then "\n#{item.stack}\n" else item.message
+      else
+        item
+
+    # Report the error so that we could show it to the user
+    if errorType == 'error'
+      postal.publish 'error.notify.publish',
+        message: 'Произошла ошибка'
+        console: true
+        link: ''
+        details: stringify(args)
+
+    # And log the error
+    _log errorType, args if output[errorType]
+
+
+  ## export ##
+
+  log: (args...) ->
+    _log 'log', args
+
+
+  warn: (args...) ->
+    _taggedError [], 'warn', args
+
+
+  error: (args...) ->
+    _taggedError [], 'error', args
+
+
+  taggedError: (tags, args...) ->
+    _taggedError tags, args, 'error'
+
+
+  clear: ->
+    console.clear?()
+    return
+
+
+  assertLazy: (errorMessage, checkFunction) ->
+    ###
+    Checks that checkFunction() value is true. Otherwise throws an error with errorMessage text.
+    ###
+    if assertionsEnabled and not checkFunction()
+      throw new Error("Assertion failed. #{errorMessage}")

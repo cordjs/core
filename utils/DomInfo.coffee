@@ -31,7 +31,7 @@ define [
       ###
       Inform listeners that the DOM-element is inserted into the main document's DOM tree.
       ###
-      throw new Error("DOM root must be set before show!") if not @_domRootPromise.completed()
+      throw new Error("DOM root must be set before show!"  + @_domRootPromise._name, @_showPromise._name) if not @_domRootPromise.completed()
       @_showPromise.resolve()
 
 
@@ -51,6 +51,12 @@ define [
       @_showPromise.when(anotherDomInfo.domInserted())
 
 
+    clearPromises: ->
+      @_domRootPromise.clear()
+      @_showPromise.clear()
+      return
+
+
     @fake: ->
       result = new DomInfo('fake')
       result._domRootPromise.reject(new Error("DOM root from fake DomInfo should not be used!")).failOk()
@@ -58,23 +64,28 @@ define [
       result
 
 
-    @merge: (infos...) ->
+    @merge: (infos, debugInfo) ->
       ###
       Smartly merges several given DomInfos into one
       @return DomInfo
       ###
       if isBrowser
-        result = new DomInfo('merged')
+        result = new DomInfo("merged #{debugInfo}")
 
         filtered = infos.filter (info) -> !!info
-        domRootsPromise = filtered.map (info) -> info.domRootCreated()
-        domInsertedPromise = filtered.map (info) -> info.domInserted()
+        domRootPromises = filtered.map (info) -> info.domRootCreated()
+        domInsertedPromises = filtered.map (info) -> info.domInserted()
 
-        Future.sequence(domRootsPromise).zip(Future.require('jquery')).then (domRoots, $) ->
+        Future.all [
+          Future.all(domRootPromises)
+          Future.require('jquery')
+        ]
+        .spread (domRoots, $) ->
           roots = $()
           roots = roots.add(root) for root in domRoots
           result.setDomRoot(roots)
-        Future.sequence(domInsertedPromise).then ->
+          Future.all(domInsertedPromises)
+        .then ->
           result.markShown()
 
         result

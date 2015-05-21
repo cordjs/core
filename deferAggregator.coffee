@@ -1,9 +1,9 @@
 define [
   'cord!errors'
-  'cord!utils/Defer'
   'cord!utils/Future'
+  'asap/raw'
   'underscore'
-], (errors, Defer, Future, _) ->
+], (errors, Future, asap, _) ->
 
   class DeferAggregator
 
@@ -34,15 +34,16 @@ define [
             df.deferredParams[key] = true
             df.promise.fork()
 
-        Defer.nextTick ->
+        asap ->
           df.promise.resolve()
 
-        df.promise.done =>
+        df.promise.then =>
           widget.setParamsSafe(df.params).catchIf (err) ->
             err instanceof errors.WidgetParamsRace
           .failAloud(widget.debug('DeferAggregator'))
 
           delete @defers[id]
+      return
 
 
 

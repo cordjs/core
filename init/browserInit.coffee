@@ -6,13 +6,16 @@ define [
   'cord!PageTransition'
   'cord!ServiceContainer'
   'cord!WidgetRepo'
+  'cord!utils/Future'
+  'monologue' + (if CORD_IS_BROWSER then '' else '.js')
   'jquery'
 ], (AppConfigLoader, _console, cssManager,
-    clientSideRouter, PageTransition, ServiceContainer, WidgetRepo, $) ->
+    clientSideRouter, PageTransition, ServiceContainer, WidgetRepo, Future, Monologue, $) ->
 
   class ClientFallback
 
     constructor: (@router) ->
+
 
     defaultFallback: ->
       # If we dont need to push params into fallback widget, use default, defined in fallbackRoutes
@@ -37,34 +40,49 @@ define [
 
     window._console = _console
 
+    # support for `requireAuth` route option
+    clientSideRouter.setAuthCheckCallback ->
+      serviceContainer.getService('api')
+        .then (api) ->
+          api.prepareAuth()
+        .then ->
+          true
+        .catch (e) ->
+          _console.warn("Api.prepareAuth failed because of:", e)
+          false
+
     configInitFuture = AppConfigLoader.ready().then (appConfig) ->
       clientSideRouter.addRoutes(appConfig.routes)
       clientSideRouter.addFallbackRoutes(appConfig.fallbackRoutes)
       for serviceName, info of appConfig.services
         do (info) ->
-          serviceContainer.def serviceName, info.deps, (get, done) ->
-            info.factory.call(serviceContainer, get, done)
+          throw new Error("Service '#{serviceName}' does not have a defined factory") if undefined == info.factory
+          throw new Error("Service '#{serviceName}' has invalid factory definition") if not _.isFunction(info.factory)
+          serviceContainer.def(serviceName, info.deps, info.factory.bind(serviceContainer))
 
-      ###
-        Конфиги
-      ###
+      # `config` service definition
+      serviceContainer.set 'config', global.config
 
-      serviceContainer.def 'config', ->
-        config = global.config
-        loginUrl = config.loginUrl or 'user/login/'
-        logoutUrl = config.logoutUrl or 'user/logout/'
-        config.api.authenticateUserCallback = ->
-          backPath = window.location.pathname
+      global.config.api.authenticateUserCallback = ->
+        Future.all [
+          serviceContainer.getService('loginUrl')
+          serviceContainer.getService('logoutUrl')
+        ]
+        .spread (loginUrl, logoutUrl) ->
+          loginUrl = loginUrl.replace(/^\/|\/$/g, "")
+          logoutUrl = logoutUrl.replace(/^\/|\/$/g, "")
+          backPath = clientSideRouter.getCurrentPath()
           if not (backPath.indexOf(loginUrl) >= 0 or backPath.indexOf(logoutUrl) >= 0)
             # in SPA mode window.location doesn't make sense
             backUrl = clientSideRouter.getCurrentPath() or window.location.pathname
-            clientSideRouter.redirect("#{loginUrl}?back=#{backUrl}")
-          true
-        config
+            clientSideRouter.redirect("#{loginUrl}/?back=#{backUrl}").failAloud('Auth redirect failed!')
+        .catch (error) ->
+          _console.error('Unable to obtain loginUrl or logoutUrl, please, check configs:' + error)
+        false
 
       # Clear localStorage in case of changing collections' release number
       serviceContainer.eval 'persistentStorage', (persistentStorage) ->
-        currentVersion = window.global.config.static.collection
+        currentVersion = window.global.config.static.release
         persistentStorage.get('collectionsVersion').then (localVersion) ->
           if currentVersion != localVersion
             serviceContainer.eval 'localStorage', (localStorage) ->
@@ -72,16 +90,14 @@ define [
                 persistentStorage.set('collectionsVersion', currentVersion)
 
 
-    ###
-      Это надо перенести в более кошерное место
-    ###
-
-    #Global errors handling
+    # Global errors handling
     requirejs.onError = (error) ->
-      if global.config.debug.require
-        throw error
-      else
-        _console.error 'Error from requirejs: ', error.toString(), 'Error: ', error
+      _console.error 'Error from requirejs: ', error.toString(), 'Error: ', error
+      throw error  if global.config.debug.require
+
+
+    # monologue to debug mode
+    Monologue.debug = true if global.config.debug.monologue != undefined and global.config.debug.monologue
 
 
     widgetRepo = new WidgetRepo(global.cordServerProfilerUid)

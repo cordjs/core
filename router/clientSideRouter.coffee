@@ -1,9 +1,11 @@
 define [
   './Router'
+  'cord!errors'
   'cord!PageTransition'
+  'cord!utils/Future'
   'jquery'
   'postal'
-], (Router, PageTransition, $, postal) ->
+], (Router, errors, PageTransition, Future, $, postal) ->
 
   # detecting private settings from configuration and environment
   # should
@@ -21,7 +23,7 @@ define [
       @_noPageReload = historySupport or global.config.localFsMode
 
       # save current path
-      @_currentPath = @getActualPath()
+      @_currentPath = if global.config.localFsMode then '/' else @getActualPath()
 
       @_initHistoryNavigate() if historySupport
       @_initLinkClickHook() if @_noPageReload
@@ -47,9 +49,18 @@ define [
         _.extend(routeInfo.params, query)
 
         if routeInfo.route.widget?
-          @_lastTransitionPromise = @widgetRepo.smartTransitPage(
-            routeInfo.route.widget, routeInfo.params, new PageTransition(@_currentPath, newPath)
-          )
+          checkAuthPromise =
+            if routeInfo.route.requireAuth and _.isFunction(@_authCheckCallback)
+              Future.try => @_authCheckCallback()
+            else
+              Future.resolved(true)
+          @_lastTransitionPromise = checkAuthPromise.then (authOk) =>
+            if authOk
+              @widgetRepo.smartTransitPage(
+                routeInfo.route.widget, routeInfo.params, new PageTransition(@_currentPath, newPath)
+              )
+            else
+              Future.rejected(new errors.AuthError("Required auth check not passed for the route #{routeInfo.route}"))
           @_currentPath = newPath
           true
         else
@@ -67,12 +78,12 @@ define [
       _console.clear() if global.config.console.clear
 
       newPath = '/' + newPath if newPath.charAt(0) != '/'
-      return if @_currentPath == newPath
+      return Future.resolved() if @_currentPath == newPath
 
       if window.systemPageRefresh != undefined and window.systemPageRefresh == true
         postal.publish 'mp2.was.updated'
         window.location.replace(newPath)
-        return
+        return Future.resolved()
 
       if @_noPageReload
         if @process(newPath)
@@ -112,7 +123,7 @@ define [
       ###
       Setups client-side navigating history event handler.
       ###
-      $(window).bind 'popstate', =>
+      window.addEventListener 'popstate', =>
         newPath = @getActualPath()
         @process(newPath) if newPath != @_currentPath
 
@@ -125,7 +136,7 @@ define [
 
       # Read more: http://perfectionkills.com/detecting-event-support-without-browser-sniffing/
       clickEventType = if 'ontouchstop' of document.documentElement then 'touchstop' else 'click'
-      $(document).on clickEventType, 'a:not([data-bypass],[target="_blank"])', (event) ->
+      $(document).on clickEventType, 'a:not([data-bypass],[target="_blank"],[target="_system"])', (event) ->
         # Default behaviour for anchors if any modification key pressed
         return if event.metaKey or event.ctrlKey or event.altKey or event.shiftKey
 
@@ -142,9 +153,16 @@ define [
       Extracts current actual path from the window.location
       @return String
       ###
-      path = window.location.pathname
-      path = '/' + path if path.charAt(0) != '/'
-      path
+      if global.config.localFsMode
+        # in local environment window.location doesn't make sence
+        if (pos = @_currentPath.indexOf('?')) > -1
+          @_currentPath.slice(0, pos)
+        else
+          @_currentPath
+      else
+        path = window.location.pathname
+        path = '/' + path if path.charAt(0) != '/'
+        path
 
 
     getHash: -> window.location.hash

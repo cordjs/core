@@ -2,22 +2,25 @@ define [
   'cord!utils/Defer'
   'cord!utils/Future'
   'jquery'
-], (Defer, Future, $) ->
+  'underscore'
+], (Defer, Future, $, _) ->
 
   # helpers
   doc = document
   head = doc.head || doc.getElementsByTagName('head')[0]
   a = doc.createElement('a')
 
+  baseUrl = if global.config?.localFsMode then '' else '/'
+
   normalizePath = (path) ->
     ###
-    Cuts query params from path
+    Cuts query params and leading slash from the css path
     ###
-    idx = path.lastIndexOf('?')
-    if idx == -1
-      path
-    else
-      path.substr(0, idx)
+    start = if path.charAt(0) == '/' then 1 else 0
+    idx = path.indexOf('?')
+    end = if idx == -1 then undefined else idx
+    path.slice(start, end)
+
 
   isLoaded = (url) ->
     # Get absolute url by assigning to a link and reading it back below
@@ -27,6 +30,28 @@ define [
       if info.href == a.href
         return true
     false
+
+
+  isSafari5 = ->
+    !!navigator.userAgent.match(' Safari/') &&
+      !navigator.userAgent.match(' Chrom') &&
+      !!navigator.userAgent.match(' Version/5.')
+
+
+  isWebkitNoOnloadSupport = ->
+    # Webkit: 535.23 and above supports onload on link tags.
+    [supportedMajor, supportedMinor] = [535, 23]
+    if (match = navigator.userAgent.match(/\ AppleWebKit\/(\d+)\.(\d+)/))
+      match.shift()
+      [major, minor] = [+match[0], +match[1]]
+      major < supportedMajor || major == supportedMajor && minor < supportedMinor
+
+
+  isLinkOnLoadSupport = ->
+    ###
+    Is current browser supports link.onload method
+    ###
+    not isSafari5() and not isWebkitNoOnloadSupport() and _.has(document.createElement('link'), 'onload')
 
 
   class BrowserManager
@@ -47,6 +72,13 @@ define [
       @_loadedFiles = {}
       @_loadingOrder = []
       @_cssToGroup = {}
+      # Below code tested on Android 4.3 (no link.onload support) and Chrome 37.0.2062.120 (link.onload supported)
+      if isLinkOnLoadSupport()
+        # use css loading via native link.onload
+        @_loadCss = @_loadLink
+      else
+        # use css loading via img.onload hack
+        @_loadCss = @_loadImg
 
 
     load: (cssPath) ->
@@ -57,12 +89,19 @@ define [
       normPath = normalizePath(cssPath)
       if not @_loadedFiles[normPath]?
         if not @_cssToGroup[normPath]
-          @_loadedFiles[normPath] = @_loadLink("#{ cssPath }?release=#{ global.config.static.release }")
+          @_loadedFiles[normPath] = @_loadCss("#{ baseUrl }#{ normPath }?release=#{ global.config.static.release }")
+          @_loadedFiles[normPath].then =>
+            # memory optimization
+            @_loadedFiles[normPath] = Future.resolved()
           @_loadingOrder.push(normPath)
         else
           groupId = @_cssToGroup[normPath]
-          loadFuture = @_loadLink("/assets/z/#{groupId}.css")
-          @_loadedFiles[css] = loadFuture for css in @_groupToCss[groupId]
+          loadPromise = @_loadCss("#{baseUrl}assets/z/#{groupId}.css")
+          @_loadedFiles[css] = loadPromise for css in @_groupToCss[groupId]
+          loadPromise.then =>
+            # memory optimization
+            @_loadedFiles[css] = Future.resolved() for css in @_groupToCss[groupId]
+
       else if @_loadedFiles[normPath] == true
         @_loadedFiles[normPath] = Future.resolved()
       @_loadedFiles[normPath]
@@ -76,7 +115,7 @@ define [
       that = this
       $("head > link[rel='stylesheet']").each -> # cannot use fat-arrow here!!
         normPath = normalizePath($(this).attr('href'))
-        if result = normPath.match /\/assets\/z\/([^\.]+)\.css$/
+        if result = normPath.match /assets\/z\/([^\.]+)\.css$/
           groupId = result[1]
           that._loadedFiles[css] = true for css in that._groupToCss[groupId]
         else
@@ -115,7 +154,7 @@ define [
       promise
 
 
-    _loadScript: (url, promise) ->
+    _loadScript: (url) ->
       ###
       Insert a script tag and use it's onload & onerror to know when
        the CSS is loaded, this will unfortunately also fire on other
@@ -123,6 +162,7 @@ define [
       @param String url css-file url to load
       @param Future promise future to resolve when the CSS is loaded
       ###
+      promise = Future.single("browserManager::_loadScript(#{url})")
       link = @_createLink(url)
       script = doc.createElement('script');
 
@@ -144,8 +184,10 @@ define [
       script.src = url
       head.appendChild(script)
 
+      promise
 
-    _loadImg: (url, promise) ->
+
+    _loadImg: (url) ->
       ###
       Insert a img tag and use it's onload & onerror to know when
        the CSS is loaded, this will unfortunately also fire on other
@@ -153,6 +195,7 @@ define [
       @param String url css-file url to load
       @param Future promise future to resolve when the CSS is loaded
       ###
+      promise = Future.single("browserManager::_loadImg(#{url})")
       img = doc.createElement('img');
 
       head.appendChild(@_createLink(url));
@@ -169,6 +212,8 @@ define [
         checkLoaded()
 
       img.src = url
+
+      promise
 
 
     _createLink: (url) ->

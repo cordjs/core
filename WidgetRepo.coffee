@@ -1,16 +1,18 @@
 define [
-  'cord!Api'
   'cord!Collection'
   'cord!Context'
   'cord!css/helper'
   'cord!deferAggregator'
+  'cord!errors'
   'cord!isBrowser'
   'cord!Model'
   'cord!ModelRepo'
   'cord!utils/Future'
   'postal'
   'underscore'
-], (Api, Collection, Context, cssHelper, deferAggregator, isBrowser, Model, ModelRepo, Future, postal, _) ->
+  'cord!AppConfigLoader'
+  'cord!Utils'
+], (Collection, Context, cssHelper, deferAggregator, errors, isBrowser, Model, ModelRepo, Future, postal, _, AppConfigLoader, Utils) ->
 
   class WidgetRepo
 
@@ -30,9 +32,6 @@ define [
     # list of widgets which build main hierarchy of widget's via #extend template calls
     # begins from the most specific widget (leaf) and ends with most common (root) which doesn't extend another widget
     _currentExtendList: null
-    # temporary list of new widgets which are meant to replace several widgets at the beginnign of extend list during
-    # page switching process (processing new route)
-    _newExtendList: null
 
 
     constructor: (@serverProfilerUid = '') ->
@@ -40,7 +39,6 @@ define [
       @_widgetOrder = []
       @_pushBindings = {}
       @_currentExtendList = []
-      @_newExtendList = []
       if isBrowser
         @_initPromise = new Future('WidgetRepo::_initPromise')
         @_parentPromises = {}
@@ -70,18 +68,19 @@ define [
       @response
 
 
-    createWidget: (path, contextBundle) ->
+    createWidget: (path, parentWidget, name, contextBundle) ->
       ###
       Main widget factory.
       All widgets should be created through this call.
-
-      @param String path canonical path of the widget
+      @param {String} path canonical path of the widget
+      @param (optional){Widget} parentWidget parent widget in which the new widget should be registered as child
+      @param (optional){String} name name of the created widget in the parent's widget namespace (childByName)
       @param (optional)String contextBundle calling context bundle to expand relative widget paths
-      @return Future[Widget]
+      @return {Future[Widget]}
       ###
       bundleSpec = if contextBundle then "@#{ contextBundle }" else ''
 
-      Future.require("cord-w!#{ path }#{ bundleSpec }").flatMap (WidgetClass) =>
+      Future.require("cord-w!#{ path }#{ bundleSpec }").then (WidgetClass) =>
         widget = new WidgetClass
           repo: this
           serviceContainer: @serviceContainer
@@ -92,7 +91,21 @@ define [
         @widgets[widget.ctx.id] =
           widget: widget
 
-        @serviceContainer.injectServices(widget).map -> widget
+        Future.try =>
+          parentWidget.registerChild(widget, name) if parentWidget
+
+          injectRouterPromise = @serviceContainer.getService('router').then (router) ->
+            widget.router = router
+          .catch (err) -> # compatibility with compiling index.html when services are not defined
+            null
+          Future.all [
+            @serviceContainer.injectServices(widget)
+            injectRouterPromise
+          ]
+          .then -> widget
+        .catch (err) =>
+          @dropWidget(widget.ctx.id)
+          throw err
 
 
     dropWidget: (id) ->
@@ -150,7 +163,6 @@ define [
       @return {Boolean} true if any widgets has been scheduled to be dropped
       ###
       return false if @_gcTimeout # schedule only one GC task at a time
-
       root = @rootWidget
       okWidgetIds = []
       recCollectIds = (widget) =>
@@ -166,7 +178,7 @@ define [
           _console.warn "GC widgets for widget", root, gcIds.map (id) =>
             if @widgets[id]
               # debugging very bad situation when wrong widget is going to be dropped
-              if @widgets[id].widget.constructor.__name == 'Main'
+              if @widgets[id].widget.constructor.__name in ['Main', 'Base']
                 _console.error "<<<<<< Going to kill Main! >>>>>"
                 _console.log 'extend list', @_currentExtendList
                 _console.log 'root children', root.children
@@ -184,36 +196,35 @@ define [
       @param Object serializedBindings
       @param Function(Object) callback "result" callback with the converted map
       ###
-      promise = new Future('WidgetRepo::_unserializeModelBindings')
       result = {}
-      for key, value of serializedBindings
-        do (key) =>
-          if Collection.isSerializedLink(value)
-            promise.fork()
-            Collection.unserializeLink value, @serviceContainer, (collection) ->
-              result[key] = model: collection
-              promise.resolve()
-          else if Model.isSerializedLink(value)
-            promise.fork()
-            Model.unserializeLink value, @serviceContainer, (model) ->
-              result[key] = model: model
-              promise.resolve()
+      promises =
+        for key, value of serializedBindings
+          do (key) =>
+            if Collection.isSerializedLink(value)
+              Collection.unserializeLink(value, @serviceContainer).then (collection) ->
+                result[key] = model: collection
+                return
+            else if Model.isSerializedLink(value)
+              Model.unserializeLink(value, @serviceContainer).then (model) ->
+                result[key] = model: model
+                return
 
-      promise.then -> result
+      Future.all(promises).then -> result
 
 
-    initRepo: (repoServiceName, collections, promise) ->
+    initRepo: (repoServiceName, collections) ->
       ###
       Helper method used in generated initialization code to restore models came from server in the browser
       @browser-only
       @param String repoServiceName name of the model repository service name
       @param Object collections list of serialized registered collections keyed with their names
       @param Future promise a promise that must be resolved when collections are initialized
+      @return {Future<undefined>}
       ###
       collections = JSON.parse(decodeURIComponent(escape(collections))) # decode utf-8 and parse
 
-      @serviceContainer.eval repoServiceName, (repo) ->
-        repo.setCollections(collections).done -> promise.resolve()
+      @serviceContainer.getService(repoServiceName).then (repo) ->
+        repo.setCollections(collections)
 
 
     getModelsInitCode: ->
@@ -222,11 +233,28 @@ define [
       Loops through service container to find all repository services.
       ###
       result = []
-      for key, val of @serviceContainer
-        if val? and key.substr(0, 9) == '_box_val_' and val.isReady and val.val instanceof ModelRepo
-          escapedString = unescape(encodeURIComponent(JSON.stringify(val.val))).replace(/[\\']/g, '\\$&')
-          result.push("wi.initRepo('#{ key.substr(9) }', '#{ escapedString }', p.fork());")
-      result.join("\n")
+      for key, val of @serviceContainer.allInstances()
+        if val instanceof ModelRepo
+          escapedString = unescape(encodeURIComponent(JSON.stringify(val)))
+            .replace(/[\\']/g, '\\$&')
+            .replace(/<\/script>/g, '<\\/script>') # fix closing </script> tag in html bug
+          result.push("wi.initRepo('#{ key }', '#{ escapedString }')")
+      result.join(",\n      ") # additional spaces are for beautiful formatting
+
+
+    restoreModelLinks: (initRepoPromises) ->
+      ###
+      Restores model links after transmitting models from server to browser during initial page loading.
+      Utility method called from cord core initialization function.
+      @param {Array<Future>} initRepoPromises - array of repo initialization promises
+      @return {Future<undefined>}
+      ###
+      Future.all [
+        @serviceContainer.getService('modelProxy')
+        Future.all(initRepoPromises)
+      ]
+      .spread (modelProxy) ->
+        modelProxy.restoreLinks()
 
 
     getTemplateCode: ->
@@ -248,26 +276,22 @@ define [
       </script>
       <script data-main="#{initUrl}" src="#{baseUrl}vendor/requirejs/require.js?release=#{global.config.static.release}"></script>
       <script>
-          function cordcorewidgetinitializerbrowser(wi) {
-            requirejs(['cord!utils/Future'], function(Future) {
-              p = new Future('WidgetRepo::templateCode');
-              #{ @getModelsInitCode() }
-              wi.getServiceContainer().eval('modelProxy', function(modelProxy) {
-                p.done(function() {
-                  modelProxy.restoreLinks().done(function() {
-                    #{ @rootWidget.getInitCode() }
-                    wi.endInit();
-                  });
-                });
-              });
-            });
-          };
+        function cordcorewidgetinitializerbrowser(wi) {
+          var repoPromises = [
+            #{ @getModelsInitCode() }
+          ];
+          return wi.restoreModelLinks(repoPromises).then(function() {
+      #{ @rootWidget.getInitCode() }
+            wi.endInit();
+          });
+        };
       </script>
       """
 
 
     getTemplateCss: ->
-      cssHelper.getInitCssCode(@rootWidget.getDeepCssList())
+      Future.try =>
+        cssHelper.getInitCssCode(@rootWidget.getDeepCssList())
 
 
     endInit: ->
@@ -278,12 +302,13 @@ define [
       ###
       configPromise = Future.require('cord!AppConfigLoader').then (AppConfigLoader) ->
         AppConfigLoader.ready()
-      @_initPromise.zip(configPromise).done (any, appConfig) =>
+      Future.all([configPromise, @_initPromise]).spread (appConfig) =>
         # start services registered with autostart option
-        for serviceName, info of appConfig.services
-          @serviceContainer.eval(serviceName) if info.autoStart
+        @serviceContainer.autoStartServices(appConfig.services)
         # setup browser-side behaviour for all loaded widgets
         @_setupBindings().then =>
+          # Remove 'm-not-ready' modifier. Elements are clickable now
+          document.body.classList.remove('m-not-ready')
           # Initializing profiler panel
           if CORD_PROFILER_ENABLED
             if window.zone?
@@ -320,7 +345,7 @@ define [
 
       @_parentPromises[ctx.id] = Future.single("WidgetRepo::parentPromise(#{widgetPath}, #{ctx.id})")
 
-      Future.sequence([
+      Future.all([
         Future.require("cord-w!#{ widgetPath }")
         Context.fromJSON(ctx, @serviceContainer)
         @_unserializeModelBindings(modelBindings)
@@ -343,7 +368,14 @@ define [
           widget: widget
           namedChilds: namedChilds
 
-        @serviceContainer.injectServices(widget).link(@_parentPromises[ctx.id]).then =>
+        injectRouterPromise = @serviceContainer.getService('router').then (router) ->
+          widget.router = router
+
+        Future.all [
+          @serviceContainer.injectServices(widget)
+          injectRouterPromise
+        ]
+        .link(@_parentPromises[ctx.id]).then =>
           if parentId?
             @_parentPromises[parentId].then =>
               @widgets[parentId].widget.registerChild(widget, @widgets[parentId].namedChilds[ctx.id] ? null)
@@ -364,17 +396,21 @@ define [
           @_currentExtendList.push(widget)
       # initializing DOM bindings of widgets in reverse order (leafs of widget tree - first)
       bindPromises = (@bind(id) for id in @_widgetOrder.reverse())
-      result = Future.sequence(bindPromises)
+      result = Future.all(bindPromises)
       @serviceContainer.eval 'cookie', (cookie) =>
         if cookie.get('cord_require_stat_collection_enabled')
           result.done =>
-            Future.require('jquery', 'cord!css/browserManager').zip(Future.timeout(3000)).done ([$, cssManager]) =>
+            Future.all [
+              Future.require('jquery', 'cord!css/browserManager', 'cord!router/clientSideRouter')
+              Future.timeout(3000)
+            ]
+            .spread ([$, cssManager, router]) =>
               keys = Object.keys(require.s.contexts._.defined)
               re = /^cord(-\w)?!/
               keys = _.filter keys, (name) ->
                 not re.test(name)
               $.post '/REQUIRESTAT/collect',
-                root: @getRootWidget().getPath()
+                root: router.getActualPath()
                 definedModules: keys
                 css: cssManager._loadingOrder
               .done (resp) ->
@@ -388,7 +424,7 @@ define [
     bind: (widgetId) ->
       if @widgets[widgetId]?
         w = @widgets[widgetId].widget
-        w.initBehaviour().andThen ->
+        w.initBehaviour().finally ->
           w.markShown(ignoreChildren = true)
       else
         Future.rejected(new Error("Try to use uninitialized widget with id = #{widgetId}"))
@@ -405,7 +441,7 @@ define [
       if @widgets[id]?
         @widgets[id].widget
       else
-        throw "Try to get uninitialized widget with id = #{ id }"
+        throw new Error("Try to get uninitialized widget with id = #{id}")
 
 
     subscribePushBinding: (parentWidgetId, ctxName, childWidget, paramName, ctxVersionBorder) ->
@@ -511,7 +547,7 @@ define [
         @_nextTransitionPromise
 
 
-    transitPage: (newRootWidgetPath, params, transition) ->
+    transitPage: (newRootWidgetPath, params, transition, catchErrors = true) ->
       ###
       Initiates client-side transition of the page.
       This means smart changing of the layout of the page and re-rendering the widget according to the given new
@@ -530,72 +566,134 @@ define [
 #      @_curTransition.interrupt() if @_curTransition? and @_curTransition.isActive()
 #      @_curTransition = transition
 
-      _oldRootWidget = @rootWidget
-      # finding out if the new root widget is already exists in the current page structure
-      extendWidget = @findAndCutMatchingExtendWidget(newRootWidgetPath)
-      if extendWidget?
-        if _oldRootWidget != extendWidget
-          # if the new root widget exists in the current structure but it's not a root widget, than we need
-          # to unbind it from the old (parent) root widget, eliminate impact of the old root widget to the placeholders
-          # of the new root (because the old root extends from the new one directly or indirectly)
-          # and push new params into the new root widget
-          @setRootWidget extendWidget
-          extendWidget.getStructTemplate().then (tmpl) =>
-            tmpl.assignWidget(tmpl.struct.ownerWidget, extendWidget)
-            tmpl.replacePlaceholders(tmpl.struct.ownerWidget, extendWidget.ctx[':placeholders'], transition)
-          .then ->
-            extendWidget.setParamsSafe(params)
-          .then =>
-            @dropWidget(_oldRootWidget.ctx.id)
-            # todo: this browserInit may be always redundant. To be removed after check
-            if not @rootWidget._browserInitialized
-              @rootWidget.browserInit(extendWidget)
-              console.warn "Strange #{ extendWidget.debug('browserInit') } is not redundant!!!"
-            transition.complete()
-          .failAloud("WidgetRepo::transitPage:#{newRootWidgetPath}:getStructTemplate")
+      oldRootWidget = @rootWidget
+      oldExtendList = @_currentExtendList
+
+      @_rebuildExtendTree(newRootWidgetPath).spread (newRootWidget, commonExistingWidget, commonWidgetName) =>
+        # if the new root widget is already exists in the current page structure
+        if newRootWidget == commonExistingWidget
+          if oldRootWidget != newRootWidget
+            # if the new root widget exists in the current structure but it's not a root widget, than we need
+            # to unbind it from the old (parent) root widget, eliminate impact of the old root widget to the placeholders
+            # of the new root (because the old root extends from the new one directly or indirectly)
+            # and push new params into the new root widget
+            newRootWidget.getStructTemplate().then (tmpl) =>
+              tmpl.assignWidget(tmpl.struct.ownerWidget, newRootWidget)
+              tmpl.replacePlaceholders(tmpl.struct.ownerWidget, newRootWidget.ctx[':placeholders'], transition)
+            .then ->
+              newRootWidget.setParamsSafe(params)
+            .then =>
+              @dropWidget(oldRootWidget.ctx.id)
+              transition.complete()
+          else
+            # if the new widget is the same as the current root, than this is just params change and we should only push
+            # new params to the root widget
+            newRootWidget.setParamsSafe(params)
         else
-          # if the new widget is the same as the current root, than this is just params change and we should only push
-          # new params to the root widget
-          extendWidget.setParamsSafe(params)
+          # if the new root widget doesn't exist in the current page structure, than we need to create it,
+          # inject to the top of the page structure and recursively find the common widget from the extend list
+          # down to the base widget (containing <html> tag)
+          newRootWidget.inject(params, commonExistingWidget, transition).then (commonBaseWidget) =>
+            @dropWidget(oldRootWidget.ctx.id) if oldRootWidget and commonBaseWidget != oldRootWidget
+            newRootWidget.shown().done -> transition.complete()
+          .catch (e) =>
+            ###
+            Perform rollback operations of this transition:
+              - rollback root widget to the old one
+              - unbind a commonExistingWidget from widget which attached to
+              - restore extend list
+              - register commonExistingWidget to old widget
+            ###
+            @setRootWidget(oldRootWidget)
+            @_currentExtendList[@_currentExtendList.indexOf(commonExistingWidget) - 1].unbindChild(commonExistingWidget)
+            oldExtendList[oldExtendList.indexOf(commonExistingWidget) - 1].registerChild(commonExistingWidget, commonWidgetName)
+            @_currentExtendList = oldExtendList
+            throw e
+      .catchIf errors.MustReloadPage, (e) =>
+        throw e if not catchErrors
+        location.reload()
+      .catchIf errors.MustTransitPage, (e) =>
+        throw e if not catchErrors
+        @transitPage(e.widget, e.params, transition)
+      .catchIf (-> catchErrors), (err) =>
+        # If there is error widget, transit to it
+        AppConfigLoader.ready().then (appConfig) =>
+          if appConfig.errorWidget
+            @transitPage(appConfig.errorWidget, Utils.buildErrorWidgetParams(err, newRootWidgetPath, params), transition, false)
+              .catch (err1) ->
+                if err1 instanceof errors.MustReloadPage
+                  throw new Error("FATAL: Error widget should have common widget in parents with #{newRootWidgetPath}")
+                else
+                  throw err1
+              .failAloud('Error widget rendering error')
+
+          else
+            throw err
+      .failAloud("WidgetRepo::transitPage(\"#{newRootWidgetPath}\")")
+
+
+
+    _rebuildExtendTree: (newRootWidgetPath) ->
+      ###
+      Smartly reconstructs page's widget extend tree based on given new root widget path.
+      Btw created new extend tree widgets, set new root widget.
+      @param {String} newRootWidgetPath
+      @return {Future[Tuple[Widget, Widget]]} new root widget and common base widget (between old and new page)
+      ###
+      oldRootWidget = @rootWidget
+      @_calculateNewExtendTree(newRootWidgetPath).spread (newWidgetsList, commonExistingWidget, commonWidgetName) =>
+        newRootWidget =
+          if newWidgetsList.length
+            newWidgetsList[0]
+          else
+            commonExistingWidget
+
+        if oldRootWidget != newRootWidget
+          keepFrom = @_currentExtendList.indexOf(commonExistingWidget)
+          @_currentExtendList = newWidgetsList.concat(@_currentExtendList.slice(keepFrom))
+
+          @setRootWidget(newRootWidget)
+          if newWidgetsList.length
+            newWidgetsList[newWidgetsList.length - 1].registerChild(commonExistingWidget, commonWidgetName)
+
+        [newRootWidget, commonExistingWidget, commonWidgetName]
+
+
+    _calculateNewExtendTree: (extendWidgetPath) ->
+      ###
+      Initiates recursive search of common extend widget for the given widget path.
+      @param {String} extendWidgetPath
+      @return {Future[Tuple[Array[Widget], Widget, String]]} newly added extend widget list,
+                                                             common existing widget and it's name
+      ###
+      existingWidget = _.find @_currentExtendList, (x) -> x.getPath() == extendWidgetPath
+      if existingWidget
+        Future.resolved([[], existingWidget])
       else
-        # if the new root widget doesn't exists in the current page structure, than we need to create it,
-        # inject to the top of the page structure and recursively find the common widget from the extend list
-        # down to the base widget (containing <html> tag)
-        @createWidget(newRootWidgetPath).then (widget) =>
-          @setRootWidget widget
-          widget.inject(params, transition).then (commonBaseWidget) =>
-            @dropWidget(_oldRootWidget.ctx.id) if _oldRootWidget and commonBaseWidget != _oldRootWidget
-            @rootWidget.shown().done -> transition.complete()
-        .failAloud("WidgetRepo::transitPage:#{newRootWidgetPath}:createWidget")
+        @createWidget(extendWidgetPath).then (widget) =>
+          widget.getStructTemplate().then (tmpl) =>
+            if not tmpl.isEmpty() and tmpl.struct.extend
+              @_recScanExtendTree(tmpl).spread (newWidgetsList, commonExistingWidget, commonWidgetName) ->
+                [[widget].concat(newWidgetsList), commonExistingWidget, commonWidgetName]
+            else
+              throw new errors.MustReloadPage
 
 
-    findAndCutMatchingExtendWidget: (widgetPath) ->
+    _recScanExtendTree: (structTmpl) ->
       ###
-      Finds common point and reorganizes extend list.
-      Finds if the target widget is already somewhere in the current extend list.
-      If there is - removes all widgets before it from extend list and adds new ones (if there are) instead of them.
+      As _calculateNewExtendTree but accepts prepared structure template.
       ###
-      result = null
-      counter = 0
-      for extendWidget in @_currentExtendList
-        if widgetPath == extendWidget.getPath()
-          # removing all extend tree below found widget
-          @_currentExtendList.shift() while counter--
-          # ... and prepending extend tree with the new widgets
-          @_newExtendList.reverse()
-          @_currentExtendList.unshift(wdt) for wdt in @_newExtendList
-          @_newExtendList = []
-
-          result = extendWidget
-          break
-        counter++
-      result
-
-
-    registerNewExtendWidget: (widget) ->
-      @_newExtendList.push widget
-
-
-    replaceExtendTree: ->
-      @_currentExtendList = @_newExtendList
-      @_newExtendList = []
+      extendWidgetRefId = structTmpl.struct.extend.widget
+      extendWidgetInfo = structTmpl.struct.widgets[extendWidgetRefId]
+      extendWidgetPath = extendWidgetInfo.path
+      existingWidget = _.find @_currentExtendList, (x) -> x.getPath() == extendWidgetPath
+      if existingWidget
+        Future.resolved([[], existingWidget, extendWidgetInfo.name])
+      else
+        structTmpl.createWidgetByRefId(extendWidgetRefId).then (widget) =>
+          widget.getStructTemplate().then (tmpl) =>
+            if not tmpl.isEmpty() and tmpl.struct.extend
+              @_recScanExtendTree(tmpl).spread (newWidgetsList, commonExistingWidget, commonWidgetName) ->
+                [[widget].concat(newWidgetsList), commonExistingWidget, commonWidgetName]
+            else
+              throw new errors.MustReloadPage

@@ -17,6 +17,7 @@ define [
 
         @widgets = {}
         @_reverseIndex = {}
+        @_rawWidgets = {}
         @assignWidget struct.ownerWidget, ownerWidget
 
 
@@ -26,32 +27,55 @@ define [
     isExtended: -> @struct? and @struct.extend?
 
 
+    createWidgetByRefId: (widgetRefId) ->
+      ###
+      Creates and returns the new widget instance by it's structured reference id.
+      Placeholders of newly created widget are not initialized.
+      This API is needed to provide atomic transformation of whole extend tree during page transition
+      @see WidgetRepo::transitPage()
+      @param {String} widgetRefId
+      @return {Future[Widget]}
+      ###
+      if info = @struct.widgets[widgetRefId]
+        @_rawWidgets[widgetRefId] =
+          @ownerWidget.widgetRepo.createWidget(info.path, @ownerWidget, info.name, @ownerWidget.getBundle())
+      else
+        Future.rejected(new Error("StructureTemplate::createWidgetByRefId - invalid ref id: #{widgetRefId}! " +
+                                  "Owner: #{@ownerWidget.debug()}"))
+
+
     getWidget: (widgetRefId) ->
       ###
       Returns widget by it's structured reference id. If the widget has placeholders, they are being attached to it.
       Every widget initialized only once and cached (lazy).
-      @param String widgetRefId
-      @return Future[Widget]
+      @param {String} widgetRefId
+      @return {Future[Widget]}
       ###
       if @widgets[widgetRefId]?
-        Future.resolved(@widgets[widgetRefId])
+        if @widgets[widgetRefId] instanceof Future # previous _initWidget call is not completed yet
+          @widgets[widgetRefId]
+        else
+          Future.resolved(@widgets[widgetRefId])
+      else if @_rawWidgets[widgetRefId]? # the widget instance is already created but not initialized
+        @_initWidget(widgetRefId)
       else
-        @_initWidget(widgetRefId).map (widget) =>
-          @assignWidget widgetRefId, widget
-          widget
+        @createWidgetByRefId(widgetRefId).then =>
+          @_initWidget(widgetRefId)
 
 
     _initWidget: (widgetRefId) ->
       ###
-      Actual widget initialization. Supports lazyness for the `getWidget` method
-      @param String widgetRefId
-      @return Future[Widget]
+      Initializes widget's placeholders. The widget must be preliminarily created.
+      @param {String} widgetRefId
+      @return {Future[Widget]}
       ###
-      info = @struct.widgets[widgetRefId]
-      @ownerWidget.widgetRepo.createWidget(info.path, @ownerWidget.getBundle()).then (widget) =>
-        @_resolvePlaceholders(info.placeholders).then (resolvedPlaceholders) ->
+      @widgets[widgetRefId] = @_rawWidgets[widgetRefId].then (widget) =>
+        @_resolvePlaceholders(@struct.widgets[widgetRefId].placeholders).then (resolvedPlaceholders) =>
+          @assignWidget widgetRefId, widget
           widget.definePlaceholders(resolvedPlaceholders)
           widget
+      delete @_rawWidgets[widgetRefId]
+      @widgets[widgetRefId]
 
 
     getWidgetByName: (name) ->
@@ -109,7 +133,7 @@ define [
               resultPromise.fork()
               if item.widget?
                 @getWidget(item.widget).then (widget) =>
-                  @ownerWidget.registerChild widget, item.name
+                  @ownerWidget.registerChild(widget, item.name) # this call should not be deleted, it's not duplicate!
 
                   complete = false
                   timeoutPromise = null

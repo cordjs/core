@@ -1,8 +1,9 @@
 define [
   'cord!Module'
   'cord!Collection'
+  'cord!utils/Future'
   'underscore'
-], (Module, Collection, _) ->
+], (Module, Collection, Future, _) ->
 
   class Model extends Module
 
@@ -71,19 +72,23 @@ define [
       @collection = collection
 
 
-    set: (key, val) ->
+    set: (key, val, aloud) ->
       if _.isObject(key)
         key = key.toJSON() if key instanceof Model
         attrs = key
       else
-        (attrs = {})[key] = val
+        attrs = {}
+        attrs[key] = val
 
+      changed = false
       for key, val of attrs
         if not _.isEqual(@[key], val)
           @_changed[key] = @[key] if not @_changed[key]?
           @[key] = val
           @_fieldNames.push(key) if @_fieldNames.indexOf(key) == -1
+          changed = true
 
+      @collection.emit("model.#{ @id }.change", this) if aloud and changed
       this
 
 
@@ -92,8 +97,7 @@ define [
       Sets new value and emit change to everyone who subsribed on the Model's 'change' event
       This won't change any models in other collections! Use save() or propagateModelChange() for that.
       ###
-      @set(key, val)
-      @collection.emit("model.#{ @id }.change", this)
+      @set(key, val, true)
 
 
     refreshOnlyContainingCollections: ->
@@ -216,16 +220,16 @@ define [
       _.isString(serialized) and serialized.substr(0, 7) == ':model:'
 
 
-    @unserializeLink: (serialized, ioc, callback) ->
+    @unserializeLink: (serialized, ioc) ->
       ###
       Converts serialized link to model to link of the model instance in it's collection
-      @param String serialized
-      @param Box ioc service container needed to get model repository service by name
-      @param Function(Model) callback "returning" callback
+      @param {String|Model} serialized
+      @param {ServiceContainer} ioc - service container needed to get model repository service by name
+      @param {Future<Model>}
       ###
       if serialized instanceof Model
-        callback(serialized)
+        Future.resolved(serialized)
       else
         [modelId, serializedCollection] = serialized.substr(7).split('/')
-        Collection.unserializeLink serializedCollection, ioc, (collection) ->
-          callback(collection.get(modelId))
+        Collection.unserializeLink(serializedCollection, ioc).then (collection) ->
+          collection.get(modelId)

@@ -35,7 +35,7 @@ define [
     # @var Object[String -> String]
     actions: null
 
-    @inject: ['modelProxy']
+    @inject: ['api', 'modelProxy']
 
 
     constructor: (@container) ->
@@ -71,8 +71,8 @@ define [
 
       if options.collectionClass
         throw new Error("Extended collections should be created using ModelRepo::createExtendedCollection() method!")
-      name = Collection.generateName(options)
-      if @_collections[name]? and @_collections[name].isConsistent()
+      name = options.collectionName or Collection.generateName(options)
+      if @_collections[name]? and @_collections[name].isConsistent() and not options.renew
         collection = @_collections[name]
       else
         options = _.clone(options)
@@ -107,22 +107,23 @@ define [
       @param Object options common collection options
       @return Future(Collection)
       ###
-      result = Future.single('ModelRepo::createExtendedCollection')
       options.collectionClass = collectionClass
       name = Collection.generateName(options)
 
       if @_collections[name]?
-        result.resolve(@_collections[name])
+        # We need to reinject tags because some of them could be user-functions
+        @_collections[name].injectTags(options.tags)
+        Future.resolved(@_collections[name])
       else
         CollectionClass = options.collectionClass ? Collection
         collection = new CollectionClass(this, name, options)
         @_registerCollection(name, collection)
 
-        @container.injectServices(collection).done ->
-          collection.browserInit?() if isBrowser
-          result.resolve(collection)
-
-      result
+        @container.injectServices(collection).then =>
+          # We need to reinject tags because some of them could be user-functions
+          @_collections[name].injectTags(options.tags)
+          collection.browserInit?()  if isBrowser
+          collection
 
 
     buildCollection: (options, syncMode, callback) ->
@@ -158,12 +159,11 @@ define [
       @return Collection|null
       ###
 
-      options =
+      # extraOptions should not override option keys defined here
+      options = _.extend {}, extraOptions,
         id: id
         fields: fields
         reconnect: false
-
-      options = _.extend extraOptions, options
 
       @createCollection(options)
 
@@ -171,49 +171,35 @@ define [
     buildSingleModel: (id, fields, syncMode, extraOptions = {}) ->
       ###
       Creates and syncs single-model collection by id and field list.
-      Method returns single-model collection.
+      Method returns promise with the model instance.
 
       :now sync mode is not available here since we need to return the resulting model.
 
-      @param Integer id
-      @param Array[String] fields list of fields names for the collection
-      @param (optional)String syncMode desired sync and return mode, default to :cache
+      @param {Integer} id
+      @param {Array<String>} fields - list of fields names for the collection
+      @param (optional){String} syncMode - desired sync and return mode, default to :cache
              special sync mode :cache-async, tries to find model in existing collections,
              if not found, calls sync in async mode to refresh model
-      @param Function(Model) callback
-      @return promise
+      @return {Future<Model>}
       ###
-      promise = new Future(1, 'ModelRepo::buildSingleModel')
-
-      if syncMode == ':cache' || syncMode == ':cache-async'
+      if syncMode == ':cache' or syncMode == ':cache-async'
         model = @probeCollectionsForModel(id, fields)
 
         if model
-          options =
-           fields: fields
-           id: model.id
-           model: @buildModel(model)
+          return Future.try =>
+            collection = @createCollection
+              fields: fields
+              id: model.id
+              model: @buildModel(model)
 
-          collection = @createCollection(options)
-
-          try
-            promise.resolve(collection.get(id))
-          catch error
-            promise.reject(error) if error.name == 'ModelNotExists'
-
-          return promise
+            collection.get(id)
 
       syncMode = ':async' if syncMode == ':cache-async'
-      collection = @createSingleModel(id, fields, extraOptions)
 
-      collection.sync syncMode, 0, 0, ->
-        try
-          promise.resolve(collection.get(id))
-        catch error
-          if error.name == 'ModelNotExists'
-            promise.reject(error)
-
-      promise
+      @createSingleModel(id, fields, extraOptions)
+        .sync(syncMode, 0, 0)
+        .then (collection) ->
+          collection.get(id)
 
 
     probeCollectionsForModel: (id, fields) ->
@@ -283,6 +269,15 @@ define [
       new Collection(this, 'fixed', options)
 
 
+    collectionExists: (name) ->
+      ###
+      Checks if a collection with the given name is already registered in this repo
+      @param {String} name
+      @return {Boolean}
+      ###
+      @_collections[name]?
+
+
     getCollection: (name, returnMode, callback) ->
       ###
       Returns registered collection by name. Returns collection immediately anyway regardless of
@@ -344,50 +339,49 @@ define [
                                       as a value
       @browser-only
       ###
-      result = new Future('ModelRepo::setCollections result')
       @_collections = {}
-      for name, info of collections
-        promise = Future.single('ModelRepo::setCollections promise')
-        result.fork()
-        do (promise, info, name) =>
-          if info.canonicalPath?
-            require ["cord-m!#{ info.canonicalPath }"], (CollectionClass) -> promise.resolve(CollectionClass)
-          else
-            promise.resolve(Collection)
-          promise.done (CollectionClass) =>
-            info.collectionClass = CollectionClass
-            collection = Collection.fromJSON(this, name, info)
-            #Assume that collection from backend is always fresh
-            collection.updateLastQueryTime()
-            @_registerCollection(name, collection)
-            @container.injectServices(collection).done =>
-              collection.browserInit?()
-              result.resolve()
-      result
+      promises =
+        for name, info of collections
+          do (info, name) =>
+            collectionClassPromise =
+              if info.canonicalPath?
+                Future.require("cord-m!#{ info.canonicalPath }")
+              else
+                Future.resolved(Collection)
+
+            collectionClassPromise.then (CollectionClass) =>
+              info.collectionClass = CollectionClass
+              collection = Collection.fromJSON(this, name, info)
+              #Assume that collection from backend is always fresh
+              collection.updateLastQueryTime()
+              @_registerCollection(name, collection)
+              @container.injectServices(collection).then ->
+                collection.browserInit?()
+                return
+      Future.all(promises).then -> undefined
 
 
     # REST related
 
     query: (params, callback) ->
-      resultPromise = Future.single('ModelRepo::query')
       if @container
-        @container.eval 'api', (api) =>
-          apiParams = {}
-          apiParams.reconnect = true if params.reconnect == true
+        apiParams = {}
+        apiParams.reconnect = true if params.reconnect == true
+        url = @_buildApiRequestUrl(params)
 
-          api.get @_buildApiRequestUrl(params), apiParams, (response, error) =>
+        @api.get(url, apiParams).then (response) =>
+          if not response._code  #Bad boy! Quickfix for absence of error handling
             result = []
-            if error == null && !response._code  #Bad boy! Quickfix for absence of error handling
-              if _.isArray(response)
-                result.push(@buildModel(item)) for item in response
-              else if response
-                result.push(@buildModel(response))
+            if _.isArray(response)
+              result.push(@buildModel(item)) for item in response
+            else if response
+              result.push(@buildModel(response))
             callback?(result)
-            resultPromise.resolve(result)
+            result
+          else
+            throw new Error("#{@debug('query')}: invalid response for url '#{url}' with code #{response._code}!")
       else
-        resultPromise.reject('Cleaned up')
-
-      resultPromise
+        Future.rejected(new Error('Cleaned up'))
 
 
     _buildApiRequestUrl: (params) ->
@@ -401,6 +395,7 @@ define [
       if not params.id?
         urlParams.push("_filter=#{ params.filterId }") if params.filterId?
         urlParams.push("_filterParams=#{ params.filterParams }") if params.filterParams?
+        urlParams.push("_reportConfig=#{ params.reportConfig }") if params.reportConfig?
         urlParams.push("_page=#{ params.page }") if params.page?
         urlParams.push("_pagesize=#{ params.pageSize }") if params.pageSize?
         # important! adding 1 to the params.end to compensate semantics:
@@ -439,25 +434,18 @@ define [
       ###
       Remove given model on the backend
       @param Model model model to save
-      @return Future(response, error)
+      @return {Future<Object>}
       ###
-      promise = Future.single('Delete model promise')
-      if @container
-        @container.eval 'api', (api) =>
-          if model.id
-            api.del @restResource + '/' + model.id, (response, error) =>
-              if error
-                @emit 'error', error
-                promise.reject(error)
-              else
-                @clearSingleModelCollections(model).done =>
-                  @refreshOnlyContainingCollections(model)
-                  promise.resolve(response)
-          else
-            promise.reject('Unsave model')
+      if model.id
+        @api.del(@restResource + '/' + model.id).then (response) =>
+          @clearSingleModelCollections(model).then =>
+            @refreshOnlyContainingCollections(model)
+            response
+        .catch (err) =>
+          @emit 'error', err
+          throw err
       else
-        promise.reject('Cleaned up')
-      promise
+        Future.rejected(new Error("#{@debug('delete')} - model is not saved yet. Can't delete: #{model}"))
 
 
     save: (model, notRefreshCollections = false) ->
@@ -465,47 +453,39 @@ define [
       Persists list of given models to the backend
       @param model model model to save
       @param notRefreshCollections - if true caller must take care of collections refreshing
-      @return Future(response, error)
+      @return {Future<Object>}
       ###
-      promise = new Future(1, 'ModelRepo::save')
-      if @container
-        @container.eval 'api', (api) =>
-          if model.id
-            changeInfo = model.getChangedFields()
-            # Don't do api request if model isn't change
-            if Object.keys(changeInfo).length
-              pureChangeInfo = _.clone(changeInfo)
-              changeInfo.id = model.id
-              changeInfo._sourceModel = model
-              @emit 'change', changeInfo
-              api.put @restResource + '/' + model.id, model.getChangedFields(), (response, error) =>
-                if error
-                  @emit 'error', error
-                  promise.reject(error)
-                else
-                  @cacheCollection(model.collection) if model.collection?
-                  model.resetChangedFields()
-                  @emit 'sync', model
-                  if not notRefreshCollections
-                    @triggerTagsForChanges(pureChangeInfo, model)
-                  promise.resolve(response)
-            else
-              promise.resolve('Nothing to save')
-          else
-            api.post @restResource, model.getChangedFields(), (response, error) =>
-              if error
-                @emit 'error', error
-                promise.reject(error)
-              else
-                model.id = response.id
-                model.resetChangedFields()
-                @emit 'sync', model
-                @triggerTagsForNewModel(model, response) if not notRefreshCollections
-                @_injectActionMethods(model)
-                promise.resolve(response)
+      if model.id
+        changeInfo = model.getChangedFields()
+        # Don't do api request if model isn't change
+        if Object.keys(changeInfo).length
+          pureChangeInfo = _.clone(changeInfo)
+          changeInfo.id = model.id
+          changeInfo._sourceModel = model
+          @emit 'change', changeInfo
+          @api.put(@restResource + '/' + model.id, model.getChangedFields()).then (response) =>
+            @cacheCollection(model.collection) if model.collection?
+            model.resetChangedFields()
+            @emit 'sync', model
+            if not notRefreshCollections
+              @triggerTagsForChanges(pureChangeInfo, model)
+            response
+          .catch (err) =>
+            @emit 'error', err
+            throw err
+        else
+          Future.resolved() # todo: may be model.toJSON() would be more sufficient here?
       else
-        promise.reject('Cleaned up')
-      promise
+        @api.post(@restResource, model.getChangedFields()).then (response) =>
+          model.id = response.id
+          model.resetChangedFields()
+          @emit 'sync', model
+          @triggerTagsForNewModel(model, response) if not notRefreshCollections
+          @_injectActionMethods(model)
+          response
+        .catch (err) =>
+          @emit 'error', err
+          throw err
 
 
     triggerTagsForNewModel: (model, response) ->
@@ -544,7 +524,7 @@ define [
       @_collectedTags[tag] = mods
 
       Defer.nextTick =>
-        _console.log('Emit tags:', @_collectedTags) if _.size(@_collectedTags) > 0
+        _console.log('Emit tags:', @_collectedTags) if _.size(@_collectedTags) > 0 and global.config.debug.model
         @emit('tags', @_collectedTags) if _.size(@_collectedTags) > 0
         @_collectedTags = {}
 
@@ -559,14 +539,7 @@ define [
                 selected: Int (0-based index/position of the selected model)
                 selectedPage: Int (1-based number of the page that contains the selected model)
       ###
-      result = Future.single('ModelRepo::paging')
-      if @container
-        @container.eval 'api', (api) =>
-          api.get @_buildPagingRequestUrl(params), {}, (response) =>
-            result.resolve(response)
-      else
-        result.reject('Cleaned up')
-      result
+      @api.get(@_buildPagingRequestUrl(params))
 
 
     _buildPagingRequestUrl: (params) ->
@@ -578,6 +551,7 @@ define [
       urlParams = []
       urlParams.push("_filter=#{ params.filterId }") if params.filterId?
       urlParams.push("_filterParams=#{ params.filterParams }") if params.filterParams?
+      urlParams.push("_reportConfig=#{ params.reportConfig }") if params.reportConfig?
       urlParams.push("_pagesize=#{ params.pageSize }") if params.pageSize?
       urlParams.push("_sortby=#{ params.orderBy }") if params.orderBy?
       urlParams.push("_selectedId=#{ params.selectedId }") if params.selectedId
@@ -612,6 +586,7 @@ define [
       apiParams._selectedId = params.selectedId if params.selectedId?
       apiParams._filter = params.filterId if params.filterId?
       apiParams._filterParams = params.filterParams if params.filterParams?
+      apiParams._reportConfig = params.reportConfig if params.reportConfig?
       if params.filter
         for filterField of params.filter
           apiParams[filterField] = params.filter[filterField]
@@ -673,28 +648,24 @@ define [
             needRequest = true
             break
           currentValue = currentValue[subFields[i]]
-        if needRequest == true
-          break
+        break  if needRequest
 
       #Do request, or not
-      promise = new Future(1, 'ModelRepo::propagateFieldChange promise')
-      if needRequest
-        @container.eval 'api', (api) =>
-          apiParams =
-            _fields: fieldDefinitions.join ','
-          api.get @restResource + '/' + id, apiParams, (result, error) ->
-            promise.resolve result
-      else
-        changeset = {}
-        changeset[fieldName] = newValue
-        promise.resolve changeset
+      Future.try =>
+        if needRequest
+          @api.get @restResource + '/' + id,
+            _fields: fieldDefinitions.join(',')
+        else
+          changeset = {}
+          changeset[fieldName] = newValue
+          changeset
 
-      #Propagate new value
-      promise.done (result) =>
-        changeset = _.clone result
+      .then (changeset) =>
+        #Propagate new value
         changeset.id = id
         for key,collection of @_collections
           collection._handleModelChange changeset
+        return
 
 
     callModelAction: (id, method, action, params) ->
@@ -705,13 +676,7 @@ define [
       @param Object params additional key-value params for the action request (will be sent by POST)
       @return Future[response]
       ###
-      if @container
-        result = Future.single('ModelRepo::callModelAction result')
-        @container.eval 'api', (api) =>
-          api[method]("#{ @restResource }/#{ id }/#{ action }", params).link(result)
-        result
-      else
-        Future.rejected(new Error('Service container is cleaned up!'))
+      @api[method]("#{ @restResource }/#{ id }/#{ action }", params)
 
 
     buildModel: (attrs) ->
@@ -779,47 +744,37 @@ define [
       promise = new Future('ModelRepo::clearSingleModelCollections')
       for key, collection of @_collections
         if parseInt(collection._id) == model.id
-          promise.fork()
-          delete @_collections[key]
-          collection.invalidateCache().done =>
-            promise.resolve()
+          promise.when(collection.euthanize())
       promise
 
 
     invalidateAllCache: ->
       ###
-      Invalidate cache for all collections
+      Invalidates cache for all collections
+      @return {Future<undefined>}
       ###
-
-      #clear existing collections
-      result = Future.single('ModelRepo::invalidateAllCache')
-
-      if isBrowser
-        @container.eval 'localStorage', (storage) =>
-          result.when storage._invalidateAllCollections(@constructor.__name) #Invalidate All
-
       @_collections = {}
-
-      return result
+      if isBrowser
+        @container.getService('localStorage').then (storage) =>
+          storage._invalidateAllCollections(@constructor.__name) #Invalidate All
+      else
+        Future.resolved()
 
 
     invalidateCacheForCollectionWithField: (fieldName) ->
       ###
-      Invalidate cache for all collections with the name
+      Invalidates cache for all collections with the field name
+      @return {Future<undefined>}
       ###
-      if isBrowser
-        result = Future.single('ModelRepo::invalidateCacheForCollectionWithField')
-        @container.eval 'localStorage', (storage) =>
-          result.when(storage.invalidateAllCollectionsWithField(@constructor.__name, fieldName))
-      else
-        Future.rejected("ModelRepo::invalidateCacheForCollectionWithField is not applicable on server-side!")
-
-      #clear existing collections
       for key, collection of @_collections
         if collection._fields.indexOf(fieldName) >= 0
           delete @_collections[key]
 
-      result
+      if isBrowser
+        @container.getService('localStorage').then (storage) =>
+          storage.invalidateAllCollectionsWithField(@constructor.__name, fieldName)
+      else
+        Future.resolved()
 
 
     invalidateCacheForCollectionsWithFilter: (fieldName, filterValue) ->
@@ -831,10 +786,7 @@ define [
       for key, collection of @_collections
         if collection._filter[fieldName] == filterValue
           if isBrowser
-            result.fork()
-            @container.eval 'localStorage', (storage) =>
-              result.when(collection.invalidateCache())
-              result.resolve()
+            result.when(collection.invalidateCache())
           delete @_collections[key]
 
       result
@@ -881,79 +833,70 @@ define [
       @return {Future[Bool]} true if collection cached successfully, false otherwise
       ###
       name = collection.name
-      result = new Future.single('ModelRepo::cacheCollection')
       if isBrowser
-        @container.eval 'localStorage', (storage) =>
+        @container.getService('localStorage').then (storage) =>
           # prepare models for cache
           models = []
-          models[key] = model.toJSON() for key, model of collection.toArray()
+          models[i] = model.toJSON() for model, i in collection.toArray()
 
-          storage.saveCollectionInfo @constructor.__name, name, collection.getTtl(),
+          saveInfoPromise = storage.saveCollectionInfo @constructor.__name, name, collection.getTtl(),
             totalCount: collection._totalCount
             start: collection._loadedStart
             end: collection._loadedEnd
             hasLimits: collection._hasLimits
             fields: collection._fields
-          .zip(storage.saveCollection(@constructor.__name, name, models))
-          .then -> true
+          Future.all [
+            saveInfoPromise
+            storage.saveCollection(@constructor.__name, name, models)
+          ]
+          .then ->
+            true
           .catch (err) ->
-            _console.error "#{@constructor.__name}::cacheCollection() failed:", err, err.stack
+            _console.error "#{@constructor.__name}::cacheCollection() failed:", err
             false
-          .link(result)
       else
-        result.resolve(false)
-
-      result
+        Future.resolved(false)
 
 
     cutCachedCollection: (collection, loadedStart, loadedEnd) ->
       if isBrowser
-        result = Future.single('ModelRepo::cutCachedCollection')
-        @container.eval 'localStorage', (storage) =>
-          f = storage.saveCollectionInfo @constructor.__name, collection.name, null,
+        @container.getService('localStorage').then (storage) =>
+          storage.saveCollectionInfo @constructor.__name, collection.name, null,
             totalCount: collection._totalCount
             start: loadedStart
             end: loadedEnd
             fields: collection._fields
-          result.when(f)
       else
-        Future.rejected("ModelRepo::cutCachedCollection is not applicable on server-side!")
+        Future.rejected(new Error('ModelRepo::cutCachedCollection is not applicable on server-side!'))
 
 
     getCachedCollectionInfo: (name) ->
       if isBrowser
-        result = Future.single('ModelRepo::getCachedCollectionInfo')
-        @container.eval 'localStorage', (storage) =>
-          result.when storage.getCollectionInfo(@constructor.__name, name)
-        result
+        @container.getService('localStorage').then (storage) =>
+          storage.getCollectionInfo(@constructor.__name, name)
       else
-        Future.rejected("ModelRepo::getCachedCollectionInfo is not applicable on server-side!")
+        Future.rejected(new Error('ModelRepo::getCachedCollectionInfo is not applicable on server-side!'))
 
 
-    getCachedCollectionModels: (name, fields) ->
+    getCachedCollectionModels: (name) ->
       if isBrowser
-        resultPromise = Future.single('ModelRepo::getCachedCollectionModels')
-        @container.eval 'localStorage', (storage) =>
-          storage.getCollection(@constructor.__name, name).done (models) =>
-            result = []
-            for m,index in models
-              result[index] = @buildModel(m) if m
-            resultPromise.resolve(result)
-        resultPromise
+        @container.getService('localStorage').then (storage) =>
+          storage.getCollection(@constructor.__name, name)
+        .then (models) =>
+          result = []
+          for m, index in models
+            result[index] = @buildModel(m) if m
+          result
       else
-        Future.rejected("ModelRepo::getCachedCollectionModels is not applicable on server-side!")
+        Future.rejected(new Error('ModelRepo::getCachedCollectionModels is not applicable on server-side!'))
 
 
     invalidateCollectionCache: (name) ->
       if isBrowser
-        result = Future.single('ModelRepo::getCachedCollectionModels')
-        @container.eval 'localStorage', (storage) =>
-          result.when(storage.invalidateCollection(@constructor.__name, name))
-        result
+        @container.getService('localStorage').then (storage) =>
+          storage.invalidateCollection(@constructor.__name, name)
       else
-        Future.rejected("ModelRepo::invalidateCollectionCache is not applicable on server-side!")
-
-      result
+        Future.rejected(new Error('ModelRepo::invalidateCollectionCache is not applicable on server-side!'))
 
 
     _pathToObject: (pathList) ->
