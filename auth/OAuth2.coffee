@@ -99,6 +99,7 @@ define [
             .catch (error) =>
               _console.error('Clear refresh token, because of:', error)
               @_invalidateRefreshToken()
+              throw error
             .spread (accessToken) =>
               url += ( if url.lastIndexOf('?') == -1 then '?' else '&' ) + "#{@accessTokenParamName}=#{accessToken}"
               [url, params]
