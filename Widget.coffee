@@ -396,13 +396,14 @@ define [
 
 
     addPromise: (promise) ->
+      return promise if _.contains(@_promises, promise)
       @_promises.push promise
       # Add a error-handling of Future on widget ready
       failHandler = @_onPromiseFail
       if @_widgetReadyPromise and not @_widgetReadyPromise.completed()
-        @_widgetReadyPromise.done -> promise.fail(failHandler)
+        @_widgetReadyPromise.done -> promise.catch(failHandler)
       else
-        promise.fail(failHandler)
+        promise.catch(failHandler)
       promise
 
 
