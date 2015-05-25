@@ -340,8 +340,7 @@ define [
         thisArg._fail(@reject, result)
       else
         result._boundTo = thisArg
-        @_done(@resolve, result)
-        @_fail(@reject, result)
+        result.when(this)
       result
 
 
@@ -909,8 +908,7 @@ define [
   bindResolvedCb = (resolvedThisArg, result) ->
     # see Future.bind
     result._boundTo = resolvedThisArg
-    @_done(@resolve, result)
-    @_fail(@reject, result)
+    result.when(this)
 
 
   ##
