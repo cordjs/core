@@ -235,7 +235,7 @@ define [
       ###
       result = []
       for key, val of @serviceContainer.allInstances()
-        if val instanceof ModelRepo
+        if val instanceof ModelRepo and val.isUsed()
           escapedString = unescape(encodeURIComponent(JSON.stringify(val))).replace(/[\\']/g, '\\$&').replace(/<\/script>/g, '<\\/script>')
           result.push("wi.initRepo('#{ key }', '#{ escapedString }', p.fork());")
       result.join("\n")
@@ -250,6 +250,9 @@ define [
       else
         "#{baseUrl}bundles/cord/core/init/browser-init.js?release=" + global.config.static.release
 
+      initCode = @rootWidget.getInitCode() # this method MUST be called before `getModelsInitCode` method
+      modelsInitCode = @getModelsInitCode()
+
       """
       #{ if global.config.injectCordova then "<script src=\"#{baseUrl}cordova.js\"></script>" else '' }
       <script>
@@ -263,11 +266,11 @@ define [
           function cordcorewidgetinitializerbrowser(wi) {
             requirejs(['cord!utils/Future'], function(Future) {
               p = new Future('WidgetRepo::templateCode');
-              #{ @getModelsInitCode() }
+              #{ modelsInitCode }
               wi.getServiceContainer().eval('modelProxy', function(modelProxy) {
                 p.done(function() {
                   modelProxy.restoreLinks().done(function() {
-                    #{ @rootWidget.getInitCode() }
+                    #{ initCode }
                     wi.endInit();
                   });
                 });

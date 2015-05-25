@@ -1610,6 +1610,7 @@ define [
       Returns serialized link (address) of this collection
       @return String
       ###
+      @repo.markAsUsed()
       ":collection:#{ @repo.constructor.__name }:#{ @name }"
 
 

@@ -37,6 +37,9 @@ define [
 
     @inject: ['api', 'modelProxy']
 
+    # Is this repository used somewhere
+    _used: false
+
 
     constructor: (@container) ->
       throw new Error("'model' property should be set for the repository!") if not @model?
@@ -976,3 +979,18 @@ define [
       ###
       methodStr = if method? then "::#{ method }" else ''
       "#{ @constructor.__name }#{ methodStr }"
+
+
+    markAsUsed: ->
+      ###
+      Marks this repository as used: it should be transferred from server to browser in this case
+      ###
+      console.trace 'Collection marked as used'
+      @_used = true
+
+
+    isUsed: ->
+      ###
+      Is this repository used in anywhere. If yes, it should be transferred from server to browser
+      ###
+      @_used
