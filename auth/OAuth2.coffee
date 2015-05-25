@@ -96,12 +96,13 @@ define [
           Future.resolved([url, params])
         else
           @_getTokensByAllMeans()
-            .catch (error) =>
-              _console.error('Clear refresh token, because of:', error)
-              @_invalidateRefreshToken()
             .spread (accessToken) =>
               url += ( if url.lastIndexOf('?') == -1 then '?' else '&' ) + "#{@accessTokenParamName}=#{accessToken}"
               [[url, params]]
+            .catch (error) =>
+              _console.error('Clear refresh token, because of:', error)
+              @_invalidateRefreshToken()
+              throw error
 
 
     prepareAuth: ->
