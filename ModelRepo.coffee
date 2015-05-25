@@ -985,7 +985,6 @@ define [
       ###
       Marks this repository as used: it should be transferred from server to browser in this case
       ###
-      console.trace 'Collection marked as used'
       @_used = true
 
 
