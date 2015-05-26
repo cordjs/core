@@ -24,6 +24,14 @@ define [
       )
 
 
+  class ElementSelector
+    ###
+    Object of this class represents one element selector. It can be set in Behaviour's prototype, and converts to
+    jQuery DOM Element on Behaviour's construction
+    ###
+    constructor: (@selector) ->
+
+
   class Behaviour extends Module
 
     # jQuery aggregate of all DOM-roots of the widget
@@ -65,6 +73,11 @@ define [
 
       @elements     = @constructor.elements unless @elements
       @elements     = @elements() if _.isFunction @elements
+      @elements = {} if not @elements
+      # Also append all of ElementSelector elements
+      for name, value of this
+        if value instanceof ElementSelector
+          @elements[value.selector] = name
 
       @_elementSelectors = {} if @elements # needed to support '@element'-like selectors for events
 
@@ -590,3 +603,11 @@ define [
         "#{ @widget.getPath() }Behaviour(#{ @widget.ctx.id })#{ methodStr }"
       else
         @constructor.__name + methodStr
+
+
+    @$: (selector) ->
+      ###
+      Instantiates a new ElementSelector object, which can be set to prototype
+      @static
+      ###
+      new ElementSelector(selector)

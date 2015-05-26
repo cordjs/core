@@ -532,7 +532,7 @@ define [
         @_nextTransitionPromise
 
 
-    transitPage: (newRootWidgetPath, params, transition, catchErrors = true) ->
+    transitPage: (newRootWidgetPath, params, transition) ->
       ###
       Initiates client-side transition of the page.
       This means smart changing of the layout of the page and re-rendering the widget according to the given new
@@ -550,7 +550,41 @@ define [
       # interrupting previous transition if it's not completed
 #      @_curTransition.interrupt() if @_curTransition? and @_curTransition.isActive()
 #      @_curTransition = transition
+      @_transitPageUnsafe(newRootWidgetPath, params, transition)
+      .catchIf errors.MustReloadPage, ->
+        location.reload()
+      .catchIf errors.MustTransitPage, (e) =>
+        @_transitPageUnsafe(e.widget, e.params, transition)
+      .catchIf errors.AuthError, (e) =>
+        # Custom handler for that type of error
+        @serviceContainer.getService('config').then (config) ->
+          if config.api.authenticateUserCallback
+            config.api.authenticateUserCallback()
+          throw e
+      .catch (err) =>
+        # We should not handle AuthError here, as it handled before
+        throw err if err instanceof errors.AuthError
+        # If there is error widget, transit to it
+        AppConfigLoader.ready().then (appConfig) =>
+          if appConfig.errorWidget
+            @_transitPageUnsafe(appConfig.errorWidget, Utils.buildErrorWidgetParams(err, newRootWidgetPath, params), transition, false)
+              .catch (err1) ->
+                if err1 instanceof errors.MustReloadPage
+                  throw new Error("FATAL: Error widget should have common widget in parents with #{newRootWidgetPath}")
+                else
+                  throw err1
+              .failAloud('Error widget rendering error')
 
+          else
+            throw err
+      .failAloud("WidgetRepo::transitPage(\"#{newRootWidgetPath}\")")
+
+
+
+    _transitPageUnsafe: (newRootWidgetPath, params, transition) ->
+      ###
+      This method just performs a page transition. No any error handlers
+      ###
       oldRootWidget = @rootWidget
       oldExtendList = @_currentExtendList
 
@@ -589,33 +623,12 @@ define [
               - restore extend list
               - register commonExistingWidget to old widget
             ###
+            transition.interrupt()
             @setRootWidget(oldRootWidget)
             @_currentExtendList[@_currentExtendList.indexOf(commonExistingWidget) - 1].unbindChild(commonExistingWidget)
             oldExtendList[oldExtendList.indexOf(commonExistingWidget) - 1].registerChild(commonExistingWidget, commonWidgetName)
             @_currentExtendList = oldExtendList
             throw e
-      .catchIf errors.MustReloadPage, (e) =>
-        throw e if not catchErrors
-        location.reload()
-      .catchIf errors.MustTransitPage, (e) =>
-        throw e if not catchErrors
-        @transitPage(e.widget, e.params, transition)
-      .catchIf (-> catchErrors), (err) =>
-        # If there is error widget, transit to it
-        AppConfigLoader.ready().then (appConfig) =>
-          if appConfig.errorWidget
-            @transitPage(appConfig.errorWidget, Utils.buildErrorWidgetParams(err, newRootWidgetPath, params), transition, false)
-              .catch (err1) ->
-                if err1 instanceof errors.MustReloadPage
-                  throw new Error("FATAL: Error widget should have common widget in parents with #{newRootWidgetPath}")
-                else
-                  throw err1
-              .failAloud('Error widget rendering error')
-
-          else
-            throw err
-      .failAloud("WidgetRepo::transitPage(\"#{newRootWidgetPath}\")")
-
 
 
     _rebuildExtendTree: (newRootWidgetPath) ->
