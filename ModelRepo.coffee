@@ -37,7 +37,7 @@ define [
 
     @inject: ['api', 'modelProxy']
 
-    # Is this repository used somewhere
+    # Is this repository needs to be serialized, because it used somewhere in widgets
     _used: false
 
 

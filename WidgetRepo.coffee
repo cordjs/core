@@ -251,6 +251,8 @@ define [
         "#{baseUrl}bundles/cord/core/init/browser-init.js?release=" + global.config.static.release
 
       initCode = @rootWidget.getInitCode() # this method MUST be called before `getModelsInitCode` method
+                                           # because it fills information about usages of ModelRepo instances,
+                                           # this information used in getModelsInitCode() method
       modelsInitCode = @getModelsInitCode()
 
       """
