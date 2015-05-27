@@ -193,7 +193,7 @@ define [
                 .then (service) =>
                   target[serviceAlias] = service
                   return
-                .name("Inject #{serviceName} to #{target.constructor.name}")
+                .nameSuffix("Inject #{serviceName} to #{target.constructor.name}")
             )
           else
             _console.warn "Container::injectServices #{ serviceName } for target #{ target.constructor.name } is not defined" if global.config?.debug.service

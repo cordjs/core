@@ -78,7 +78,7 @@ define [
       @_initUnhandledTracking() if unhandledTrackingEnabled
 
 
-    name: (nameSuffix) ->
+    nameSuffix: (nameSuffix) ->
       ###
       Appends name suffix to this promise's name. Useful for debugging when there is no API to set name another way.
       Returns this promise, so can be used in call-chains.
@@ -90,6 +90,14 @@ define [
       else
         @_name += " [#{nameSuffix}]"
       this
+
+
+    name: (nameSuffix) ->
+      ###
+      Support old notation
+      ###
+      console.trace 'DEPRECATION WARNING: Future.name is deprecated, use .rename() ir .nameSuffix() instead'
+      @nameSuffix(nameSuffix)
 
 
     rename: (name) ->

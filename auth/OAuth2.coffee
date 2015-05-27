@@ -426,7 +426,7 @@ define [
       ###
       This one use two-step auth process, to accuire OAuth2 code and then tokens
       ###
-      @getAuthCodeByPassword(login, password, @getScope()).name('Oauth2::doAuthCodeLoginByPassword')
+      @getAuthCodeByPassword(login, password, @getScope()).nameSuffix('Oauth2::doAuthCodeLoginByPassword')
         .then (code) =>
           @grantAccessTokenByAuhorizationCode(code, @getScope())
         .spread (accessToken, refreshToken, code) =>
@@ -438,7 +438,7 @@ define [
       ###
       This one is used for normal Auth2 procedure, not MegaId
       ###
-      @getAuthCodeWithoutPassword(@getScope()).name('Api::doAuthCodeLoginWithoutPassword')
+      @getAuthCodeWithoutPassword(@getScope()).nameSuffix('Api::doAuthCodeLoginWithoutPassword')
         .then (code) =>
           @grantAccessTokenByAuhorizationCode(code)
         .spread (accessToken, refreshToken, code) =>
