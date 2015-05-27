@@ -247,6 +247,10 @@ define [
         client_secret: @_clientSecret
         scope: scope
         json: true
+        __noLogParams: [
+          'password'
+          'client_secret'
+        ]
 
       @request.get(@endpoints.accessToken, params)
         .rename('Oauth2::grantAccessTokenByPassword')
