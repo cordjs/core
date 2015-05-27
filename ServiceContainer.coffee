@@ -141,6 +141,10 @@ define [
         if res instanceof Error
           done(res)
         else if def.factory.length < 2
+          ###
+          If function arguments length 1 or 0, it means that function does not uses done() function inside.
+          In this case function creates service in sync mode, or returns Future object.
+          ###
           if res instanceof Future
             res
               .then (instance) => done(null, instance)
