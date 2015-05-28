@@ -578,7 +578,7 @@ define [
       .catch (err) ->
         result.reject(err)
         # preventing reporting of unhandled rejection in case of fast page switching
-        result.failOk()  if err instanceof errors.WidgetSentenced or err instaneof errors.BehaviourCleaned
+        result.failOk()  if err instanceof errors.WidgetSentenced or err instanceof errors.BehaviourCleaned
         return
 
       result
