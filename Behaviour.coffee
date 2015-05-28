@@ -9,7 +9,8 @@ define [
   'asap/raw'
   'jquery'
   'postal'
-], (errors, Model, DomHelper, DomInfo, Future, pr, Module, asap, $, postal) ->
+  'cord!Utils'
+], (errors, Model, DomHelper, DomInfo, Future, pr, Module, asap, $, postal, Utils) ->
 
   checkIsSentenced = (widget, message = '') ->
     ###
@@ -603,6 +604,13 @@ define [
         "#{ @widget.getPath() }Behaviour(#{ @widget.ctx.id })#{ methodStr }"
       else
         @constructor.__name + methodStr
+
+
+    e: (value) ->
+      ###
+        Shorthand for escaper
+      ###
+      Utils.escapeTags(value)
 
 
     @$: (selector) ->
