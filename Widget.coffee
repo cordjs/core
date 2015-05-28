@@ -1091,6 +1091,68 @@ define [
       @_subscibedPushBindings = pushBindings
 
 
+    _getPlaceholderWidgets: ->
+      ###
+      Returns content widgets from resolved placeholders info. Ignores inline-owner widgets.
+      @return {Array<Widget>}
+      ###
+      result = []
+      if @ctx[':placeholders']
+        for name, ph of @ctx[':placeholders']
+          for info in ph when info.type == 'widget'
+            result.push(@widgetRepo.getById(info.widget))
+      result
+
+
+    getNonDelayedPlaceholderWidgetsDeep: ->
+      ###
+      Recursively collects and returns content widgets from resolved placeholders.
+      Filters out widgets that are currently timeouted (has delayedRenderNestedCounter is not 0).
+      This method is used to correctly handle replacement of timeout stub with the actually rendered widgets.
+      See `TimeoutStubHelper::replaceStub()`
+      @internal
+      @return {Array<Widget>}
+      ###
+      result = []
+      for widget in @_getPlaceholderWidgets()
+        if widget._delayedRenderNestedCounter == 0
+          result.push(widget)
+          result = result.concat(widget.getNonDelayedPlaceholderWidgetsDeep())
+      result
+
+
+    setDelayedRender: ->
+      ###
+      Marks the widget for delayed render. Used to handle timeout stub feature.
+      Recursively marks placeholder content widgets as well.
+      The _delayedRenderNestedCounter field is increased by 1. In certain cases (when timeouts are nested)
+       the counter value could reach more than 1. The counter is used to detect nested delayed renders.
+      `setDelayedRender` call must be matched by `unsetDelayedRender`
+      @internal
+      ###
+      @_delayedRenderNestedCounter or= 0
+      @_delayedRenderNestedCounter++
+      @_delayedRender = true
+      widget.setDelayedRender() for widget in @_getPlaceholderWidgets()
+      return
+
+
+    unsetDelayedRender: (enforceFlagChange = true) ->
+      ###
+      Reverts effect of the `setDelayedRender`. Decreases counter by 1.
+      `_delayedRender` flag is set to `false` only when counter reaches 0
+       or for the top-most widget even if counter is not 0.
+      @internal
+      @param {Boolean} enforceFlagChange - used internally to distinguish between direct an recursive call of this method
+                                           direct call should reset `_delayedRender` flag regardless of the counter value
+      ###
+      @_delayedRenderNestedCounter or= 0
+      @_delayedRenderNestedCounter-- if @_delayedRenderNestedCounter
+      @_delayedRender = false  if @_delayedRenderNestedCounter == 0 or enforceFlagChange
+      widget.unsetDelayedRender(false) for widget in @_getPlaceholderWidgets()
+      return
+
+
     _renderPlaceholder: (name, domInfo) ->
       ###
       Render contents of the placeholder with the given name
