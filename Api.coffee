@@ -344,8 +344,10 @@ define [
           # We can not handle here network errors, so, it will throws to external handlers
           response = e.response
           isAuthFailed = authModule.isAuthFailed(response.body)
-          # if auth failed normally, we try to resuurect auth and try again
-          if isAuthFailed and not params.skipAuth and retryCount > 0 and ( retryTill == 0 or retryTill >= Date.now() )
+          # if auth failed normally, we try to resurrect auth and try again
+          # skipAuth param should only disable redirection to auth page, and should not break auth resurrection
+          # so, we do not check it here: it checked in _prepareRequestArgs method
+          if isAuthFailed and retryCount > 0 and ( retryTill == 0 or retryTill >= Date.now() )
             # need to use originalArgs here to workaround situation when API host is changed during request
             @_prepareRequestArgs(params.originalArgs).then (preparedArgs) =>
               @_doRequest(preparedArgs.method, preparedArgs.url, preparedArgs.params, retryCount - 1, retryTill)

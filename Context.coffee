@@ -100,7 +100,7 @@ define [
           # (parameter keeps deferred in this case)
           @[':internal'].promises[name] ?= @_newParamPromise(name)
           @[':internal'].promises[name].reject(err)
-          # This parameter never will never become resolved, as it rejected
+          # This parameter will never become resolved, as it rejected
           @_clearDeferredDebug(name) if deferredTrackingEnabled
           return
         return triggerChange

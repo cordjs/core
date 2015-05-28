@@ -33,8 +33,8 @@ define [
 
 
   isSafari5 = ->
-    !!navigator.userAgent.match(' Safari/') &&
-      !navigator.userAgent.match(' Chrom') &&
+    !!navigator.userAgent.match(' Safari/') and
+      not navigator.userAgent.match(' Chrom') and
       !!navigator.userAgent.match(' Version/5.')
 
 
@@ -42,9 +42,10 @@ define [
     # Webkit: 535.23 and above supports onload on link tags.
     [supportedMajor, supportedMinor] = [535, 23]
     if (match = navigator.userAgent.match(/\ AppleWebKit\/(\d+)\.(\d+)/))
-      match.shift()
-      [major, minor] = [+match[0], +match[1]]
-      major < supportedMajor || major == supportedMajor && minor < supportedMinor
+      [major, minor] = [+match[1], +match[2]]
+      major < supportedMajor or major == supportedMajor and minor < supportedMinor
+    else
+      false
 
 
   isLinkOnLoadSupport = ->

@@ -50,6 +50,12 @@ define [
           json: argssss.params
           strictSSL: false
 
+      if Array.isArray(params.__noLogParams)
+        noLogParams = params.__noLogParams
+        delete params.__noLogParams
+      else
+        noLogParams = []
+
       startRequest = new Date() if global.config.debug.request
 
       promise = Future.single("ServerRequest::send(#{method}, #{url})")
@@ -83,6 +89,11 @@ define [
             errorParams['errorCode'] = error.statusCode
             errorParams['errorText'] = error.statusText
             loggerParams = _.extend loggerParams, errorParams
+
+          if loggerParams.requestParams
+            for noLogParam in noLogParams
+              if loggerParams.requestParams[noLogParam]
+                loggerParams.requestParams[noLogParam] = '<HIDDEN>'
 
           postal.publish 'logger.log.publish',
             tags: loggerTags

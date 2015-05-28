@@ -46,6 +46,12 @@ define [
       else
         options = {}
 
+      if Array.isArray(params.__noLogParams)
+        noLogParams = params.__noLogParams
+        delete params.__noLogParams
+      else
+        noLogParams = []
+
       if method == 'get'
         _.extend options,
           query: argssss.params
@@ -95,6 +101,11 @@ define [
             errorParams['errorCode'] = error.statusCode
             errorParams['errorText'] = error.statusText
             loggerParams = _.extend loggerParams, errorParams
+
+          if loggerParams.requestParams
+            for noLogParam in noLogParams
+              if loggerParams.requestParams[noLogParam]
+                loggerParams.requestParams[noLogParam] = '<HIDDEN>'
 
           postal.publish 'logger.log.publish',
             tags: loggerTags

@@ -96,13 +96,13 @@ define [
           Future.resolved([url, params])
         else
           @_getTokensByAllMeans()
+            .spread (accessToken) =>
+              url += ( if url.lastIndexOf('?') == -1 then '?' else '&' ) + "#{@accessTokenParamName}=#{accessToken}"
+              [url, params]
             .catch (error) =>
               _console.error('Clear refresh token, because of:', error)
               @_invalidateRefreshToken()
               throw error
-            .spread (accessToken) =>
-              url += ( if url.lastIndexOf('?') == -1 then '?' else '&' ) + "#{@accessTokenParamName}=#{accessToken}"
-              [url, params]
 
 
     prepareAuth: ->
@@ -247,6 +247,10 @@ define [
         client_secret: @_clientSecret
         scope: scope
         json: true
+        __noLogParams: [
+          'password'
+          'client_secret'
+        ]
 
       @request.get(@endpoints.accessToken, params)
         .rename('Oauth2::grantAccessTokenByPassword')
@@ -426,7 +430,7 @@ define [
       ###
       This one use two-step auth process, to accuire OAuth2 code and then tokens
       ###
-      @getAuthCodeByPassword(login, password, @getScope()).name('Oauth2::doAuthCodeLoginByPassword')
+      @getAuthCodeByPassword(login, password, @getScope()).nameSuffix('Oauth2::doAuthCodeLoginByPassword')
         .then (code) =>
           @grantAccessTokenByAuhorizationCode(code, @getScope())
         .spread (accessToken, refreshToken, code) =>
@@ -438,7 +442,7 @@ define [
       ###
       This one is used for normal Auth2 procedure, not MegaId
       ###
-      @getAuthCodeWithoutPassword(@getScope()).name('Api::doAuthCodeLoginWithoutPassword')
+      @getAuthCodeWithoutPassword(@getScope()).nameSuffix('Api::doAuthCodeLoginWithoutPassword')
         .then (code) =>
           @grantAccessTokenByAuhorizationCode(code)
         .spread (accessToken, refreshToken, code) =>
