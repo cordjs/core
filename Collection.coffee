@@ -1025,8 +1025,8 @@ define [
       return a.isEqual(b) if a.isEqual && _.isFunction(a.isEqual)
       return b.isEqual(a) if b.isEqual && _.isFunction(b.isEqual)
       # Compare `[[Class]]` names.
-      className = toString.call(a)
-      return false if className != toString.call(b)
+      className = String(a)
+      return false if className != String(a)
       switch className
         # Strings, numbers, dates, and booleans are compared by value.
         when '[object String]'
