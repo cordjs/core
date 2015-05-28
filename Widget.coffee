@@ -847,7 +847,7 @@ define [
       Render any Additional template, belonging to this widget
       @param String templateName - additional template file name without extensions, e.g. 'secondTemplate'
       @param Object simpleContext - context object
-      @return Future()
+      @return Future() resolves with rendered content
       ###
       tmplPath = @getPath()
       templateLoader.loadAdditionalTemplate(tmplPath, templateName).then =>

@@ -44,7 +44,7 @@ define [
       if @options.secrets?.clientId?
         @_clientId = @options.secrets.clientId
       else
-        @_clientId     = global.config.secrets.clientId      if global.config?.secrets?.clientId?
+        @_clientId = global.config.secrets.clientId      if global.config?.secrets?.clientId?
 
       if @options.secrets?.clientSecret?
         @_clientSecret = @options.secrets.clientSecret
