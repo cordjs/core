@@ -645,14 +645,6 @@ define [
 
       return Future.resolved(this) if @_fixed
 
-      # Try to catch some architectural errors
-      if isNaN(Number(currentId))
-        _console.error('collection.refresh called with wrong parameter currentId', currentId, new Error())
-        return
-
-      if maxPages < 1
-        _console.error('collection.refresh called with wrong parameter maxPages', maxPages, new Error())
-
       return if not (minRefreshInterval >= 0 and @getLastQueryTimeDiff() > minRefreshInterval)
 
       @_refreshInProgress = true
@@ -661,6 +653,14 @@ define [
       if not @_pageSize
         @_fullReload()
       else
+        # Try to catch some architectural errors
+        if isNaN(Number(currentId))
+          _console.error('collection.refresh called with wrong parameter currentId', currentId, new Error())
+          return
+
+        if maxPages < 1
+          _console.error('collection.refresh called with wrong parameter maxPages', maxPages, new Error())
+
         # Collection boundaries
         startPage = Math.floor(@_loadedStart / @_pageSize) + 1
         endPage = Math.ceil(@_loadedEnd / @_pageSize)
