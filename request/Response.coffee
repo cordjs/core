@@ -96,11 +96,14 @@ define [
       Instantiate itself from XMLHttpRequest object
       ###
       if xhr
+        if 502 == xhr.statusCode and 'XDR failed' == xhr.statusText
+          error = errors.Network(xhr.statusText)
         new Response(
           xhr.statusCode,
           xhr.statusText,
           ResponseHeaders.fromXhr(xhr)
           xhr.body
+          @_error(error) if error
         );
       else
         @_errorResponse(error)
