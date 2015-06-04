@@ -40,6 +40,22 @@ define [
       )
 
 
+    set: (paramsObj) ->
+      ###
+      Allows to set multiple parameters by passing parameter object
+      ###
+      for name, value of paramsObj
+        @parameters[name] = value
+
+      @_saveParameters()
+
+      for name, value of paramsObj
+        @emit('setParameter',
+          name: name
+          value: value
+        )
+
+
     getParameter: (name) ->
       ###
       Gets a parameter's value by it's name.
