@@ -22,7 +22,7 @@ define [
             @send(method, url, params, callback))(method)
 
 
-    send: (method, url, params, callback) ->
+    send: (method, url, params = {}, callback) ->
       method = method.toLowerCase()
 
       if callback
