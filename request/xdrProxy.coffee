@@ -30,7 +30,11 @@ define [
 
     # copying headers and removing unnecessary ones
     headers = _.clone(req.headers)
+    newCookie = ''
+    if matches = /XDEBUG_SESSION=\w+/.exec(headers.cookie)
+      newCookie = matches[0]
     delete headers.cookie
+    headers.cookie = newCookie
     delete headers.host
     delete headers.connection
 
