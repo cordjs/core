@@ -56,7 +56,7 @@ define [
       ###
       Checks whether request results indicate auth failure, and clear tokens if necessary
       ###
-      isFailed = (response?.error == 'invalid_grant' or response?.error == 'invalid_request')
+      isFailed = (response?.error == 'invalid_grant' or response?.error == 'invalid_request' or response?.error == 'unauthorized')
       @_invalidateAccessToken() if isFailed
       isFailed
 

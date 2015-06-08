@@ -409,7 +409,7 @@ define [
 
       this.catch (err) ->
         if predicate(err)
-          callback?(err)
+          callback?.call(this, err)
         else
           throw err
 
