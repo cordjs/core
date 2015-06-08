@@ -31,7 +31,7 @@ define [
     # copying headers and removing unnecessary ones
     headers = _.clone(req.headers)
     newCookie = ''
-    if matches = /XDEBUG_SESSION=\w+/.exec(headers.cookie)
+    if matches = /XDEBUG_SESSION(_START)?=\w+/.exec(headers.cookie)
       newCookie = matches[0]
     delete headers.cookie
     headers.cookie = newCookie
