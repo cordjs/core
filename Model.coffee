@@ -92,9 +92,7 @@ define [
           @_fieldNames.push(key) if @_fieldNames.indexOf(key) == -1
           changed = true
 
-      if aloud and changed
-        @collection.emit("model.#{ @id }.change", this)
-        @collection.emit('change', {})
+      @collection.emit("model.#{ @id }.change", this) if aloud and changed
       this
 
 
