@@ -7,6 +7,8 @@ define [
 
   class Model extends Module
 
+    # TODO: refactor all Models, Collections and Repos
+
     # list of field names actually loaded and used in this model
     # only attributes with this names are treated as model fields
     _fieldNames: null
@@ -88,7 +90,9 @@ define [
           @_fieldNames.push(key) if @_fieldNames.indexOf(key) == -1
           changed = true
 
-      @collection.emit("model.#{ @id }.change", this) if aloud and changed
+      if aloud and changed
+        @collection.emit("model.#{ @id }.change", this)
+        @emit('change', {})
       this
 
 

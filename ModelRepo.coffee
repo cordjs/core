@@ -190,7 +190,9 @@ define [
 
         if model
           return Future.try =>
+
             collection = @createCollection
+              renew: true # in case if we already have a model, we need to recreate the collection with the provided model
               fields: fields
               id: model.id
               model: @buildModel(model)
@@ -688,6 +690,11 @@ define [
       @param Object attrs key-value fields for the model, including the id (if exists)
       @return Model
       ###
+
+      # Clear model and leave only fields values
+      if (attrs instanceof Model)
+        attrs  = attrs.toJSON()
+
       result = new @model(attrs)
 
       if @modelProxy
