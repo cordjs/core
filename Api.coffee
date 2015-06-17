@@ -16,7 +16,7 @@ define [
     @see Api::send()
     @return {Future<Response>}
     ###
-    self = this
+    self = this 
     @then -> self.__apiResponse
 
 
