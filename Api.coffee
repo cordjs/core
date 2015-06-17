@@ -17,7 +17,7 @@ define [
     @return {Future<Response>}
     ###
     self = this
-    @then -> self.__apiResponse
+    @then -> self.__apiResponse 
 
 
   class Api extends EventEmitter
