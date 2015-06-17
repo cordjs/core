@@ -71,7 +71,6 @@ define [
 
     # Future, that waits for child widget rendering complete
     _childWidgetCompletePromise: null
-    _hasWidgetInitializer: false # indicates, that current widget's template has a {#widgetInitialize /} block
 
     _structTemplate: null
     _isExtended: false
@@ -406,7 +405,6 @@ define [
 
 
     addPromise: (promise) ->
-      return promise if _.contains(@_promises, promise)
       @_promises.push promise
       # Add a error-handling of Future on widget ready
       failHandler = @_onPromiseFail
@@ -1824,13 +1822,6 @@ define [
         @emit 'show'
 
 
-    hasWidgetInitializer: ->
-      ###
-      Method called from {#widgetInitializer /} block
-      ###
-      @_hasWidgetInitializer = true
-
-
     markRenderStarted: (from) ->
       ###
       This method should be called before dust.render call
@@ -1843,7 +1834,7 @@ define [
         @_childWidgetCompletePromise = new Future(1, @debug("Widget::_childWidgetCompletePromise"))
         @_childWidgetCompletePromise.done =>
           @onRenderChildrenComplete?()
-          @_childWidgetCompletePromise = Future.resolved()
+          @_childWidgetCompletePromise = Future.resolved() # memory optimization
       return
 
 
@@ -1853,9 +1844,8 @@ define [
       ###
       throw new errors.WidgetSentenced("Widget #{@constructor.__name} is sentenced!") if @isSentenced()
       widgetTrace @debug("markRenderFinished(#{from}) with counter == "), @_childWidgetCompletePromise._counter
-      if not @_hasWidgetInitializer
-        @_childWidgetCompletePromise.failOk() # Child widgets breaks dust.render call, so, suppress unnecessary
-                                              # double-catch of error
+      @_childWidgetCompletePromise.failOk() # Child widgets breaks dust.render call, so, suppress unnecessary
+                                            # double-catch of error
       @_childWidgetCompletePromise.resolve()
       return
 

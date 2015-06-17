@@ -96,12 +96,16 @@ define [
       Instantiate itself from XMLHttpRequest object
       ###
       if xhr
-        new Response(
-          xhr.statusCode,
-          xhr.statusText,
-          ResponseHeaders.fromXhr(xhr)
-          xhr.body
-        );
+        if 502 == xhr.statusCode and 'XDR failed' == xhr.statusText
+          @_errorResponse()
+        else
+          new Response(
+            xhr.statusCode,
+            xhr.statusText,
+            ResponseHeaders.fromXhr(xhr)
+            xhr.body
+            @_error(error) if error
+          );
       else
         @_errorResponse(error)
 

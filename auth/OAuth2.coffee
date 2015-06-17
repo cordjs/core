@@ -56,7 +56,7 @@ define [
       ###
       Checks whether request results indicate auth failure, and clear tokens if necessary
       ###
-      isFailed = (response?.error == 'invalid_grant' or response?.error == 'invalid_request')
+      isFailed = (response?.error == 'invalid_grant' or response?.error == 'invalid_request' or response?.error == 'unauthorized')
       @_invalidateAccessToken() if isFailed
       isFailed
 
@@ -247,6 +247,10 @@ define [
         client_secret: @_clientSecret
         scope: scope
         json: true
+        __noLogParams: [
+          'password'
+          'client_secret'
+        ]
 
       @request.get(@endpoints.accessToken, params)
         .rename('Oauth2::grantAccessTokenByPassword')
@@ -426,7 +430,7 @@ define [
       ###
       This one use two-step auth process, to accuire OAuth2 code and then tokens
       ###
-      @getAuthCodeByPassword(login, password, @getScope()).name('Oauth2::doAuthCodeLoginByPassword')
+      @getAuthCodeByPassword(login, password, @getScope()).nameSuffix('Oauth2::doAuthCodeLoginByPassword')
         .then (code) =>
           @grantAccessTokenByAuhorizationCode(code, @getScope())
         .spread (accessToken, refreshToken, code) =>
@@ -438,7 +442,7 @@ define [
       ###
       This one is used for normal Auth2 procedure, not MegaId
       ###
-      @getAuthCodeWithoutPassword(@getScope()).name('Api::doAuthCodeLoginWithoutPassword')
+      @getAuthCodeWithoutPassword(@getScope()).nameSuffix('Api::doAuthCodeLoginWithoutPassword')
         .then (code) =>
           @grantAccessTokenByAuhorizationCode(code)
         .spread (accessToken, refreshToken, code) =>

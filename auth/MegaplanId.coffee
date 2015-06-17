@@ -41,7 +41,7 @@ define [
       ###
       This one is used exclusevely for MegaId via backend (for security reasons)
       ###
-      @getAuthCodeWithoutPassword(@getScope()).name('Api::getAccessTokenByMegaId')
+      @getAuthCodeWithoutPassword(@getScope()).nameSuffix('Api::getAccessTokenByMegaId')
         .then (code) =>
           @grantAccessTokenByMegaId(code, @getScope())
         .spread (accessToken, refreshToken, code) =>
@@ -74,7 +74,7 @@ define [
       ###
       Grant access token via megaplan backend inviteCode
       ###
-      @getAuthCodeWithoutPassword(@getScope()).name('Api::getAccessTokenByMegaId')
+      @getAuthCodeWithoutPassword(@getScope()).nameSuffix('Api::getAccessTokenByMegaId')
         .then (code) =>
           @grantAccessTokenByInviteCode(inviteCode, code, @getScope())
         .spread (accessToken, refreshToken, code) =>

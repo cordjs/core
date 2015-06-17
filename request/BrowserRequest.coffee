@@ -22,7 +22,7 @@ define [
             @send(method, url, params, callback))(method)
 
 
-    send: (method, url, params, callback) ->
+    send: (method, url, params = {}, callback) ->
       method = method.toLowerCase()
 
       if callback
@@ -45,6 +45,12 @@ define [
         delete params.xhrOptions
       else
         options = {}
+
+      if Array.isArray(params.__noLogParams)
+        noLogParams = params.__noLogParams
+        delete params.__noLogParams
+      else
+        noLogParams = []
 
       if method == 'get'
         _.extend options,
@@ -95,6 +101,11 @@ define [
             errorParams['errorCode'] = error.statusCode
             errorParams['errorText'] = error.statusText
             loggerParams = _.extend loggerParams, errorParams
+
+          if loggerParams.requestParams
+            for noLogParam in noLogParams
+              if loggerParams.requestParams[noLogParam]
+                loggerParams.requestParams[noLogParam] = '<HIDDEN>'
 
           postal.publish 'logger.log.publish',
             tags: loggerTags
