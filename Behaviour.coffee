@@ -93,8 +93,13 @@ define [
       @_callbacks = []
 
       if @show?
-        @widget.shown().done @getCallback =>
-          @show()
+        @addPromise(
+          Future.all [
+            @widget.shown()
+            @_initPromise
+          ]
+          .then => @show()
+        )
 
 
     init: ->

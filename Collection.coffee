@@ -493,8 +493,10 @@ define [
               throw new Error('Cache sync failed in :cache-only mode')
           .link(resultPromise)
 
-      resultPromise.done =>
+      resultPromise.then =>
         callback?(this)
+      .failOk()
+      resultPromise
 
 
     scanModels: (scannedFields, searchedText, limit) ->
@@ -1608,6 +1610,7 @@ define [
       Returns serialized link (address) of this collection
       @return String
       ###
+      @repo.markAsUsed()
       ":collection:#{ @repo.constructor.__name }:#{ @name }"
 
 

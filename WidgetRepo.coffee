@@ -266,6 +266,9 @@ define [
       else
         "#{baseUrl}bundles/cord/core/init/browser-init.js?release=" + global.config.static.release
 
+      initCode = @rootWidget.getInitCode() # this method MUST be called before `getModelsInitCode` method
+      modelsInitCode = @getModelsInitCode()
+
       """
       #{ if global.config.injectCordova then "<script src=\"#{baseUrl}cordova.js\"></script>" else '' }
       <script>
