@@ -628,7 +628,7 @@ define [
         else
           @_simplePageRefresh(startPage, maxPages)
       else
-        Future.resolved()
+        Future.resolved(this)
 
 
     refresh: (currentId, maxPages = @_defaultRefreshPages, minRefreshInterval = 0, emitModelChangeExcept = true) ->
