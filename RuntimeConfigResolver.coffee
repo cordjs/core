@@ -26,18 +26,20 @@ define [
       @_loadParameters()
 
 
-    setParameter: (name, value) ->
+    setParameter: (nameOrObject, value) ->
       ###
       Sets a parameter's value by it's name.
+      Or sets parameters object value
       Name should be without % on edges
       ###
-      @parameters[name] = value
+      if typeof nameOrObject == 'string'
+        @parameters[nameOrObject] = value
+      else if nameOrObject
+        @parameters[key] = value for key, value of nameOrObject
+
       @_saveParameters()
 
-      @emit('setParameter',
-        name: name,
-        value: value
-      )
+      @emit('setParameter', _.clone(@parameters))
 
 
     getParameter: (name) ->
