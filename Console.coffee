@@ -53,11 +53,15 @@ define [
       ###
       Smart trace. It removes all lines inside Console.coffee so the first line will be the caller.
       ###
-      lines = (new Error).stack.split("\n").slice(1)
-      # There should be a better way :(
-      while (lines[0]?.indexOf('/cord/core/Console.') >= 0)
-        lines = lines.slice(1)
-      lines.join("\n")
+      stack = (new Error).stack
+      if stack
+        lines = stack.split("\n").slice(1)
+        # There should be a better way :(
+        while (lines[0]?.indexOf('/cord/core/Console.') >= 0)
+          lines = lines.slice(1)
+        lines.join("\n")
+      else
+        ''
 
 
     _log: (type, args) ->
