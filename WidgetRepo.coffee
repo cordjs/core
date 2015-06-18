@@ -234,7 +234,7 @@ define [
       ###
       result = []
       for key, val of @serviceContainer.allInstances()
-        if val instanceof ModelRepo and val.isUsed()
+        if val instanceof ModelRepo
           escapedString = unescape(encodeURIComponent(JSON.stringify(val)))
             .replace(/[\\']/g, '\\$&')
             .replace(/<\/script>/g, '<\\/script>') # fix closing </script> tag in html bug

@@ -56,7 +56,7 @@ define [
       ###
       Checks whether request results indicate auth failure, and clear tokens if necessary
       ###
-      isFailed = (response?.error == 'invalid_grant' or response?.error == 'invalid_request')
+      isFailed = (response?.error == 'invalid_grant' or response?.error == 'invalid_request' or response?.error == 'unauthorized')
       @_invalidateAccessToken() if isFailed
       isFailed
 
@@ -96,13 +96,13 @@ define [
           Future.resolved([url, params])
         else
           @_getTokensByAllMeans()
-            .spread (accessToken) =>
-              url += ( if url.lastIndexOf('?') == -1 then '?' else '&' ) + "#{@accessTokenParamName}=#{accessToken}"
-              [url, params]
             .catch (error) =>
               _console.error('Clear refresh token, because of:', error)
               @_invalidateRefreshToken()
               throw error
+            .spread (accessToken) =>
+              url += ( if url.lastIndexOf('?') == -1 then '?' else '&' ) + "#{@accessTokenParamName}=#{accessToken}"
+              [url, params]
 
 
     prepareAuth: ->

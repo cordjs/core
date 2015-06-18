@@ -95,13 +95,17 @@ define [
       ###
       Instantiate itself from XMLHttpRequest object
       ###
-      unless error
-        new Response(
-          xhr.statusCode,
-          xhr.statusText,
-          ResponseHeaders.fromXhr(xhr)
-          xhr.body
-        );
+      if xhr
+        if 502 == xhr.statusCode and 'XDR failed' == xhr.statusText
+          @_errorResponse()
+        else
+          new Response(
+            xhr.statusCode,
+            xhr.statusText,
+            ResponseHeaders.fromXhr(xhr)
+            xhr.body
+            @_error(error) if error
+          );
       else
         @_errorResponse(error)
 

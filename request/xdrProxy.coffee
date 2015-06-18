@@ -30,7 +30,11 @@ define [
 
     # copying headers and removing unnecessary ones
     headers = _.clone(req.headers)
+    newCookie = ''
+    if matches = /XDEBUG_SESSION(_START)?=\w+/.exec(headers.cookie)
+      newCookie = matches[0]
     delete headers.cookie
+    headers.cookie = newCookie
     delete headers.host
     delete headers.connection
 
@@ -60,13 +64,9 @@ define [
 
     proxyReq.on 'error', (e) ->
       console.error 'Problem with proxy request: ', options, e
-      res.writeHead(500, 'Bad request!', 'Content-type': 'text/html')
-      res.end """
-        <html>
-          <head><title>Error 500</title></head>
-          <body><h1>Unexpected Error occurred!</h1></body>
-        </html>
-      """
+      res.writeHead(502, 'XDR failed', 'Content-type': 'application/json')
+      res.end JSON.stringify
+        error: code: e.code ? String(e)
 
 
     # read all data from the browser request and pass it to the target server
