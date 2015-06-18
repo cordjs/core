@@ -407,9 +407,9 @@ define [
         do (errorClass = predicate) =>
           predicate = (e) -> e instanceof errorClass
 
-      this.catch (err) ->
+      this.catch (err) =>
         if predicate(err)
-          callback?(err)
+          callback?.call(@_boundTo, err)
         else
           throw err
 
