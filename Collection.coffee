@@ -514,7 +514,7 @@ define [
       for model in @_models
         for fieldName in scannedFields
           if model[fieldName] && !result[model.id] && String(model[fieldName]).toLowerCase().indexOf(searchedText) > -1
-            result[model.id] = _.clone model
+            result[model.id] = @repo.buildModel(model)
             break
         if limit && amount >= limit
           break
