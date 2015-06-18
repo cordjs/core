@@ -514,7 +514,7 @@ define [
       for model in @_models
         for fieldName in scannedFields
           if model[fieldName] && !result[model.id] && String(model[fieldName]).toLowerCase().indexOf(searchedText) > -1
-            result[model.id] = _.clone model
+            result[model.id] = @repo.buildModel(model)
             break
         if limit && amount >= limit
           break
@@ -628,7 +628,7 @@ define [
         else
           @_simplePageRefresh(startPage, maxPages)
       else
-        Future.resolved()
+        Future.resolved(this)
 
 
     refresh: (currentId, maxPages = @_defaultRefreshPages, minRefreshInterval = 0, emitModelChangeExcept = true) ->
