@@ -95,7 +95,7 @@ define [
       ###
       Instantiate itself from XMLHttpRequest object
       ###
-      if xhr
+      unless error
         new Response(
           xhr.statusCode,
           xhr.statusText,
