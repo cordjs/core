@@ -44,6 +44,20 @@ define [
         destroyAlienWidgets a, patch, index
       else if a.text != b.text
         apply = appendPatch(apply, new VPatch(VPatch.VTEXT, a, b))
+    else if vtree.isWidget(b)
+      if vtree.isWidget(a)
+        # widgets are comparable if they have same type and key (if set)
+        if a.type == b.type and a.key == b.key
+          # comparing properties
+          propsPatch = diffProps(a.properties, b.properties, b.hooks)
+          apply = appendPatch(apply, new VPatch(VPatch.WIDGET_PROPS, a, propsPatch))  if propsPatch
+          apply = diffChildren(a, b, patch, apply, index)
+        else
+          # otherwise just replace the old widget with the new one
+          apply = appendPatch(apply, new VPatch(VPatch.WIDGET, a, b))
+      else
+        # if old node is not widget then just create new widget and replace it
+        apply = appendPatch(apply, new VPatch(VPatch.WIDGET, a, b))
     else if vtree.isAlienWidget(b)
       apply = appendPatch(apply, new VPatch(VPatch.ALIEN_WIDGET, a, b))
       destroyAlienWidgets(a, patch, index)  if not vtree.isAlienWidget(a)

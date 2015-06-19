@@ -18,6 +18,8 @@ define ->
   VPatch.INSERT = 6
   VPatch.REMOVE = 7
   VPatch.THUNK = 8
+  VPatch.WIDGET = 9 # replace with widget or append widget
+  VPatch.WIDGET_PROPS = 10 # update existing widget props
 
 
   VPatch

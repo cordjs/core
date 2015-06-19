@@ -27,10 +27,24 @@ define [
       when VPatch.PROPS
         applyProperties domNode, patch, vNode.properties
         domNode
+      when VPatch.WIDGET_PROPS
+        applyWidgetProps domNode, patch, renderOptions
+        domNode
       when VPatch.THUNK
         replaceRoot(domNode, renderOptions.patch(domNode, patch, renderOptions))
       else
         domNode
+
+
+  applyWidgetProps = (domNode, patch, renderOptions) ->
+    ###
+    Updates widget props based on patch info came from vdom diff
+    @param {Node} domNode - root DOM node of the widget
+    @param {Object} patch - key-value with the updated props
+    @param {Object} renderOptions - additional information for rendering, used to get injected widget repo service
+    ###
+    renderOptions.widgetRepo.getById(domNode.id).updateProps(patch)
+    return
 
 
   removeNode = (domNode, vNode) ->
