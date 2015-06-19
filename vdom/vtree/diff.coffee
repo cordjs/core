@@ -51,7 +51,6 @@ define [
           # comparing properties
           propsPatch = diffProps(a.properties, b.properties, b.hooks)
           apply = appendPatch(apply, new VPatch(VPatch.WIDGET_PROPS, a, propsPatch))  if propsPatch
-          apply = diffChildren(a, b, patch, apply, index)
         else
           # otherwise just replace the old widget with the new one
           apply = appendPatch(apply, new VPatch(VPatch.WIDGET, a, b))
