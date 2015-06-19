@@ -4,6 +4,12 @@ define [
 
   class WidgetFactory
 
+    @inject: [
+      'container'
+      'vdomWidgetRepo'
+    ]
+
+
     create: (type, props, slotNodes, contextBundle) ->
       ###
       Creates a new widget instance according to the given arguments
@@ -15,6 +21,8 @@ define [
       ###
       bundleSpec = if contextBundle then "@#{ contextBundle }" else ''
 
-      Future.require("cord-w!#{path}#{bundleSpec}").then (WidgetClass) =>
-        widget = new WidgetClass(props, slotNodes)
-        @container.injectServices(widget)
+      Future.require("cord-w!#{type}#{bundleSpec}").bind(this).then (WidgetClass) ->
+        @container.injectServices(new WidgetClass(props, slotNodes))
+      .then (widget) ->
+        @vdomWidgetRepo.registerWidget(widget)
+        widget

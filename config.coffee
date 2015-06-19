@@ -81,6 +81,21 @@ define  ->
         require ['cord!ErrorHelper'], (ErrorHelper) ->
           get('container').injectServices(new ErrorHelper()).finally(done)
 
+    ## vDOM ##
+
+    widgetFactory:
+      deps: ['container']
+      factory: (get, done) ->
+        require ['cord!vdom/WidgetFactory'], (WidgetFactory) ->
+          get('container').injectServices(new WidgetFactory).finally(done)
+
+    vdomWidgetRepo:
+      deps: ['container']
+      factory: (get, done) ->
+        require ['cord!vdom/WidgetRepo'], (WidgetRepo) ->
+          get('container').injectServices(new WidgetRepo).finally(done)
+
+
     ':server':
       request:
         factory: (get, done) ->
