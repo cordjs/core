@@ -72,6 +72,7 @@ define [
             tmplWidget.childWidgetFailed(params.type, err)
           throw err
         .catch (err) ->
+          # we can not merge this catch to previous one, because childWidgetFailed method can throw it's own error
           chunk.setError(err)
           return
 
@@ -89,6 +90,7 @@ define [
                 tmplWidget.childWidgetFailed(params.type, err)
                 throw err
               .catch (err) ->
+                # we can not merge this catch to previous one, because childWidgetFailed method can throw it's own error
                 chunk.setError(err)
                 return
           , timeout
@@ -96,6 +98,7 @@ define [
         tmplWidget.childWidgetFailed(params.type, err)
         throw err
       .catch (err) ->
+        # we can not merge this catch to previous one, because childWidgetFailed method can throw it's own error
         chunk.setError(err)
         return
 
@@ -127,6 +130,7 @@ define [
           tmplWidget.childWidgetFailed(type, err)
           throw err
         .catch (err) ->
+          # we can not merge this catch to previous one, because childWidgetFailed method can throw it's own error
           _console.error "Error on widget #{ tmplWidget.debug() } #deferred rendering:", err
           chunk.setError(err)
           return

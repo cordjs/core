@@ -68,7 +68,7 @@ define [
       @_initUnhandledTracking() if unhandledTrackingEnabled
 
 
-    name: (nameSuffix) ->
+    nameSuffix: (nameSuffix) ->
       ###
       Appends name suffix to this promise's name. Useful for debugging when there is no API to set name another way.
       Returns this promise, so can be used in call-chains.
@@ -80,6 +80,14 @@ define [
       else
         @_name += " [#{nameSuffix}]"
       this
+
+
+    name: (nameSuffix) ->
+      ###
+      Support old notation
+      ###
+      console.trace 'DEPRECATION WARNING: Future.name is deprecated, use .rename() ir .nameSuffix() instead'
+      @nameSuffix(nameSuffix)
 
 
     rename: (name) ->
@@ -340,8 +348,7 @@ define [
         thisArg._fail(@reject, result)
       else
         result._boundTo = thisArg
-        @_done(@resolve, result)
-        @_fail(@reject, result)
+        result.when(this)
       result
 
 
@@ -402,7 +409,7 @@ define [
 
       this.catch (err) ->
         if predicate(err)
-          callback?(err)
+          callback?.call(this, err)
         else
           throw err
 
@@ -909,8 +916,7 @@ define [
   bindResolvedCb = (resolvedThisArg, result) ->
     # see Future.bind
     result._boundTo = resolvedThisArg
-    @_done(@resolve, result)
-    @_fail(@reject, result)
+    result.when(this)
 
 
   ##

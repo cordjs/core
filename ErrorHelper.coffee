@@ -14,6 +14,6 @@ define [
           'Common error'
         context: 'errors'
       )
-      message += ": #{error.message}" if @config.debug.showMobileErrors
+      message += ": #{error.message.substring(0,255)}" if @config.debug.showMobileErrors
 
       message

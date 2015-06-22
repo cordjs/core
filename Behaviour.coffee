@@ -9,7 +9,8 @@ define [
   'asap/raw'
   'jquery'
   'postal'
-], (errors, Model, DomHelper, DomInfo, Future, pr, Module, asap, $, postal) ->
+  'cord!Utils'
+], (errors, Model, DomHelper, DomInfo, Future, pr, Module, asap, $, postal, Utils) ->
 
   checkIsSentenced = (widget, message = '') ->
     ###
@@ -22,6 +23,14 @@ define [
       throw new errors.WidgetSentenced(
         "Widget #{widget.debug()} is sentenced!#{ if message then " (#{message})" else ''}"
       )
+
+
+  class ElementSelector
+    ###
+    Object of this class represents one element selector. It can be set in Behaviour's prototype, and converts to
+    jQuery DOM Element on Behaviour's construction
+    ###
+    constructor: (@selector) ->
 
 
   class Behaviour extends Module
@@ -65,6 +74,11 @@ define [
 
       @elements     = @constructor.elements unless @elements
       @elements     = @elements() if _.isFunction @elements
+      @elements = {} if not @elements
+      # Also append all of ElementSelector elements
+      for name, value of this
+        if value instanceof ElementSelector
+          @elements[value.selector] = name
 
       @_elementSelectors = {} if @elements # needed to support '@element'-like selectors for events
 
@@ -93,8 +107,13 @@ define [
       @_callbacks = []
 
       if @show?
-        @widget.shown().done @getCallback =>
-          @show()
+        @addPromise(
+          Future.all [
+            @widget.shown()
+            @_initPromise
+          ]
+          .then => @show()
+        )
 
 
     init: ->
@@ -560,7 +579,7 @@ define [
       .catch (err) ->
         result.reject(err)
         # preventing reporting of unhandled rejection in case of fast page switching
-        result.failOk()  if err instanceof errors.WidgetSentenced or err instaneof errors.BehaviourCleaned
+        result.failOk()  if err instanceof errors.WidgetSentenced or err instanceof errors.BehaviourCleaned
         return
 
       result
@@ -585,3 +604,18 @@ define [
         "#{ @widget.getPath() }Behaviour(#{ @widget.ctx.id })#{ methodStr }"
       else
         @constructor.__name + methodStr
+
+
+    e: (value) ->
+      ###
+        Shorthand for escaper
+      ###
+      Utils.escapeTags(value)
+
+
+    @$: (selector) ->
+      ###
+      Instantiates a new ElementSelector object, which can be set to prototype
+      @static
+      ###
+      new ElementSelector(selector)

@@ -21,6 +21,8 @@ define [
   # Enable assertions (for development only)
   assertionsEnabled = global?.config?.debug.assertions or false
 
+  splitSeparator = /\n/
+
 
   stringify = (args) ->
     args.map (x) ->
@@ -48,7 +50,7 @@ define [
     Returns first line without Console.js from the current call stack-trace.
     @return {String|undefined}
     ###
-    lines = (new Error).stack.split("\n").slice(1)
+    lines = (new Error).stack.split(splitSeparator).slice(1)
     _.find lines, (x) ->
       x.indexOf('/cord/core/Console.js') == -1
 

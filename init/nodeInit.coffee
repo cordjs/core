@@ -58,19 +58,20 @@ exports.init = (baseUrl = 'public', configName = 'default', serverPort) ->
     fileServer = new serverStatic.Server(baseUrl)
     fileServer.serve = fileServer.serve.bind(fileServer)
     if devSourcesServerRootDir = process.env['DEV_SOURCES_SERVER_ROOT_DIR']
+      # Original sources should be available in this case
       sourceServer = new serverStatic.Server(devSourcesServerRootDir)
       sourceServer.serve = sourceServer.serve.bind(sourceServer)
 
     services.staticServer = (req, res) =>
       req.addListener 'end', (err) ->
-        Future.call(fileServer.serve, req, res).catch (err) =>
+        Future.call(fileServer.serve, req, res).catch (err) ->
           if sourceServer?
             Future.call(sourceServer.serve, req, res)
           else
             throw err
-        .catch (err) =>
+        .catch (err) ->
           res.writeHead err.status, err.headers
-          if err.status is 404 or err.status is 500
+          if err.status == 404 or err.status == 500
             res.end "Error #{ err.status }"
           else
             res.end()

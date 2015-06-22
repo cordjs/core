@@ -493,8 +493,10 @@ define [
               throw new Error('Cache sync failed in :cache-only mode')
           .link(resultPromise)
 
-      resultPromise.done =>
+      resultPromise.then =>
         callback?(this)
+      .failOk()
+      resultPromise
 
 
     scanModels: (scannedFields, searchedText, limit) ->
@@ -512,7 +514,7 @@ define [
       for model in @_models
         for fieldName in scannedFields
           if model[fieldName] && !result[model.id] && String(model[fieldName]).toLowerCase().indexOf(searchedText) > -1
-            result[model.id] = _.clone model
+            result[model.id] = @repo.buildModel(model)
             break
         if limit && amount >= limit
           break
@@ -626,7 +628,7 @@ define [
         else
           @_simplePageRefresh(startPage, maxPages)
       else
-        Future.resolved()
+        Future.resolved(this)
 
 
     refresh: (currentId, maxPages = @_defaultRefreshPages, minRefreshInterval = 0, emitModelChangeExcept = true) ->
@@ -643,14 +645,6 @@ define [
 
       return Future.resolved(this) if @_fixed
 
-      # Try to catch some architectural errors
-      if isNaN(Number(currentId))
-        _console.error('collection.refresh called with wrong parameter currentId', currentId, new Error())
-        return
-
-      if maxPages < 1
-        _console.error('collection.refresh called with wrong parameter maxPages', maxPages, new Error())
-
       return if not (minRefreshInterval >= 0 and @getLastQueryTimeDiff() > minRefreshInterval)
 
       @_refreshInProgress = true
@@ -659,6 +653,14 @@ define [
       if not @_pageSize
         @_fullReload()
       else
+        # Try to catch some architectural errors
+        if isNaN(Number(currentId))
+          _console.error('collection.refresh called with wrong parameter currentId', currentId, new Error())
+          return
+
+        if maxPages < 1
+          _console.error('collection.refresh called with wrong parameter maxPages', maxPages, new Error())
+
         # Collection boundaries
         startPage = Math.floor(@_loadedStart / @_pageSize) + 1
         endPage = Math.ceil(@_loadedEnd / @_pageSize)
@@ -1023,8 +1025,8 @@ define [
       return a.isEqual(b) if a.isEqual && _.isFunction(a.isEqual)
       return b.isEqual(a) if b.isEqual && _.isFunction(b.isEqual)
       # Compare `[[Class]]` names.
-      className = toString.call(a)
-      return false if className != toString.call(b)
+      className = String(a)
+      return false if className != String(b)
       switch className
         # Strings, numbers, dates, and booleans are compared by value.
         when '[object String]'
@@ -1608,6 +1610,7 @@ define [
       Returns serialized link (address) of this collection
       @return String
       ###
+      @repo.markAsUsed()
       ":collection:#{ @repo.constructor.__name }:#{ @name }"
 
 

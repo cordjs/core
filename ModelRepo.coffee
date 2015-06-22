@@ -37,6 +37,9 @@ define [
 
     @inject: ['api', 'modelProxy']
 
+    # Is this repository needs to be serialized, because it used somewhere in widgets
+    _used: false
+
 
     constructor: (@container) ->
       throw new Error("'model' property should be set for the repository!") if not @model?
@@ -187,7 +190,9 @@ define [
 
         if model
           return Future.try =>
+
             collection = @createCollection
+              renew: true # in case if we already have a model, we need to recreate the collection with the provided model
               fields: fields
               id: model.id
               model: @buildModel(model)
@@ -685,6 +690,11 @@ define [
       @param Object attrs key-value fields for the model, including the id (if exists)
       @return Model
       ###
+
+      # Clear model and leave only fields values
+      if (attrs instanceof Model)
+        attrs  = attrs.toJSON()
+
       result = new @model(attrs)
 
       if @modelProxy
@@ -975,3 +985,17 @@ define [
       ###
       methodStr = if method? then "::#{ method }" else ''
       "#{ @constructor.__name }#{ methodStr }"
+
+
+    markAsUsed: ->
+      ###
+      Marks this repository as used: it should be transferred from server to browser in this case
+      ###
+      @_used = true
+
+
+    isUsed: ->
+      ###
+      Is this repository used in anywhere. If yes, it should be transferred from server to browser
+      ###
+      @_used

@@ -7,6 +7,10 @@ define [
 
   class Model extends Module
 
+    # TODO: refactor all Models, Collections and Repos
+    # Make Models persistent, because now collection could recreate model or just change it's fields values
+    # But you'll never know what happened
+
     # list of field names actually loaded and used in this model
     # only attributes with this names are treated as model fields
     _fieldNames: null

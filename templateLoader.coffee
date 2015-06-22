@@ -22,7 +22,7 @@ define [
     Loads additional widget template
     @params String path - widgets full path
     @params String templatename - additional template file name without any extansions
-    @return Future()
+    @return Future() resolves when template is loaded
     ###
     info = cord.getFullInfo(path)
     if dust.cache["cord!/#{ info.relativeDirPath }/#{ templateName }"]
@@ -39,8 +39,7 @@ define [
       fullPath = "cord-t!" + path
     else
       fullPath = path + '.html'
-    require [fullPath], ->
-      callback()
+    require [fullPath], callback
 
 
   loadToDust: (path) ->

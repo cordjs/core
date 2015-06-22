@@ -5,7 +5,7 @@ define [
   'underscore'
 ], (cordWidgetHelper, Future, pathUtils, _) ->
 
-  baseUrl = if global.config?.localFsMode then '' else '/'
+  getBaseUrl = => if global.config?.localFsMode then '' else '/'
 
   class Helper
     ###
@@ -54,6 +54,7 @@ define [
       @param Array[String] cssList list of required css-files for the page.
       @return Future[String]
       ###
+      baseUrl = getBaseUrl()
       @_getCssToGroup().then (cssToGroup) =>
         optimized =
           for css in cssList
@@ -74,6 +75,7 @@ define [
       @return String
       ###
       throw new Error("Css path: '#{shortPath}' is not a string.") if not _.isString(shortPath)
+      baseUrl = getBaseUrl()
       if shortPath.charAt(0) != '/' and shortPath.indexOf '//' == -1
         # context of current widget
         shortPath += '.css' if shortPath.substr(-4) != '.css'
