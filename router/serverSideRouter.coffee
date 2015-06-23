@@ -160,7 +160,8 @@ define [
                       res.end(out)
                 .catchIf (-> catchError), (err) ->
                   if err instanceof errors.AuthError
-                    serviceContainer.getService('api').then (api) ->
+                    # serviceContainer could be empty already
+                    serviceContainer?.getService('api').then (api) ->
                       api.authenticateUser()
                   else if appConfig.errorWidget
                     processWidget(
