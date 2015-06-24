@@ -734,6 +734,7 @@ define [
       @_clearFailCallbacks()
       @_clearDebugTimeout() if unresolvedTrackingEnabled
       @_clearUnhandledTracking() if unhandledTrackingEnabled
+      @_state = 'cleaned'
       return
 
 
