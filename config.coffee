@@ -95,6 +95,17 @@ define  ->
         require ['cord!vdom/WidgetRepo'], (WidgetRepo) ->
           get('container').injectServices(new WidgetRepo).finally(done)
 
+    widgetHierarchy:
+      factory: (get, done) ->
+        require ['cord!vdom/WidgetHierarchy'], (WidgetRepo) ->
+          done(null, new WidgetRepo)
+
+    widgetInitializer:
+      deps: ['container']
+      factory: (get, done) ->
+        require ['cord!vdom/WidgetInitializer'], (WidgetInitializer) ->
+          get('container').injectServices(new WidgetInitializer).finally(done)
+
 
     ':server':
       request:

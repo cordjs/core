@@ -110,9 +110,12 @@ define [
     serviceContainer.set('widgetRepo', widgetRepo)
     widgetRepo.setServiceContainer(serviceContainer)
 
+    widgetInitializerPromise = configInitFuture.then ->
+      serviceContainer.getService('widgetInitializer')
+
     clientSideRouter.setWidgetRepo(widgetRepo)
     $ ->
       cssManager.registerLoadedCssFiles()
-      configInitFuture.then ->
-        cordcorewidgetinitializerbrowser?(widgetRepo)
+      widgetInitializerPromise.then (widgetInitializer) ->
+        cordcorewidgetinitializerbrowser?(widgetInitializer)
       .failAloud()

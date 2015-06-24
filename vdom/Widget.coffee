@@ -9,23 +9,16 @@ define [
   class Widget
 
     @inject: [
-      'widgetFactory'
       'vdomWidgetRepo'
+      'widgetFactory'
+      'widgetHierarchy'
     ]
 
 
-    getDir: ->
-      @constructor.relativeDirPath
-
-
-    getBundle: ->
-      @constructor.bundle
-
-
-    constructor: (props, slotNodes) ->
-      @id = (if CORD_IS_BROWSER then 'w' else 'n') + _.uniqueId()
-      @props = props or {}
-      @updateSlots(slotNodes)
+    constructor: (params = {}) ->
+      @id = params.id or ((if CORD_IS_BROWSER then 'b' else 'n') + _.uniqueId())
+      @props = params.props or {}
+      @state = params.state or {}
 
 
     updateProps: (newProps) ->
@@ -38,12 +31,6 @@ define [
             @props[key] = value
         @render()  if changed
         return
-
-
-    updateSlots: ->
-      ###
-      stub
-      ###
 
 
     render: ->
@@ -93,7 +80,7 @@ define [
       @param {VWidget} vwidget
       @return {Promise.<VNode>}
       ###
-      @widgetFactory.create(vwidget.type, vwidget.props, vwidget.slotNodes, @getBundle()).then (widget) ->
+      @widgetFactory.create(vwidget.type, vwidget.props, vwidget.slotNodes, this).then (widget) ->
         widget.renderDeepTree()
 
 
@@ -102,7 +89,7 @@ define [
       Renders the widget's template to the virtual DOM tree, using current state and props
       @return {Promise.<VNode>}
       ###
-      vdomTmplFile = "bundles/#{ @getDir() }/#{ @constructor.dirName }.vdom"
+      vdomTmplFile = "bundles/#{ @constructor.relativeDirPath }/#{ @constructor.dirName }.vdom"
 
       calc = {}
       @onRender?(calc)
@@ -123,3 +110,21 @@ define [
           @_vtree = vtree
       else
         Future.resolved(@_vtree)
+
+
+    getInitCode: (parentId) ->
+      parentStr = if parentId? then ",'#{ parentId }'" else ''
+
+      # todo: maybe add refs (aka childByName)
+
+      # todo: add model bindings serialization
+
+      # filter bad unicode characters before sending data to browser
+      propsStr = unescape(encodeURIComponent(JSON.stringify(@props))).replace(/<\/script>/g, '<\\/script>')
+      stateStr = unescape(encodeURIComponent(JSON.stringify(@state))).replace(/<\/script>/g, '<\\/script>')
+
+      # indentation is mandatory to beautify page source formatting
+      """
+            wi.vdomInit('#{@id}','#{@constructor.path}',#{propsStr},#{stateStr}#{parentStr});
+      #{ (widget.getInitCode(@id) for widget in @widgetHierarchy.getChildren(this)).join('') }
+      """
