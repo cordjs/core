@@ -110,7 +110,7 @@ define [
       modulePath = "/cord/core/auth/#{ modulePath }"  if modulePath.charAt(0) != '/'
 
       # Ignore double call of this method with same module
-      return @authPromise if modulePath == @lastModulePath
+      return @authPromise if modulePath == @lastModulePath and not @authPromise.completed()
 
       _console.log "Loading auth module: #{modulePath}"  if global.config.debug.oauth
 
