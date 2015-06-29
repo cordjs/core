@@ -5,7 +5,7 @@ define [
   'underscore'
 ], (cordWidgetHelper, Future, pathUtils, _) ->
 
-  getBaseUrl = => if global.config?.localFsMode then '' else '/'
+  getBaseUrl = -> if global.config?.localFsMode then '' else '/'
 
   class Helper
     ###
