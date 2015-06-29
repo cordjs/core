@@ -80,7 +80,7 @@ define [
       @param {VWidget} vwidget
       @return {Promise.<VNode>}
       ###
-      @widgetFactory.create(vwidget.type, vwidget.props, vwidget.slotNodes, this).then (widget) ->
+      @widgetFactory.create(vwidget.type, vwidget.properties, vwidget.slotNodes, this).then (widget) ->
         widget.renderDeepTree()
 
 

@@ -20,7 +20,7 @@ define [
       @param {Widget=} parentWidget - parent widget for the newly created widget
       @return {Promise.<Widget>}
       ###
-      bundleSpec = if parentWidget then "@#{ parentWidget.getBundle() }" else ''
+      bundleSpec = if parentWidget then "@#{ parentWidget.constructor.bundle }" else ''
 
       Promise.require("cord-w!#{type}#{bundleSpec}").bind(this).then (WidgetClass) ->
         @container.injectServices(new WidgetClass(props: props, slotNodes: slotNodes))
