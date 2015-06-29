@@ -8,6 +8,7 @@ define [
     ###
 
     @inject: [
+      'vdomWidgetRepo'
       'widgetFactory'
       'widgetRepo' # old widgets repository
     ]
@@ -25,7 +26,11 @@ define [
       ###
       Compatibility proxy-method to support old widgets initialization
       ###
-      @widgetRepo.init.apply(@widgetRepo, arguments)
+      result = @widgetRepo.init.apply(@widgetRepo, arguments)
+      # registering old shim-widget in vdom widgets repository
+      result.then (widget) =>
+        @vdomWidgetRepo.registerWidget(widget)  if widget.id
+      result
 
 
     endInit: ->
@@ -54,4 +59,5 @@ define [
       parentPromise = (parentId and @_widgetInitPromises[parentId]) or Promise.resolved()
       @_widgetInitPromises[id] = parentPromise.then =>
         @widgetFactory.restore(widgetPath, id, props, state, parentId)
+      .failAloud()
       return

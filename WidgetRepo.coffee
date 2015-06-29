@@ -388,7 +388,7 @@ define [
                 widget._contextBundle = @widgets[parentId].widget.getBundle()
           else
             @rootWidget = widget
-
+          widget
       .link(@_initPromise)
       .failAloud("WidgetRepo::init:#{widgetPath}:#{ctx.id}")
 
