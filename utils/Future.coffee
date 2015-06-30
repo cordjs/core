@@ -119,23 +119,34 @@ define [
        than callback is fired immediately.
       Should have according fork() call before.
       ###
-      if @_counter > 0
-        @_counter--
-        if @_state != 'rejected' and @_doneCallbacks
-          @_settledValue = value
-          if @_counter == 0
-            # For the cases when there is no done function
-            @_state = 'resolved' if @_locked
-            @_clearUnhandledTracking() if unhandledSoftTracking and @_locked
-            @_runDoneCallbacks() if @_doneCallbacks.length > 0
-            @_clearFailCallbacks() if @_state == 'resolved'
-            @_clearDebugTimeout() if unresolvedTrackingEnabled
-          # not changing state to 'resolved' here because it is possible to call fork() again if done hasn't called yet
-      else
-        nameStr = if @_name then " (name = #{@_name})" else ''
-        throw new Error(
-          "Future::resolve() is called more times than Future::fork!#{nameStr} state = #{@_state}, [#{@_settledValue}]"
+      if value instanceof Future
+        promise = this
+        value.then(
+          (r) ->
+            promise.resolve(r)
+            return
+          (e) ->
+            promise.reject(e)
+            return
         )
+      else
+        if @_counter > 0
+          @_counter--
+          if @_state != 'rejected' and @_doneCallbacks
+            @_settledValue = value
+            if @_counter == 0
+              # For the cases when there is no done function
+              @_state = 'resolved' if @_locked
+              @_clearUnhandledTracking() if unhandledSoftTracking and @_locked
+              @_runDoneCallbacks() if @_doneCallbacks.length > 0
+              @_clearFailCallbacks() if @_state == 'resolved'
+              @_clearDebugTimeout() if unresolvedTrackingEnabled
+            # not changing state to 'resolved' here because it is possible to call fork() again if done hasn't called yet
+        else
+          nameStr = if @_name then " (name = #{@_name})" else ''
+          throw new Error(
+            "Future::resolve() is called more times than Future::fork!#{nameStr} state = #{@_state}, [#{@_settledValue}]"
+          )
 
       this
 
@@ -522,8 +533,10 @@ define [
               (res) ->
                 result[i] = res
                 promise.resolve()
+                return
               (e) ->
                 promise.reject(e)
+                return
             )
           else
             result[i] = f
@@ -1014,7 +1027,7 @@ define [
 
   recCollectLongStackTrace = (promise, args) ->
     ###
-    Recursively collects beautified long stack-trace for the hierarhy of promises into the given args array.
+    Recursively collects beautified long stack-trace for the hierarchy of promises into the given args array.
     @param {Future} promise
     @param {Array} args
     ###
@@ -1063,6 +1076,9 @@ define [
                 err = info.promise._settledValue
                 reportArgs.push("\n#{err}")
                 reportArgs.push("\n" + filterStack(err.stack))  if err.stack
+                reportArgs.push("\n--------")
+                reportArgs.push(info.promise._stack)
+                reportArgs.push("\n--------")
                 recCollectLongStackTrace(info.promise, reportArgs)
               cons().warn.apply(cons(), reportArgs)
             delete unhandledMap[id]
