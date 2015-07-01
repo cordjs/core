@@ -119,18 +119,18 @@ define [
        than callback is fired immediately.
       Should have according fork() call before.
       ###
-      if value instanceof Future
-        promise = this
-        value.then(
-          (r) ->
-            promise.resolve(r)
-            return
-          (e) ->
-            promise.reject(e)
-            return
-        )
-      else
-        if @_counter > 0
+      if @_counter > 0
+        if value instanceof Future
+          promise = this
+          value.then(
+            (r) ->
+              promise.resolve(r)
+              return
+            (e) ->
+              promise.reject(e)
+              return
+          )
+        else
           @_counter--
           if @_state != 'rejected' and @_doneCallbacks
             @_settledValue = value
@@ -142,11 +142,11 @@ define [
               @_clearFailCallbacks() if @_state == 'resolved'
               @_clearDebugTimeout() if unresolvedTrackingEnabled
             # not changing state to 'resolved' here because it is possible to call fork() again if done hasn't called yet
-        else
-          nameStr = if @_name then " (name = #{@_name})" else ''
-          throw new Error(
-            "Future::resolve() is called more times than Future::fork!#{nameStr} state = #{@_state}, [#{@_settledValue}]"
-          )
+      else
+        nameStr = if @_name then " (name = #{@_name})" else ''
+        throw new Error(
+          "Future::resolve() is called more times than Future::fork!#{nameStr} state = #{@_state}, [#{@_settledValue}]"
+        )
 
       this
 
@@ -1060,6 +1060,10 @@ define [
               reportArgs = ["Future timed out [#{pr._name}] (#{elapsed / 1000} seconds), counter = #{pr._counter}"]
               reportArgs.push("\n" + filterStack(pr._stack))  if pr._stack
               recCollectLongStackTrace(info.promise, reportArgs)
+              if longStackTraceLogOriginStack
+                  reportArgs.push("\n-------- Origin stack --------")
+                  reportArgs.push(info.promise._stack.split("\n").slice(1).join("\n"))
+                  reportArgs.push("\n------------------------------")
               cons().warn.apply(cons(), reportArgs)
             delete unresolvedMap[id]
 
@@ -1076,10 +1080,11 @@ define [
                 err = info.promise._settledValue
                 reportArgs.push("\n#{err}")
                 reportArgs.push("\n" + filterStack(err.stack))  if err.stack
-                reportArgs.push("\n--------")
-                reportArgs.push(info.promise._stack)
-                reportArgs.push("\n--------")
                 recCollectLongStackTrace(info.promise, reportArgs)
+                if longStackTraceLogOriginStack
+                  reportArgs.push("\n-------- Origin stack --------")
+                  reportArgs.push(info.promise._stack.split("\n").slice(1).join("\n"))
+                  reportArgs.push("\n------------------------------")
               cons().warn.apply(cons(), reportArgs)
             delete unhandledMap[id]
       , interval
@@ -1087,6 +1092,7 @@ define [
 
   longStackTraceEnabled = !!global.config?.debug.future.longStackTrace.enable
   longStackTraceAppendName = !!global.config?.debug.future.longStackTrace.appendPromiseName
+  longStackTraceLogOriginStack = !!global.config?.debug.future.longStackTrace.logOriginStack
   unhandledTrackingEnabled = !!global.config?.debug.future.trackUnhandled.enable
   unresolvedTrackingEnabled = !!global.config?.debug.future.timeout
   initTimeoutTracker()  if unhandledTrackingEnabled or unresolvedTrackingEnabled
