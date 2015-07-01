@@ -130,7 +130,7 @@ define [
 
 
   taggedError: (tags, args...) ->
-    _taggedError tags, args, 'error'
+    _taggedError tags, 'error', args
 
 
   clear: ->
