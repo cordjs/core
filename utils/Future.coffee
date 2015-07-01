@@ -521,7 +521,6 @@ define [
       @param {Array<Any>} futureList
       @param {String} name - result promise debug name
       @return {Future<Array<Any>>}
-      @todo maybe need to support noTimeout property of futureList promises
       ###
       promise = new Future(name)
       result = []
@@ -540,6 +539,8 @@ define [
             )
           else
             result[i] = f
+          if f instanceof Future and f._noTimeout
+            result.withoutTimeout()
       promise.then ->
         result.__canHaveLengthOne = true  if result.length == 1
         result
