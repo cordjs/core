@@ -540,7 +540,7 @@ define [
           else
             result[i] = f
           if f instanceof Future and f._noTimeout
-            result.withoutTimeout()
+            promise.withoutTimeout()
       promise.then ->
         result.__canHaveLengthOne = true  if result.length == 1
         result
