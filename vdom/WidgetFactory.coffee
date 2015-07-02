@@ -30,6 +30,16 @@ define [
         widget
 
 
+    createByVWidget: (vWidget, parentWidget) ->
+      ###
+      Syntax-sugar factory - creates widget by the vDom node (vWidget) and parent widget
+      @param {VWidget} vWidget
+      @param {Widget} parentWidget - the parent widget
+      @return {Promise.<Widget>}
+      ###
+      @create(vWidget.type, vWidget.properties, vWidget.slotNodes, parentWidget)
+
+
     restore: (type, id, props, state, parentId) ->
       ###
       Restores previously created widget transferred from server to browser
