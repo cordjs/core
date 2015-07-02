@@ -4,135 +4,105 @@ define [
   './updateAlienWidget'
   '../vtree/vtree'
   '../vtree/VPatch'
-], (applyProperties, render, updateAlienWidget, vtree, VPatch) ->
+  'cord!utils/Future'
+], (applyProperties, render, updateAlienWidget, vtree, VPatch, Promise) ->
 
-  applyPatch = (vpatch, domNode, renderOptions) ->
+  applyPatch = (vpatch, patchScript, renderOptions) ->
+    ###
+    Fills the given patch-script with DOM manipulation commands according to the given VPatch structure from vDom diff.
+    @param {VPatch} vpatch - single vpatch from the vdom diff algorithm
+    @param {PatchScript} patchScript - the patch-script to which DOM update commands should be recorded
+    @param {Object} renderOptions - additional information need to be provided for some of patch commands
+    @return {PatchScript|Promise.<PatchScript>}
+    ###
     type = vpatch.type
     vNode = vpatch.vNode
     patch = vpatch.patch
     switch type
       when VPatch.REMOVE
-        removeNode domNode, vNode
+        removeNode patchScript, vNode
       when VPatch.INSERT
-        insertNode domNode, patch, renderOptions
+        insertNode patchScript, patch, renderOptions
       when VPatch.VTEXT
-        stringPatch domNode, vNode, patch, renderOptions
+        stringPatch patchScript, vNode, patch, renderOptions
       when VPatch.ALIEN_WIDGET
-        alienWidgetPatch domNode, vNode, patch, renderOptions
+        patchScript.alienWidgetPatch(vNode, patch, renderOptions)
       when VPatch.VNODE
-        vNodePatch domNode, vNode, patch, renderOptions
+        vNodePatch patchScript, vNode, patch, renderOptions
       when VPatch.ORDER
-        reorderChildren domNode, patch
-        domNode
+        patchScript.reorderChildren(patch)
       when VPatch.PROPS
-        applyProperties domNode, patch, vNode.properties
-        domNode
+        patchScript.applyProperties(patch, vNode.properties)
       when VPatch.WIDGET_PROPS
-        applyWidgetProps domNode, patch, renderOptions
-        domNode
-      when VPatch.THUNK
-        replaceRoot(domNode, renderOptions.patch(domNode, patch, renderOptions))
+        patchScript.updateWidgetProps(patch, renderOptions.widgetInfo.widgetRepo)
+      when VPatch.WIDGET
+        vWidgetPatch patchScript, vNode, patch, renderOptions
+#      when VPatch.THUNK
+#        replaceRoot(domNode, renderOptions.patch(domNode, patch, renderOptions))
       else
-        domNode
+        console.warn 'Unsupported patch command!', type
+        patchScript
 
 
-  applyWidgetProps = (domNode, patch, renderOptions) ->
+  vWidgetPatch = (patchScript, leftVNode, vWidget, renderOptions) ->
     ###
-    Updates widget props based on patch info came from vdom diff
-    @param {Node} domNode - root DOM node of the widget
-    @param {Object} patch - key-value with the updated props
-    @param {Object} renderOptions - additional information for rendering, used to get injected widget repo service
+    Generates patch-script commands for the case when some vDom node is replaced with a new widget.
     ###
-    renderOptions.widgetRepo.getById(domNode.id).updateProps(patch)
-    return
+    wi = renderOptions.widgetInfo
+    wi.widgetFactory.createByVWidget(vWidget, wi.widget).then (widget) ->
+      widget.renderDeepTree()
+    .then (vtree) ->
+      newNode = render(vtree, renderOptions)
+      patchScript.replaceNode(newNode)
+      patchScript.destroyAlienWidget(leftVNode)
 
 
-  removeNode = (domNode, vNode) ->
-    parentNode = domNode.parentNode
-    parentNode.removeChild(domNode)  if parentNode
-    destroyAlienWidget domNode, vNode
-    null
+  removeNode = (patchScript, vNode) ->
+    ###
+    Generates patch-script commands for the case when any node is removed.
+    ###
+    patchScript.removeNode()
+    patchScript.destroyAlienWidget(vNode)
 
 
-  insertNode = (parentNode, vNode, renderOptions) ->
+  insertNode = (patchScript, vNode, renderOptions) ->
+    ###
+    Generates patch-script commands for the case when new node (or widget) is appended to the tree.
+    ###
+    newNodePromise =
+      if vtree.isWidget(vNode)
+        # plain node is replaced with widget
+        wi = renderOptions.widgetInfo
+        wi.widgetFactory.createByVWidget(vNode, wi.widget).then (widget) ->
+          widget.renderDeepTree()
+      else
+        Promise.resolved(vNode)
+    newNodePromise.then (vtree) ->
+      newNode = render(vtree, renderOptions)
+      patchScript.appendChild(newNode)
+
+
+  stringPatch = (patchScript, leftVNode, vText, renderOptions) ->
+    ###
+    Generates patch-script commands for the case when text node is updated or replaces another node.
+    ###
+    patchScript.stringPatch(vText, renderOptions)
+    patchScript.destroyAlienWidget(leftVNode)
+
+
+  vNodePatch = (patchScript, leftVNode, vNode, renderOptions) ->
+    ###
+    Generates patch-script commands for the case when a new node replaces another node
+    ###
     newNode = render(vNode, renderOptions)
-    parentNode.appendChild(newNode)  if parentNode
-    parentNode
+    patchScript.replaceNode(newNode)
+    patchScript.destroyAlienWidget(leftVNode)
 
 
-  stringPatch = (domNode, leftVNode, vText, renderOptions) ->
-    if domNode.nodeType == 3
-      domNode.replaceData(0, domNode.length, vText.text)
-      newNode = domNode
-    else
-      parentNode = domNode.parentNode
-      newNode = render(vText, renderOptions)
-      parentNode.replaceChild(newNode, domNode)  if parentNode
-    destroyAlienWidget domNode, leftVNode
-    newNode
-
-
-  alienWidgetPatch = (domNode, leftVNode, widget, renderOptions) ->
-    return widget.update(leftVNode, domNode) or domNode  if updateAlienWidget(leftVNode, widget)
-    parentNode = domNode.parentNode
-    newWidget = render(widget, renderOptions)
-    parentNode.replaceChild(newWidget, domNode)  if parentNode
-    destroyAlienWidget domNode, leftVNode
-    newWidget
-
-
-  vNodePatch = (domNode, leftVNode, vNode, renderOptions) ->
-    parentNode = domNode.parentNode
-    newNode = render(vNode, renderOptions)
-    parentNode.replaceChild(newNode, domNode)  if parentNode
-    destroyAlienWidget domNode, leftVNode
-    newNode
-
-
-  destroyAlienWidget = (domNode, w) ->
-    w.destroy(domNode)  if typeof w.destroy == 'function' and vtree.isAlienWidget(w)
-    return
-
-
-  reorderChildren = (domNode, bIndex) ->
-    children = []
-    childNodes = domNode.childNodes
-    reverseIndex = bIndex.reverse
-
-    children.push(child) for child in childNodes
-
-    insertOffset = 0
-    move = undefined
-    insertNode = undefined
-
-    len = childNodes.length
-    i = 0
-    while i < len
-      move = bIndex[i]
-      if move != undefined and move != i
-        # the element currently at this index will be moved later so increase the insert offset
-        insertOffset++  if reverseIndex[i] > i
-
-        node = children[move]
-        insertNode = childNodes[i + insertOffset] or null
-        domNode.insertBefore(node, insertNode)  if node != insertNode
-
-        # the moved element came from the front of the array so reduce the insert offset
-        insertOffset--  if move < i
-
-      # element at this index == scheduled to be removed so increase insert offset
-      insertOffset++  if i of bIndex.removes
-
-      i++
-
-    return
-
-
-  replaceRoot = (oldRoot, newRoot) ->
-    if oldRoot and newRoot and oldRoot != newRoot and oldRoot.parentNode
-      console.log oldRoot
-      oldRoot.parentNode.replaceChild newRoot, oldRoot
-    newRoot
+#  replaceRoot = (oldRoot, newRoot) ->
+#    if oldRoot and newRoot and oldRoot != newRoot and oldRoot.parentNode
+#      oldRoot.parentNode.replaceChild newRoot, oldRoot
+#    newRoot
 
 
   applyPatch

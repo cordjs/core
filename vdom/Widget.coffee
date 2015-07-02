@@ -42,9 +42,13 @@ define [
       @_renderVtree().then (newVtree) =>
         patches = diff(@_vtree, newVtree)
         rootElement = document.getElementById(@id)
-        patch(rootElement, patches, @vdomWidgetRepo)
-        @_vtree = newVtree
-        return
+        patch rootElement, patches,
+          widget: this
+          widgetRepo: @vdomWidgetRepo
+          widgetFactory: @widgetFactory
+        .then =>
+          @_vtree = newVtree
+          return
       .failAloud()
 
 
