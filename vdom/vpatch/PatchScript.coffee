@@ -360,7 +360,6 @@ define [
       @param {Object} props - new props for the widget
       @param {WidgetRepo} widgetRepo - injected widget repository service to get widget instance by id
       ###
-      debugger if not widgetRepo.getById(ec.currentNode.id)
       widgetRepo.getById(ec.currentNode.id).updateProps(props)
       return
 

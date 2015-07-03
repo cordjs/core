@@ -1,14 +1,14 @@
 define [
   'cord!utils/Future'
-  'cord!vdom/vpatch/patch'
   'cord!vdom/vtree/diff'
   'cord!vdom/vtree/vtree'
   'underscore'
-], (Future, patch, diff, vtree, _) ->
+], (Future, diff, vtree, _) ->
 
   class Widget
 
     @inject: [
+      'domPatcher'
       'vdomWidgetRepo'
       'widgetFactory'
       'widgetHierarchy'
@@ -42,11 +42,7 @@ define [
       @_renderVtree().then (newVtree) =>
         patches = diff(@_vtree, newVtree)
         rootElement = document.getElementById(@id)
-        patch rootElement, patches,
-          widget: this
-          widgetRepo: @vdomWidgetRepo
-          widgetFactory: @widgetFactory
-        .then =>
+        @domPatcher.patch(rootElement, patches, this).then =>
           @_vtree = newVtree
           return
       .failAloud()
@@ -93,12 +89,10 @@ define [
       Renders the widget's template to the virtual DOM tree, using current state and props
       @return {Promise.<VNode>}
       ###
-      vdomTmplFile = "bundles/#{ @constructor.relativeDirPath }/#{ @constructor.dirName }.vdom"
-
       calc = {}
       @onRender?(calc)
 
-      Future.require(vdomTmplFile).then (renderFn) =>
+      @constructor.getTemplate().then (renderFn) =>
         vnode = renderFn(@props, @state, calc)
         vnode.properties.id = @id
         vnode
@@ -132,3 +126,16 @@ define [
             wi.vdomInit('#{@id}','#{@constructor.path}',#{propsStr},#{stateStr}#{parentStr});
       #{ (widget.getInitCode(@id) for widget in @widgetHierarchy.getChildren(this)).join('') }
       """
+
+
+    @getTemplate: ->
+      ###
+      Loads, caches and returns widget's vDom template function.
+      Avoids redundant using of requirejs which causes slow setTimeout calls for async.
+      @static
+      @return {Promise.<function>}
+      ###
+      if not @_cachedTemplatePromise
+        vdomTmplFile = "bundles/#{ @relativeDirPath }/#{ @dirName }.vdom"
+        @_cachedTemplatePromise = Future.require(vdomTmplFile)
+      @_cachedTemplatePromise

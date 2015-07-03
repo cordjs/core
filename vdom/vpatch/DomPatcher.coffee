@@ -2,29 +2,36 @@ define [
   './domIndex'
   './patchOp'
   './PatchScript'
+  './redrawOptimizer'
   'cord!utils/Future'
   'underscore'
-], (domIndex, patchOp, PatchScript, Promise, _) ->
+], (domIndex, patchOp, PatchScript, redrawOptimizer, Promise, _) ->
 
-  patch = (rootNode, patches, widgetInfo) ->
-    ###
-    Updates the given DOM node according to the given virtual-dom patch
-    @param {Node} rootNode - DOM node to which apply the patch
-    @param {Object} patches - special object containing old VNode and patch-lists by node indexes
-    @param {Object} widgetInfo - additional info about widget infrastructure
-                                 * widget - the widget instance that is patched
-                                 * widgetRepo - widget repository service
-                                 * widgetFactory - widget factory service
-    @return {Promise.<Node>} updated root node
-    ###
-    ownerDocument = rootNode.ownerDocument
-    renderOptions =
-      patch: createPatchScriptRec
-      widgetInfo: widgetInfo
-    renderOptions.document = ownerDocument  if ownerDocument != document
+  class DomPatcher
 
-    createPatchScriptRec(patches, renderOptions).then (script) ->
-      script.run(rootNode)
+    @inject: [
+      'vdomWidgetRepo'
+      'widgetFactory'
+    ]
+
+    patch: (rootNode, patches, widget) ->
+      ###
+      Updates the given DOM node according to the given virtual-dom patch
+      @param {Node} rootNode - DOM node to which apply the patch
+      @param {Object} patches - special object containing old VNode and patch-lists by node indexes
+      @param {Widget} widget - the widget instance that is patched
+      @return {Promise.<Node>} updated root node
+      ###
+      ownerDocument = rootNode.ownerDocument
+      renderOptions =
+        #patch: createPatchScriptRec
+        widget: widget
+        widgetFactory: @widgetFactory
+        widgetRepo: @vdomWidgetRepo
+      renderOptions.document = ownerDocument  if ownerDocument != document
+
+      createPatchScriptRec(patches, renderOptions).then (script) ->
+        redrawOptimizer.schedulePatch(script, rootNode)
 
 
 
@@ -80,4 +87,4 @@ define [
     indices
 
 
-  patch
+  DomPatcher

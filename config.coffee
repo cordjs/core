@@ -125,6 +125,13 @@ define  ->
           done(null, get('serverRequest').headers?['user-agent'])
 
     ':browser':
+
+      domPatcher:
+        deps: ['container']
+        factory: (get, done) ->
+          require ['cord!vdom/vpatch/DomPatcher'], (DomPatcher) ->
+            get('container').injectServices(new DomPatcher).finally(done)
+
       request:
         factory: (get, done) ->
           require ['cord!/cord/core/request/BrowserRequest'], (Request) ->

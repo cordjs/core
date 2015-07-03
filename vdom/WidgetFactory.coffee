@@ -1,6 +1,7 @@
 define [
+  'cord-w'
   'cord!utils/Future'
-], (Promise) ->
+], (cordWidgetLoader, Promise) ->
 
   class WidgetFactory
 
@@ -9,6 +10,13 @@ define [
       'vdomWidgetRepo'
       'widgetHierarchy'
     ]
+
+
+    _widgetClassesCache: null
+
+
+    constructor: ->
+      @_widgetClassesCache = {}
 
 
     create: (type, props, slotNodes, parentWidget) ->
@@ -22,7 +30,7 @@ define [
       ###
       bundleSpec = if parentWidget then "@#{ parentWidget.constructor.bundle }" else ''
 
-      Promise.require("cord-w!#{type}#{bundleSpec}").bind(this).then (WidgetClass) ->
+      @_getWidgetClass("#{type}#{bundleSpec}").then (WidgetClass) ->
         @container.injectServices(new WidgetClass(props: props, slotNodes: slotNodes))
       .then (widget) ->
         @vdomWidgetRepo.registerWidget(widget)
@@ -50,9 +58,22 @@ define [
       @param {string=} parentId - parent widget id, used to restore hierarchy
       @return {Promise.<Widget>}
       ###
-      Promise.require("cord-w!#{type}").bind(this).then (WidgetClass) ->
+      @_getWidgetClass(type).then (WidgetClass) ->
         @container.injectServices(new WidgetClass(id: id, props: props, state: state))
       .then (widget) ->
         @vdomWidgetRepo.registerWidget(widget)
         @widgetHierarchy.registerChild(@vdomWidgetRepo.getById(parentId), widget)  if parentId
         widget
+
+
+    _getWidgetClass: (widgetPath) ->
+      ###
+      Loads, caches and returns the widget class by cord-w style path.
+      Helps to avoid calling requirejs multiple times and make things faster through caching the loaded class promise.
+      @param {string} widgetPath - path without cord-w!
+      @return {Promise.<Function>} widget class promise bound to `this` service (for optimization)
+      ###
+      canonicalPath = cordWidgetLoader.getFullInfo(widgetPath).canonicalPath
+      if not @_widgetClassesCache[canonicalPath]
+        @_widgetClassesCache[canonicalPath] = Promise.require('cord-w!'+widgetPath).bind(this) # bind is mandatory optimization
+      @_widgetClassesCache[canonicalPath]

@@ -34,7 +34,7 @@ define [
       when VPatch.PROPS
         patchScript.applyProperties(patch, vNode.properties)
       when VPatch.WIDGET_PROPS
-        patchScript.updateWidgetProps(patch, renderOptions.widgetInfo.widgetRepo)
+        patchScript.updateWidgetProps(patch, renderOptions.widgetRepo)
       when VPatch.WIDGET
         vWidgetPatch patchScript, vNode, patch, renderOptions
 #      when VPatch.THUNK
@@ -48,8 +48,7 @@ define [
     ###
     Generates patch-script commands for the case when some vDom node is replaced with a new widget.
     ###
-    wi = renderOptions.widgetInfo
-    wi.widgetFactory.createByVWidget(vWidget, wi.widget).then (widget) ->
+    renderOptions.widgetFactory.createByVWidget(vWidget, renderOptions.widget).then (widget) ->
       widget.renderDeepTree()
     .then (vtree) ->
       newNode = render(vtree, renderOptions)
@@ -72,8 +71,7 @@ define [
     newNodePromise =
       if vtree.isWidget(vNode)
         # plain node is replaced with widget
-        wi = renderOptions.widgetInfo
-        wi.widgetFactory.createByVWidget(vNode, wi.widget).then (widget) ->
+        renderOptions.widgetFactory.createByVWidget(vNode, renderOptions.widget).then (widget) ->
           widget.renderDeepTree()
       else
         Promise.resolved(vNode)
