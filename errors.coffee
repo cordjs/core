@@ -75,3 +75,10 @@ define ->
     name: 'MustTransitPage'
     constructor: (@widget, @params) ->
       super("Transition to #{@widget} required!")
+
+
+  ItemNotFound: class ItemNotFound extends CordError
+    ###
+    This class of errors throws when some registry can not found some element by name
+    ###
+    name: 'ItemNotFound'

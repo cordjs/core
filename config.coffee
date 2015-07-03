@@ -25,10 +25,9 @@ define  ->
                   resolver.setParameter('BACKEND_HOST', host)
               api
             .then (api) ->
-              done(null, api)
-            .then -> postal.publish('api.available')
-            .catch (e) ->
-              done(e)
+              postal.publish('api.available')
+              api
+            .finally(done)
 
     tabSync:
       factory: (get, done) ->

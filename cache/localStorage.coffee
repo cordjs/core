@@ -2,7 +2,8 @@ define [
   'cord!utils/Future'
   'cord!utils/sha1'
   'cord!cookie/LocalCookie'
-], (Future, sha1, LocalCookie) ->
+  'cord!errors'
+], (Future, sha1, LocalCookie, errors) ->
 
   class LocalStorage
 
