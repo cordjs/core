@@ -120,17 +120,28 @@ define [
       Should have according fork() call before.
       ###
       if @_counter > 0
-        @_counter--
-        if @_state != 'rejected' and @_doneCallbacks
-          @_settledValue = value
-          if @_counter == 0
-            # For the cases when there is no done function
-            @_state = 'resolved' if @_locked
-            @_clearUnhandledTracking() if unhandledSoftTracking and @_locked
-            @_runDoneCallbacks() if @_doneCallbacks.length > 0
-            @_clearFailCallbacks() if @_state == 'resolved'
-            @_clearDebugTimeout() if unresolvedTrackingEnabled
-          # not changing state to 'resolved' here because it is possible to call fork() again if done hasn't called yet
+        if value instanceof Future
+          promise = this
+          value.then(
+            (r) ->
+              promise.resolve(r)
+              return
+            (e) ->
+              promise.reject(e)
+              return
+          )
+        else
+          @_counter--
+          if @_state != 'rejected' and @_doneCallbacks
+            @_settledValue = value
+            if @_counter == 0
+              # For the cases when there is no done function
+              @_state = 'resolved' if @_locked
+              @_clearUnhandledTracking() if unhandledSoftTracking and @_locked
+              @_runDoneCallbacks() if @_doneCallbacks.length > 0
+              @_clearFailCallbacks() if @_state == 'resolved'
+              @_clearDebugTimeout() if unresolvedTrackingEnabled
+            # not changing state to 'resolved' here because it is possible to call fork() again if done hasn't called yet
       else
         nameStr = if @_name then " (name = #{@_name})" else ''
         throw new Error(
@@ -510,7 +521,6 @@ define [
       @param {Array<Any>} futureList
       @param {String} name - result promise debug name
       @return {Future<Array<Any>>}
-      @todo maybe need to support noTimeout property of futureList promises
       ###
       promise = new Future(name)
       result = []
@@ -522,11 +532,15 @@ define [
               (res) ->
                 result[i] = res
                 promise.resolve()
+                return
               (e) ->
                 promise.reject(e)
+                return
             )
           else
             result[i] = f
+          if f instanceof Future and f._noTimeout
+            promise.withoutTimeout()
       promise.then ->
         result.__canHaveLengthOne = true  if result.length == 1
         result
@@ -1014,7 +1028,7 @@ define [
 
   recCollectLongStackTrace = (promise, args) ->
     ###
-    Recursively collects beautified long stack-trace for the hierarhy of promises into the given args array.
+    Recursively collects beautified long stack-trace for the hierarchy of promises into the given args array.
     @param {Future} promise
     @param {Array} args
     ###
@@ -1047,6 +1061,10 @@ define [
               reportArgs = ["Future timed out [#{pr._name}] (#{elapsed / 1000} seconds), counter = #{pr._counter}"]
               reportArgs.push("\n" + filterStack(pr._stack))  if pr._stack
               recCollectLongStackTrace(info.promise, reportArgs)
+              if longStackTraceLogOriginStack
+                  reportArgs.push("\n-------- Origin stack --------")
+                  reportArgs.push(info.promise._stack.split("\n").slice(1).join("\n"))
+                  reportArgs.push("\n------------------------------")
               cons().warn.apply(cons(), reportArgs)
             delete unresolvedMap[id]
 
@@ -1064,6 +1082,10 @@ define [
                 reportArgs.push("\n#{err}")
                 reportArgs.push("\n" + filterStack(err.stack))  if err.stack
                 recCollectLongStackTrace(info.promise, reportArgs)
+                if longStackTraceLogOriginStack
+                  reportArgs.push("\n-------- Origin stack --------")
+                  reportArgs.push(info.promise._stack.split("\n").slice(1).join("\n"))
+                  reportArgs.push("\n------------------------------")
               cons().warn.apply(cons(), reportArgs)
             delete unhandledMap[id]
       , interval
@@ -1071,6 +1093,7 @@ define [
 
   longStackTraceEnabled = !!global.config?.debug.future.longStackTrace.enable
   longStackTraceAppendName = !!global.config?.debug.future.longStackTrace.appendPromiseName
+  longStackTraceLogOriginStack = !!global.config?.debug.future.longStackTrace.logOriginStack
   unhandledTrackingEnabled = !!global.config?.debug.future.trackUnhandled.enable
   unresolvedTrackingEnabled = !!global.config?.debug.future.timeout
   initTimeoutTracker()  if unhandledTrackingEnabled or unresolvedTrackingEnabled
