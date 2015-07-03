@@ -29,7 +29,12 @@ define [
       result = @widgetRepo.init.apply(@widgetRepo, arguments)
       # registering old shim-widget in vdom widgets repository
       result.then (widget) =>
-        @vdomWidgetRepo.registerWidget(widget)  if widget.id
+        if widget.id
+          @vdomWidgetRepo.registerWidget(widget)
+          if @_widgetInitPromises[widget.id]
+            @_widgetInitPromises[widget.id].resolve()
+          else
+            @_widgetInitPromises[widget.id] = Promise.resolved()
       result
 
 
@@ -56,7 +61,12 @@ define [
       @param {Object.<string, *>} state
       @param {string=} parentId
       ###
-      parentPromise = (parentId and @_widgetInitPromises[parentId]) or Promise.resolved()
+      parentPromise =
+        if parentId
+          @_widgetInitPromises[parentId] = Promise.single() if not @_widgetInitPromises[parentId]
+          @_widgetInitPromises[parentId]
+        else
+          Promise.resolved()
       @_widgetInitPromises[id] = parentPromise.then =>
         @widgetFactory.restore(widgetPath, id, props, state, parentId)
       .failAloud()
