@@ -2,8 +2,9 @@ define [
   'cord!utils/Future'
   'cord!vdom/vtree/diff'
   'cord!vdom/vtree/vtree'
+  'cord!vdom/vtree/utils'
   'underscore'
-], (Future, diff, vtree, _) ->
+], (Future, diff, vtree, vtreeUtils, _) ->
 
   class Widget
 
@@ -54,6 +55,7 @@ define [
       @return {Promise.<VNode>}
       ###
       @_renderVtree().then (vnode) =>
+        @_vtree = vnode
         @_recDereferenceTree(vnode)
 
 
@@ -66,6 +68,7 @@ define [
       if vtree.isWidget(vnode)
         @_renderDeepVWidget(vnode)
       else if vtree.isVNode(vnode)
+        vnode = vtreeUtils.clone(vnode) # cloning is necessary to avoid dereferencing currently stored @_vtree
         promises = (@_recDereferenceTree(child) for child in vnode.children)
         Future.all(promises).then (dereferencedChildren) ->
           vnode.children = dereferencedChildren
@@ -80,7 +83,7 @@ define [
       @param {VWidget} vwidget
       @return {Promise.<VNode>}
       ###
-      @widgetFactory.create(vwidget.type, vwidget.properties, vwidget.slotNodes, this).then (widget) ->
+      @widgetFactory.createByVWidget(vwidget, this).then (widget) ->
         widget.renderDeepTree()
 
 

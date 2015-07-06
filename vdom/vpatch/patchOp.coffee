@@ -34,7 +34,12 @@ define [
       when VPatch.PROPS
         patchScript.applyProperties(patch, vNode.properties)
       when VPatch.WIDGET_PROPS
-        patchScript.updateWidgetProps(patch, renderOptions.widgetRepo)
+        if vNode.widgetInstance
+          vNode.widgetInstance.updateProps(patch)
+          patchScript
+        else
+          # if there is no widgetInstance link cached than we need to access DOM to find out the widget ID
+          patchScript.updateWidgetProps(patch, renderOptions.widgetRepo)
       when VPatch.WIDGET
         vWidgetPatch patchScript, vNode, patch, renderOptions
 #      when VPatch.THUNK

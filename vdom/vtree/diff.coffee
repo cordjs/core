@@ -49,6 +49,7 @@ define [
         # widgets are comparable if they have same type and key (if set)
         if a.type == b.type and a.key == b.key
           # comparing properties
+          b.widgetInstance = a.widgetInstance  # optimizing widget instance link detection
           propsPatch = diffProps(a.properties, b.properties, b.hooks)
           apply = appendPatch(apply, new VPatch(VPatch.WIDGET_PROPS, a, propsPatch))  if propsPatch
         else

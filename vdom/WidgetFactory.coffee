@@ -45,7 +45,9 @@ define [
       @param {Widget} parentWidget - the parent widget
       @return {Promise.<Widget>}
       ###
-      @create(vWidget.type, vWidget.properties, vWidget.slotNodes, parentWidget)
+      @create(vWidget.type, vWidget.properties, vWidget.slotNodes, parentWidget).then (widget) ->
+        vWidget.widgetInstance = widget  # storing link to the actual widget instance optimizes vdom updating operations
+        widget
 
 
     restore: (type, id, props, state, parentId) ->
