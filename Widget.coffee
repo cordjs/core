@@ -196,7 +196,6 @@ define [
           @_childEventSubscriptions[childName] ?= {}
           @_childEventSubscriptions[childName][topic] ?= []
           @_childEventSubscriptions[childName][topic].push(callback)
-        @childEvents = undefined
 
 
     @_initCss: (restoreMode) ->
