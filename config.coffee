@@ -124,8 +124,12 @@ define  ->
               ###
               promise or= Future.single(':toFuture:')
               this
-                .then -> promise.resolve()
-                .catch (err) -> promise.reject(err)
+                .then ->
+                  promise.resolve()
+                  return
+                .catch (err) ->
+                  promise.reject(err)
+                  return
               promise
 
             done(null, new LocalStorage(localForage))
