@@ -281,6 +281,7 @@ define [
 
       # prepare what we can first
       xProto = if request.headers['x-forwarded-proto'] == 'on' then 'https' else 'http'
+      _console.log "WRONG BACKEND, request headers: #{request.url}, #{JSON.stringify(request.headers)}" if request.headers.host.match /\d+\.\d+\.\d+/
       ServerSideRouter.replaceConfigVarsByHost(global.appConfig, request.headers.host, xProto)
 
 
