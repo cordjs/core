@@ -451,8 +451,12 @@ define [
           # unlocking flag to allow browserInit to proceed (see comment above)
           widget.unsetDelayedRender()
           widget.browserInit($newWidgetRoot).then ->
+            checkIsSentenced(widget, 're-render remote element')
             $newWidgetRoot.attr('style', $rootEl.attr('style'))
-            DomHelper.replace($rootEl, $newWidgetRoot)
+            if $rootEl.parent().length > 0
+              DomHelper.replace($rootEl, $newWidgetRoot)
+            else
+              _console.warn('Parent element was not found in DOM (probably was removed manualy)', $rootEl)
           .then ->
             domInfo.markShown()
             widget.markShown()
