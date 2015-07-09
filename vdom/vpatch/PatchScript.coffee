@@ -3,8 +3,7 @@ define [
   './createElement'
   './domIndex'
   './updateAlienWidget'
-  '../vtree/vtree'
-], (applyProperties, createElement, domIndex, updateAlienWidget, vtree) ->
+], (applyProperties, createElement, domIndex, updateAlienWidget) ->
 
   class PatchScript
     ###
@@ -140,6 +139,15 @@ define [
       addScriptCommand(this, cmdUpdateWidgetProps, props, widgetRepo)
 
 
+    destroyWidget: (vWidget, widgetRepo) ->
+      ###
+      Adds command that destroys widget instance (but not its DOM representation).
+      @param {VWidget} vWidget - old VWidget node that is going to be removed
+      @param {WidgerRepo} widgetRepo - widget repository service
+      ###
+      addScriptCommand(this, cmdDestroyWidget, vWidget, widgetRepo)
+
+
     alienWidgetPatch: (leftVNode, alienWidget, renderOptions) ->
       ###
       Adds command that replaces current node with the alien widget or updates the existing alien widget
@@ -170,6 +178,7 @@ define [
   cmdApplyProperties = 14
   cmdReorderChildren = 15
   cmdUpdateWidgetProps = 20
+  cmdDestroyWidget = 21
   cmdAlienWidgetPatch = 30
   cmdDestroyAlienWidget = 31
   cmdRunSubScript = 99
@@ -207,6 +216,7 @@ define [
         when cmdApplyProperties then patchCommands.applyProperties(ec, cmd[1], cmd[2])
         when cmdReorderChildren then patchCommands.reorderChildren(ec, cmd[1])
         when cmdUpdateWidgetProps then patchCommands.updateWidgetProps(ec, cmd[1], cmd[2])
+        when cmdDestroyWidget then patchCommands.destroyWidget(ec, cmd[1], cmd[2])
         when cmdAlienWidgetPatch then patchCommands.alienWidgetPatch(ec, cmd[1], cmd[2], cmd[3])
         when cmdDestroyAlienWidget then patchCommands.destroyAlienWidget(ec, cmd[1])
     return
@@ -260,7 +270,6 @@ define [
       parentNode = ec.currentNode.parentNode
       parentNode.replaceChild(newNode, ec.currentNode)  if parentNode
       ec.rootNode = newNode  if ec.rootNode == ec.currentNode
-      # ec.currentNode should not be updated (see `destroyAlienWidget`)
       return
 
 
@@ -364,6 +373,21 @@ define [
       return
 
 
+    destroyWidget: (ec, vWidget, widgetRepo) ->
+      ###
+      Destroys widget instance and all it's children and alien-widgets
+      @param {Object} ec - execution context
+      @param {VWidget} vWidget - removing VWidget entity
+      @param {WidgetRepo} widgetRepo - injected widget repository service to get widget instance by id
+      ###
+      if vWidget.widgetInstance
+        vWidget.widgetInstance.drop()
+      else
+        # if there is no widgetInstance link cached than we need to access DOM to find out the widget ID
+        widgetRepo.getById(ec.currentNode.id).drop()
+      return
+
+
     alienWidgetPatch: (ec, leftVNode, alienWidget, renderOptions) ->
       ###
       Replaces current DOM node with the alien widget or updates the existing alien widget
@@ -379,17 +403,16 @@ define [
       else
         newWidget = createElement(alienWidget, renderOptions)
         @replaceNode(ec, newWidget)
-        @destroyAlienWidget(ec, leftVNode)
       return
 
 
     destroyAlienWidget: (ec, w) ->
       ###
-      Performs cleanup of the alien widget if the given vNode is alien widget
+      Performs cleanup of the alien widget before it will be removed
       @param {Object} ec - execution context
-      @param {VNode|AlienWidgetInterface} w - potential alien widget node that should be destroyed
+      @param {AlienWidgetInterface} w - alien widget node that should be destroyed
       ###
-      w.destroy(ec.currentNode)  if typeof w.destroy == 'function' and vtree.isAlienWidget(w)
+      w.destroy(ec.currentNode)  # don't need to check existence of the destroy method - it's already done during diff
       return
 
 

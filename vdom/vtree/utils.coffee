@@ -2,7 +2,8 @@ define [
   './VNode'
   './VText'
   './VWidget'
-], (VNode, VText, VWidget) ->
+  './vtree'
+], (VNode, VText, VWidget, vtree) ->
 
   clone: (x) ->
     ###
@@ -41,3 +42,17 @@ define [
           widgetInstance: x.widgetInstance
         result.constructor = VWidget
     result
+
+
+  destroyAlienWidgets: (vNode, domNode) ->
+    ###
+    Recursively scans the given vNode for the alien widgets and calls their destroy method.
+    @param {VNode} vNode
+    @param {Node} domNode - DOM node matching the given virtual node
+    ###
+    if vtree.isAlienWidget(vNode)
+      vNode.destroy?(domNode)
+    else if vtree.isVNode(vNode) and vNode.hasAlienWidgets
+      childNodes = domNode.childNodes
+      @destroyAlienWidgets(child, childNodes[i])  for child, i in vNode.children
+    return

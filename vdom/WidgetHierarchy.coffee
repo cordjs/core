@@ -47,7 +47,10 @@ define ->
         if not rec
           # for recursive call this is redundant because @_parentToChild[parentId] will be cleaned in the parent call
           children = @_parentToChild[@_childToParent[id].id]
-          children.splice(children.indexOf(widget), 1)
+          if children.length > 1
+            children.splice(children.indexOf(widget), 1)
+          else
+            delete @_parentToChild[@_childToParent[id].id]
         delete @_childToParent[id]
       return
 

@@ -15,6 +15,7 @@ define [
 
     count = (children and children.length) or 0
     descendants = 0
+    hasWidgets = false
     hasAlienWidgets = false
     descendantHooks = false
     hooks = null
@@ -30,15 +31,21 @@ define [
       for child in children
         if vtree.isVNode(child)
           descendants += child.count or 0
-          hasAlienWidgets = true if not hasAlienWidgets and child.hasAlienWidgets
+          hasWidgets = true  if not hasWidgets and child.hasWidgets
+          hasAlienWidgets = true  if not hasAlienWidgets and child.hasAlienWidgets
 
           if not descendantHooks and (child.hooks or child.descendantHooks)
             descendantHooks = true
+
+        else if not hasWidgets and vtree.isWidget(child)
+          hasWidgets = true
 
         else if not hasAlienWidgets and vtree.isAlienWidget(child)
           hasAlienWidgets = true if typeof child.destroy == 'function'
 
     @count = count + descendants
+    # todo: maybe merge three boolean fields into one bitmask integer field
+    @hasWidgets = hasWidgets
     @hasAlienWidgets = hasAlienWidgets
     @hooks = hooks
     @descendantHooks = descendantHooks

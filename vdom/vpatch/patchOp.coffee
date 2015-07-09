@@ -42,6 +42,10 @@ define [
           patchScript.updateWidgetProps(patch, renderOptions.widgetRepo)
       when VPatch.WIDGET
         vWidgetPatch patchScript, vNode, patch, renderOptions
+      when VPatch.DESTROY_WIDGET
+        patchScript.destroyWidget(vNode, renderOptions.widgetRepo)
+      when VPatch.DESTROY_ALIEN_WIDGET
+        patchScript.destroyAlienWidget(vNode)
 #      when VPatch.THUNK
 #        replaceRoot(domNode, renderOptions.patch(domNode, patch, renderOptions))
       else
@@ -58,7 +62,6 @@ define [
     .then (vtree) ->
       newNode = render(vtree, renderOptions)
       patchScript.replaceNode(newNode)
-      patchScript.destroyAlienWidget(leftVNode)
 
 
   removeNode = (patchScript, vNode) ->
@@ -66,7 +69,6 @@ define [
     Generates patch-script commands for the case when any node is removed.
     ###
     patchScript.removeNode()
-    patchScript.destroyAlienWidget(vNode)
 
 
   insertNode = (patchScript, vNode, renderOptions) ->
@@ -90,7 +92,6 @@ define [
     Generates patch-script commands for the case when text node is updated or replaces another node.
     ###
     patchScript.stringPatch(vText, renderOptions)
-    patchScript.destroyAlienWidget(leftVNode)
 
 
   vNodePatch = (patchScript, leftVNode, vNode, renderOptions) ->
@@ -99,7 +100,6 @@ define [
     ###
     newNode = render(vNode, renderOptions)
     patchScript.replaceNode(newNode)
-    patchScript.destroyAlienWidget(leftVNode)
 
 
 #  replaceRoot = (oldRoot, newRoot) ->

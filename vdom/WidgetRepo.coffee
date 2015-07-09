@@ -17,5 +17,10 @@ define ->
       return
 
 
+    unregisterWidget: (widget) ->
+      delete @_widgetsById[widget.id]
+      return
+
+
     getById: (id) ->
       @_widgetsById[id]

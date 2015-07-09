@@ -22,6 +22,26 @@ define [
       @state = params.state or {}
 
 
+    destructor: ->
+      ###
+      Cleans up widget's state and links when the widget is removed.
+      ###
+      child.drop()  for child in @widgetHierarchy.getChildren(this)
+      @_destroyAlienWidgets()
+      return
+
+
+    drop: ->
+      ###
+      Destroys and removes the widget instance from all repositories.
+      Doesn't touch the DOM representation of the widget
+      ###
+      @destructor()
+      @vdomWidgetRepo.unregisterWidget(this)
+      @widgetHierarchy.unregisterWidget(this)
+      return
+
+
     updateProps: (newProps) ->
       @_restoreCurrentVtree().then =>
         changed = false
@@ -113,7 +133,20 @@ define [
         Future.resolved(@_vtree)
 
 
+    _destroyAlienWidgets: ->
+      ###
+      Destroys all alien widgets in the current widget's virtual-tree
+      ###
+      if @_vtree
+        rootElement = document.getElementById(@id)
+        vtreeUtils.destroyAlienWidgets(@_vtree, rootElement)
+      return
+
+
     getInitCode: (parentId) ->
+      ###
+      @todo: move to the widgetInitializer service
+      ###
       parentStr = if parentId? then ",'#{ parentId }'" else ''
 
       # todo: maybe add refs (aka childByName)
