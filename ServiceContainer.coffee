@@ -49,10 +49,7 @@ define [
       Clear and reset all services
       ###
       for serviceName in @getNames()
-        if @isReady(serviceName)
-          @eval serviceName, (service) ->
-            service.clear?() if _.isObject(service)
-
+        @_instances[name].clear?() if _.isObject(@_instances[name]) if @isReady(serviceName)
         @reset(serviceName)
 
 
@@ -97,10 +94,7 @@ define [
         .then (instance) ->
           readyCb?(instance)
           return # Avoid to possible Future result of readyCb
-        .catch (e) ->
-          console.log e
-          console.log e.stack
-          throw new Error("Eval for service `#{name}` failed with #{e}")
+        .catch (e) -> throw new Error("Eval for service `#{name}` failed with #{e}")
 
 
     getService: (name) ->
