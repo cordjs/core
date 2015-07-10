@@ -64,6 +64,10 @@ define ->
     name: 'AuthError'
 
 
+  AutoAuthError: class AutoAuthError extends CordError
+    name: 'AutoAuthError'
+
+
   ConfigError: class ConfigError extends CordError
     name: 'ConfigError'
 
