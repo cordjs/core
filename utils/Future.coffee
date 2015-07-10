@@ -715,12 +715,12 @@ define [
 
     _clearDoneCallbacks: ->
       # Separate method for this simple operation is need to support async-aware profiler (to overwrite this method)
-      @_doneCallbacks = null
+      @_doneCallbacks = []
 
 
     _clearFailCallbacks: ->
       # Separate method for this simple operation is need to support async-aware profiler (to overwrite this method)
-      @_failCallbacks = null
+      @_failCallbacks = []
 
 
     clear: ->
