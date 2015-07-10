@@ -113,7 +113,7 @@ define [
       ###
       In case of possible auto-login this should return resolved promise and rejected one otherwise
       ###
-      Future.rejected('No auto-auth available')
+      Future.rejected(new cordErrors.AutoAuthError('No auto-auth available.'))
 
 
     _getTokensByAllMeans: ->
