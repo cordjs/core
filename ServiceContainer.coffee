@@ -49,7 +49,7 @@ define [
       Clear and reset all services
       ###
       for serviceName in @getNames()
-        @_instances[name].clear?() if _.isObject(@_instances[name]) if @isReady(serviceName)
+        @_instances[name].clear?() if _.isObject(@_instances[name]) and @isReady(serviceName)
         @reset(serviceName)
 
 
