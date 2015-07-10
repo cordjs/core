@@ -211,7 +211,6 @@ define [
         # Clear Cookies
         authModule.clearAuth()
         authModule.tryToAuth().catch (e) =>
-          _console.log("Api::authenticateUser authModule.tryToAuth failed with: #{JSON.stringify(e)}")
           if @options.authenticateUserCallback()
             @authTokensReady()
           else
