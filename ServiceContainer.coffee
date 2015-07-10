@@ -49,7 +49,7 @@ define [
       Clear and reset all services
       ###
       for serviceName in @getNames()
-        @_instances[name].clear?() if _.isObject(@_instances[name]) and @isReady(serviceName)
+        @_instances[serviceName].clear?() if _.isObject(@_instances[serviceName]) and @isReady(serviceName)
         @reset(serviceName)
 
 
@@ -110,7 +110,8 @@ define [
         return Future.rejected(new Error("There is no registered definition for called service '#{name}'"))
 
       def = @_definitions[name]
-      @_pendingFactories[name] = Future.single("Factory of service \"#{name}\"")
+      localPendingFactoy = @_pendingFactories[name] = Future.single("Factory of service \"#{name}\"")
+
       # Ensure, that all of dependencies are loaded before factory call
       Future.all(def.deps.map((dep) => @getService(dep)), "Deps for `#{name}`").then (services) =>
         # call a factory with 2 parameters, get & done. On done resolve a result.
@@ -133,9 +134,9 @@ define [
               throw instance
             else
               @_instances[name] = instance
-              @_pendingFactories[name].resolve(instance)
+              localPendingFactoy.resolve(instance)
           catch err
-            @_pendingFactories[name].reject(err)
+            localPendingFactoy.reject(err)
           return # we should not return future from this callback!
 
         res =
@@ -158,10 +159,10 @@ define [
           else
             done(null, res)
       .catch (e) =>
-        @_pendingFactories[name].reject(e)
+        localPendingFactoy.reject(e)
         return # we should not return rejected future from this callback!
 
-      @_pendingFactories[name].catch (e) =>
+      localPendingFactoy.catch (e) =>
         # Remove rejected factory from map
         delete @_pendingFactories[name]
         throw e
