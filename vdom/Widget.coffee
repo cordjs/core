@@ -19,7 +19,7 @@ define [
     constructor: (params = {}) ->
       @id = params.id or ((if CORD_IS_BROWSER then 'b' else 'n') + _.uniqueId())
       @props = params.props or {}
-      @state = params.state or {}
+      @state = params.state or prepareInitialState(this)
 
 
     destructor: ->
@@ -60,7 +60,7 @@ define [
        diffing result with the previous vtree and patching the DOM.
       @return {Promise.<undefined>} resolved when DOM is patched
       ###
-      @_renderVtree().then (newVtree) =>
+      @_renderVtree().then (newVtree) ->
         patches = diff(@_vtree, newVtree)
         rootElement = document.getElementById(@id)
         @domPatcher.patch(rootElement, patches, this).then =>
@@ -74,7 +74,7 @@ define [
       Renders the widget with dereferencing child widgets (rendering them to the simple VNodes) deeply.
       @return {Promise.<VNode>}
       ###
-      @_renderVtree().then (vnode) =>
+      @_renderVtree().then (vnode) ->
         @_vtree = vnode
         @_recDereferenceTree(vnode)
 
@@ -115,8 +115,9 @@ define [
       calc = {}
       @onRender?(calc)
 
-      @constructor.getTemplate().then (renderFn) =>
-        vnode = renderFn(@props, @state, calc)
+      @constructor.getTemplate().bind(this).then (renderFn) ->
+        renderFn(@props, @state, calc)
+      .then (vnode) ->
         vnode.properties.id = @id
         vnode
 
@@ -127,7 +128,7 @@ define [
       @todo protect from calling twice concurrently
       ###
       if not @_vtree
-        @_renderVtree().then (vtree) =>
+        @_renderVtree().then (vtree) ->
           @_vtree = vtree
       else
         Future.resolved(@_vtree)
@@ -175,3 +176,43 @@ define [
         vdomTmplFile = "bundles/#{ @relativeDirPath }/#{ @dirName }.vdom"
         @_cachedTemplatePromise = Future.require(vdomTmplFile)
       @_cachedTemplatePromise
+
+
+    @_initialState: null
+
+    @initialState: (state) ->
+      ###
+      Sets initialState for the widget class with support of overriding and extending
+       of initial state of the parent class.
+      If initial state value is a function, it'll be executed whenever widget instance is created
+       and it's result will be treated as a initial state value.
+      @param {Object.<string, *>} state
+      ###
+      @_initialState ?= {}
+      @_initialState = _.extend {}, @_initialState, state
+      return
+
+
+
+  prepareInitialState = (instance) ->
+    ###
+    Prepares and returns initial state for the given widget instance based from @initialState class settings.
+    Function-values are evaluated in context of the widget instance.
+    Objects and arrays are shallow-cloned.
+    @param {Widget} instance - the target widget instance
+    @return {Object}
+    ###
+    result = {}
+    cls = instance.constructor
+    if cls._initialState
+      for key, val of cls._initialState
+        if _.isFunction(val)
+          result[key] = val.call(instance)
+        else if _.isObject(val)
+          result[key] = _.clone(val)
+        else
+          result[key] = val
+    result
+
+
+  Widget

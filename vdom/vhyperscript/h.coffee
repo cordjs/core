@@ -7,8 +7,9 @@ define [
   './hooks/DataSetHook'
   './hooks/EvHook'
   './hooks/SoftSetHook'
+  'cord!utils/Future'
   'underscore'
-], (vtree, VNode, VText, VWidget, parseTag, DataSetHook, EvHook, SoftSetHook, _) ->
+], (vtree, VNode, VText, VWidget, parseTag, DataSetHook, EvHook, SoftSetHook, Promise, _) ->
 
   noProps = {}
 
@@ -46,7 +47,12 @@ define [
 
     childNodes = []
     addChild(children, childNodes, tag, props)  if children?
-    new VNode(tag, props, childNodes, key, namespace)
+
+    if containsPromise(childNodes)
+      Promise.all(childNodes).then (resolvedNodes) ->
+        new VNode(tag, props, resolvedNodes, key, namespace)
+    else
+      new VNode(tag, props, childNodes, key, namespace)
 
 
   h.w = (type, props, slotContents) ->
@@ -66,6 +72,41 @@ define [
     new VWidget(type, props, slotNodes, key)
 
 
+  h.v = (args...) ->
+    ###
+    Utility function that concats passed arguments with consideration of some arguments may be promises.
+    If any argument is a promise, then whole concatted result is wrapped into promise.
+    @param {...string|Promise.<string>} args
+    @return {string|Promise.<string>}
+    ###
+    if containsPromise(args)
+      Promise.all(args).then(concatStringifiedArgs)
+    else
+      concatStringifiedArgs(args)
+
+
+  concatStringifiedArgs = (args) ->
+    ###
+    Converts all items of the given array to string and concats them together.
+    @param {Array} args
+    @return {string}
+    ###
+    result = ''
+    result += String(part)  for part in args
+    result
+
+
+  containsPromise = (arr) ->
+    ###
+    Returns true if the given array contains a promise item
+    @param {Array} arr
+    @return {boolean}
+    ###
+    for arg in arr
+      return true  if arg instanceof Promise
+    return false
+
+
   addChild = (c, childNodes, tag, props) ->
     if typeof c == 'string'
       childNodes.push(new VText(c))
@@ -73,6 +114,14 @@ define [
       childNodes.push(c)
     else if _.isArray(c)
       addChild(child, childNodes, tag, props)  for child in c
+    else if c instanceof Promise
+      childNodes.push(
+        c.then (res) ->
+          if typeof res == 'string'
+            new VText(res)
+          else
+            res
+      )
     else if not c?
       return
     else
@@ -94,7 +143,7 @@ define [
 
 
   isChildren = (x) ->
-    typeof x == 'string' or _.isArray(x) or isChild(x)
+    typeof x == 'string' or _.isArray(x) or isChild(x) or x instanceof Promise
 
 
 #  UnexpectedVirtualElement = TypedError
