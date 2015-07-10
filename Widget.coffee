@@ -195,9 +195,10 @@ define [
                   throw new Error("Child event callback name '#{callback}' is not a member of #{@__name}!")
               if not _.isFunction(callback)
                 throw new Error("Invalid child widget callback definition: #{@__name}::[#{childName}, #{topic}]!")
-            @_childEventSubscriptions[childName] ?= {}
-            @_childEventSubscriptions[childName][topic] ?= []
-            @_childEventSubscriptions[childName][topic].push(callback)
+              @_childEventSubscriptions[childName] ?= {}
+              @_childEventSubscriptions[childName][topic] ?= []
+              @_childEventSubscriptions[childName][topic].push(callback)
+              return
 
 
     @_initCss: (restoreMode) ->
