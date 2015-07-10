@@ -48,6 +48,19 @@ define [
         Future.resolved()
 
 
+    clearServices: ->
+      ###
+      Clear and reset all services
+      ###
+      for serviceName in @getNames()
+        if @isReady(serviceName)
+          @eval serviceName, (service) ->
+            service.clear?() if _.isObject(service)
+            @reset(serviceName)
+        else
+          @reset(serviceName)
+
+
     set: (name, instance) ->
       @reset(name)
       @_instances[name] = instance
