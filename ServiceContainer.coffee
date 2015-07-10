@@ -52,6 +52,7 @@ define [
         if @isReady(serviceName)
           @eval serviceName, (service) ->
             service.clear?() if _.isObject(service)
+
         @reset(serviceName)
 
 
@@ -96,11 +97,7 @@ define [
         .then (instance) ->
           readyCb?(instance)
           return # Avoid to possible Future result of readyCb
-        .catch (e) ->
-          console.log 'QQQQQQQQQQQQQQQQQQ', e
-          console.log '11111', e.constructor.name
-          console.log '22222', e.stack
-          throw new Error("Eval for service `#{name}` failed with #{e}")
+        .catch (e) -> throw new Error("Eval for service `#{name}` failed with #{e}")
 
 
     getService: (name) ->
