@@ -37,15 +37,11 @@ define [
       ###
       # reset pending service only after instantiation
       if _(@_pendingFactories).has(name)
-        @_pendingFactories[name].catch ->
-          return
-        .then =>
-          delete @_instances[name]
-          delete @_pendingFactories[name]
-          return
-      else
-        delete @_instances[name]
-        Future.resolved()
+        @_pendingFactories[name].clear()
+        delete @_pendingFactories[name]
+
+      delete @_instances[name]
+      Future.resolved()
 
 
     clearServices: ->
@@ -56,9 +52,8 @@ define [
         if @isReady(serviceName)
           @eval serviceName, (service) ->
             service.clear?() if _.isObject(service)
-            @reset(serviceName)
-        else
-          @reset(serviceName)
+
+        @reset(serviceName)
 
 
     set: (name, instance) ->
