@@ -187,18 +187,18 @@ define [
           [childName, topic] = eventDef.split(' ')
           if not Array.isArray(callbacks)
             callbacks = [callbacks]
-            for callback in callbacks
-              if _.isString(callback)
-                if @::[callback]
-                  callback = @::[callback]
-                else
-                  throw new Error("Child event callback name '#{callback}' is not a member of #{@__name}!")
-              if not _.isFunction(callback)
-                throw new Error("Invalid child widget callback definition: #{@__name}::[#{childName}, #{topic}]!")
-              @_childEventSubscriptions[childName] ?= {}
-              @_childEventSubscriptions[childName][topic] ?= []
-              @_childEventSubscriptions[childName][topic].push(callback)
-              return
+          for callback in callbacks
+            if _.isString(callback)
+              if @::[callback]
+                callback = @::[callback]
+              else
+                throw new Error("Child event callback name '#{callback}' is not a member of #{@__name}!")
+            if not _.isFunction(callback)
+              throw new Error("Invalid child widget callback definition: #{@__name}::[#{childName}, #{topic}]!")
+            @_childEventSubscriptions[childName] ?= {}
+            @_childEventSubscriptions[childName][topic] ?= []
+            @_childEventSubscriptions[childName][topic].push(callback)
+      return
 
 
     @_initCss: (restoreMode) ->

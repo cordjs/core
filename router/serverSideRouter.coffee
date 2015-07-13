@@ -141,41 +141,40 @@ define [
               else
                 processNext.resolve()
 
-              processNext
-                .then =>
-                  widgetRepo.createWidget(rootWidgetPath).then (rootWidget) ->
-                    if widgetRepo
-                      rootWidget._isExtended = true
-                      widgetRepo.setRootWidget(rootWidget)
-                      previousProcess.showPromise = rootWidget.show(params, DomInfo.fake())
-                      previousProcess.showPromise.done (out) ->
-                        eventEmitter.removeAllListeners('fallback')
-                        # prevent browser to use the same connection
-                        res.shouldKeepAlive = false
-                        res.writeHead 200, 'Content-Type': 'text/html'
-                        res.end(out)
-                  .catchIf (-> catchError), (err) ->
-                    if err instanceof errors.AuthError
-                      # serviceContainer could be empty already
-                      serviceContainer?.getService('api').then (api) ->
-                        api.authenticateUser()
-                    else if appConfig.errorWidget
-                      processWidget(
-                        appConfig.errorWidget
-                        Utils.buildErrorWidgetParams(err, rootWidgetPath, params)
-                        false
-                      ).catch (nestedErr) =>
-                        _console.error('Error handling failed because of: ', nestedErr, nestedErr.stack)
-                        _console.error('Original error: ', err, err.stack)
-                        throw nestedErr
-                    else
-                      throw err
-                  .catchIf (-> catchError), (err) ->
-                    if not (err instanceof errors.AutoAuthError) # bypass  AutoAuthErrors
-                      _console.error "FATAL ERROR: server-side rendering failed! Reason:", err, err.stack
-                      displayFatalError()
-                  .finally ->
-                    clear()
+              processNext.then =>
+                widgetRepo.createWidget(rootWidgetPath).then (rootWidget) ->
+                  if widgetRepo
+                    rootWidget._isExtended = true
+                    widgetRepo.setRootWidget(rootWidget)
+                    previousProcess.showPromise = rootWidget.show(params, DomInfo.fake())
+                    previousProcess.showPromise.done (out) ->
+                      eventEmitter.removeAllListeners('fallback')
+                      # prevent browser to use the same connection
+                      res.shouldKeepAlive = false
+                      res.writeHead 200, 'Content-Type': 'text/html'
+                      res.end(out)
+                .catchIf (-> catchError), (err) ->
+                  if err instanceof errors.AuthError
+                    # serviceContainer could be empty already
+                    serviceContainer?.getService('api').then (api) ->
+                      api.authenticateUser()
+                  else if appConfig.errorWidget
+                    processWidget(
+                      appConfig.errorWidget
+                      Utils.buildErrorWidgetParams(err, rootWidgetPath, params)
+                      false
+                    ).catch (nestedErr) =>
+                      _console.error('Error handling failed because of: ', nestedErr, nestedErr.stack)
+                      _console.error('Original error: ', err, err.stack)
+                      throw nestedErr
+                  else
+                    throw err
+                .catchIf (-> catchError), (err) ->
+                  if not (err instanceof errors.AutoAuthError) # bypass  AutoAuthErrors
+                    _console.error "FATAL ERROR: server-side rendering failed! Reason:", err, err.stack
+                    displayFatalError()
+                .finally ->
+                  clear()
 
 
           displayFatalError = ->
