@@ -36,19 +36,49 @@ define [
     if tag == 'input' and ('value' of props) and props.value != undefined and not vtree.isHook(props.value)
       props.value = new SoftSetHook(props.value)
 
+    propPromises = null
     for propName, value of props
-      continue  if vtree.isHook(value)
-
-      # add data-foo support
-      props[propName] = new DataSetHook(value)  if propName.substr(0, 5) == 'data-'
-
-      # add ev-foo support
-      props[propName] = new EvHook(value)  if propName.substr(0, 3) == 'ev-'
+      if value instanceof Promise
+        do (propName) ->
+          valuePromise = value.then (resolved) ->
+            # code supporting promise-values of props is somewhat duplicate of the code for sync values, but it's ok
+            props[propName] =
+              if vtree.isHook(resolved)
+                resolved
+              else if propName.substr(0, 5) == 'data-'
+                # add data-foo support
+                new DataSetHook(resolved)
+              else if propName.substr(0, 3) == 'ev-'
+                # add ev-foo support
+                new EvHook(resolved)
+              else
+                resolved
+            return
+          propPromises ?= []
+          propPromises.push(valuePromise)
+      else if not vtree.isHook(value)
+        if propName.substr(0, 5) == 'data-'
+          # add data-foo support
+          props[propName] = new DataSetHook(resolved)
+        else if propName.substr(0, 3) == 'ev-'
+          # add ev-foo support
+          props[propName] = new EvHook(resolved)
 
     childNodes = []
     addChild(children, childNodes, tag, props)  if children?
 
-    if containsPromise(childNodes)
+    if propPromises
+      if containsPromise(childNodes)
+        Promise.all [
+          Promise.all(childNodes)
+          Promise.all(propPromises)
+        ]
+        .spread (resolvedNodes) ->
+          new VNode(tag, props, resolvedNodes, key, namespace)
+      else
+        Promise.all(propPromises).then ->
+          new VNode(tag, props, childNodes, key, namespace)
+    else if containsPromise(childNodes)
       Promise.all(childNodes).then (resolvedNodes) ->
         new VNode(tag, props, resolvedNodes, key, namespace)
     else
