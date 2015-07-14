@@ -238,7 +238,6 @@ define [
 
     @_initialized: false
 
-    @customWidgetTemplatePath: null
 
     @_init: (restoreMode) ->
       ###
@@ -672,8 +671,30 @@ define [
         @renderTemplate(domInfo)
 
 
+    _getClosestConstructorWithOwnTemplate: -> @_closestConstructorWithOwnTemplate ?= (
+      result = @constructor
+      while not result.__hasOwnTemplate and result != Widget
+        console.error result.path, 'does not has own template'
+        result = result.__super__.constructor
+      if not result.__hasOwnTemplate
+        throw new Error(@debug('There is no defined template for this widget'))
+      result
+    )
+
+
     getTemplatePath: ->
-      "#{ @getDir() }/#{ @constructor.dirName }.html"
+      ###
+      Returns this widget's template path
+      ###
+      @_getClosestConstructorWithOwnTemplate().path
+
+
+    getTemplateFilePath: ->
+      ###
+      Returns this widget's template file path
+      ###
+      constructor = @_getClosestConstructorWithOwnTemplate()
+      "#{ constructor.relativeDirPath }/#{ constructor.dirName }.html"
 
 
     cleanChildren: ->
@@ -712,7 +733,7 @@ define [
         Future.resolved(@_structTemplate)
       else
         if not @constructor._rawStructPromise
-          tmplStructureFile = "bundles/#{ @getTemplatePath() }.struct"
+          tmplStructureFile = "bundles/#{ @getTemplateFilePath() }.struct"
           @constructor._rawStructPromise = Future.require(tmplStructureFile)
         @constructor._rawStructPromise.then (struct) =>
           if struct.widgets? and Object.keys(struct.widgets).length > 1
@@ -831,7 +852,7 @@ define [
       @return Future(String)
       ###
       widgetTrace @debug('_renderSelfTemplate')
-      tmplPath = @constructor.customWidgetTemplatePath ? @getPath()
+      tmplPath = @getTemplatePath()
       templateLoader.loadWidgetTemplate(tmplPath).then =>
         @markRenderStarted('_renderSelfTemplate')
         @_saveContextVersionForBehaviourSubscriptions()
@@ -851,7 +872,7 @@ define [
       @param Object simpleContext - context object
       @return Future() resolves with rendered content
       ###
-      tmplPath = @constructor.customWidgetTemplatePath ? @getPath()
+      tmplPath = @getTemplatePath()
       templateLoader.loadAdditionalTemplate(tmplPath, templateName).then =>
         context = @getBaseContext()
         context = context.push(aContext) for aContext in simpleContext
