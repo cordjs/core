@@ -671,14 +671,15 @@ define [
         @renderTemplate(domInfo)
 
 
-    _getClosestConstructorWithOwnTemplate: -> @_closestConstructorWithOwnTemplate ?= (
-      result = @constructor
-      while not result.__hasOwnTemplate and result != Widget
-        result = result.__super__.constructor
-      if not result.__hasOwnTemplate
-        throw new Error(@debug('There is no defined template for this widget'))
-      result
-    )
+    _getClosestConstructorWithOwnTemplate: ->
+      @_closestConstructorWithOwnTemplate ?= (
+        result = @constructor
+        while not result.__hasOwnTemplate and result != Widget
+          result = result.__super__.constructor
+        if not result.__hasOwnTemplate
+          throw new Error(@debug('There is no defined template for this widget'))
+        result
+      )
 
 
     getTemplateDir: ->
