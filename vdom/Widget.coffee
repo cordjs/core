@@ -1,10 +1,11 @@
 define [
   'cord!utils/Future'
+  'cord!vdom/vstringify/stringify'
   'cord!vdom/vtree/diff'
   'cord!vdom/vtree/vtree'
   'cord!vdom/vtree/utils'
   'underscore'
-], (Future, diff, vtree, vtreeUtils, _) ->
+], (Future, stringify, diff, vtree, vtreeUtils, _) ->
 
   class Widget
 
@@ -52,6 +53,23 @@ define [
             @props[key] = value
         @render()  if changed
         return
+
+
+    setState: (stateVars) ->
+      ###
+      Updates widget's state according to the given key-value pairs.
+      Doesn't touch state vars that are not present in the given object
+      @param {Object.<string, *>} stateVars
+      @return {Promise.<undefined>} the promise is fulfilled when this change is applied to the DOM
+      ###
+      @_restoreCurrentVtree().then =>
+        changed = false
+        for key, value of stateVars
+          # TODO replace with more sophisticated logic from Context
+          if @state[key] != value
+            changed = true
+            @state[key] = value
+        @render() if changed
 
 
     render: ->
@@ -164,6 +182,71 @@ define [
       #{ (widget.getInitCode(@id) for widget in @widgetHierarchy.getChildren(this)).join('') }
       """
 
+
+    debug: (method) ->
+      ###
+      Returns identification string of the current widget for debug purposes
+      @param {string=} method - include optional "::method" suffix to the result
+      @return {string}
+      ###
+      methodStr = if method? then "::#{ method }" else ''
+      "vdom:#{ @constructor.path }(#{ @id })#{ methodStr }"
+
+
+    ## old-widgets compatibility methods ##
+
+    show: (params) ->
+      ###
+      Returns HTML (string) representation of the widget.
+      This is old-widget compatibility method. Used to inject virtual-dom widget as a child of the old-widget.
+      Params are treated as props.
+      @param {Object} params
+      @return {Promise.<string>}
+      ###
+      @props = params  if _.isObject(params)
+      @renderDeepTree().then (vtree) ->
+        stringify(vtree)
+      .failAloud()
+
+
+    browserInit: ->
+      ###
+      Old-widget compatibility
+      ###
+      Future.resolved()
+
+
+    markShown: ->
+      ###
+      Stub. @todo: implement right logic
+      ###
+      return
+
+
+    setModifierClass: (cls) ->
+      ###
+      Old-widget compatibility
+      ###
+      return
+
+
+    renderRootTag: (content) ->
+      ###
+      Old-widget compatibility
+      ###
+      content
+
+
+    collectDeepCssListRec: (result) ->
+      ###
+      Recursively scans tree of widgets and collects list of required css-files.
+      @param Array[String] result accumulating result array
+      @todo implement
+      ###
+      return
+
+
+    ## static methods ##
 
     @getTemplate: ->
       ###

@@ -81,31 +81,40 @@ define [
       bundleSpec = if contextBundle then "@#{ contextBundle }" else ''
 
       Future.require("cord-w!#{ path }#{ bundleSpec }").then (WidgetClass) =>
-        widget = new WidgetClass
-          repo: this
-          serviceContainer: @serviceContainer
+        if WidgetClass.initialState      # only vdom widget class has this static method
+          @serviceContainer.getService('widgetFactory').then (widgetFactory) ->
+            widgetFactory.create(path + bundleSpec)
+          .then (widget) =>
+            # support old widget interface
+            widget.ctx = id: widget.id
+            parentWidget.registerChild(widget, name)
+            widget
+        else
+          widget = new WidgetClass
+            repo: this
+            serviceContainer: @serviceContainer
 
-        if widget.getPath() == '/cord/core//Switcher' and contextBundle?
-          widget._contextBundle = contextBundle
+          if widget.getPath() == '/cord/core//Switcher' and contextBundle?
+            widget._contextBundle = contextBundle
 
-        @widgets[widget.ctx.id] =
-          widget: widget
+          @widgets[widget.ctx.id] =
+            widget: widget
 
-        Future.try =>
-          parentWidget.registerChild(widget, name) if parentWidget
+          Future.try =>
+            parentWidget.registerChild(widget, name) if parentWidget
 
-          injectRouterPromise = @serviceContainer.getService('router').then (router) ->
-            widget.router = router
-          .catch (err) -> # compatibility with compiling index.html when services are not defined
-            null
-          Future.all [
-            @serviceContainer.injectServices(widget)
-            injectRouterPromise
-          ]
-          .then -> widget
-        .catch (err) =>
-          @dropWidget(widget.ctx.id)
-          throw err
+            injectRouterPromise = @serviceContainer.getService('router').then (router) ->
+              widget.router = router
+            .catch (err) -> # compatibility with compiling index.html when services are not defined
+              null
+            Future.all [
+              @serviceContainer.injectServices(widget)
+              injectRouterPromise
+            ]
+            .then -> widget
+          .catch (err) =>
+            @dropWidget(widget.ctx.id)
+            throw err
 
 
     dropWidget: (id) ->
@@ -332,6 +341,7 @@ define [
         @_parentPromises = null
         @_initPromise = null
         @_pushBindings = null
+        return
 
 
     init: (widgetPath, ctx, namedChilds, childBindings, modelBindings, isExtended, parentId) ->

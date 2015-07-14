@@ -1,6 +1,7 @@
 define [
+  'cord!Widget'
   'cord!utils/Future'
-], (Promise) ->
+], (OldWidget, Promise) ->
 
   class WidgetInitializer
     ###
@@ -29,19 +30,23 @@ define [
       result = @widgetRepo.init.apply(@widgetRepo, arguments)
       # registering old shim-widget in vdom widgets repository
       result.then (widget) =>
-        if widget.id
-          @vdomWidgetRepo.registerWidget(widget)
-          if @_widgetInitPromises[widget.id]
-            @_widgetInitPromises[widget.id].resolve()
+        if @_widgetInitPromises
+          if @_widgetInitPromises[widget.ctx.id]
+            @_widgetInitPromises[widget.ctx.id].resolve(widget)
           else
-            @_widgetInitPromises[widget.id] = Promise.resolved()
+            @_widgetInitPromises[widget.ctx.id] = Promise.resolved(widget)
       result
 
 
     endInit: ->
       ###
-      Compatibility proxy-method to support old widgets initialization
+      Performs final initialization of the transferred from the server-side objects on the browser-side.
+      This method should be called when all widgets initialization method are called.
+      Also performs cleaning on widget init promises when they are not needed anymore.
+      @return {Promise.<undefined>}
       ###
+      Promise.all(_.values(@_widgetInitPromises)).then =>
+        @_widgetInitPromises = null
       @widgetRepo.endInit()
 
 
@@ -67,7 +72,14 @@ define [
           @_widgetInitPromises[parentId]
         else
           Promise.resolved()
-      @_widgetInitPromises[id] = parentPromise.then =>
-        @widgetFactory.restore(widgetPath, id, props, state, parentId)
+      @_widgetInitPromises[id] = parentPromise.then (parentWidget) =>
+        restoreParentId = if parentWidget.id then parentId else undefined
+        @widgetFactory.restore(widgetPath, id, props, state, restoreParentId).then (widget) =>
+          if parentWidget instanceof OldWidget
+            # this is case when vdom-widget is a child of an old-widget
+            # special logic for registering as a child
+            widget.ctx = id: widget.id
+            parentWidget.registerChild(widget, @widgetRepo.widgets[parentId].namedChilds[widget.id] ? null)
+          widget
       .failAloud()
       return
