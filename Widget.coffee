@@ -238,6 +238,8 @@ define [
 
     @_initialized: false
 
+    @customWidgetTemplatePath: null
+
     @_init: (restoreMode) ->
       ###
       Initializes some class-wide propreties and actions that must be done once for the widget class.
@@ -829,9 +831,7 @@ define [
       @return Future(String)
       ###
       widgetTrace @debug('_renderSelfTemplate')
-
-      tmplPath = @getPath()
-
+      tmplPath = @constructor.customWidgetTemplatePath ? @getPath()
       templateLoader.loadWidgetTemplate(tmplPath).then =>
         @markRenderStarted('_renderSelfTemplate')
         @_saveContextVersionForBehaviourSubscriptions()
@@ -851,7 +851,7 @@ define [
       @param Object simpleContext - context object
       @return Future() resolves with rendered content
       ###
-      tmplPath = @getPath()
+      tmplPath = @constructor.customWidgetTemplatePath ? @getPath()
       templateLoader.loadAdditionalTemplate(tmplPath, templateName).then =>
         context = @getBaseContext()
         context = context.push(aContext) for aContext in simpleContext
