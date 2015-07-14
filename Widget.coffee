@@ -674,12 +674,15 @@ define [
     _getClosestConstructorWithOwnTemplate: -> @_closestConstructorWithOwnTemplate ?= (
       result = @constructor
       while not result.__hasOwnTemplate and result != Widget
-        console.error result.path, 'does not has own template'
         result = result.__super__.constructor
       if not result.__hasOwnTemplate
         throw new Error(@debug('There is no defined template for this widget'))
       result
     )
+
+
+    getTemplateDir: ->
+      @_getClosestConstructorWithOwnTemplate().relativeDirPath
 
 
     getTemplatePath: ->

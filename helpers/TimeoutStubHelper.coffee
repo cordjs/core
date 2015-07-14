@@ -55,7 +55,7 @@ define [
       @param String fileName file name relative to the widget's directory
       @return Future[String] rendered result
       ###
-      tmplPath = "#{ ownerWidget.getDir() }/#{ fileName }.html"
+      tmplPath = "#{ ownerWidget.getTemplateDir() }/#{ fileName }.html"
       templateLoader.loadToDust(tmplPath).then ->
         Future.call(dust.render, tmplPath, ownerWidget.getBaseContext().push(ownerWidget.ctx))
 
