@@ -236,6 +236,10 @@ define [
       @constructor.bundle
 
 
+    getTemplatePath: ->
+      @constructor.path
+
+
     @_initialized: false
 
     @_init: (restoreMode) ->
@@ -830,7 +834,7 @@ define [
       ###
       widgetTrace @debug('_renderSelfTemplate')
 
-      tmplPath = @getPath()
+      tmplPath = @getTemplatePath()
 
       templateLoader.loadWidgetTemplate(tmplPath).then =>
         @markRenderStarted('_renderSelfTemplate')
@@ -851,7 +855,7 @@ define [
       @param Object simpleContext - context object
       @return Future() resolves with rendered content
       ###
-      tmplPath = @getPath()
+      tmplPath = @getTemplatePath()
       templateLoader.loadAdditionalTemplate(tmplPath, templateName).then =>
         context = @getBaseContext()
         context = context.push(aContext) for aContext in simpleContext
