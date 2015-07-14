@@ -183,20 +183,22 @@ define [
       ###
       @_childEventSubscriptions = {}
       if @childEvents
-        for eventDef, callback of @childEvents
+        for eventDef, callbacks of @childEvents
           [childName, topic] = eventDef.split(' ')
-          if _.isString(callback)
-            if @::[callback]
-              callback = @::[callback]
-            else
-              throw new Error("Child event callback name '#{callback}' is not a member of #{@__name}!")
-          if not _.isFunction(callback)
-            throw new Error("Invalid child widget callback definition: #{@__name}::[#{childName}, #{topic}]!")
-
-          @_childEventSubscriptions[childName] ?= {}
-          @_childEventSubscriptions[childName][topic] ?= []
-          @_childEventSubscriptions[childName][topic].push(callback)
-        @childEvents = undefined
+          if not Array.isArray(callbacks)
+            callbacks = [callbacks]
+          for callback in callbacks
+            if _.isString(callback)
+              if @::[callback]
+                callback = @::[callback]
+              else
+                throw new Error("Child event callback name '#{callback}' is not a member of #{@__name}!")
+            if not _.isFunction(callback)
+              throw new Error("Invalid child widget callback definition: #{@__name}::[#{childName}, #{topic}]!")
+            @_childEventSubscriptions[childName] ?= {}
+            @_childEventSubscriptions[childName][topic] ?= []
+            @_childEventSubscriptions[childName][topic].push(callback)
+      return
 
 
     @_initCss: (restoreMode) ->
@@ -235,6 +237,8 @@ define [
 
 
     @_initialized: false
+
+    @customWidgetTemplatePath: null
 
     @_init: (restoreMode) ->
       ###
@@ -827,9 +831,7 @@ define [
       @return Future(String)
       ###
       widgetTrace @debug('_renderSelfTemplate')
-
-      tmplPath = @getPath()
-
+      tmplPath = @constructor.customWidgetTemplatePath ? @getPath()
       templateLoader.loadWidgetTemplate(tmplPath).then =>
         @markRenderStarted('_renderSelfTemplate')
         @_saveContextVersionForBehaviourSubscriptions()
@@ -849,7 +851,7 @@ define [
       @param Object simpleContext - context object
       @return Future() resolves with rendered content
       ###
-      tmplPath = @getPath()
+      tmplPath = @constructor.customWidgetTemplatePath ? @getPath()
       templateLoader.loadAdditionalTemplate(tmplPath, templateName).then =>
         context = @getBaseContext()
         context = context.push(aContext) for aContext in simpleContext

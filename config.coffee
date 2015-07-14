@@ -25,10 +25,9 @@ define  ->
                   resolver.setParameter('BACKEND_HOST', host)
               api
             .then (api) ->
-              done(null, api)
-            .then -> postal.publish('api.available')
-            .catch (e) ->
-              done(e)
+              postal.publish('api.available')
+              api
+            .finally(done)
 
     tabSync:
       factory: (get, done) ->
@@ -158,8 +157,12 @@ define  ->
               ###
               promise or= Future.single(':toFuture:')
               this
-                .then -> promise.resolve()
-                .catch (err) -> promise.reject(err)
+                .then ->
+                  promise.resolve()
+                  return
+                .catch (err) ->
+                  promise.reject(err)
+                  return
               promise
 
             done(null, new LocalStorage(localForage))

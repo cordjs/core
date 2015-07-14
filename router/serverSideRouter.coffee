@@ -75,12 +75,7 @@ define [
           Kinda GC after request processing
           ###
           if serviceContainer?
-            for serviceName in serviceContainer.getNames()
-              if serviceContainer.isReady(serviceName)
-                serviceContainer.eval serviceName, (service) ->
-                  service.clear?() if _.isObject(service)
-
-            serviceContainer.set 'router', null
+            serviceContainer.clearServices()
             serviceContainer = null
           widgetRepo = null
 
@@ -175,8 +170,9 @@ define [
                   else
                     throw err
                 .catchIf (-> catchError), (err) ->
-                  _console.error "FATAL ERROR: server-side rendering failed! Reason:", err, err.stack
-                  displayFatalError()
+                  if not (err instanceof errors.AutoAuthError) # bypass  AutoAuthErrors
+                    _console.error "FATAL ERROR: server-side rendering failed! Reason:", err, err.stack
+                    displayFatalError()
                 .finally ->
                   clear()
 
@@ -204,7 +200,7 @@ define [
             if widgetRepo.getRootWidget()
               widgetRepo.dropWidget widgetRepo.getRootWidget().ctx.id
 
-            processWidget args.widgetPath, args.params
+            processWidget(args.widgetPath, args.params)
 
           if rootWidgetPath?
             processWidget rootWidgetPath, params
@@ -281,6 +277,7 @@ define [
 
       # prepare what we can first
       xProto = if request.headers['x-forwarded-proto'] == 'on' then 'https' else 'http'
+      _console.log "WRONG BACKEND, request headers: #{request.url}, #{JSON.stringify(request.headers)}" if request.headers.host.match /\d+\.\d+\.\d+/
       ServerSideRouter.replaceConfigVarsByHost(global.appConfig, request.headers.host, xProto)
 
 

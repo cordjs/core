@@ -129,7 +129,7 @@ define [
         do (name) =>
           resolvedPlaceholders[name] = []
           for item in items
-            do (item) =>
+            (do (item) =>
               resultPromise.fork()
               if item.widget?
                 @getWidget(item.widget).then (widget) =>
@@ -195,7 +195,7 @@ define [
                   resultPromise.resolve()
                   return
                 .catch (err) -> resultPromise.reject(err)
-
+            ).failOk() # rejection of the resulting future has already been pushed into the resultPromise
       resultPromise.then -> resolvedPlaceholders
 
 

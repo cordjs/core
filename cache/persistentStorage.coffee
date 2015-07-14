@@ -9,15 +9,21 @@ define ->
       @initPromise = @_getValues()
 
 
-    get: (key) ->
+    getItem: (key) ->
       @initPromise.then =>
         @values[key]
 
 
-    set: (key, value) ->
+    get: @::getItem
+
+
+    setItem: (key, value) ->
       @initPromise.then =>
         @values[key] = value
         @_saveValues()
+
+
+    set: @::setItem
 
 
     _getValues: ->
