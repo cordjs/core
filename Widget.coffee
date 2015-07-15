@@ -1456,9 +1456,9 @@ define [
       result = []
       if @css?
         if _.isArray @css
-          result.push cssHelper.expandPath(css, this) for css in @css
+          result.push cssHelper.expandPath(css, @constructor) for css in @css
         else if @css
-          result.push cssHelper.expandPath(@constructor.dirName, this)
+          result.push cssHelper.expandPath(@constructor.dirName, @constructor)
       result
 
 

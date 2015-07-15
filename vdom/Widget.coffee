@@ -1,11 +1,13 @@
 define [
+  'cord!css/browserManager'
+  'cord!css/helper'
   'cord!utils/Future'
   'cord!vdom/vstringify/stringify'
   'cord!vdom/vtree/diff'
   'cord!vdom/vtree/vtree'
   'cord!vdom/vtree/utils'
   'underscore'
-], (Future, stringify, diff, vtree, vtreeUtils, _) ->
+], (cssManager, cssHelper, Promise, stringify, diff, vtree, vtreeUtils, _) ->
 
   class Widget
 
@@ -18,6 +20,14 @@ define [
 
 
     constructor: (params = {}) ->
+      ###
+      Constructor accepts key-value optional params:
+      * {string} id - widget's id (only during restoring from server)
+      * {Object} props - widget props came from parent widget or router
+      * {Object} state - widget's internal state (only during restoring from server)
+      ###
+      @constructor._init()  if @constructor._initialized != @constructor # consider inheritance
+
       @id = params.id or ((if CORD_IS_BROWSER then 'b' else 'n') + _.uniqueId())
       @props = params.props or {}
       @state = params.state or prepareInitialState(this)
@@ -108,11 +118,11 @@ define [
       else if vtree.isVNode(vnode)
         vnode = vtreeUtils.clone(vnode) # cloning is necessary to avoid dereferencing currently stored @_vtree
         promises = (@_recDereferenceTree(child) for child in vnode.children)
-        Future.all(promises).then (dereferencedChildren) ->
+        Promise.all(promises).then (dereferencedChildren) ->
           vnode.children = dereferencedChildren
           vnode
       else
-        Future.resolved(vnode)
+        Promise.resolved(vnode)
 
 
     _renderDeepVWidget: (vwidget) ->
@@ -128,7 +138,7 @@ define [
     _renderVtree: ->
       ###
       Renders the widget's template to the virtual DOM tree, using current state and props
-      @return {Promise.<VNode>}
+      @return {Promise.<VNode>} the promise is bound to `this` widget context
       ###
       calc = {}
       @onRender?(calc)
@@ -149,7 +159,7 @@ define [
         @_renderVtree().then (vtree) ->
           @_vtree = vtree
       else
-        Future.resolved(@_vtree)
+        Promise.resolved(@_vtree)
 
 
     _destroyAlienWidgets: ->
@@ -213,7 +223,7 @@ define [
       ###
       Old-widget compatibility
       ###
-      Future.resolved()
+      Promise.resolved()
 
 
     markShown: ->
@@ -240,9 +250,10 @@ define [
     collectDeepCssListRec: (result) ->
       ###
       Recursively scans tree of widgets and collects list of required css-files.
-      @param Array[String] result accumulating result array
-      @todo implement
+      @param {Array.<string>} result - accumulating result array
       ###
+      result.push(css)  for css in @constructor._getCssDeps()
+      child.collectDeepCssListRec(result)  for child in @widgetHierarchy.getChildren(this)
       return
 
 
@@ -257,10 +268,14 @@ define [
       ###
       if not @_cachedTemplatePromise
         vdomTmplFile = "bundles/#{ @relativeDirPath }/#{ @dirName }.vdom"
-        @_cachedTemplatePromise = Future.require(vdomTmplFile)
+        @_cachedTemplatePromise = Promise.require(vdomTmplFile)
       @_cachedTemplatePromise
 
 
+    # @see `_initType` method
+    @_initialized: false
+
+    # @see `initialState` method
     @_initialState: null
 
     @initialState: (state) ->
@@ -274,6 +289,43 @@ define [
       @_initialState ?= {}
       @_initialState = _.extend {}, @_initialState, state
       return
+
+
+    @_init: ->
+      ###
+      Initializes some class-wide propreties and actions that must be done once for the widget class.
+      @param Boolean restoreMode indicates that widget is re-creating on the browser after passing from the server
+      ###
+      @_initCss()  if CORD_IS_BROWSER
+      @_initialized = this
+      return
+
+
+    @_initCss: ->
+      ###
+      Start to load CSS-files immediately when the first instance of the widget is instantiated on dynamically in the
+       browser.
+      @browser-only
+      ###
+      promises = (cssManager.load(cssFile) for cssFile in @_getCssDeps())
+      @_cssPromise = Promise.all(promises).then =>
+        # memory optimization
+        @_cssPromise = Promise.resolved()
+        return
+
+
+    @_getCssDeps: ->
+      ###
+      Returns list of full paths to css-files required by this widget type
+      @return {Array.<string>}
+      ###
+      result = []
+      if @css?
+        if _.isArray(@css)
+          result.push(cssHelper.expandPath(css, this))  for css in @css
+        else if @css
+          result.push(cssHelper.expandPath(@dirName, this))
+      result
 
 
 

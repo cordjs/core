@@ -67,26 +67,26 @@ define [
         _.map(_.uniq(optimized), @getHtmlLink).join('')
 
 
-    expandPath: (shortPath, contextWidget) ->
+    expandPath: (shortPath, ContextWidgetClass) ->
       ###
       Translates given short path of the css for the given widget into full path to css file for the browser
-      @param String shortPath
-      @param Widget contextWidget
-      @return String
+      @param {string} shortPath
+      @param {WidgetClass} ContextWidgetClass
+      @return {string}
       ###
       throw new Error("Css path: '#{shortPath}' is not a string.") if not _.isString(shortPath)
       baseUrl = getBaseUrl()
-      if shortPath.charAt(0) != '/' and shortPath.indexOf '//' == -1
+      if shortPath.charAt(0) != '/' and shortPath.indexOf('//') == -1
         # context of current widget
         shortPath += '.css' if shortPath.substr(-4) != '.css'
-        "#{baseUrl}bundles/#{contextWidget.getDir()}/#{shortPath}"
+        "#{baseUrl}bundles/#{ContextWidgetClass.relativeDirPath}/#{shortPath}"
       else
         if shortPath.substr(0,8) == '/vendor/'
           shortPath += '.css' if shortPath.substr(-4) != '.css'
           if global.config.localFsMode then shortPath.substr(1) else shortPath
         else
           # canonical path format
-          info = pathUtils.parsePathRaw "#{ shortPath }@#{ contextWidget.getBundle() }"
+          info = pathUtils.parsePathRaw("#{ shortPath }@#{ ContextWidgetClass.bundle }")
 
           relativePath = info.relativePath
           nameParts = relativePath.split('/')

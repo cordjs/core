@@ -1,9 +1,9 @@
 define [
-  'cord!utils/Defer'
   'cord!utils/Future'
-  'jquery'
   'underscore'
-], (Defer, Future, $, _) ->
+], (Future, _) ->
+
+  return  if not CORD_IS_BROWSER
 
   # helpers
   doc = document
@@ -94,6 +94,7 @@ define [
           @_loadedFiles[normPath].then =>
             # memory optimization
             @_loadedFiles[normPath] = Future.resolved()
+            return
           @_loadingOrder.push(normPath)
         else
           groupId = @_cssToGroup[normPath]
@@ -103,8 +104,6 @@ define [
             # memory optimization
             @_loadedFiles[css] = Future.resolved() for css in @_groupToCss[groupId]
 
-      else if @_loadedFiles[normPath] == true
-        @_loadedFiles[normPath] = Future.resolved()
       @_loadedFiles[normPath]
 
 
@@ -113,16 +112,16 @@ define [
       Scans page's link tags and registers already loaded css files in manager.
       This is needed to prevent double loading of the files when css files are on demand by client-side code.
       ###
-      that = this
-      $("head > link[rel='stylesheet']").each -> # cannot use fat-arrow here!!
-        normPath = normalizePath($(this).attr('href'))
-        if result = normPath.match /assets\/z\/([^\.]+)\.css$/
-          groupId = result[1]
-          that._loadedFiles[css] = true for css in that._groupToCss[groupId]
-        else
-          # 'true' is optimization, the completed future will be lazy-created in load() method if needed
-          that._loadedFiles[normPath] = true
-          that._loadingOrder.push(normPath)
+      cssGroupFileRe = /assets\/z\/([^\.]+)\.css$/
+      for linkTag in document.head.getElementsByTagName('link')
+        if linkTag.rel == 'stylesheet'
+          normPath = normalizePath(linkTag.getAttribute('href'))
+          if result = normPath.match(cssGroupFileRe)
+            groupId = result[1]
+            @_loadedFiles[css] = Future.resolved()  for css in @_groupToCss[groupId]
+          else
+            @_loadedFiles[normPath] = Future.resolved()
+            @_loadingOrder.push(normPath)
 
 
     setGroupLoadingMap: (groupMap) ->
@@ -135,6 +134,7 @@ define [
       for groupId, urls of groupMap
         for css in urls
           @_cssToGroup[css] = groupId
+      return
 
 
     _loadLink: (url) ->
