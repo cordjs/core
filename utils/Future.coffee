@@ -963,6 +963,7 @@ define [
     @param {Array} queue
     @param {Any} settledValue - the resulting value of the promise (success or failure)
     ###
+    return if not queue
     index = 0
     while index < queue.length
       currentIndex = index
