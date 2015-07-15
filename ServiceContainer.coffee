@@ -49,13 +49,9 @@ define [
       Clear and reset all services
       ###
       for serviceName in @getNames()
-<<<<<<< HEAD
-        @_instances[serviceName].clear?() if _.isObject(@_instances[serviceName]) and @isReady(serviceName)
-=======
         if @isReady(serviceName)
           @getService(serviceName).then (service) ->
             service.clear?() if _.isObject(service)
->>>>>>> r1506
         @reset(serviceName)
 
 
