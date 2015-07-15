@@ -49,7 +49,9 @@ define [
       Clear and reset all services
       ###
       for serviceName in @getNames()
-        @_instances[serviceName].clear?() if _.isObject(@_instances[serviceName]) and @isReady(serviceName)
+        if @isReady(serviceName)
+          @getService(serviceName).then (service) ->
+            service.clear?() if _.isObject(service)
         @reset(serviceName)
 
 
@@ -166,7 +168,6 @@ define [
         # Remove rejected factory from map
         delete @_pendingFactories[name]
         throw e
-
 
     isReady: (name) ->
       _(@_instances).has(name)

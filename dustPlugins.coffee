@@ -223,3 +223,7 @@ define [
       .catch (error) ->
         chunk.setError(error)
         return
+
+  # Boolean literals to pass as widget parameter value
+  false: false
+  true: true
