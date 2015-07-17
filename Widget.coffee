@@ -147,7 +147,7 @@ define [
             else if info == ':ignore'
               rule.type = ':ignore'
             else
-              throw "Invalid special string value for param '#{ param }': #{ info }!"
+              throw new Error("Invalid special string value for param '#{ param }': #{ info }!")
           else
             rule.type = ':callback'
             handleStringCallback(rule, info)
