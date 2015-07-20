@@ -71,7 +71,7 @@ define [
         response = @createResponse(error, xhr)
 
         if global.config.debug.request
-          executionTime = (startRequestTime - new Date()) / 1000
+          executionTime = (new Date() - startRequestTime) / 1000
           request = _.object(['method', 'url', 'params'], [method, url, params])
           @debugCompletedRequest(executionTime, request, response)
 
