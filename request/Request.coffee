@@ -3,15 +3,13 @@ define [
   'underscore'
   'postal'
   'cord!utils/Future'
-  './Response'
-], (Utils, _, postal, Future, Response) ->
+], (Utils, _, postal, Future) ->
 
   class Request
 
     METHODS: ['get', 'post', 'put', 'del']
 
-    defaultOptions:
-      bust: false
+    defaultOptions: {}
 
 
     constructor: (options) ->
@@ -35,7 +33,7 @@ define [
       @param Object|null xhr
       @return Response
       ###
-      Response.fromXhr(error, xhr)
+      throw new Error('Request::createResponse not implemented')
 
 
     getSender: ->
@@ -43,7 +41,7 @@ define [
       Объект реализующй методы отправки данных на сервер
       @return Object
       ###
-      throw new Error('Request::sender not defined')
+      throw new Error('Request::sender not implemented')
 
 
     send: (method, url, params = {}, callback) ->
@@ -90,16 +88,7 @@ define [
       @param Object params - переданные параметры запроса
       @return Object
       ###
-      xhrOptions = params.xhrOptions or {}
-      options =
-        if method == 'get'
-          query: params
-          json: true
-        else
-          query: ''
-          json: params
-          form: params.form
-      _.extend({}, @options, options, xhrOptions)
+      @options
 
 
     debugCompletedRequest: (executionTime, request, response) ->
