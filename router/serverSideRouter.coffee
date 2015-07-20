@@ -18,16 +18,18 @@ define [
 
   class ServerSideFallback
 
-    constructor: (@eventEmitter, @router) ->
+    constructor: (@eventEmitter, @container) ->
 
 
     defaultFallback: ->
       # If we don't need to push params into fallback widget, use default, defined in fallbackRoutes
-      routeInfo = @router.matchFallbackRoute(@router.getCurrentPath())
+      router = @container.get('router')
+      currentPath = router.getCurrentPath(@container)
+      routeInfo = router.matchFallbackRoute(currentPath)
       if routeInfo?.route?.widget?
         @fallback(routeInfo.route.widget, routeInfo.route.params)
       else
-        _console.warn('defaultFallback route was not found for', @router.getCurrentPath())
+        _console.warn('defaultFallback route was not found for', currentPath)
 
 
     fallback: (widgetPath, params) ->
@@ -42,8 +44,6 @@ define [
 
     process: (req, res, fallback = false) ->
       path = url.parse(req.url, true)
-
-      @_currentPath = req.url
 
       routeInfo = pr.call(this, 'matchRoute', path.pathname + path.search) # timer name is constructed automatically
 
@@ -112,7 +112,7 @@ define [
         res.setHeader('x-info', config.static.release) if config.static.release?
 
         eventEmitter = new @EventEmitter()
-        fallback = new ServerSideFallback(eventEmitter, this)
+        fallback = new ServerSideFallback(eventEmitter, serviceContainer)
 
         serviceContainer.set 'fallback', fallback
 
@@ -232,6 +232,14 @@ define [
           "Pragma": "no-cache"
           "Expires": 0
         response.end()
+
+
+    getCurrentPath: (container) ->
+      ###
+      Returns current path
+      @return String
+      ###
+      container.get('serverRequest').url
 
 
     _initProfilerDump: ->
