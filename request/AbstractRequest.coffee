@@ -5,25 +5,20 @@ define [
   'cord!utils/Future'
 ], (Utils, _, postal, Future) ->
 
-  class Request
+  METHODS = ['get', 'post', 'put', 'del']
 
-    METHODS: ['get', 'post', 'put', 'del']
+  class AbstractRequest
+
+    for method in METHODS
+      do (method) =>
+        @::[method] = (url, params, callback) -> @send(method, url, params, callback)
+
 
     defaultOptions: {}
 
 
     constructor: (options) ->
       @options = _.extend({}, @defaultOptions, options)
-      @[method] = @createMethod(method) for method in @METHODS
-
-
-    createMethod: (method) ->
-      ###
-      Создание метода отправки данных
-      @param String method - название нового метода
-      @return Function
-      ###
-      (url, params, callback) => @send(method, url, params, callback)
 
 
     createResponse: (error, xhr) ->
@@ -142,7 +137,7 @@ define [
       @return String
       ###
       method = method.toLowerCase()
-      _console.warn('Unknown request method:' + method) if method not in @METHODS
+      _console.warn('Unknown request method:' + method) if method not in METHODS
       method = 'del' if method == 'delete'
       method
 

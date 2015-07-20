@@ -1,11 +1,11 @@
 define [
   'request'
-  './Request'
+  './AbstractRequest'
   './Response'
   'underscore'
-], (curlySender, Request, Response, _) ->
+], (curlySender, AbstractRequest, Response, _) ->
 
-  class ServerRequest extends Request
+  class ServerRequest extends AbstractRequest
 
     defaultOptions:
       strictSSL: false

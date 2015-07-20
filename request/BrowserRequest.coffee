@@ -1,10 +1,10 @@
 define [
   'curly'
-  './Request'
+  './AbstractRequest'
   './Response'
-], (curly, Request, Response) ->
+], (curly, AbstractRequest, Response) ->
 
-  class BrowserRequest extends Request
+  class BrowserRequest extends AbstractRequest
 
     defaultOptions:
       bust: false
