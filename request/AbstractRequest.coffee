@@ -58,13 +58,7 @@ define [
       promise = Future.single("BrowserRequest::send(#{method}, #{url})")
       sender = @getSender()
       sender[method] url, options, (error, xhr, body) =>
-        if not error and xhr.statusCode >= 400
-          error =
-            statusCode: xhr.statusCode
-            statusText: xhr.body._message
-
         response = @createResponse(error, xhr)
-
         if global.config.debug.request
           executionTime = (new Date() - startRequestTime) / 1000
           request = _.object(['method', 'url', 'params'], [method, url, params])
