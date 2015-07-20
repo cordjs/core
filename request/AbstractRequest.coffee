@@ -28,7 +28,7 @@ define [
       @param Object|null xhr
       @return Response
       ###
-      throw new Error('Request::createResponse not implemented')
+      throw new Error('Request::createResponse is not implemented')
 
 
     getSender: ->
@@ -36,7 +36,7 @@ define [
       Объект реализующй методы отправки данных на сервер
       @return Object
       ###
-      throw new Error('Request::sender not implemented')
+      throw new Error('Request::sender is not implemented')
 
 
     send: (method, url, params = {}, callback) ->
