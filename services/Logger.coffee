@@ -1,5 +1,5 @@
 define [
-  'cord!console'
+  'cord!Console'
   'cord!errors'
 ], (_console, errors) ->
   ###

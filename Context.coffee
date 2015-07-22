@@ -325,7 +325,7 @@ define [
             elapsed = curTime - info.startTime
             if elapsed > deferredTimeout
               if info.ctx[name] == ':deferred' and not info.ctx._ownerWidget?.isSentenced()
-                @logger.warn "### Deferred timeout (#{elapsed / 1000} s) " +
+                info.ctx._ownerWidget?.logger.warn "### Deferred timeout (#{elapsed / 1000} s) " +
                               "for #{info.ctx._ownerWidget?.constructor.__name}(#{id}) <<< ctx.#{name} >>>"
               delete deferredTrackMap[id][name]
               delete deferredTrackMap[id]  if _.isEmpty(deferredTrackMap[id])
