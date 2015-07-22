@@ -126,9 +126,9 @@ define [
 
     addExtendCall: (widget, params) ->
       if @_extendPhaseFinished
-        throw "'#extend' appeared in wrong place (extending widget #{ widget.constructor.name })!"
+        throw new Error("'#extend' appeared in wrong place (extending widget #{ widget.constructor.name })!")
       if @_extend?
-        throw "Only one '#extend' is allowed per template (#{ widget.constructor.name })!"
+        throw new Error("Only one '#extend' is allowed per template (#{ widget.constructor.name })!")
 
       widgetRef = @registerWidget widget, params.name
 

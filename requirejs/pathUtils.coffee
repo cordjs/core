@@ -19,10 +19,10 @@ define ->
       canonicalDelimiter = '//'
       bundleSpec = null
       nameParts = path.split '@'
-      throw "Not more than one @ is allowed in the widget name specification: #{ path }!" if nameParts.length > 2
+      throw new Error("Not more than one @ is allowed in the widget name specification: #{ path }!") if nameParts.length > 2
       if nameParts.length == 2
         bundleSpec = nameParts[1]
-        throw "Bundle specification should start with /: #{ path }" if bundleSpec.indexOf('/') != 0
+        throw new Error("Bundle specification should start with /: #{ path }") if bundleSpec.indexOf('/') != 0
         if bundleSpec.substr(-1) == '/'
           _console.warn "WARNING: trailing slash in bundle specification is deprecated: #{ path }! Cutting..."
           bundleSpec = bundleSpec.substr(0, bundleSpec.length - 1)
@@ -34,7 +34,7 @@ define ->
         canonicalDelimiter = '/'
       else
         nameParts = path.split '//'
-        throw "Not more than one // is allowed in widget name specification: #{ path }!" if nameParts.length > 2
+        throw new Error("Not more than one // is allowed in widget name specification: #{ path }!") if nameParts.length > 2
         if nameParts.length == 2
           ns = nameParts[0]
           relativePath = nameParts[1]
@@ -106,7 +106,7 @@ define ->
       if start != -1 and end != -1 and start < end
         path.slice(start + bundleDir.length, end)
       else
-        throw "Can not extract bundle name from not-in-bundle file path: [#{ path }]!"
+        throw new Error("Can not extract bundle name from not-in-bundle file path: [#{ path }]!")
 
 
 
