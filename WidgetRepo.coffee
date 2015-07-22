@@ -82,6 +82,7 @@ define [
         widget = new WidgetClass
           repo: this
           serviceContainer: @serviceContainer
+          logger: @logger
 
         if widget.getPath() == '/cord/core//Switcher' and contextBundle?
           widget._contextBundle = contextBundle
