@@ -10,7 +10,7 @@ define [
     _collectionLinks: []
     _arrayLinks: []
 
-    @inject: ['container']
+    @inject: ['serviceContainer']
 
 
     addModelLink: (object, field) ->
@@ -30,14 +30,14 @@ define [
 
       for link in @_modelLinks
         promises.push(
-          Model.unserializeLink(link.object[link.field], @container).then (model) ->
+          Model.unserializeLink(link.object[link.field], @serviceContainer).then (model) ->
             link.object[link.field] = model
             return
         )
 
       for link in @_collectionLinks
         promises.push(
-          Collection.unserializeLink(link.object[link.field], @container).then (collection) ->
+          Collection.unserializeLink(link.object[link.field], @serviceContainer).then (collection) ->
             link.object[link.field] = collection
             return
         )
@@ -47,7 +47,7 @@ define [
         link.object[link.field] = []
         for item in storedLinks
           promises.push(
-            Model.unserializeLink(item, @container).then (model) ->
+            Model.unserializeLink(item, @serviceContainer).then (model) ->
               link.object[link.field].push(model)
               return
           )

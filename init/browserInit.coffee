@@ -1,20 +1,20 @@
 define [
   'cord!AppConfigLoader'
+  'cord!errors'
   'cord!Console'
   'cord!css/browserManager'
   'cord!router/clientSideRouter'
   'cord!PageTransition'
   'cord!ServiceContainer'
-  'cord!WidgetRepo'
   'cord!utils/Future'
   'monologue' + (if CORD_IS_BROWSER then '' else '.js')
   'jquery'
-], (AppConfigLoader, _console, cssManager,
-    clientSideRouter, PageTransition, ServiceContainer, WidgetRepo, Future, Monologue, $) ->
+], (AppConfigLoader, _console, errors, cssManager,
+    clientSideRouter, PageTransition, ServiceContainer, Future, Monologue, $) ->
 
   class ClientFallback
 
-    constructor: (@router) ->
+    constructor: (@router, @logger) ->
 
 
     defaultFallback: ->
@@ -23,7 +23,7 @@ define [
       if routeInfo?.route?.widget?
         @fallback(routeInfo.route.widget, routeInfo.params)
       else
-        _console.warn('defaultFallback route was not found for', @router.getCurrentPath())
+        @logger.warn('defaultFallback route was not found for', @router.getCurrentPath())
 
 
     fallback: (newWidgetPath, params) ->
@@ -36,9 +36,14 @@ define [
     Initializes cordsjs core on browser-side
     ###
     serviceContainer = new ServiceContainer
-    serviceContainer.def 'container', -> serviceContainer
+    serviceContainer.def 'serviceContainer', -> serviceContainer
+    logger = serviceContainer.get('logger')
 
-    window._console = _console
+    window._console = logger
+
+    serviceContainer.set 'router', clientSideRouter
+    fallback = new ClientFallback(clientSideRouter, logger)
+    serviceContainer.set 'fallback', fallback
 
     # support for `requireAuth` route option
     clientSideRouter.setAuthCheckCallback ->
@@ -48,10 +53,14 @@ define [
         .then ->
           true
         .catch (e) ->
-          _console.warn("Api.prepareAuth failed because of:", e)
+          logger.warn("Api.prepareAuth failed because of:", e)
           false
 
-    configInitFuture = AppConfigLoader.ready().then (appConfig) ->
+    $ ->
+      cssManager.registerLoadedCssFiles()
+
+
+    AppConfigLoader.ready().then (appConfig) ->
       clientSideRouter.addRoutes(appConfig.routes)
       clientSideRouter.addFallbackRoutes(appConfig.fallbackRoutes)
       for serviceName, info of appConfig.services
@@ -60,7 +69,6 @@ define [
           throw new Error("Service '#{serviceName}' has invalid factory definition") if not _.isFunction(info.factory)
           serviceContainer.def(serviceName, info.deps, info.factory.bind(serviceContainer))
 
-      # `config` service definition
       serviceContainer.set 'config', global.config
 
       global.config.api.authenticateUserCallback = ->
@@ -77,7 +85,7 @@ define [
             backUrl = clientSideRouter.getCurrentPath() or window.location.pathname
             clientSideRouter.redirect("#{loginUrl}/?back=#{backUrl}").failAloud('Auth redirect failed!')
         .catch (error) ->
-          _console.error('Unable to obtain loginUrl or logoutUrl, please, check configs:' + error)
+          logger.error('Unable to obtain loginUrl or logoutUrl, please, check configs:' + error)
         false
 
       # Clear localStorage in case of changing collections' release number
@@ -89,6 +97,12 @@ define [
               localStorage.clear().then ->
                 persistentStorage.set('collectionsVersion', currentVersion)
 
+      serviceContainer.getService('widgetRepo').then (widgetRepo) ->
+        clientSideRouter.setWidgetRepo(widgetRepo)
+        $ ->
+          cordcorewidgetinitializerbrowser?(widgetRepo)
+      .failAloud()
+
 
     # Global errors handling
     requirejs.onError = (error) ->
@@ -98,21 +112,3 @@ define [
 
     # monologue to debug mode
     Monologue.debug = true if global.config.debug.monologue != undefined and global.config.debug.monologue
-
-
-    widgetRepo = new WidgetRepo(global.cordServerProfilerUid)
-
-    fallback = new ClientFallback(clientSideRouter)
-
-    serviceContainer.set 'fallback', fallback
-    serviceContainer.set 'router', clientSideRouter
-
-    serviceContainer.set('widgetRepo', widgetRepo)
-    widgetRepo.setServiceContainer(serviceContainer)
-
-    clientSideRouter.setWidgetRepo(widgetRepo)
-    $ ->
-      cssManager.registerLoadedCssFiles()
-      configInitFuture.then ->
-        cordcorewidgetinitializerbrowser?(widgetRepo)
-      .failAloud()

@@ -2,15 +2,27 @@ define  ->
 
   services:
 
+    postal:
+      deps: ['serviceContainer']
+      factory: (get, done) ->
+        require ['cord!/cord/core/services/postal'], (Postal) ->
+          done(null, new Postal(get('serviceContainer')))
+
+    logger:
+      deps: ['serviceContainer']
+      factory: (get, done) ->
+        require ['cord!/cord/core/services/logger'], (Logger) ->
+          done(null, new Logger(get('serviceContainer')))
+
     apiFactory:
-      deps: ['runtimeConfigResolver', 'container', 'config', 'tabSync']
+      deps: ['runtimeConfigResolver', 'serviceContainer', 'config', 'tabSync']
       factory: (get, done) ->
         require ['cord!ApiFactory'], (ApiFactory) ->
           apiFactory = new ApiFactory()
-          get('container').injectServices(apiFactory).finally(done)
+          get('serviceContainer').injectServices(apiFactory).finally(done)
 
     api:
-      deps: ['apiFactory', 'runtimeConfigResolver', 'config']
+      deps: ['apiFactory', 'runtimeConfigResolver', 'config', 'logger']
       factory: (get, done) ->
         require ['cord!Api', 'postal'], (Api, postal) ->
           get('apiFactory').getApiByDefaultParams(get('config').api)
@@ -21,13 +33,20 @@ define  ->
               resolver.on('setParameter', -> api.configure(resolver.resolveConfig(get('config').api)))
               api.on 'host.changed', (host) ->
                 if host != resolver.getParameter('BACKEND_HOST')
-                  _console.log('BACKEND_HOST has been changed to:', host)
+                  get('logger').log('BACKEND_HOST has been changed to:', host)
                   resolver.setParameter('BACKEND_HOST', host)
               api
             .then (api) ->
               postal.publish('api.available')
               api
             .finally(done)
+
+    widgetRepo:
+      deps: ['serviceContainer']
+      factory: (get, done) ->
+        require ['cord!WidgetRepo'], (WidgetRepo) ->
+          widgetRepo = new WidgetRepo()
+          get('serviceContainer').injectServices(widgetRepo).finally(done)
 
     tabSync:
       factory: (get, done) ->
@@ -36,61 +55,62 @@ define  ->
           tabSync.init().finally(done)
 
     runtimeConfigResolver:
-      deps: ['container']
+      deps: ['serviceContainer']
       factory: (get, done) ->
         require ['cord!RuntimeConfigResolver'], (RuntimeConfigResolver) ->
           resolver = new RuntimeConfigResolver()
-          get('container').injectServices(resolver)
+          get('serviceContainer').injectServices(resolver)
             .then -> resolver.init()
             .then -> done(null, resolver)
             .catch (e) -> done(e)
 
     userAgent:
-      deps: ['container']
+      deps: ['serviceContainer']
       factory: (get, done) ->
         require ['cord!/cord/core/UserAgent'], (UserAgent) =>
           userAgent = new UserAgent
-          get('container').injectServices(userAgent)
+          get('serviceContainer').injectServices(userAgent)
             .then ->
               userAgent.calculate()
               done(null, userAgent)
             .catch (e) -> done(e)
 
     modelProxy:
-      deps: ['container']
+      deps: ['serviceContainer']
       factory: (get, done) ->
         require ['cord!/cord/core/ModelProxy'], (ModelProxy) =>
           modelProxy = new ModelProxy
-          get('container').injectServices(modelProxy)
+          get('serviceContainer').injectServices(modelProxy)
             .then -> done(null, modelProxy)
             .catch (e) -> done(e)
 
     redirector:
-      deps: ['container']
+      deps: ['serviceContainer']
       factory: (get, done) ->
         require ['cord!/cord/core/router/Redirector'], (Redirector) ->
           redirector = new Redirector()
-          get('container').injectServices(redirector)
+          get('serviceContainer').injectServices(redirector)
             .then -> done(null, redirector)
             .catch (e) -> done(e)
 
     errorHelper:
-      deps: ['container']
+      deps: ['serviceContainer']
       factory: (get, done) ->
         require ['cord!ErrorHelper'], (ErrorHelper) ->
-          get('container').injectServices(new ErrorHelper()).finally(done)
+          get('serviceContainer').injectServices(new ErrorHelper()).finally(done)
 
     ':server':
       request:
+        deps: ['logger']
         factory: (get, done) ->
           require ['cord!/cord/core/request/ServerRequest'], (Request) =>
-            done(null, new Request)
+            done(null, new Request(get('logger')))
 
       cookie:
-        deps: ['container']
+        deps: ['serviceContainer']
         factory: (get, done) ->
           require ['cord!/cord/core/cookie/ServerCookie'], (Cookie) =>
-            done(null, new Cookie(get('container')))
+            done(null, new Cookie(get('serviceContainer')))
 
       userAgentText:
         deps: ['serverRequest']
@@ -99,46 +119,49 @@ define  ->
 
     ':browser':
       request:
+        deps: ['logger']
         factory: (get, done) ->
           require ['cord!/cord/core/request/BrowserRequest'], (Request) ->
-            done(null, new Request)
+            done(null, new Request(get('logger')))
 
       cookie:
-        deps: ['container', 'localStorage']
+        deps: ['serviceContainer', 'localStorage']
         factory: (get, done) ->
           require ["cord!/cord/core/cookie/BrowserCookie"], (Cookie) ->
-            done(null, new Cookie(get('container')))
+            done(null, new Cookie(get('serviceContainer')))
 
       userAgentText: (get, done) ->
         done(null, navigator.userAgent)
 
-      localStorage: (get, done) ->
-        require ['cord!cache/localStorage', 'cord!utils/Future', 'localforage'], (LocalStorage, Future, localForage) ->
-          localForage.ready().then ->
-            Promise::toFuture = (promise) ->
-              ###
-              Converts conventional "thenable" Promise into our Future promise.
-              If an argument is given, then it will be fulfilled and returned instead of creating new Future promise.
-              @param {Future} promise - optional externally created promise to be fulfilled with this promise result
-              @return {Future}
-              ###
-              promise or= Future.single(':toFuture:')
-              this
-                .then ->
-                  promise.resolve()
-                  return
-                .catch (err) ->
-                  promise.reject(err)
-                  return
-              promise
+      localStorage:
+        deps: ['logger']
+        factory: (get, done) ->
+          require ['cord!cache/localStorage', 'cord!utils/Future', 'localforage'], (LocalStorage, Future, localForage) ->
+            localForage.ready().then ->
+              Promise::toFuture = (promise) ->
+                ###
+                Converts conventional "thenable" Promise into our Future promise.
+                If an argument is given, then it will be fulfilled and returned instead of creating new Future promise.
+                @param {Future} promise - optional externally created promise to be fulfilled with this promise result
+                @return {Future}
+                ###
+                promise or= Future.single(':toFuture:')
+                this
+                  .then ->
+                    promise.resolve()
+                    return
+                  .catch (err) ->
+                    promise.reject(err)
+                    return
+                promise
 
-            done(null, new LocalStorage(localForage))
-          .catch (err) ->
-            _console.error "ERROR while initializing localforage: #{err.message}! Driver: #{localForage.driver()}", err
-            localForage.setDriver(localForage.LOCALSTORAGE).then ->
-              done(null, new LocalStorage(localForage))
+              done(null, new LocalStorage(localForage, get('logger')))
             .catch (err) ->
-              _console.error "FATAL: error while initializing localforage with localStorage fallback: #{err.message}!", err
+              get('logger').error "ERROR while initializing localforage: #{err.message}! Driver: #{localForage.driver()}", err
+              localForage.setDriver(localForage.LOCALSTORAGE).then ->
+                done(null, new LocalStorage(localForage))
+              .catch (err) ->
+                get('logger').error "FATAL: error while initializing localforage with localStorage fallback: #{err.message}!", err
 
       persistentStorage:
         deps: ['localStorage']

@@ -37,6 +37,7 @@ define [
 
 
     constructor: (@options, @cookie, @request, @tabSync) ->
+      @logger = @request.logger
       @endpoints = @options.endpoints
       if not @endpoints or not @endpoints.accessToken
         throw new Error('OAuth2::constructor error: at least endpoints.accessToken must be defined.')
@@ -97,7 +98,7 @@ define [
         else
           @_getTokensByAllMeans()
             .catch (error) =>
-              _console.error('Clear refresh token, because of:', error)
+              @logger.error('Clear refresh token, because of:', error)
               @_invalidateRefreshToken()
               throw error
             .spread (accessToken) =>
@@ -174,7 +175,7 @@ define [
       @cookie.set('oauthScope', @scope, expires: 15)
 
       @emit('auth.available')
-      _console.log "Store tokens: #{accessToken}, #{refreshToken}"  if global.config.debug.oauth
+      @logger.log "Store tokens: #{accessToken}, #{refreshToken}"  if global.config.debug.oauth
 
 
     getScope: ->
@@ -308,7 +309,7 @@ define [
                   throw new cordErrors.AuthError("Unable to get access token by refresh token #{result}")
 
             if retries > 0
-              _console.warn('Error while refreshing oauth token! Will retry after pause... Error:', err)
+              @logger.warn('Error while refreshing oauth token! Will retry after pause... Error:', err)
               Future.timeout(500).then =>
                 @_refreshTokenRequestPromise = null
                 @grantAccessTokenByRefreshToken(refreshToken, scope, retries - 1)

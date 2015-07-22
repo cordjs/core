@@ -1,8 +1,7 @@
 define [
   'cord!errors'
-  'postal'
   'underscore'
-], (errors, postal, _) ->
+], (errors, _) ->
   ###
   System console wrapper with nice configurable debugging and logging features
   ###
@@ -55,22 +54,6 @@ define [
       x.indexOf('/cord/core/Console.js') == -1
 
 
-  _log = (type, args) ->
-    if output[type]
-      postal.publish 'logger.log.publish',
-        tags: [type]
-        params:
-          message: stringify(args)
-          console: true
-
-      # Add console call trace line
-      args.push("\n_console.#{type} called here:\n" + getConsoleCallTraceLine())  if output.appendConsoleCallTrace
-
-      method = if console[type] then type else 'log'
-      args.unshift "[#{type}]"
-      console[method] prepareArgs(args).join(" ")
-
-
   _minErrorType = (type1, type2) ->
     typeWeight =
       error: 5
@@ -85,7 +68,23 @@ define [
     if weight1 > weight2 then type2 else type1
 
 
-  _taggedError = (tags, errorType, args) ->
+  _log: (type, args) ->
+    if output[type]
+      @publish 'logger.log.publish',
+        tags: [type]
+        params:
+          message: stringify(args)
+          console: true
+
+      # Add console call trace line
+      args.push("\n_console.#{type} called here:\n" + getConsoleCallTraceLine())  if output.appendConsoleCallTrace
+
+      method = if console[type] then type else 'log'
+      args.unshift "[#{type}]"
+      console[method] prepareArgs(args).join(" ")
+
+
+  _taggedError: (tags, errorType, args) ->
     ###
     Smart console.error:
      * appends stack-trace of Error-typed argument if configured
@@ -107,32 +106,32 @@ define [
 
     # Report the error so that we could show it to the user
     if errorType == 'error'
-      postal.publish 'error.notify.publish',
+      @publish 'error.notify.publish',
         message: 'Произошла ошибка'
         console: true
         link: ''
         details: stringify(args)
 
     # And log the error
-    _log errorType, args if output[errorType]
+    @_log errorType, args if output[errorType]
 
 
   ## export ##
 
   log: (args...) ->
-    _log 'log', args
+    @_log 'log', args
 
 
   warn: (args...) ->
-    _taggedError [], 'warn', args
+    @_taggedError [], 'warn', args
 
 
   error: (args...) ->
-    _taggedError [], 'error', args
+    @_taggedError [], 'error', args
 
 
   taggedError: (tags, args...) ->
-    _taggedError tags, 'error', args
+    @_taggedError tags, 'error', args
 
 
   clear: ->
@@ -146,3 +145,14 @@ define [
     ###
     if assertionsEnabled and not checkFunction()
       throw new Error("Assertion failed. #{errorMessage}")
+
+
+  logAndPublish: (method, args, publish) ->
+    oldPublish = @publish
+    @publish = publish
+    @[method].apply(@, args)
+    @publish = oldPublish
+
+
+  publish: (message, params) ->
+    # No publish capabilites by default. Overloaded by logger while using
