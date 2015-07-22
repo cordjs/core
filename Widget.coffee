@@ -882,22 +882,7 @@ define [
       @param Map[String -> Any] params map of it's params with values with unresolved references to the parent's context
       @return Future[String -> Any] resolved params
       ###
-      newParams = {}
-      # Clone param object and inline nested "params" parameter
-      for own name, value of params
-        if 'params' == name
-          paramsObject = if _.isObject(value)
-            value
-          else if _.isString(value) and value.charAt(0) == '^'
-            @ctx[value.slice(1)]
-          if _.isObject(paramsObject)
-            for own subName, subValue of paramsObject
-              newParams[subName] = subValue
-          else
-            @logger.warn('`params` parameter should be an object or reference to object')
-        else
-          newParams[name] = value
-      params = newParams
+      params = _.clone(params)
 
       # removing special params
       delete params.placeholder
@@ -906,35 +891,37 @@ define [
       delete params.name
       delete params.timeout
 
-      result = new Future(@debug('resolveParamRefs'))
+      promises = []
 
-      bindings = {}
+      @childBindings[widget.ctx.id] ?= {}
 
-      # waiting for parent's necessary context-variables availability before rendering widget...
-      for name, value of params
-        if name != 'name' and name != 'type'
-          if typeof value is 'string' and value.charAt(0) == '^'
-            value = value.slice(1) # cut leading ^
-            bindings[value] = name
+      # we should wait for all deferred context params here
+      for name, value of params when typeof value == 'string' and value.charAt(0) == '^'
+        ctxName = value.slice(1) # cut leading ^
+        @childBindings[widget.ctx.id][ctxName] = name
+        do (name, ctxName) =>
+          # We can not use @ctx.getPromise() method of non-deferred context values,
+          # because context could contains Promise as a value (to pass Promise between widgets),
+          # so, we should have a two-way handling. But for DRY we use this helper function
+          _resolvedValueHandler = (resolvedValue) =>
+            params[name] = resolvedValue
+            @widgetRepo.subscribePushBinding(@ctx.id, ctxName, widget, name, @ctx.getVersion()) if isBrowser
+            return # avoid possible Future result of .subscribePushBinding
+          if @ctx.isDeferred(ctxName)
+            promises.push @ctx.getPromise(ctxName).then(_resolvedValueHandler)
+          else
+            _resolvedValueHandler(@ctx[ctxName])
 
-            # if context value is deferred, than waiting asynchronously...
-            if @ctx.isDeferred(value)
-              do (name, value) =>
-                @ctx.getPromise(value).then (resolvedValue) =>
-                  params[name] = resolvedValue
-                  @widgetRepo.subscribePushBinding(@ctx.id, value, widget, name, @ctx.getVersion()) if isBrowser
-                  return # avoid possible Future result of .subscribePushBinding
-                .link(result)
-
-            # otherwise just getting it's value synchronously
-            else
-              params[name] = @ctx[value]
-              @widgetRepo.subscribePushBinding(@ctx.id, value, widget, name, @ctx.getVersion()) if isBrowser
-
-      if Object.keys(bindings).length != 0
-        @childBindings[widget.ctx.id] = bindings
-
-      result.then -> params
+      Future.all(promises).then =>
+        if params.params and _.isObject(params.params)
+          # deep resolve nested params
+          @resolveParamRefs(widget, params.params).then (resolvedNestedParams) ->
+            delete params.params
+            # and then inline resolved nested params
+            params[name] = value for name, value of resolvedNestedParams
+            params
+        else
+          params # resolve future with resolved params
 
 
     _renderExtendedTemplate: (tmpl, domInfo) ->
