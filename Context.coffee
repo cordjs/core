@@ -247,7 +247,7 @@ define [
           result[key] = null
         else if key == 'i18nHelper' and value.i18nContext? #Save translator context for browser-side
           result[key] = value.i18nContext
-        else if key != ':internal'
+        else if key not in [':internal', 'logger']
           result[key] = value
       result
 
