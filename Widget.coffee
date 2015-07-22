@@ -882,7 +882,22 @@ define [
       @param Map[String -> Any] params map of it's params with values with unresolved references to the parent's context
       @return Future[String -> Any] resolved params
       ###
-      params = _.clone(params) # this is necessary to avoid corruption of original structure template params
+      newParams = {}
+      # Clone param object and inline nested "params" parameter
+      for own name, value of params
+        if 'params' == name
+          paramsObject = if _.isObject(value)
+            value
+          else if _.isString(value) and value.charAt(0) == '^'
+            @ctx[value.slice(1)]
+          if _.isObject(paramsObject)
+            for own subName, subValue of paramsObject
+              newParams[subName] = subValue
+          else
+            @logger.warn('`params` parameter should be an object or reference to object')
+        else
+          newParams[name] = value
+      params = newParams
 
       # removing special params
       delete params.placeholder
@@ -898,7 +913,6 @@ define [
       # waiting for parent's necessary context-variables availability before rendering widget...
       for name, value of params
         if name != 'name' and name != 'type'
-
           if typeof value is 'string' and value.charAt(0) == '^'
             value = value.slice(1) # cut leading ^
             bindings[value] = name
@@ -914,21 +928,8 @@ define [
 
             # otherwise just getting it's value synchronously
             else
-              # param with name "params" is a special case and we should expand the value as key-value pairs
-              # of widget's params
-              if name == 'params'
-                if _.isObject @ctx[value]
-                  for subName, subValue of @ctx[value]
-                    params[subName] = subValue
-                  @widgetRepo.subscribePushBinding(@ctx.id, value, widget, 'params', @ctx.getVersion()) if isBrowser
-                else
-                  # todo: warning?
-              else
-                params[name] = @ctx[value]
-                @widgetRepo.subscribePushBinding(@ctx.id, value, widget, name, @ctx.getVersion()) if isBrowser
-          else if name == 'params' and _.isObject(value)
-            params[subName] = subValue for subName, subValue of value
-            delete params.params
+              params[name] = @ctx[value]
+              @widgetRepo.subscribePushBinding(@ctx.id, value, widget, name, @ctx.getVersion()) if isBrowser
 
       if Object.keys(bindings).length != 0
         @childBindings[widget.ctx.id] = bindings
