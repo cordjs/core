@@ -2,7 +2,8 @@ define [
   'cord!utils/Future'
   'cord!utils/sha1'
   'cord!cookie/LocalCookie'
-], (Future, sha1, LocalCookie) ->
+  'cord!errors'
+], (Future, sha1, LocalCookie, errors) ->
 
   class LocalStorage
 
@@ -151,7 +152,7 @@ define [
       setTimeout =>
         if result.state() == 'pending'
           @clear()
-          result.reject(new Error("LocalStorage timeouted with key #{key}!"))
+          result.reject(new errors.ItemNotFound("LocalStorage timeouted with key #{key}!"))
       , @_getTimeout
 
       @storage.getItem key, (value) ->
@@ -159,7 +160,7 @@ define [
           if value?
             result.resolve(value)
           else
-            result.reject(new Error("Key '#{key}' doesn't exists in the local storage!"))
+            result.reject(new errors.ItemNotFound("Key '#{key}' doesn't exists in the local storage!"))
 
       result
 
