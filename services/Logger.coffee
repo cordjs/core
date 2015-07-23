@@ -17,7 +17,7 @@ define [
       ###
       @serviceContainer.getService('postal').then (postal) ->
         postal.publish topic, data
-      .catchIf errors.ConfigError ->
+      .catchIf errors.ConfigError, ->
         _console.error("Could not publish error information on topic #{topic}. Postal service is not ready.")
 
 
