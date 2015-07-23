@@ -5,7 +5,7 @@ define  ->
     postal:
       deps: ['serviceContainer']
       factory: (get, done) ->
-        require ['cord!/cord/core/services/postal'], (Postal) ->
+        require ['cord!/cord/core/services/Postal'], (Postal) ->
           done(null, new Postal(get('serviceContainer')))
 
     logger:
