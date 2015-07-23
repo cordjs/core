@@ -999,6 +999,7 @@ define [
     @param {String} stackArr
     @return {Array<String>}
     ###
+    return [] if not _.isString(stackStr)
     stackStr
       .split("\n")
       .slice(1)
