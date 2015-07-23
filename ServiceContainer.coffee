@@ -245,9 +245,9 @@ define [
 
     uid: ->
       ###
-        Unique identifier of this ServiceContainer
-        @return string
+      Unique identifier of this ServiceContainer
+      @return string
       ###
-      if not @_uid
+      if not @_uid?
         @_uid = _.uniqueId()
       @_uid

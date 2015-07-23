@@ -354,6 +354,7 @@ define [
         Context.fromJSON(ctx, @serviceContainer)
         @_unserializeModelBindings(modelBindings)
       ]).spread (WidgetClass, ctx, modelBindings) =>
+
         widget = new WidgetClass
           context: ctx
           repo: this
@@ -374,10 +375,8 @@ define [
 
         injectRouterPromise = @serviceContainer.getService('router').then (router) ->
           widget.router = router
-        .failAloud()
 
-        injectServicesPromise = @serviceContainer.injectServices(widget).failAloud()
-
+        injectServicesPromise = @serviceContainer.injectServices(widget)
 
         Future.all [
           injectServicesPromise
@@ -391,7 +390,6 @@ define [
                 widget._contextBundle = @widgets[parentId].widget.getBundle()
           else
             @rootWidget = widget
-
       .link(@_initPromise)
       .failAloud("WidgetRepo::init:#{widgetPath}:#{ctx.id}")
 

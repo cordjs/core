@@ -150,7 +150,7 @@ define [
   logAndPublish: (method, args, publish) ->
     oldPublish = @publish
     @publish = publish
-    @[method].apply(@, args)
+    @[method].apply(this, args)
     @publish = oldPublish
 
 

@@ -211,7 +211,6 @@ define [
       @_filterType = options.filterType ? ':backend'
       @_fields = options.fields ? []
       @_reconnect = options.reconnect ? false
-
       @_emitChangeOnAny = options.emitChangeOnAny ? false
 
       if options.model

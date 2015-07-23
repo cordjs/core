@@ -11,7 +11,7 @@ define  ->
     logger:
       deps: ['serviceContainer']
       factory: (get, done) ->
-        require ['cord!/cord/core/services/logger'], (Logger) ->
+        require ['cord!/cord/core/services/Logger'], (Logger) ->
           done(null, new Logger(get('serviceContainer')))
 
     apiFactory:

@@ -35,8 +35,6 @@ define [
 
   class Behaviour extends Module
 
-    @inject: ['cookie', 'request', 'tabSync']
-
     # jQuery aggregate of all DOM-roots of the widget
     # (widget can have multiple DOM-roots when it has several inline-blocks)
     $rootEls: null
@@ -48,10 +46,9 @@ define [
     _initPromise: null
 
 
-    constructor: (widget, @serviceContainer, @logger, $domRoot) ->
+    constructor: (widget, @logger, $domRoot) ->
       ###
       @param {Widget} widget
-      @param {ServiceContainer} @serviceContainer
       @param {Logger} @logger
       @param (optional) {jQuery} $domRoot prepared root element of the widget or of some widget's parent
       ###

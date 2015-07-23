@@ -1628,7 +1628,7 @@ define [
           if not @_sentenced
             # TODO: move this check to the build phase
             if BehaviourClass.prototype instanceof Behaviour
-              @behaviour = savedBehaviour = new BehaviourClass(this, @serviceContainer, @logger, $domRoot)
+              @behaviour = savedBehaviour = new BehaviourClass(this, @logger, $domRoot)
               @serviceContainer.injectServices(@behaviour).bind(this).then ->
                 if not @_sentenced
                   @behaviour.init()
