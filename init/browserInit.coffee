@@ -1,7 +1,7 @@
 define [
   'cord!AppConfigLoader'
-  'cord!errors'
   'cord!Console'
+  'cord!errors'
   'cord!css/browserManager'
   'cord!router/clientSideRouter'
   'cord!PageTransition'
