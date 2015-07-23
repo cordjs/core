@@ -50,7 +50,7 @@ define [
         widgetPath or= @_latestArgs.widgetPath
 
         @_switchQueuePromise.catch (err) ->
-          _console.error 'switch queue error report', err  if not err.isCordInternal
+          @logger.error 'switch queue error report', err  if not err.isCordInternal
         .then @getCallback =>
           # checking if this phase of switching is obsolete and skipping in favour of the newest switch
           if widgetPath == @_latestArgs.widgetPath and widgetParams == @_latestArgs.widgetParams

@@ -17,7 +17,7 @@ define [
     defaultOptions: {}
 
 
-    constructor: (options) ->
+    constructor: (@logger, options) ->
       @options = _.extend({}, @defaultOptions, options)
 
 
@@ -131,7 +131,7 @@ define [
       @return String
       ###
       method = method.toLowerCase()
-      _console.warn('Unknown request method:' + method) if method not in METHODS
+      @logger.warn('Unknown request method:' + method) if method not in METHODS
       method = 'del' if method == 'delete'
       method
 

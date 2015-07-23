@@ -22,7 +22,7 @@ define [
 
   class Api extends EventEmitter
 
-    @inject: ['cookie', 'request', 'tabSync']
+    @inject: ['cookie', 'request', 'tabSync', 'logger']
 
     # Cookie name for auth module name
     @authModuleCookieName: '_api_auth_module'
@@ -112,7 +112,7 @@ define [
       # Ignore double call of this method with same module
       return @authPromise if modulePath == @lastModulePath and not @authPromise.completed()
 
-      _console.log "Loading auth module: #{modulePath}"  if global.config.debug.oauth
+      @logger.log "Loading auth module: #{modulePath}"  if global.config.debug.oauth
 
       localAuthPromise = Future.single("Auth module promise: #{modulePath}")
       @lastModulePath = modulePath # To check that we resolve @authPromise with the latest modulePath
@@ -130,7 +130,7 @@ define [
       .catch (error) =>
         if @lastModulePath == modulePath # To check that we resolve @authPromise with the latest modulePath
           localAuthPromise.reject(error)
-        _console.error("Unable to load auth module: #{modulePath} with error", error)
+        @logger.error("Unable to load auth module: #{modulePath} with error", error)
 
       @authPromise.when(localAuthPromise)  if @authPromise and not @authPromise.completed()
       @authPromise = localAuthPromise
@@ -142,13 +142,13 @@ define [
       @return Future{Boolean}
       ###
       if not @authPromise
-        _console.warn('Api::authTokensAvailable authPromise does not exists. Call setAuthModule before use.')
+        @logger.warn('Api::authTokensAvailable authPromise does not exists. Call setAuthModule before use.')
         Future.resolved(false)
       else
         @authPromise.then (authModule) ->
           authModule.isAuthAvailable()
         .catch (e) ->
-          _console.warn('authTokensAvailable failed, because of:', e)
+          @logger.warn('authTokensAvailable failed, because of:', e)
           false
 
 
@@ -288,7 +288,7 @@ define [
         params: _.extend({ originalArgs: args }, @options.params, params)
       .catch (e) =>
         # Auth module failed, so we need to authorize here somehow
-        _console.warn("Auth failed:", e)
+        @logger.warn("Auth failed:", e)
         @options.authenticateUserCallback() if not args.params?.skipAuth
         throw e
 
@@ -334,7 +334,7 @@ define [
         .catchIf httpErrors.Network, (e) =>
           # In case of network error, we'll try to reconnect again
           if retryCount > 0 and method == 'get' and (retryTill == 0 or retryTill >= Date.now())
-            _console.warn "WARNING: request to #{url} failed because of network error #{e}. Retrying after #{@retryInterval/1000}s..."
+            @logger.warn "WARNING: request to #{url} failed because of network error #{e}. Retrying after #{@retryInterval/1000}s..."
 
             Future.timeout(@retryInterval).then =>
               @_doRequest(method, url, params, retryCount - 1, retryTill)
@@ -358,7 +358,7 @@ define [
 
             # Post could make duplicates
             if method == 'get' and retryCount > 0 and ( retryTill == 0 or retryTill >= Date.now() )
-              _console.warn "WARNING: request to #{url} failed due to invalid response. #{JSON.stringify(response)} Retrying after #{@retryInterval/1000}s..."
+              @logger.warn "WARNING: request to #{url} failed due to invalid response. #{JSON.stringify(response)} Retrying after #{@retryInterval/1000}s..."
 
               Future.timeout(@retryInterval).then =>
                 @_doRequest(method, url, params, retryCount - 1, retryTill)

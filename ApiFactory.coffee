@@ -5,7 +5,7 @@ define [
 
   class ApiFactory
 
-    @inject: ['container', 'runtimeConfigResolver']
+    @inject: ['serviceContainer', 'runtimeConfigResolver']
 
 
     constructor: () ->
@@ -38,8 +38,8 @@ define [
       if @_cachedApi[key]
         Future.resolved(@_cachedApi[key])
       else
-        api = new Api(@container, apiConfig)
-        @container.injectServices(api)
+        api = new Api(@serviceContainer, apiConfig)
+        @serviceContainer.injectServices(api)
           .then -> api.init()
           .then -> api.configure(apiConfig)
           .then => @_cachedApi[key] = api

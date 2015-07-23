@@ -1,16 +1,20 @@
 define [
   'cord!errors'
   'cord!utils/Future'
+  'cord!services/Logger'
   'underscore'
-], (errors, Future, _) ->
+], (errors, Future, Logger, _) ->
 
   class ServiceDefinition
 
-    constructor: (@name, @deps, @factory, @container) ->
+    constructor: (@name, @deps, @factory, @serviceContainer) ->
 
 
 
   class ServiceContainer
+
+    # unique identifier of the serviceContainer
+    _uid = null
 
     constructor: ->
       # registered definitions. Keys are name, values are instance of ServiceDefinition
@@ -19,6 +23,9 @@ define [
       @_instances = {}
       # futures of already scheduled service factories. Keys are name, values are futures
       @_pendingFactories = {}
+
+      @logger = new Logger(this)
+      @set 'logger', @logger
 
 
     isDefined: (name) ->
@@ -79,7 +86,7 @@ define [
 
     def: (name, deps, factory) ->
       ###
-      Registers a new service definition in container
+      Registers a new service definition in serviceContainer
       ###
       if _.isFunction(deps) and factory == undefined
         factory = deps
@@ -109,7 +116,7 @@ define [
 
       # Call a factory for a service
       if not _(@_definitions).has(name)
-        return Future.rejected(new Error("There is no registered definition for called service '#{name}'"))
+        return Future.rejected(new errors.ConfigError("There is no registered definition for called service '#{name}'"))
 
       def = @_definitions[name]
       localPendingFactoy = @_pendingFactories[name] = Future.single("Factory of service \"#{name}\"")
@@ -178,7 +185,7 @@ define [
       Gets service in a synchronized mode. This method passed as `get` callback to factory of service def
       ###
       if not @isReady(name)
-        throw new Error("Service #{name} is not loaded yet. Did you forget to specify it in `deps` section?")
+        throw new errors.ConfigError("Service #{name} is not loaded yet. Did you forget to specify it in `deps` section?")
       @_instances[name]
 
 
@@ -208,7 +215,7 @@ define [
                 .nameSuffix("Inject #{serviceName} to #{target.constructor.name}")
             )
           else
-            _console.warn "Container::injectServices #{ serviceName } for target #{ target.constructor.name } is not defined" if global.config?.debug.service
+            @logger.warn "Container::injectServices #{ serviceName } for target #{ target.constructor.name } is not defined" if global.config?.debug.service
 
         if _.isArray services
           for serviceName in services
@@ -228,9 +235,19 @@ define [
       ###
       for serviceName, info of services when info.autoStart
         do (serviceName) =>
-          @getService(serviceName).catch (error) ->
+          @getService(serviceName).catch (error) =>
             if not (error instanceof errors.AuthError) and
                not (error instanceof errors.ConfigError)  # supress "no BACKEND_HOST" error
-              _console.warn "Container::autoStartServices::getService(#{serviceName}) " +
+              @logger.warn "Container::autoStartServices::getService(#{serviceName}) " +
                             " failed with error: ", error
       return
+
+
+    uid: ->
+      ###
+        Unique identifier of this ServiceContainer
+        @return string
+      ###
+      if not @_uid
+        @_uid = _.uniqueId()
+      @_uid
