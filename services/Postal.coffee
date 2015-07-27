@@ -16,7 +16,10 @@ define [
       @param Object envelope
       @return Object Modified envelope
       ###
-      envelope.channel = (envelope.channel or '') + '@' + @serviceContainer.uid()
+      if not envelope.topic?
+        envelope =
+          topic: envelope
+      envelope.topic += '@' + @serviceContainer.uid()
       envelope
 
 
@@ -32,12 +35,20 @@ define [
           topic: args[0]
           data: args[1]
 
-      postal.publish @_addContainerChannel(envelope)
+      @_addContainerChannel(envelope)
+      postal.publish envelope.topic, envelope.data
 
 
-    subscribe: (options) ->
+    subscribe: (args...) ->
       ###
       Subscribes for specific container publishers
-      @param options The same options as in Postal.subscribe
+      @param args The same arguments as in Postal.subscribe
       ###
-      postal.subscribe @_addContainerChannel(options)
+      if args.length == 1
+        envelope = args
+      else if args.length == 2
+        envelope =
+          topic: args[0]
+          callback: args[1]
+
+      postal.subscribe @_addContainerChannel(envelope)
