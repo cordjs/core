@@ -327,7 +327,7 @@ define [
         @request[method](url, requestParams).then (response) =>
           # If backend want to change host, override it
           # Event should be handler by api service factory
-          if response.headers.has('X-Target-Host')
+          if response.headers.has('X-Target-Host') and response.headers.get('X-Target-Host') != '127.0.0.1'
             @emit('host.changed', response.headers.get('X-Target-Host'))
           response
 
