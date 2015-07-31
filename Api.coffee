@@ -6,8 +6,7 @@ define [
   'cord!AppConfigLoader'
   'eventemitter3'
   'cord!request/errors'
-  'ip'
-], (Utils, Future, _, postal, AppConfigLoader, EventEmitter, httpErrors, ip) ->
+], (Utils, Future, _, postal, AppConfigLoader, EventEmitter, httpErrors) ->
 
   withResponseFutureExtendFn = ->
     ###
