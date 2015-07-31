@@ -168,7 +168,6 @@ define  ->
       'lodash': 'vendor/lodash/lodash'
       'riveter': 'vendor/riveter/riveter'
       'request': 'vendor/browser-request/index'
-      'ip': 'vendor/ip/ip'
     shim:
       'curly':
         deps: ['underscore']
