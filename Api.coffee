@@ -6,7 +6,8 @@ define [
   'cord!AppConfigLoader'
   'eventemitter3'
   'cord!request/errors'
-], (Utils, Future, _, postal, AppConfigLoader, EventEmitter, httpErrors) ->
+  'ip'
+], (Utils, Future, _, postal, AppConfigLoader, EventEmitter, httpErrors, ip) ->
 
   withResponseFutureExtendFn = ->
     ###
@@ -327,7 +328,7 @@ define [
         @request[method](url, requestParams).then (response) =>
           # If backend want to change host, override it
           # Event should be handler by api service factory
-          if response.headers.has('X-Target-Host') and response.headers.get('X-Target-Host') != '127.0.0.1'
+          if response.headers.has('X-Target-Host') and not ip.isPrivate(response.headers.get('X-Target-Host'))
             @emit('host.changed', response.headers.get('X-Target-Host'))
           response
 
