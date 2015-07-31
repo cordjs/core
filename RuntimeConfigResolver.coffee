@@ -47,7 +47,7 @@ define [
       Gets a parameter's value by it's name.
       Name should be without % on edges
       ###
-      @parameters[name] or defaultValue
+      if lodash.has(@parameters, name) then @parameters[name] else defaultValue
 
 
     clearParameters: ->
