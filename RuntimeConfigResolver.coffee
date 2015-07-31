@@ -42,12 +42,12 @@ define [
       @emit('setParameter', _.clone(@parameters))
 
 
-    getParameter: (name) ->
+    getParameter: (name, defaultValue) ->
       ###
       Gets a parameter's value by it's name.
       Name should be without % on edges
       ###
-      @parameters[name]
+      @parameters[name] or defaultValue
 
 
     clearParameters: ->
