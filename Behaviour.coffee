@@ -107,20 +107,24 @@ define [
 
       @_callbacks = []
 
-      if @show?
-        @addPromise(
-          Future.all [
-            @widget.shown()
-            @_initPromise
-          ]
-          .then => @show()
-        )
+      @addPromise(
+        Future.all [
+          @widget.shown()
+          @_initPromise
+        ]
+        .then => @show()
+      )
+
+      return
 
 
     init: ->
 
 
     destroy: ->
+
+
+    show: ->
 
 
     $: (selector) ->

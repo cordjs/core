@@ -3,7 +3,8 @@ define [
   'https'
   'underscore'
   'url'
-], (http, https, _, url) ->
+  'ip'
+], (http, https, _, url, ip) ->
 
   (router, targetUrl, req, res, secrets = false) ->
     ###
@@ -40,8 +41,8 @@ define [
 
     options =
       method: req.method ? 'GET'
-      hostname: proxyUrl.hostname ? nodeConfig.api.backend.host
-      port: proxyUrl.port
+      hostname: proxyUrl.hostname ? nodeConfig.api.backend.host.split(':')[0]
+      port: proxyUrl.port ? nodeConfig.api.backend.host.split(':')?[1]
       path: proxyUrl.path
       headers: headers
       rejectUnauthorized: false
@@ -56,7 +57,8 @@ define [
     proxyReq = protocol.request options, (proxyRes) ->
       # send http-headers back to the browser copying them from the target server response
       headers = proxyRes.headers
-      headers['X-Target-Host'] = options.hostname if not proxyRes.headers['X-Target-Host']? and not proxyRes.headers['x-target-host']?
+      if not proxyRes.headers['X-Target-Host']? and not proxyRes.headers['x-target-host']? and not ip.isPrivate(options.hostname)
+        headers['X-Target-Host'] = options.hostname
       res.writeHead proxyRes.statusCode, proxyRes.headers
       # read all data from the target server response and pass it to the browser response
       proxyRes.on 'data', (chunk) -> res.write(chunk)

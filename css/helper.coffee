@@ -24,10 +24,13 @@ define [
         @_cssToGroupFuture =
           if global.config.browserInitScriptId
             Future.require('fs').then (fs) ->
-              r = Future.single()
-              fs.exists 'target/conf/css-to-group-generated.js', (exists) ->
-                r.resolve(exists)
-              r
+              # check file existence, avoiding using of deprecated fs.exists
+              # this check is needed because requirejs file existence error is not catchable in nodejs environment
+              Future.call(fs.stat, 'conf/css-to-group-generated.js').catch ->
+                # dirty workaround for the edge case when index.html is rendered in cordjs builder environment
+                Future.call(fs.stat, 'target/conf/css-to-group-generated.js')
+              .then -> true
+              .catch -> false
             .then (exists) ->
               if exists
                 Future.require('../conf/css-to-group-generated')
