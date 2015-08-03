@@ -50,7 +50,11 @@ define [
     Returns first line without Console.js from the current call stack-trace.
     @return {String|undefined}
     ###
-    lines = (new Error).stack.split(splitSeparator).slice(1)
+    try
+      throw new Error()
+    catch e
+      error = e
+    lines = error.stack.split(splitSeparator).slice(1)
     _.find lines, (x) ->
       x.indexOf('/cord/core/Console.js') == -1
 

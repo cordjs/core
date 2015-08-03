@@ -59,7 +59,11 @@ define [
       @_name = name
 
       if longStackTraceEnabled
-        @_stack = (new Error).stack
+        try
+          throw new Error()
+        catch e
+          error = e
+        @_stack = error.stack
         # defining 'parent' promise as a promise whose `then` callback execution created this promise
         # used to construct beautiful long stack trace
         @_parent = currentContextPromise  if currentContextPromise
