@@ -196,7 +196,7 @@ define [
               previousProcess.showPromise.clear()
 
             # Clear previous root widget
-            widgetRepo = serviceContainer.getService('widgetRepo').then (widgetRepo) ->
+            serviceContainer.getService('widgetRepo').then (widgetRepo) ->
               if widgetRepo.getRootWidget()
                 widgetRepo.dropWidget widgetRepo.getRootWidget().ctx.id
 
