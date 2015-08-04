@@ -36,7 +36,7 @@ define [
 
       for key, value of initCtx
         if dustPlugins[key] != undefined
-          throw new Error("You can not use \"#{name}\" as context parameter name")
+          throw new Error("You can not use \"#{key}\" as context parameter name")
         @[key] = value
         @_initDeferredDebug(key)  if value == ':deferred' and deferredTrackingEnabled
 
