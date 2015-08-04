@@ -236,6 +236,7 @@ define [
     getCurrentPath: (serviceContainer) ->
       ###
       Returns current path
+      @param {ServiceContainer} serviceContainer
       @return String
       ###
       serviceContainer.get('serverRequest').url

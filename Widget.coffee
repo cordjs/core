@@ -249,6 +249,9 @@ define [
       @_initialized = this
 
 
+    init: _.noop
+
+
     constructor: (params) ->
       ###
       Constructor
