@@ -191,15 +191,16 @@ define [
               """
 
 
-          eventEmitter.once 'fallback', (args) =>
+          eventEmitter.once 'fallback', (args) ->
             if previousProcess.showPromise
               previousProcess.showPromise.clear()
 
             # Clear previous root widget
-            if widgetRepo.getRootWidget()
-              widgetRepo.dropWidget widgetRepo.getRootWidget().ctx.id
+            widgetRepo = serviceContainer.getService('widgetRepo').then (widgetRepo) ->
+              if widgetRepo.getRootWidget()
+                widgetRepo.dropWidget widgetRepo.getRootWidget().ctx.id
 
-            processWidget(args.widgetPath, args.params)
+              processWidget(args.widgetPath, args.params)
 
           if rootWidgetPath?
             processWidget rootWidgetPath, params
