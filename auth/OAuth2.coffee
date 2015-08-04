@@ -304,7 +304,7 @@ define [
               result = err.response.body
               if result.error # this means that refresh token is outdated
                 if result.error == 'invalid_client' # retries are helpless
-                  throw new Error("Invalid clientId or clientSecret #{result}")
+                  throw new Error("Invalid clientId or clientSecret #{JSON.stringify(result)}")
                 else if result.error = 'invalid_grant' # go to login
                   throw new cordErrors.AuthError("Unable to get access token by refresh token #{JSON.stringify(result)}")
 

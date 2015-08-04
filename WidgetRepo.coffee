@@ -101,6 +101,7 @@ define [
             @serviceContainer.injectServices(widget)
             injectRouterPromise
           ]
+          .then -> widget.init()
           .then -> widget
         .catch (err) =>
           @dropWidget(widget.ctx.id)
