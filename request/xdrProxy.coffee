@@ -40,8 +40,8 @@ define [
 
     options =
       method: req.method ? 'GET'
-      hostname: proxyUrl.hostname ? nodeConfig.api.backend.host
-      port: proxyUrl.port
+      hostname: proxyUrl.hostname ? nodeConfig.api.backend.host.split(':')[0]
+      port: proxyUrl.port ? nodeConfig.api.backend.host.split(':')?[1]
       path: proxyUrl.path
       headers: headers
       rejectUnauthorized: false
