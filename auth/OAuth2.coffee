@@ -306,10 +306,10 @@ define [
                 if result.error == 'invalid_client' # retries are helpless
                   throw new Error("Invalid clientId or clientSecret #{result}")
                 else if result.error = 'invalid_grant' # go to login
-                  throw new cordErrors.AuthError("Unable to get access token by refresh token #{result}")
+                  throw new cordErrors.AuthError("Unable to get access token by refresh token #{JSON.stringify(result)}")
 
             if retries > 0
-              @logger.warn('Error while refreshing oauth token! Will retry after pause... Error:', err)
+              @logger.warn('Error while refreshing oauth token! Will retry after pause... Error:', JSON.stringify(err))
               Future.timeout(500).then =>
                 @_refreshTokenRequestPromise = null
                 @grantAccessTokenByRefreshToken(refreshToken, scope, retries - 1)
