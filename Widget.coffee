@@ -750,7 +750,6 @@ define [
             @constructor._rawStructPromise = predefinedEmptyRawStructPromise
             @_structTemplate = StructureTemplate.emptyTemplate()
           @_structTemplate
-        .failAloud()
 
 
     inject: (params, commonExistingWidget, transition) ->
