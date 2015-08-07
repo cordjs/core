@@ -1627,7 +1627,8 @@ define [
       behaviourClass = @getBehaviourClass()
 
       if behaviourClass
-        Future.require("cord!/#{ @getDir() }/#{ behaviourClass }", 'cord!Behaviour').bind(this).spread (BehaviourClass, Behaviour) ->
+        behaviourClass = "/#{ @getDir() }/#{ behaviourClass }" if behaviourClass.indexOf('/') == -1 # if not absolute path
+        Future.require("cord!#{ behaviourClass }", 'cord!Behaviour').bind(this).spread (BehaviourClass, Behaviour) ->
           if not @_sentenced
             # TODO: move this check to the build phase
             if BehaviourClass.prototype instanceof Behaviour
