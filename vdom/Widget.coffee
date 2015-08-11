@@ -1,13 +1,13 @@
 define [
   'cord!css/browserManager'
-  'cord!css/helper'
   'cord!utils/Future'
+  'cord!vdom/vhyperscript/h'
   'cord!vdom/vstringify/stringify'
   'cord!vdom/vtree/diff'
   'cord!vdom/vtree/vtree'
   'cord!vdom/vtree/utils'
   'underscore'
-], (cssManager, cssHelper, Promise, stringify, diff, vtree, vtreeUtils, _) ->
+], (cssManager, Promise, h, stringify, diff, vtree, vtreeUtils, _) ->
 
   class Widget
 
@@ -143,9 +143,9 @@ define [
       calc = {}
       @onRender?(calc)
 
-      @constructor.getTemplate().bind(this).then (renderFn) ->
-        renderFn(@props, @state, calc)
-      .then (vnode) ->
+      renderResult = @constructor.__render(@props, @state, calc)
+      renderResult = Promise.resolved(renderResult)  if not (renderResult instanceof Promise)
+      renderResult.bind(this).then (vnode) ->
         vnode.properties.id = @id
         vnode
 
@@ -259,18 +259,8 @@ define [
 
     ## static methods ##
 
-    @getTemplate: ->
-      ###
-      Loads, caches and returns widget's vDom template function.
-      Avoids redundant using of requirejs which causes slow setTimeout calls for async.
-      @static
-      @return {Promise.<function>}
-      ###
-      if not @_cachedTemplatePromise
-        vdomTmplFile = "bundles/#{ @relativeDirPath }/#{ @dirName }.vdom"
-        @_cachedTemplatePromise = Promise.require(vdomTmplFile)
-      @_cachedTemplatePromise
-
+    # used but the virtual-dom hyperscript template injected by the cordjs builder
+    @h: h
 
     # @see `_initType` method
     @_initialized: false
@@ -320,11 +310,11 @@ define [
       @return {Array.<string>}
       ###
       result = []
-      if @css?
-        if _.isArray(@css)
-          result.push(cssHelper.expandPath(css, this))  for css in @css
-        else if @css
-          result.push(cssHelper.expandPath(@dirName, this))
+      if @__cssInfo.deps and _.isArray(@__cssInfo.deps)
+        for cssUrl in @__cssInfo.deps
+          cssUrl += '.css'  if cssUrl.substr(-4) != '.css'
+          cssUrl = cssUrl.slice(1)  if global.config.localFsMode
+          result.push(cssUrl)
       result
 
 
