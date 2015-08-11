@@ -102,8 +102,9 @@ define ->
       ###
       bundleDir = 'bundles'
       start = path.indexOf bundleDir
-      end = path.indexOf '/widgets'
-      end = path.indexOf '/assets' if end == -1
+      end = path.indexOf '/widgets/'
+      end = path.indexOf '/assets/' if end == -1
+      end = path.indexOf '/css/' if end == -1
       if start != -1 and end != -1 and start < end
         path.slice(start + bundleDir.length, end)
       else
