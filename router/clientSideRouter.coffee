@@ -20,10 +20,10 @@ define [
     constructor: ->
       super
 
-      @_noPageReload = historySupport or global.config.localFsMode
+      @_noPageReload = historySupport or global.config?.localFsMode
 
       # save current path
-      @_currentPath = if global.config.localFsMode then '/' else @getActualPath()
+      @_currentPath = if global.config?.localFsMode then '/' else @getActualPath()
 
       @_initHistoryNavigate() if historySupport
       @_initLinkClickHook() if @_noPageReload
@@ -153,7 +153,7 @@ define [
       Extracts current actual path from the window.location
       @return String
       ###
-      if global.config.localFsMode
+      if global.config?.localFsMode
         # in local environment window.location doesn't make sence
         if (pos = @_currentPath.indexOf('?')) > -1
           @_currentPath.slice(0, pos)

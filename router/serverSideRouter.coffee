@@ -3,7 +3,6 @@ define [
   'cord!errors'
   'cord!router/Router'
   'cord!ServiceContainer'
-  'cord!WidgetRepo'
   'cord!Utils'
   'cord!utils/DomInfo'
   'cord!utils/Future'
@@ -14,20 +13,21 @@ define [
   'lodash'
   'url'
   'monologue' + (if CORD_IS_BROWSER then '' else '.js')
-], (AppConfigLoader, errors, Router, ServiceContainer, WidgetRepo, Utils, DomInfo, Future, pr, sha1, fs, mkdirp, _, url, Monologue) ->
+], (AppConfigLoader, errors, Router, ServiceContainer, Utils, DomInfo, Future, pr, sha1, fs, mkdirp, _, url, Monologue) ->
 
   class ServerSideFallback
 
-    constructor: (@eventEmitter, @router) ->
+    constructor: (@eventEmitter, @serviceContainer, @logger, @router) ->
 
 
     defaultFallback: ->
       # If we don't need to push params into fallback widget, use default, defined in fallbackRoutes
-      routeInfo = @router.matchFallbackRoute(@router.getCurrentPath())
+      currentPath = @router.getCurrentPath(@serviceContainer)
+      routeInfo = @router.matchFallbackRoute(currentPath)
       if routeInfo?.route?.widget?
         @fallback(routeInfo.route.widget, routeInfo.route.params)
       else
-        _console.warn('defaultFallback route was not found for', @router.getCurrentPath())
+        @logger.warn('defaultFallback route was not found for', @router.getCurrentPath())
 
 
     fallback: (widgetPath, params) ->
@@ -43,8 +43,6 @@ define [
     process: (req, res, fallback = false) ->
       path = url.parse(req.url, true)
 
-      @_currentPath = req.url
-
       routeInfo = pr.call(this, 'matchRoute', path.pathname + path.search) # timer name is constructed automatically
 
       if routeInfo
@@ -55,20 +53,18 @@ define [
         params = _.extend(path.query, routeInfo.params)
 
         serviceContainer = new ServiceContainer
-        serviceContainer.set 'container', serviceContainer
-
+        serviceContainer.set 'serviceContainer', serviceContainer
         serviceContainer.set 'serverRequest', req
         serviceContainer.set 'serverResponse', res
-
         serviceContainer.set 'router', this
+
+        logger = serviceContainer.get('logger')
 
         # Prepare configs for particular request
         appConfig = @prepareConfigForRequest(req)
 
         # monologue to debug mode
         Monologue.debug = true if global.config.debug.monologue != undefined and global.config.debug.monologue
-
-        widgetRepo = new WidgetRepo(serverProfilerUid)
 
         clear = =>
           ###
@@ -77,7 +73,6 @@ define [
           if serviceContainer?
             serviceContainer.clearServices()
             serviceContainer = null
-          widgetRepo = null
 
         config = appConfig.node
         global.config = config
@@ -99,20 +94,14 @@ define [
                 @redirect("/#{loginUrl}/?back=#{if request.url.indexOf(logoutUrl) >= 0 then '' else request.url}", response)
                 clear()
             .catch (error) ->
-              _console.error('Unable to obtain loginUrl or logoutUrl, please, check configs:' + error.trace())
+              logger.error('Unable to obtain loginUrl or logoutUrl, please, check configs:' + error.trace())
 
           false
-
-        serviceContainer.set 'widgetRepo', widgetRepo
-        widgetRepo.setServiceContainer(serviceContainer)
-
-        widgetRepo.setRequest(req)
-        widgetRepo.setResponse(res)
 
         res.setHeader('x-info', config.static.release) if config.static.release?
 
         eventEmitter = new @EventEmitter()
-        fallback = new ServerSideFallback(eventEmitter, this)
+        fallback = new ServerSideFallback(eventEmitter, serviceContainer, logger, this)
 
         serviceContainer.set 'fallback', fallback
 
@@ -141,7 +130,17 @@ define [
               else
                 processNext.resolve()
 
-              processNext.then =>
+              widgetRepoPromise = serviceContainer.getService('widgetRepo').then (widgetRepo) ->
+                widgetRepo.setServerProfilerUid serverProfilerUid
+                widgetRepo.setRequest(req)
+                widgetRepo.setResponse(res)
+                widgetRepo
+
+              Future.all [
+                widgetRepoPromise
+                processNext
+              ]
+              .spread (widgetRepo) =>
                 widgetRepo.createWidget(rootWidgetPath).then (rootWidget) ->
                   if widgetRepo
                     rootWidget._isExtended = true
@@ -164,14 +163,14 @@ define [
                       Utils.buildErrorWidgetParams(err, rootWidgetPath, params)
                       false
                     ).catch (nestedErr) =>
-                      _console.error('Error handling failed because of: ', nestedErr, nestedErr.stack)
-                      _console.error('Original error: ', err, err.stack)
+                      logger.error('Error handling failed because of: ', nestedErr, nestedErr.stack)
+                      logger.error('Original error: ', err, err.stack)
                       throw nestedErr
                   else
                     throw err
                 .catchIf (-> catchError), (err) ->
                   if not (err instanceof errors.AutoAuthError) # bypass  AutoAuthErrors
-                    _console.error "FATAL ERROR: server-side rendering failed! Reason:", err, err.stack
+                    logger.error "FATAL ERROR: server-side rendering failed! Reason:", err, err.stack
                     displayFatalError()
                 .finally ->
                   clear()
@@ -183,7 +182,7 @@ define [
             Future.call(fs.readFile, fatalErrorPageFile, 'utf8').then (data) ->
               res.end(data)
             .catch (err) ->
-              _console.error "Error while reading fatal error page html: #{err}. Falling back to the inline version.", err
+              logger.error "Error while reading fatal error page html: #{err}. Falling back to the inline version.", err
               res.end """
                 <html>
                   <head><title>Error 500</title></head>
@@ -192,15 +191,16 @@ define [
               """
 
 
-          eventEmitter.once 'fallback', (args) =>
+          eventEmitter.once 'fallback', (args) ->
             if previousProcess.showPromise
               previousProcess.showPromise.clear()
 
             # Clear previous root widget
-            if widgetRepo.getRootWidget()
-              widgetRepo.dropWidget widgetRepo.getRootWidget().ctx.id
+            serviceContainer.getService('widgetRepo').then (widgetRepo) ->
+              if widgetRepo.getRootWidget()
+                widgetRepo.dropWidget widgetRepo.getRootWidget().ctx.id
 
-            processWidget(args.widgetPath, args.params)
+              processWidget(args.widgetPath, args.params)
 
           if rootWidgetPath?
             processWidget rootWidgetPath, params
@@ -232,6 +232,15 @@ define [
           "Pragma": "no-cache"
           "Expires": 0
         response.end()
+
+
+    getCurrentPath: (serviceContainer) ->
+      ###
+      Returns current path
+      @param {ServiceContainer} serviceContainer
+      @return String
+      ###
+      serviceContainer.get('serverRequest').url
 
 
     _initProfilerDump: ->

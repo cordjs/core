@@ -46,10 +46,11 @@ define [
     _initPromise: null
 
 
-    constructor: (widget, $domRoot) ->
+    constructor: (widget, @logger, $domRoot) ->
       ###
-      @param Widget widget
-      @param (optional)jQuery $domRoot prepared root element of the widget or of some widget's parent
+      @param {Widget} widget
+      @param {Logger} @logger
+      @param (optional) {jQuery} $domRoot prepared root element of the widget or of some widget's parent
       ###
       @_widgetSubscriptions = []
       @_modelBindings = {}
@@ -106,20 +107,24 @@ define [
 
       @_callbacks = []
 
-      if @show?
-        @addPromise(
-          Future.all [
-            @widget.shown()
-            @_initPromise
-          ]
-          .then => @show()
-        )
+      @addPromise(
+        Future.all [
+          @widget.shown()
+          @_initPromise
+        ]
+        .then => @show()
+      )
+
+      return
 
 
     init: ->
 
 
     destroy: ->
+
+
+    show: ->
 
 
     $: (selector) ->
@@ -317,7 +322,7 @@ define [
           try
             m.apply(that, origArgs) if that.widget and not that.widget.isSentenced()
           catch err
-            _console.error "Error in DOM event handler #{that.debug(eventDesc)}: #{err}", err
+            that.logger.error "Error in DOM event handler #{that.debug(eventDesc)}: #{err}", err
         true
 
 
@@ -343,7 +348,7 @@ define [
             try
               m.apply(that, origArgs)
             catch err
-              _console.error "Error in widget event handler #{that.debug(fieldName)}: #{err}", err
+              that.logger.error "Error in widget event handler #{that.debug(fieldName)}: #{err}", err
 
 
     _registerModelBinding: (value, fieldName, onChangeMethod) ->
@@ -440,6 +445,7 @@ define [
         # renderTemplate will clean this behaviour, so we must save links...
         widget = @widget
         $rootEl = @el
+        that = this
         domInfo = new DomInfo(@debug('render'))
         # harakiri: this is need to avoid interference of subsequent async calls of the @render() for the same widget
         widget._cleanBehaviour()
@@ -456,7 +462,7 @@ define [
             if $rootEl.parent().length > 0
               DomHelper.replace($rootEl, $newWidgetRoot)
             else
-              _console.warn('Parent element was not found in DOM (probably was removed manualy)', $rootEl)
+              that.logger.warn('Parent element was not found in DOM (probably was removed manualy)', $rootEl)
           .then ->
             domInfo.markShown()
             widget.markShown()
@@ -591,10 +597,6 @@ define [
 
     dropChildWidget: (widget) ->
       @widget.dropChild(widget.ctx.id)
-
-
-    getServiceContainer: ->
-      @widget.getServiceContainer()
 
 
     debug: (method) ->

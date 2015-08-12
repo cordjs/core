@@ -2,7 +2,8 @@ define ['underscore'], (_) ->
 
   class Router
 
-    _currentPath: ''
+    # current url. May be undefined for example for serverSideRouter
+    _currentPath: undefined
     # function that is called when `requireAuth` option is enabled for the matched route
     _authCheckCallback: null
 

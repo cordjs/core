@@ -9,8 +9,7 @@ define [
 
     persistentKey: 'storage.persistent'
 
-    constructor: (storage) ->
-      @storage = storage
+    constructor: (@storage, @logger) ->
       # Max amount of time to waint until reject @getItem and clear localStorage
       # Made this value bigger according to http://calendar.perfplanet.com/2012/is-localstorage-performance-a-problem/
       @_getTimeout = 1000
@@ -136,7 +135,7 @@ define [
             @storage.setItem key, value, ->
               result.resolve()
           catch e
-            _console.error "localStorage::_set(#{ key }) failed!", value, e
+            @logger.error "localStorage::_set(#{ key }) failed!", value, e
             result.reject(e)
         else
           result.reject(e)
@@ -153,7 +152,7 @@ define [
       setTimeout =>
         if result.state() == 'pending'
           @clear()
-          result.reject(new Error("LocalStorage timeouted with key #{key}!"))
+          result.reject(new errors.ItemNotFound("LocalStorage timeouted with key #{key}!"))
       , @_getTimeout
 
       @storage.getItem key, (value) ->
@@ -161,7 +160,7 @@ define [
           if value?
             result.resolve(value)
           else
-            result.reject(new Error("Key '#{key}' doesn't exists in the local storage!"))
+            result.reject(new errors.ItemNotFound("Key '#{key}' doesn't exists in the local storage!"))
 
       result
 
@@ -234,7 +233,7 @@ define [
       ###
       Очищает ключ в кэше, одновременно очищая его вариант без сууфикса ':info'
       ###
-      _console.assertLazy "Local storage key (#{key}) should end up with \":info\"", ->
+      @logger.assertLazy "Local storage key (#{key}) should end up with \":info\"", ->
         key.slice(-5) == ':info'
 
       Promise.all [

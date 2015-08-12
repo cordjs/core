@@ -35,23 +35,12 @@ define [
   predefinedEmptyRawStructPromise = Future.resolved({})
 
 
-  # low-level widget debug logging function
-  widgetTrace =
-    if global.config?.debug.widget
-      (args...) -> _console.log.apply(_console, args)
-    else
-      _.noop
-
-
   class Widget extends Module
     @include Monologue.prototype
 
 
     # widget repository
     widgetRepo = null
-
-    # service container
-    container = null
 
     # widget context
     ctx: null
@@ -113,6 +102,14 @@ define [
     _eventCursors: null
 
 
+    # low-level widget debug logging function
+    widgetTrace:
+      if global.config?.debug.widget
+        (args...) -> @logger.log.apply(@logger, args)
+      else
+        _.noop
+
+
     @_initParamRules: ->
       ###
       Prepares rules for handling incoming params of the widget.
@@ -147,7 +144,7 @@ define [
             else if info == ':ignore'
               rule.type = ':ignore'
             else
-              throw "Invalid special string value for param '#{ param }': #{ info }!"
+              throw new Error("Invalid special string value for param '#{ param }': #{ info }!")
           else
             rule.type = ':callback'
             handleStringCallback(rule, info)
@@ -252,6 +249,9 @@ define [
       @_initialized = this
 
 
+    init: _.noop
+
+
     constructor: (params) ->
       ###
       Constructor
@@ -267,6 +267,7 @@ define [
 
       @param (optional)Object params custom params, accepted by widget
       ###
+      @logger = params.logger
       @constructor._init(params.restoreMode) if @constructor._initialized != @constructor # detects widget inheritance
 
       @_modelBindings = {}
@@ -274,14 +275,14 @@ define [
       @_eventCursors = {}
       compileMode = false
       if params?
+        @serviceContainer = params.serviceContainer if params.serviceContainer?
         if params.context?
           if params.context instanceof Context
             @ctx = params.context
           else
-            @ctx = new Context(params.context)
+            @ctx = new Context(@logger, params.context)
           @ctx.setOwnerWidget(this)
         @setRepo params.repo if params.repo?
-        @setServiceContainer params.serviceContainer if params.serviceContainer?
         compileMode = params.compileMode if params.compileMode?
         @_isExtended = params.extended if params.extended?
         if params.modelBindings?
@@ -305,7 +306,7 @@ define [
             @constructor.initialCtx()
           else
             Utils.cloneLevel2(@constructor.initialCtx)
-        @ctx = new Context(id, initial)
+        @ctx = new Context(@logger, id, initial)
         @ctx.setOwnerWidget(this)
 
       if isBrowser
@@ -479,14 +480,6 @@ define [
       @widgetRepo = repo
 
 
-    setServiceContainer: (serviceContainer) ->
-      @container = serviceContainer
-
-
-    getServiceContainer: ->
-      @container
-
-
     _registerModelBinding: (name, value) ->
       ###
       Handles situation when widget's incoming param is model of collection.
@@ -603,7 +596,7 @@ define [
       @synchronous
       @throws validation errors
       ###
-      widgetTrace "#{ @debug 'setParams' } -> ", params
+      @widgetTrace "#{ @debug 'setParams' } -> ", params
       if @constructor.params?
         rules = @constructor._paramRules
         processedRules = {}
@@ -637,7 +630,7 @@ define [
             throw new Error("Widget #{ @getPath() } is not accepting param with name #{ name }!")
       else
         for key in params
-          _console.warn "#{ @debug() } doesn't accept any params, '#{ key }' given!"
+          @logger.warn "#{ @debug() } doesn't accept any params, '#{ key }' given!"
       return
 
 
@@ -664,8 +657,8 @@ define [
       @final
       @return Future(String)
       ###
-      @setParamsSafe(params).bind(this).then ->
-        widgetTrace "#{ @debug 'show' } -> params:", params, " context:", @ctx
+      @setParamsSafe(params).bind(this).then =>
+        @widgetTrace "#{ @debug 'show' } -> params:", params, " context:", @ctx
         @_handleOnShow()
       .then ->
         @renderTemplate(domInfo)
@@ -761,7 +754,7 @@ define [
       @param {PageTransition} transition
       @return {Future[Widget]} common base widget found in extend-tree
       ###
-      widgetTrace "#{ @debug 'inject' }", params
+      @widgetTrace "#{ @debug 'inject' }", params
 
       @setParamsSafe(params).bind(this).then ->
         Future.all([@getStructTemplate(), @_handleOnShow()])
@@ -825,7 +818,7 @@ define [
       @param DomInfo domInfo DOM creating and inserting promise container
       @return Future(String)
       ###
-      widgetTrace @debug('renderTemplate')
+      @widgetTrace @debug('renderTemplate')
 
       @_resetWidgetReady() # allowing to call browserInit() after template re-render is reasonable
       @_behaviourContextBorderVersion = null
@@ -855,7 +848,7 @@ define [
       @param DomInfo domInfo DOM creating and inserting promise container
       @return Future(String)
       ###
-      widgetTrace @debug('_renderSelfTemplate')
+      @widgetTrace @debug('_renderSelfTemplate')
       tmplPath = @getTemplatePath()
       templateLoader.loadWidgetTemplate(tmplPath).then =>
         @markRenderStarted('_renderSelfTemplate')
@@ -874,9 +867,9 @@ define [
       Render any Additional template, belonging to this widget
       @param String templateName - additional template file name without extensions, e.g. 'secondTemplate'
       @param Object simpleContext - context object
-      @return Future() resolves with rendered content
+      @return Future[String] resolves with rendered content
       ###
-      tmplPath = @getTemplatePath()
+      tmplPath = @constructor.path
       templateLoader.loadAdditionalTemplate(tmplPath, templateName).then =>
         context = @getBaseContext()
         context = context.push(aContext) for aContext in simpleContext
@@ -892,7 +885,7 @@ define [
       @param Map[String -> Any] params map of it's params with values with unresolved references to the parent's context
       @return Future[String -> Any] resolved params
       ###
-      params = _.clone(params) # this is necessary to avoid corruption of original structure template params
+      params = _.clone(params)
 
       # removing special params
       delete params.placeholder
@@ -901,49 +894,37 @@ define [
       delete params.name
       delete params.timeout
 
-      result = new Future(@debug('resolveParamRefs'))
+      promises = []
 
-      bindings = {}
+      @childBindings[widget.ctx.id] ?= {}
 
-      # waiting for parent's necessary context-variables availability before rendering widget...
-      for name, value of params
-        if name != 'name' and name != 'type'
+      # we should wait for all deferred context params here
+      for name, value of params when typeof value == 'string' and value.charAt(0) == '^'
+        ctxName = value.slice(1) # cut leading ^
+        @childBindings[widget.ctx.id][ctxName] = name
+        do (name, ctxName) =>
+          # We can not use @ctx.getPromise() method of non-deferred context values,
+          # because context could contains Promise as a value (to pass Promise between widgets),
+          # so, we should have a two-way handling. But for DRY we use this helper function
+          _resolvedValueHandler = (resolvedValue) =>
+            params[name] = resolvedValue
+            @widgetRepo.subscribePushBinding(@ctx.id, ctxName, widget, name, @ctx.getVersion()) if isBrowser
+            return # avoid possible Future result of .subscribePushBinding
+          if @ctx.isDeferred(ctxName)
+            promises.push @ctx.getPromise(ctxName).then(_resolvedValueHandler)
+          else
+            _resolvedValueHandler(@ctx[ctxName])
 
-          if typeof value is 'string' and value.charAt(0) == '^'
-            value = value.slice(1) # cut leading ^
-            bindings[value] = name
-
-            # if context value is deferred, than waiting asynchronously...
-            if @ctx.isDeferred(value)
-              do (name, value) =>
-                @ctx.getPromise(value).then (resolvedValue) =>
-                  params[name] = resolvedValue
-                  @widgetRepo.subscribePushBinding(@ctx.id, value, widget, name, @ctx.getVersion()) if isBrowser
-                  return # avoid possible Future result of .subscribePushBinding
-                .link(result)
-
-            # otherwise just getting it's value synchronously
-            else
-              # param with name "params" is a special case and we should expand the value as key-value pairs
-              # of widget's params
-              if name == 'params'
-                if _.isObject @ctx[value]
-                  for subName, subValue of @ctx[value]
-                    params[subName] = subValue
-                  @widgetRepo.subscribePushBinding(@ctx.id, value, widget, 'params', @ctx.getVersion()) if isBrowser
-                else
-                  # todo: warning?
-              else
-                params[name] = @ctx[value]
-                @widgetRepo.subscribePushBinding(@ctx.id, value, widget, name, @ctx.getVersion()) if isBrowser
-          else if name == 'params' and _.isObject(value)
-            params[subName] = subValue for subName, subValue of value
+      Future.all(promises).then =>
+        if params.params and _.isObject(params.params)
+          # deep resolve nested params
+          @resolveParamRefs(widget, params.params).then (resolvedNestedParams) ->
             delete params.params
-
-      if Object.keys(bindings).length != 0
-        @childBindings[widget.ctx.id] = bindings
-
-      result.then -> params
+            # and then inline resolved nested params
+            params[name] = value for name, value of resolvedNestedParams
+            params
+        else
+          params # resolve future with resolved params
 
 
     _renderExtendedTemplate: (tmpl, domInfo) ->
@@ -968,7 +949,7 @@ define [
       @param DomInfo domInfo DOM creating and inserting promise container
       @return Future(String)
       ###
-      widgetTrace "#{ @constructor.__name }::renderInline(#{ inlineName })"
+      @widgetTrace "#{ @constructor.__name }::renderInline(#{ inlineName })"
 
       if @ctx[':inlines'][inlineName]?
         tmplPath = @getDir() + '/' + @ctx[':inlines'][inlineName].template + '.html'
@@ -1274,7 +1255,7 @@ define [
             .catch (err) =>
               if promise.completed()
                 # this check is to catch bug rarely appeared during tests
-                _console.error "Unexpected promise consistency error in #{@debug('_renderPlaceholder')} -> #{widget.debug('show')}: #{err}", err
+                @logger.error "Unexpected promise consistency error in #{@debug('_renderPlaceholder')} -> #{widget.debug('show')}: #{err}", err
               else
                 promise.reject(err)
               return
@@ -1539,7 +1520,7 @@ define [
       if not @_sentenced
         # debugging impossible
         if child == this
-          _console.error "ERROR: Self child binding detected for #{@debug()}! This should be impossible! Ignoring..."
+          @logger.error "ERROR: Self child binding detected for #{@debug()}! This should be impossible! Ignoring..."
           return
 
         # check if this is duplicate call
@@ -1646,12 +1627,13 @@ define [
       behaviourClass = @getBehaviourClass()
 
       if behaviourClass
-        Future.require("cord!/#{ @getDir() }/#{ behaviourClass }", 'cord!Behaviour').bind(this).spread (BehaviourClass, Behaviour) ->
+        behaviourClass = "/#{ @getDir() }/#{ behaviourClass }" if behaviourClass.indexOf('/') == -1 # if not absolute path
+        Future.require("cord!#{ behaviourClass }", 'cord!Behaviour').bind(this).spread (BehaviourClass, Behaviour) ->
           if not @_sentenced
             # TODO: move this check to the build phase
             if BehaviourClass.prototype instanceof Behaviour
-              @behaviour = savedBehaviour = new BehaviourClass(this, $domRoot)
-              @container.injectServices(@behaviour).bind(this).then ->
+              @behaviour = savedBehaviour = new BehaviourClass(this, @logger, $domRoot)
+              @serviceContainer.injectServices(@behaviour).bind(this).then ->
                 if not @_sentenced
                   @behaviour.init()
                 else
@@ -1666,9 +1648,9 @@ define [
                 throw err
             else
               throw new Error("WRONG BEHAVIOUR CLASS: #{behaviourClass}")
-        .catch (err) ->
+        .catch (err) =>
           if not err.isCordInternal
-            _console.error "#{ @debug 'initBehaviour' } --> error occurred while loading behaviour:", err
+            @logger.error "#{ @debug 'initBehaviour' } --> error occurred while loading behaviour:", err
             postal.publish 'error.notify.publish',
               link: ''
               message: "Ошибка загрузки виджета #{ behaviourClass }. Попробуйте перезагрузить страницу."
@@ -1715,7 +1697,7 @@ define [
       @param (optional)jQuery domRoot injected DOM root for the widget or it's children
       @return Future()
       ###
-      widgetTrace "#{ @debug 'browserInit' }"
+      @widgetTrace "#{ @debug 'browserInit' }"
 
       if not @_browserInitialized and not @_delayedRender and not @_sentenced
         @_browserInitialized = true
@@ -1729,7 +1711,7 @@ define [
             if @childById[widgetId]
               @childById[widgetId].setSubscribedPushBinding(bindingMap)
             else
-              _console.warn "Widget has died, but it was not removed from childBindings",
+              @logger.warn "Widget has died, but it was not removed from childBindings",
                 id: @ctx.id
                 constructorName: @constructor.__name
                 widgetId: widgetId
@@ -1788,9 +1770,9 @@ define [
                 else
                   errorInfo.stuckChildInfo.push childWidget.ready().completed()
                 i++
-              _console.warn "#{ @debug 'incompleteBrowserInit:children!' }", JSON.stringify(errorInfo, null, 2)
+              @logger.warn "#{ @debug 'incompleteBrowserInit:children!' }", JSON.stringify(errorInfo, null, 2)
             else if not savedPromiseForTimeoutCheck.completed()
-              _console.warn "#{ @debug 'incompleteBrowserInit!' } css:#{ savedConstructorCssPromise.completed() } child:#{ childWidgetsReadyPromise.completed() } selfInit:#{ selfInitBehaviour }"
+              @logger.warn "#{ @debug 'incompleteBrowserInit!' } css:#{ savedConstructorCssPromise.completed() } child:#{ childWidgetsReadyPromise.completed() } selfInit:#{ selfInitBehaviour }"
             @_browserInitDebugTimeout = null
           , 5000
       @_widgetReadyPromise
@@ -1853,7 +1835,7 @@ define [
       ###
       This method should be called before dust.render call
       ###
-      widgetTrace @debug("markRenderStarted(#{from})")
+      @widgetTrace @debug("markRenderStarted(#{from})")
       # Widget can be re-rendered, so we should re-create promise on that case
       if @_childWidgetCompletePromise and not @_childWidgetCompletePromise.completed()
         @_childWidgetCompletePromise.fork()
@@ -1870,7 +1852,7 @@ define [
       This method should be called right after dust.render call
       ###
       throw new errors.WidgetSentenced("Widget #{@constructor.__name} is sentenced!") if @isSentenced()
-      widgetTrace @debug("markRenderFinished(#{from}) with counter == "), @_childWidgetCompletePromise._counter
+      @widgetTrace @debug("markRenderFinished(#{from}) with counter == "), @_childWidgetCompletePromise._counter
       @_childWidgetCompletePromise.failOk() # Child widgets breaks dust.render call, so, suppress unnecessary
                                             # double-catch of error
       @_childWidgetCompletePromise.resolve()
@@ -1882,7 +1864,7 @@ define [
       Add another child widget for this widget
       ###
       throw new errors.WidgetSentenced("Widget #{@constructor.__name} is sentenced!") if @isSentenced()
-      widgetTrace @debug("childWidgetAdd(#{type}) with counter == "), @_childWidgetCompletePromise._counter
+      @widgetTrace @debug("childWidgetAdd(#{type}) with counter == "), @_childWidgetCompletePromise._counter
       @_childWidgetCompletePromise.fork()
       return
 
@@ -1892,7 +1874,7 @@ define [
       Marks one of child widgets rendered successfully
       ###
       throw new errors.WidgetSentenced("Widget #{@constructor.__name} is sentenced!") if @isSentenced()
-      widgetTrace @debug("childWidgetComplete(#{type}) with counter == "), @_childWidgetCompletePromise._counter
+      @widgetTrace @debug("childWidgetComplete(#{type}) with counter == "), @_childWidgetCompletePromise._counter
       @_childWidgetCompletePromise.resolve()
       return
 
@@ -1902,7 +1884,7 @@ define [
       Marks one of child widgets fails to render
       ###
       throw new errors.WidgetSentenced("Widget #{@constructor.__name} is sentenced!") if @isSentenced()
-      widgetTrace @debug("childWidgetFailed(#{type}) with counter == "), @_childWidgetCompletePromise._counter
+      @widgetTrace @debug("childWidgetFailed(#{type}) with counter == "), @_childWidgetCompletePromise._counter
       @_childWidgetCompletePromise.reject(error)
       return
 

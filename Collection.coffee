@@ -205,6 +205,7 @@ define [
       @param String name unique name of the collection in the model repository
       @param Object options collection filtering, ordering and field fetching options
       ###
+      @logger = @repo.logger
       @_models = []
       @_byId = {}
       @_filterType = options.filterType ? ':backend'
@@ -610,7 +611,7 @@ define [
       Reloads olny maxPages pages of the collection only if the collection hasn't been refreshed for required interval
       Useful for potentilally huge collections
       ###
-      # _console.log "#{ @repo.restResource } partialRefresh: (startPage=#{startPage}, maxPages=#{maxPages}, minRefreshInterval=#{minRefreshInterval})"
+      # @logger.log "#{ @repo.restResource } partialRefresh: (startPage=#{startPage}, maxPages=#{maxPages}, minRefreshInterval=#{minRefreshInterval})"
       return Future.resolved(this) if @_fixed
 
       startPage = Number(startPage)
@@ -641,7 +642,7 @@ define [
       if currentId and pageSize are defined, refresh will start from page, containing the currentId model, going up and down
       ###
 
-      #_console.log "#{ @repo.restResource } refresh: (currentId=#{currentId}, emitModelChangeExcept=#{emitModelChangeExcept}, maxPages=#{maxPages})"
+      #@logger.log "#{ @repo.restResource } refresh: (currentId=#{currentId}, emitModelChangeExcept=#{emitModelChangeExcept}, maxPages=#{maxPages})"
 
       return Future.resolved(this) if @_fixed
 
@@ -655,11 +656,11 @@ define [
       else
         # Try to catch some architectural errors
         if isNaN(Number(currentId))
-          _console.error('collection.refresh called with wrong parameter currentId', currentId, new Error())
+          @logger.error('collection.refresh called with wrong parameter currentId', currentId, new Error())
           return
 
         if maxPages < 1
-          _console.error('collection.refresh called with wrong parameter maxPages', maxPages, new Error())
+          @logger.error('collection.refresh called with wrong parameter maxPages', maxPages, new Error())
 
         # Collection boundaries
         startPage = Math.floor(@_loadedStart / @_pageSize) + 1
@@ -690,7 +691,7 @@ define [
       ###
       Completely reloads all collection at once
       ###
-      # _console.log '_fullReload'
+      # @logger.log '_fullReload'
       queryParams = @_buildRefreshQueryParams()
       @repo.query queryParams, (models) =>
         @_replaceModelList(models, queryParams.start, queryParams.end)
@@ -702,10 +703,10 @@ define [
       ###
       Simple refreshes few pages one by one
       ###
-      # _console.log "#{ @repo.restResource } _simplePageRefresh: (startPage=#{startPage}, maxPages=#{maxPages}, loadedPages=#{loadedPages}) ->"
+      # @logger.log "#{ @repo.restResource } _simplePageRefresh: (startPage=#{startPage}, maxPages=#{maxPages}, loadedPages=#{loadedPages}) ->"
       if startPage < 1 or maxPages < 1
         error = new Error('collection._simplePageRefresh got bad parameters.')
-        _console.error(error)
+        @logger.error(error)
         Future.rejected(error)
       else
         start = (startPage - 1) * @_pageSize
@@ -721,7 +722,7 @@ define [
 
 
     _sophisticatedRefreshPage: (page, startPage, endPage, maxPages = @_defaultRefreshPages, direction = 'down', loadedPages = 0) ->
-      # _console.log "#{ @repo.restResource } _sophisticatedRefreshPage: (page=#{page}, startPage=#{startPage}, endPage=#{endPage}, maxPages=#{maxPages}, direction=#{direction}, loadedPages=#{loadedPages})"
+      # @logger.log "#{ @repo.restResource } _sophisticatedRefreshPage: (page=#{page}, startPage=#{startPage}, endPage=#{endPage}, maxPages=#{maxPages}, direction=#{direction}, loadedPages=#{loadedPages})"
 
       start = (page - 1) * @_pageSize
       end = page * @_pageSize - 1
@@ -756,7 +757,7 @@ define [
           @_refreshReachedTop = false
           @_refreshReachedBottom = false
           @_refreshInProgress = false
-          _console.error('collection._sophisticatedRefreshPage _enqueueQuery error: ', message)
+          @logger.error('collection._sophisticatedRefreshPage _enqueueQuery error: ', message)
       else
         # total flush
         @_topPage = 0
@@ -1351,7 +1352,7 @@ define [
           @_queryQueue.loadingEnd = end = undefined
 
       if ( not end? || (end - start > 5000) ) && not @_id && not @repo._debugCanDoUnlimit
-        _console.warn 'ACHTUNG!!! Me bumped into unlimited query: end =', end, 'start =', start, @repo.restResource
+        @logger.warn 'ACHTUNG!!! Me bumped into unlimited query: end =', end, 'start =', start, @repo.restResource
 
       # detecting if there are queries in the queue which already cover required range
       curStart = start
@@ -1432,7 +1433,7 @@ define [
 
           this
 #        .catch (error) =>
-#          _console.error "#{@constructor.__name}::_enqueueQuery() query failed:", error
+#          @logger.error "#{@constructor.__name}::_enqueueQuery() query failed:", error
 #          false
 
         waitForQuery =

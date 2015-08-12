@@ -19,7 +19,6 @@ define [
     widgets: null
     rootWidget: null
 
-    serviceContainer: null
     request: null
     response: null
 
@@ -33,8 +32,15 @@ define [
     # begins from the most specific widget (leaf) and ends with most common (root) which doesn't extend another widget
     _currentExtendList: null
 
+    serverProfilerUid: ''
 
-    constructor: (@serverProfilerUid = '') ->
+    @inject: [
+      'serviceContainer'
+      'logger'
+    ]
+
+
+    constructor: () ->
       @widgets = {}
       @_widgetOrder = []
       @_pushBindings = {}
@@ -42,14 +48,6 @@ define [
       if isBrowser
         @_initPromise = new Future('WidgetRepo::_initPromise')
         @_parentPromises = {}
-
-
-    setServiceContainer: (serviceContainer) ->
-      @serviceContainer = serviceContainer
-
-
-    getServiceContainer: ->
-      @serviceContainer
 
 
     setRequest: (request) ->
@@ -93,6 +91,7 @@ define [
           widget = new WidgetClass
             repo: this
             serviceContainer: @serviceContainer
+            logger: @logger
 
           if widget.getPath() == '/cord/core//Switcher' and contextBundle?
             widget._contextBundle = contextBundle
@@ -111,6 +110,7 @@ define [
               @serviceContainer.injectServices(widget)
               injectRouterPromise
             ]
+            .then -> widget.init()
             .then -> widget
           .catch (err) =>
             @dropWidget(widget.ctx.id)
@@ -124,7 +124,7 @@ define [
         info.widget = null
         delete @widgets[id]
       else
-        _console.warn "Trying to drop unknown widget with id = #{ id }"
+        @logger.warn "Trying to drop unknown widget with id = #{ id }"
 
 
     registerParent: (childWidget, parentWidget) ->
@@ -184,13 +184,13 @@ define [
 
       if gcIds.length
         @_gcTimeout = setTimeout =>
-          _console.warn "GC widgets for widget", root, gcIds.map (id) =>
+          @logger.warn "GC widgets for widget", root, gcIds.map (id) =>
             if @widgets[id]
               # debugging very bad situation when wrong widget is going to be dropped
               if @widgets[id].widget.constructor.__name in ['Main', 'Base']
-                _console.error "<<<<<< Going to kill Main! >>>>>"
-                _console.log 'extend list', @_currentExtendList
-                _console.log 'root children', root.children
+                @logger.error "<<<<<< Going to kill Main! >>>>>"
+                @logger.log 'extend list', @_currentExtendList
+                @logger.log 'root children', root.children
               @widgets[id].widget.debug()
           @dropWidget(id) for id in gcIds when @widgets[id]
           @_gcTimeout = null
@@ -373,6 +373,7 @@ define [
           modelBindings: modelBindings
           extended: isExtended
           restoreMode: true
+          logger: @logger
 
         if @_pushBindings[ctx.id]?
           widget.setSubscribedPushBinding(@_pushBindings[ctx.id])
@@ -386,8 +387,10 @@ define [
         injectRouterPromise = @serviceContainer.getService('router').then (router) ->
           widget.router = router
 
+        injectServicesPromise = @serviceContainer.injectServices(widget)
+
         Future.all [
-          @serviceContainer.injectServices(widget)
+          injectServicesPromise
           injectRouterPromise
         ]
         .link(@_parentPromises[ctx.id]).then =>
@@ -489,7 +492,7 @@ define [
             else
               params[paramName] = data.value
 
-#            _console.log "#{ envelope.topic } -> #{ childWidget.debug(paramName) } -> #{ data.value }"
+#            @logger.log "#{ envelope.topic } -> #{ childWidget.debug(paramName) } -> #{ data.value }"
             deferAggregator.setWidgetParams childWidget, params
       childWidget.addSubscription subscription
       subscription
@@ -575,7 +578,7 @@ define [
       @return Future
       ###
       if global.config.debug.widget
-        _console.log "WidgetRepo::transitPage -> #{newRootWidgetPath}, current root = #{ @rootWidget.debug() }"
+        @logger.log "WidgetRepo::transitPage -> #{newRootWidgetPath}, current root = #{ @rootWidget.debug() }"
 
       # interrupting previous transition if it's not completed
 #      @_curTransition.interrupt() if @_curTransition? and @_curTransition.isActive()
@@ -725,3 +728,7 @@ define [
                 [[widget].concat(newWidgetsList), commonExistingWidget, commonWidgetName]
             else
               throw new errors.MustReloadPage
+
+
+    setServerProfilerUid: (@serverProfilerUid) ->
+

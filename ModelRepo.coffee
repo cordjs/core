@@ -41,9 +41,10 @@ define [
     _used: false
 
 
-    constructor: (@container) ->
+    constructor: (@serviceContainer) ->
       throw new Error("'model' property should be set for the repository!") if not @model?
 
+      @logger = @serviceContainer.get('logger')
       @_collections = {}
 
       @_collectedTags = {}
@@ -122,7 +123,7 @@ define [
         collection = new CollectionClass(this, name, options)
         @_registerCollection(name, collection)
 
-        @container.injectServices(collection).then =>
+        @serviceContainer.injectServices(collection).then =>
           # We need to reinject tags because some of them could be user-functions
           @_collections[name].injectTags(options.tags)
           collection.browserInit?()  if isBrowser
@@ -360,7 +361,7 @@ define [
               #Assume that collection from backend is always fresh
               collection.updateLastQueryTime()
               @_registerCollection(name, collection)
-              @container.injectServices(collection).then ->
+              @serviceContainer.injectServices(collection).then ->
                 collection.browserInit?()
                 return
       Future.all(promises).then -> undefined
@@ -369,7 +370,7 @@ define [
     # REST related
 
     query: (params, callback) ->
-      if @container
+      if @serviceContainer
         apiParams = {}
         apiParams.reconnect = true if params.reconnect == true
         url = @_buildApiRequestUrl(params)
@@ -529,7 +530,7 @@ define [
       @_collectedTags[tag] = mods
 
       Defer.nextTick =>
-        _console.log('Emit tags:', @_collectedTags) if _.size(@_collectedTags) > 0 and global.config.debug.model
+        @logger.log('Emit tags:', @_collectedTags) if _.size(@_collectedTags) > 0 and global.config.debug.model
         @emit('tags', @_collectedTags) if _.size(@_collectedTags) > 0
         @_collectedTags = {}
 
@@ -743,7 +744,7 @@ define [
     refreshAll: ->
       # Force refreshing all collections
       # Depricated
-      _console.warn('ModelRepo.refreshAll is depricated.')
+      @logger.warn('ModelRepo.refreshAll is depricated.')
       Defer.nextTick =>
         for name, collection of @_collections
           collection.partialRefresh(1, 1, 0)
@@ -765,7 +766,7 @@ define [
       ###
       @_collections = {}
       if isBrowser
-        @container.getService('localStorage').then (storage) =>
+        @serviceContainer.getService('localStorage').then (storage) =>
           storage._invalidateAllCollections(@constructor.__name) #Invalidate All
       else
         Future.resolved()
@@ -781,7 +782,7 @@ define [
           delete @_collections[key]
 
       if isBrowser
-        @container.getService('localStorage').then (storage) =>
+        @serviceContainer.getService('localStorage').then (storage) =>
           storage.invalidateAllCollectionsWithField(@constructor.__name, fieldName)
       else
         Future.resolved()
@@ -844,7 +845,7 @@ define [
       ###
       name = collection.name
       if isBrowser
-        @container.getService('localStorage').then (storage) =>
+        @serviceContainer.getService('localStorage').then (storage) =>
           # prepare models for cache
           models = []
           models[i] = model.toJSON() for model, i in collection.toArray()
@@ -861,8 +862,8 @@ define [
           ]
           .then ->
             true
-          .catch (err) ->
-            _console.error "#{@constructor.__name}::cacheCollection() failed:", err
+          .catch (err) =>
+            @logger.error "#{@constructor.__name}::cacheCollection() failed:", err
             false
       else
         Future.resolved(false)
@@ -870,7 +871,7 @@ define [
 
     cutCachedCollection: (collection, loadedStart, loadedEnd) ->
       if isBrowser
-        @container.getService('localStorage').then (storage) =>
+        @serviceContainer.getService('localStorage').then (storage) =>
           storage.saveCollectionInfo @constructor.__name, collection.name, null,
             totalCount: collection._totalCount
             start: loadedStart
@@ -882,7 +883,7 @@ define [
 
     getCachedCollectionInfo: (name) ->
       if isBrowser
-        @container.getService('localStorage').then (storage) =>
+        @serviceContainer.getService('localStorage').then (storage) =>
           storage.getCollectionInfo(@constructor.__name, name)
       else
         Future.rejected(new Error('ModelRepo::getCachedCollectionInfo is not applicable on server-side!'))
@@ -890,7 +891,7 @@ define [
 
     getCachedCollectionModels: (name) ->
       if isBrowser
-        @container.getService('localStorage').then (storage) =>
+        @serviceContainer.getService('localStorage').then (storage) =>
           storage.getCollection(@constructor.__name, name)
         .then (models) =>
           result = []
@@ -903,7 +904,7 @@ define [
 
     invalidateCollectionCache: (name) ->
       if isBrowser
-        @container.getService('localStorage').then (storage) =>
+        @serviceContainer.getService('localStorage').then (storage) =>
           storage.invalidateCollection(@constructor.__name, name)
       else
         Future.rejected(new Error('ModelRepo::invalidateCollectionCache is not applicable on server-side!'))

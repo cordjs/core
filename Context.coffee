@@ -5,10 +5,9 @@ define [
   'asap/raw'
   'postal'
   'underscore'
-  'cord!Console'
   'cord!isBrowser'
   'cord!dustPlugins'
-], (Collection, Model, Future, asap, postal, _, _console, isBrowser, dustPlugins) ->
+], (Collection, Model, Future, asap, postal, _, isBrowser, dustPlugins) ->
 
   # support for deferred timeout tracking
   deferredTrackingEnabled = false
@@ -17,8 +16,9 @@ define [
 
   class Context
 
-    constructor: (arg1, arg2) ->
+    constructor: (@logger, arg1, arg2) ->
       ###
+      @param {Logger}
       @param {Object|String} arg1 initial context values or widget ID
       @param (optional) {Object} arg2 initial context values (if first value is ID
       ###
@@ -35,6 +35,8 @@ define [
         initCtx = arg2 if _.isObject(arg2)
 
       for key, value of initCtx
+        if dustPlugins[key] != undefined
+          throw new Error("You can not use \"#{key}\" as context parameter name")
         @[key] = value
         @_initDeferredDebug(key)  if value == ':deferred' and deferredTrackingEnabled
 
@@ -66,14 +68,6 @@ define [
           throw new Error("Invalid argument! Single argument must be key-value pair (object).")
       else
         @_setSingle args[0], args[1]
-
-
-    setSingle: (name, newValue, callbackPromise) ->
-      ###
-      @deprecated Use Context::set() instead
-      ###
-      console.trace 'DEPRECATED WARNING: ctx.setSingle is deprecated, use ctx.set instead!'
-      @_setSingle(name, newValue, callbackPromise)
 
 
     _setSingle: (name, newValue, callbackPromise) ->
@@ -154,7 +148,7 @@ define [
           delete @[':internal'].promises[name]
 
         asap =>
-          _console.log "publish widget.#{ @id }.change.#{ name }" if global.config.debug.widget
+          @logger.log "publish widget.#{ @id }.change.#{ name }" if global.config.debug.widget
           postal.publish "widget.#{ @id }.change.#{ name }",
             name: name
             value: newValue
@@ -255,7 +249,7 @@ define [
           result[key] = null
         else if key == 'i18nHelper' and value.i18nContext? #Save translator context for browser-side
           result[key] = value.i18nContext
-        else if key != ':internal'
+        else if key not in [':internal', 'logger']
           result[key] = value
       result
 
@@ -290,7 +284,7 @@ define [
               obj[key] = value
               return
 
-      Future.all(promises).then => new this(obj)
+      Future.all(promises).then => new Context(ioc.get('logger'), obj)
 
 
     clearDeferredTimeouts: ->
@@ -333,7 +327,7 @@ define [
             elapsed = curTime - info.startTime
             if elapsed > deferredTimeout
               if info.ctx[name] == ':deferred' and not info.ctx._ownerWidget?.isSentenced()
-                _console.warn "### Deferred timeout (#{elapsed / 1000} s) " +
+                info.ctx._ownerWidget?.logger.warn "### Deferred timeout (#{elapsed / 1000} s) " +
                               "for #{info.ctx._ownerWidget?.constructor.__name}(#{id}) <<< ctx.#{name} >>>"
               delete deferredTrackMap[id][name]
               delete deferredTrackMap[id]  if _.isEmpty(deferredTrackMap[id])
