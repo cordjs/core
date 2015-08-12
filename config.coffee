@@ -102,16 +102,16 @@ define  ->
     ## vDOM ##
 
     widgetFactory:
-      deps: ['container']
+      deps: ['serviceContainer']
       factory: (get, done) ->
         require ['cord!vdom/WidgetFactory'], (WidgetFactory) ->
-          get('container').injectServices(new WidgetFactory).finally(done)
+          get('serviceContainer').injectServices(new WidgetFactory).finally(done)
 
     vdomWidgetRepo:
-      deps: ['container']
+      deps: ['serviceContainer']
       factory: (get, done) ->
         require ['cord!vdom/WidgetRepo'], (WidgetRepo) ->
-          get('container').injectServices(new WidgetRepo).finally(done)
+          get('serviceContainer').injectServices(new WidgetRepo).finally(done)
 
     widgetHierarchy:
       factory: (get, done) ->
@@ -119,10 +119,10 @@ define  ->
           done(null, new WidgetRepo)
 
     widgetInitializer:
-      deps: ['container']
+      deps: ['serviceContainer']
       factory: (get, done) ->
         require ['cord!vdom/WidgetInitializer'], (WidgetInitializer) ->
-          get('container').injectServices(new WidgetInitializer).finally(done)
+          get('serviceContainer').injectServices(new WidgetInitializer).finally(done)
 
 
     ':server':
@@ -146,10 +146,10 @@ define  ->
     ':browser':
 
       domPatcher:
-        deps: ['container']
+        deps: ['serviceContainer']
         factory: (get, done) ->
           require ['cord!vdom/vpatch/DomPatcher'], (DomPatcher) ->
-            get('container').injectServices(new DomPatcher).finally(done)
+            get('serviceContainer').injectServices(new DomPatcher).finally(done)
 
       request:
         deps: ['logger']

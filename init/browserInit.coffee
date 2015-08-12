@@ -105,7 +105,6 @@ define [
         $ ->
           cordcorewidgetinitializerbrowser?(widgetInitializer)
 
-
     # Global errors handling
     requirejs.onError = (error) ->
       _console.error 'Error from requirejs: ', error.toString(), 'Error: ', error
@@ -114,21 +113,3 @@ define [
 
     # monologue to debug mode
     Monologue.debug = true if global.config.debug.monologue != undefined and global.config.debug.monologue
-
-
-    widgetRepo = new WidgetRepo(global.cordServerProfilerUid)
-
-    fallback = new ClientFallback(clientSideRouter)
-
-    serviceContainer.set 'fallback', fallback
-    serviceContainer.set 'router', clientSideRouter
-
-    serviceContainer.set('widgetRepo', widgetRepo)
-    widgetRepo.setServiceContainer(serviceContainer)
-
-    clientSideRouter.setWidgetRepo(widgetRepo)
-    $ ->
-      cssManager.registerLoadedCssFiles()
-      configInitFuture.then ->
-        cordcorewidgetinitializerbrowser?(widgetRepo)
-      .failAloud()

@@ -6,7 +6,7 @@ define [
   class WidgetFactory
 
     @inject: [
-      'container'
+      'serviceContainer'
       'vdomWidgetRepo'
       'widgetHierarchy'
     ]
@@ -31,7 +31,7 @@ define [
       bundleSpec = if parentWidget then "@#{ parentWidget.constructor.bundle }" else ''
 
       @_getWidgetClass("#{type}#{bundleSpec}").then (WidgetClass) ->
-        @container.injectServices(new WidgetClass(props: props, slotNodes: slotNodes))
+        @serviceContainer.injectServices(new WidgetClass(props: props, slotNodes: slotNodes))
       .then (widget) ->
         @vdomWidgetRepo.registerWidget(widget)
         @widgetHierarchy.registerChild(parentWidget, widget)  if parentWidget
@@ -61,7 +61,7 @@ define [
       @return {Promise.<Widget>}
       ###
       @_getWidgetClass(type).then (WidgetClass) ->
-        @container.injectServices(new WidgetClass(id: id, props: props, state: state))
+        @serviceContainer.injectServices(new WidgetClass(id: id, props: props, state: state))
       .then (widget) ->
         @vdomWidgetRepo.registerWidget(widget)
         @widgetHierarchy.registerChild(@vdomWidgetRepo.getById(parentId), widget)  if parentId
