@@ -1075,7 +1075,7 @@ define [
             size++
             # Deep compare each member.
             # Ignore properties from b which a does not contain
-            if _.has(b, key) && !(result = @_modelsEq(a[key], b[key]))
+            if not (result = (_.has(b, key) and @_modelsEq(a[key], b[key])))
               break
       result
 
