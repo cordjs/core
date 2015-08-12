@@ -1067,7 +1067,7 @@ define [
               reportArgs = ["Future timed out [#{pr._name}] (#{elapsed / 1000} seconds), counter = #{pr._counter}"]
               reportArgs.push("\n" + filterStack(pr._stack))  if pr._stack
               recCollectLongStackTrace(info.promise, reportArgs)
-              if longStackTraceLogOriginStack
+              if longStackTraceLogOriginStack and info.promise._stack
                   reportArgs.push("\n-------- Origin stack --------")
                   reportArgs.push(info.promise._stack.split("\n").slice(1).join("\n"))
                   reportArgs.push("\n------------------------------")
@@ -1099,7 +1099,7 @@ define [
 
   longStackTraceEnabled = !!global.config?.debug.future.longStackTrace.enable
   longStackTraceAppendName = !!global.config?.debug.future.longStackTrace.appendPromiseName
-  longStackTraceLogOriginStack = !!global.config?.debug.future.longStackTrace.logOriginStack
+  longStackTraceLogOriginStack = longStackTraceEnabled and !!global.config?.debug.future.longStackTrace.logOriginStack
   unhandledTrackingEnabled = !!global.config?.debug.future.trackUnhandled.enable
   unresolvedTrackingEnabled = !!global.config?.debug.future.timeout
   initTimeoutTracker()  if unhandledTrackingEnabled or unresolvedTrackingEnabled
