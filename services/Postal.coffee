@@ -29,13 +29,13 @@ define [
       @param args The same arguments as in Postal.publish
       ###
       if args.length == 1
-        envelope = args
+        envelope = args[0]
       else if args.length == 2
         envelope =
           topic: args[0]
           data: args[1]
 
-      @_addContainerChannel(envelope)
+      envelope = @_addContainerChannel(envelope)
       postal.publish envelope.topic, envelope.data
 
 
@@ -45,7 +45,7 @@ define [
       @param args The same arguments as in Postal.subscribe
       ###
       if args.length == 1
-        envelope = args
+        envelope = args[0]
       else if args.length == 2
         envelope =
           topic: args[0]
