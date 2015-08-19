@@ -191,6 +191,7 @@ define  ->
       'lodash': 'vendor/lodash/lodash'
       'riveter': 'vendor/riveter/riveter'
       'request': 'vendor/browser-request/index'
+      'number.isnan': 'vendor/number.isnan/isnan'
     shim:
       'curly':
         deps: ['underscore']
