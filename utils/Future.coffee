@@ -527,6 +527,8 @@ define [
       @return {Future<Array<Any>>}
       ###
       promise = new Future(name)
+      if not Array.isArray(futureList)
+        return Future.rejected(new Error('Bad argument for Future.all()'))
       result = []
       for f, i in futureList
         do (i) ->
