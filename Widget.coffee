@@ -675,6 +675,17 @@ define [
       )
 
 
+    _getClosestConstructorWithOwnBehaviour: ->
+      @_closestConstructorWithOwnBehaviour ?= (
+        result = @constructor
+        while not result.__hasOwnBehaviour and result != Widget
+          result = result.__super__.constructor
+        if not result.__hasOwnBehaviour
+          throw new Error(@debug('There is no defined behaviour for this widget'))
+        result
+      )
+
+
     getTemplateDir: ->
       @_getClosestConstructorWithOwnTemplate().relativeDirPath
 
@@ -952,7 +963,7 @@ define [
       @widgetTrace "#{ @constructor.__name }::renderInline(#{ inlineName })"
 
       if @ctx[':inlines'][inlineName]?
-        tmplPath = @getDir() + '/' + @ctx[':inlines'][inlineName].template + '.html'
+        tmplPath = @getTemplateDir() + '/' + @ctx[':inlines'][inlineName].template + '.html'
         templateLoader.loadToDust(tmplPath).then =>
           @_saveContextVersionForBehaviourSubscriptions()
           @_domInfo = DomInfo.merge([@_domInfo, domInfo], inlineName + " " + tmplPath)
@@ -1609,7 +1620,9 @@ define [
 
 
     getBehaviourClass: ->
-      @behaviourClass = "#{ @constructor.__name }Behaviour" if not @behaviourClass?
+      if not @behaviourClass?
+        foundBehaviour = @_getClosestConstructorWithOwnBehaviour()
+        @behaviourClass = "/#{foundBehaviour.relativeDirPath}/#{ foundBehaviour.__name }Behaviour"
       if @behaviourClass == false
         null
       else
@@ -1627,7 +1640,7 @@ define [
       behaviourClass = @getBehaviourClass()
 
       if behaviourClass
-        behaviourClass = "/#{ @getDir() }/#{ behaviourClass }" if behaviourClass.indexOf('/') == -1 # if not absolute path
+        behaviourClass = "/#{ @getDir() }/#{ behaviourClass }" if behaviourClass.indexOf?('/') == -1 # if not absolute path
         Future.require("cord!#{ behaviourClass }", 'cord!Behaviour').bind(this).spread (BehaviourClass, Behaviour) ->
           if not @_sentenced
             # TODO: move this check to the build phase
