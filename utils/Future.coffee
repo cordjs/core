@@ -29,46 +29,49 @@ define [
 
     isResolved: ->
       ###
+      Part of the FutureInspection interface
       Is inspected Future resolved
+      @return {Boolean}
       ###
-      @future.state() == 'resolved'
-
-
-    isRejected: ->
-      ###
-      Is inspected Future rejected
-      ###
-      @future.state() == 'rejected'
+      @future.isResolved()
 
 
     isPending: ->
       ###
+      Part of the FutureInspection interface
       Is inspected Future pending
+      @return {Boolean}
       ###
-      @future.state() == 'pending'
+      @future.isPending()
+
+
+    isRejected: ->
+      ###
+      Part of the FutureInspection interface
+      Is inspected Future rejected
+      @return {Boolean}
+      ###
+      @future.isRejected()
 
 
     value: ->
       ###
+      Part of the FutureInspection interface.
       Returns resolve value of Future.
       Throws an error if future is not resolved. You should check method `isResolved` firstly.
+      @return {*}
       ###
-      if @isResolved()
-        @future._settledValue
-      else
-        throw new Error('Inspected future is not resolved')
+      @future.value()
 
 
     reason: ->
       ###
+      Part of the FutureInspection interface.
       Returns rejection reason of Future.
       Throws an error if future is not rejected. You should check method `isRejected` firstly.
+      @return {Error}
       ###
-      if @isRejected()
-        @future._settledValue
-      else
-        throw new Error('Inspected future is not rejected')
-
+      @future.reason()
 
 
   class Future
@@ -567,6 +570,59 @@ define [
       console.trace 'DEPRECATION WARNING: Future.zip is deprecated, use Future.all instead!'
       those.unshift(this)
       Future.all(those, "#{@_name} -> zip").then (result) -> result
+
+
+    isResolved: ->
+      ###
+      Part of the FutureInspection interface
+      Is inspected Future resolved
+      @return {Boolean}
+      ###
+      @_state == 'resolved'
+
+
+    isPending: ->
+      ###
+      Part of the FutureInspection interface
+      Is inspected Future pending
+      @return {Boolean}
+      ###
+      @_state == 'pending'
+
+
+    isRejected: ->
+      ###
+      Part of the FutureInspection interface
+      Is inspected Future rejected
+      @return {Boolean}
+      ###
+      @_state == 'rejected'
+
+
+    value: ->
+      ###
+      Part of the FutureInspection interface.
+      Returns resolve value of Future.
+      Throws an error if future is not resolved. You should check method `isResolved` firstly.
+      @return {*}
+      ###
+      if @isResolved()
+        @_settledValue
+      else
+        throw new Error('Inspected future is not resolved')
+
+
+    reason: ->
+      ###
+      Part of the FutureInspection interface.
+      Returns rejection reason of Future.
+      Throws an error if future is not rejected. You should check method `isRejected` firstly.
+      @return {Error}
+      ###
+      if @isRejected()
+        @_settledValue
+      else
+        throw new Error('Inspected future is not rejected')
 
 
     @all: (futureList, name = ':all:') ->
