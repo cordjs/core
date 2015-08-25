@@ -259,3 +259,17 @@ define [
         widget:
           path: originalWidget
           params: _l.cloneDeep(originalWidgetParams)
+
+
+    @objectHash: (object) ->
+      ###
+      Return a hash code of given object. For same objects always returns same hash codes
+      ###
+      if not Object.hasOwnProperty.call(object, ':__hash_code__:')
+        Object.defineProperty(object, ':__hash_code__:',
+          configurable: false
+          enumerable: false
+          writeable: false
+          value: _.uniqueId('objectHashCode_')
+        )
+      object[':__hash_code__:']

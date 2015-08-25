@@ -102,7 +102,7 @@ define [
       stashChange = true
       if newValue != undefined
         if @[name] == ':deferred'
-          # if the current value special :deferred than event should be triggered even if the new value is null
+          # if the current value special :deferred then event should be triggered even if the new value is null
           triggerChange = (newValue != ':deferred')
           @_clearDeferredDebug(name)  if triggerChange and deferredTrackingEnabled
           # stashing should be turned off for modifying from :deferred except the value has become :deferred during
