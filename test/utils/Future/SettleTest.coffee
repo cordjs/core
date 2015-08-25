@@ -13,20 +13,15 @@ describe 'Future', ->
 
     it 'should always return a Future', ->
       res = Future.settle()
-      chai.should().exist(res)
-      res.should.be.instanceOf(Future)
+      assert(res instanceof Future)
       res = Future.settle(Future.try(-> []))
-      chai.should().exist(res)
-      res.should.be.instanceOf(Future)
+      assert(res instanceof Future)
       res = Future.settle([])
-      chai.should().exist(res)
-      res.should.be.instanceOf(Future)
+      assert(res instanceof Future)
       res = Future.settle([1,2,3])
-      chai.should().exist(res)
-      res.should.be.instanceOf(Future)
+      assert(res instanceof Future)
       res = Future.settle([Future.try(-> 1), Future.try(-> 2)])
-      chai.should().exist(res)
-      res.should.be.instanceOf(Future)
+      assert(res instanceof Future)
 
     describe 'result future', ->
 
