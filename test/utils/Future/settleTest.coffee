@@ -12,16 +12,11 @@ describe 'Future', ->
   describe '.settle', ->
 
     it 'should always return a Future', ->
-      res = Future.settle()
-      assert(res instanceof Future)
-      res = Future.settle(Future.try(-> []))
-      assert(res instanceof Future)
-      res = Future.settle([])
-      assert(res instanceof Future)
-      res = Future.settle([1,2,3])
-      assert(res instanceof Future)
-      res = Future.settle([Future.try(-> 1), Future.try(-> 2)])
-      assert(res instanceof Future)
+      assert(Future.settle() instanceof Future)
+      assert(Future.settle(Future.try(-> [])) instanceof Future)
+      assert(Future.settle([]) instanceof Future)
+      assert(Future.settle([1,2,3]) instanceof Future)
+      assert(Future.settle([Future.try(-> 1), Future.try(-> 2)]) instanceof Future)
 
     describe 'result future', ->
 
@@ -72,7 +67,9 @@ describe 'Future', ->
         2
         3
       ]
-      Future.settle(Future.timeout(10).then -> input).then (result) ->
+      res = Future.settle(Future.timeout(10).then -> input)
+      assert(res instanceof Future)
+      res.then (result) ->
         assert(Array.isArray(result))
         assert(result.length == expected.length)
         for v,i in result

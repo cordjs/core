@@ -23,6 +23,7 @@ define [
     ###
     Special helper class for synchronous inspection of given future
     ###
+
     constructor: (@future) ->
 
 
@@ -639,6 +640,9 @@ define [
       is resolved or rejected. Returned future resolves to array of FutureInspection instances
 
       futureList can also be a future, resolves to Array
+
+      @param {Array.<Future|*>|Future.<Array.<Future|*>>} futureList
+      @return {Future.<Array.<FutureInspection>>}
       ###
       Future.try(-> futureList).then (futureList) =>
         if not Array.isArray(futureList)
