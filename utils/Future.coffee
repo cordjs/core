@@ -19,6 +19,57 @@ define [
   # environment-dependent console object
   cons = -> if typeof _console != 'undefined' then _console else console
 
+  class FutureInspection
+    ###
+    Special helper class for synchronous inspection of given future
+    ###
+    constructor: (@future) ->
+
+
+    isResolved: ->
+      ###
+      Is inspected Future resolved
+      ###
+      @future.state() == 'resolved'
+
+
+    isRejected: ->
+      ###
+      Is inspected Future rejected
+      ###
+      @future.state() == 'rejected'
+
+
+    isPending: ->
+      ###
+      Is inspected Future pending
+      ###
+      @future.state() == 'pending'
+
+
+    value: ->
+      ###
+      Returns resolve value of Future.
+      Throws an error if future is not resolved. You should check method `isResolved` firstly.
+      ###
+      if @isResolved()
+        @future._settledValue
+      else
+        throw new Error('Inspected future is not resolved')
+
+
+    reason: ->
+      ###
+      Returns rejection reason of Future.
+      Throws an error if future is not rejected. You should check method `isRejected` firstly.
+      ###
+      if @isRejected()
+        @future._settledValue
+      else
+        throw new Error('Inspected future is not rejected')
+
+
+
   class Future
     ###
     Home-grown promise implementation (reinvented the wheel)
@@ -580,6 +631,25 @@ define [
           failCounter--
           result.reject(err)  if failCounter == 0
       result
+
+
+    @settle: (futureList) ->
+      ###
+      Returns a new Future, with always resolved (never rejected) only after each future of futureList
+      is resolved or rejected. Returned future resolves to array of FutureInspection instances
+
+      futureList can also be a future, resolves to Array
+      ###
+      Future.try(-> futureList).then (futureList) =>
+        if not Array.isArray(futureList)
+          throw new Error('Bad argument for Future.settle()')
+
+        Future.all(
+          for f in futureList
+            if not (f instanceof Future)
+              f = Future.resolved(f)
+            do (inspection = new FutureInspection(f)) -> f.then(-> inspection).catch(-> inspection)
+        )
 
 
     _runDoneCallbacks: ->
