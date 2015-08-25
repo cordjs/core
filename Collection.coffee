@@ -100,6 +100,7 @@ define [
 
     tagsRefresh: (mods) ->
       startPage = @_loadedStart / @_pageSize + 1
+      startPage = 1 if not Number.isFinite(startPage)
       @partialRefresh(startPage, @_defaultRefreshPages, 0, true)
       true
 
