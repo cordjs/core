@@ -1,6 +1,7 @@
 define [
   'cord!request/errors'
-], (httpErrors) ->
+  'cord!errors'
+], (httpErrors, errors) ->
 
   class ErrorHelper
 
@@ -10,12 +11,14 @@ define [
       switch
         when error instanceof httpErrors.InvalidResponse
           message = @_getMessageHrFromInvalidResponse(error)
+        when error instanceof errors.TranslatableError
+          message = error.message
         else
           message = @translator.translate2(
             switch
               when error instanceof httpErrors.Network then 'Network error'
               else 'Common error'
-            context: 'error'
+            context: 'errors'
           )
           message += ": #{error.message.substring(0,255)}" if @config.debug.showMobileErrors
 

@@ -31,6 +31,10 @@ define ->
       Error.captureStackTrace?(this, arguments.callee)
 
 
+  TranslatableError: class TranslatableError extends CordError
+    name: 'TranslatableError'
+
+
   WidgetDropped: class WidgetDropped extends CordError
     name: 'WidgetDropped'
     isCordInternal: true
@@ -86,3 +90,7 @@ define ->
     This class of errors throws when some registry can not found some element by name
     ###
     name: 'ItemNotFound'
+
+
+  ValidationError: class ValidationError extends TranslatableError
+    name: 'ValidationError'
