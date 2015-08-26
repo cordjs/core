@@ -680,8 +680,6 @@ define [
         result = @constructor
         while not result.__hasOwnBehaviour and result != Widget
           result = result.__super__.constructor
-        if not result.__hasOwnBehaviour
-          throw new Error(@debug('There is no defined behaviour for this widget'))
         result
       )
 
@@ -1622,7 +1620,7 @@ define [
     getBehaviourClass: ->
       if not @behaviourClass?
         foundBehaviour = @_getClosestConstructorWithOwnBehaviour()
-        @behaviourClass = "/#{foundBehaviour.relativeDirPath}/#{ foundBehaviour.__name }Behaviour"
+        @behaviourClass = if foundBehaviour then "/#{foundBehaviour.relativeDirPath}/#{ foundBehaviour.__name }Behaviour" else null
       if @behaviourClass == false
         null
       else
