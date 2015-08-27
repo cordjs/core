@@ -191,6 +191,8 @@ define  ->
       'lodash': 'vendor/lodash/lodash'
       'riveter': 'vendor/riveter/riveter'
       'request': 'vendor/browser-request/index'
+      'google-libphonenumber': 'vendor/google-libphonenumber/libphonenumber'
+      'validator': 'vendor/validator/validator'
     shim:
       'curly':
         deps: ['underscore']
