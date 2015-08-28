@@ -1221,8 +1221,9 @@ define [
                 reportArgs.push("\n" + filterStack(err.stack))  if err.stack
                 recCollectLongStackTrace(info.promise, reportArgs)
                 if longStackTraceLogOriginStack
+                  reportText = if info.promise._stack then info.promise._stack.split("\n").slice(1).join("\n") else ''
                   reportArgs.push("\n-------- Origin stack --------")
-                  reportArgs.push(info.promise._stack.split("\n").slice(1).join("\n"))
+                  reportArgs.push(reportText)
                   reportArgs.push("\n------------------------------")
               cons().warn.apply(cons(), reportArgs)
             delete unhandledMap[id]
