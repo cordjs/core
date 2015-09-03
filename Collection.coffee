@@ -101,7 +101,7 @@ define [
     tagsRefresh: (mods) ->
       startPage = @_loadedStart / @_pageSize + 1
       startPage = 1 if not Number.isFinite(startPage)
-      @partialRefresh(startPage, @_defaultRefreshPages, 0, true)
+      @partialRefresh(startPage, @_defaultRefreshPages, 0)
       true
 
 
@@ -620,7 +620,7 @@ define [
 
       # This is actually for debugging purposes
       if isNaN(startPage) or isNaN(maxPages) or startPage < 1 or maxPages <1
-        error =  new Error("collection.partialRefresh called with wront parameters startPage: #{startPage}, maxPages: #{maxPage}")
+        error =  new Error("collection.partialRefresh called with wront parameters startPage: #{startPage}, maxPages: #{maxPages}")
         return Future.rejected(error)
 
       if minRefreshInterval >= 0 and @getLastQueryTimeDiff() > minRefreshInterval
