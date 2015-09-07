@@ -94,9 +94,11 @@ define [
       @_get(@persistentKey).then (persistentValues) =>
         @_get(LocalCookie.storageKey).then (cookies) =>
           @storage.clear =>
-            @_set(@persistentKey, persistentValues) if persistentValues
-            @_set(LocalCookie.storageKey, cookies) if cookies
-            result.resolve()
+            futures = []
+            futures.push(@_set(@persistentKey, persistentValues)) if persistentValues
+            futures.push(@_set(LocalCookie.storageKey, cookies)) if cookies
+            Future.all(futures).then ->
+              result.resolve()
         .catch =>
           @storage.clear =>
             @_set(@persistentKey, persistentValues) if persistentValues
