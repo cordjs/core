@@ -20,10 +20,4 @@ define [
 
     set: (name, value, params) ->
       @_cookies[name] = value
-
-      @cookiesReady.fork()
-      @storage.setItem(@constructor.storageKey, @_cookies).done =>
-        @cookiesReady.resolve()
-        return
-
-      true
+      @storage.setItem(@constructor.storageKey, @_cookies)
