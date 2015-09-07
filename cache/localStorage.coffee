@@ -89,7 +89,9 @@ define [
       Future-powered clear local storage
       We should use new future, because storage.clear return native future and we can't catch it
       ###
+      return @clearPromise if @clearPromise?
       result = Future.single('localStorage::clear')
+      @clearPromise = result
 
       @_get(@persistentKey).then (persistentValues) =>
         @_get(LocalCookie.storageKey).then (cookies) =>
@@ -153,7 +155,7 @@ define [
       # Protection against localStorage going crazy (because of overflow?), when @storage.getItem never calls callback in Chrome
       setTimeout =>
         if result.state() == 'pending'
-          @clear()
+          @clear() if not @clearPromise?
           result.reject(new errors.ItemNotFound("LocalStorage timeouted with key #{key}!"))
       , @_getTimeout
 
