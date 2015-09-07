@@ -12,7 +12,7 @@ define [
     constructor: (@storage, @logger) ->
       # Max amount of time to waint until reject @getItem and clear localStorage
       # Made this value bigger according to http://calendar.perfplanet.com/2012/is-localstorage-performance-a-problem/
-      @_getTimeout = 1000
+      @_getTimeout = if global?.config?.localFsMode then 3000 else 1000
 
 
     saveCollectionInfo: (repoName, collectionName, ttl, info) ->
