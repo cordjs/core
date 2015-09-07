@@ -38,7 +38,7 @@ define [
         @parameters[key] = value for key, value of nameOrObject
 
 
-      Future.resolved().then =>
+      Future.try =>
         @_saveParameters()
       .then =>
         @emit('setParameter', _.clone(@parameters))
