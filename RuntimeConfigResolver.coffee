@@ -37,9 +37,11 @@ define [
       else if nameOrObject
         @parameters[key] = value for key, value of nameOrObject
 
-      @_saveParameters()
 
-      @emit('setParameter', _.clone(@parameters))
+      Future.try =>
+        @_saveParameters()
+      .then =>
+        @emit('setParameter', _.clone(@parameters))
 
 
     getParameter: (name, defaultValue) ->

@@ -12,7 +12,7 @@ define [
     constructor: (@storage, @logger) ->
       # Max amount of time to waint until reject @getItem and clear localStorage
       # Made this value bigger according to http://calendar.perfplanet.com/2012/is-localstorage-performance-a-problem/
-      @_getTimeout = 1000
+      @_getTimeout = if global?.config?.localFsMode then 3000 else 1000
 
 
     saveCollectionInfo: (repoName, collectionName, ttl, info) ->
@@ -89,22 +89,29 @@ define [
       Future-powered clear local storage
       We should use new future, because storage.clear return native future and we can't catch it
       ###
+      return @_clearPromise if @_clearPromise?
       result = Future.single('localStorage::clear')
+      @_clearPromise = result.finally =>
+        delete @_clearPromise
 
       @_get(@persistentKey).then (persistentValues) =>
         @_get(LocalCookie.storageKey).then (cookies) =>
           @storage.clear =>
-            @_set(@persistentKey, persistentValues) if persistentValues
-            @_set(LocalCookie.storageKey, cookies) if cookies
-            result.resolve()
+            futures = []
+            futures.push(@_set(@persistentKey, persistentValues)) if persistentValues
+            futures.push(@_set(LocalCookie.storageKey, cookies)) if cookies
+            Future.all(futures).then ->
+              result.resolve()
         .catch =>
           @storage.clear =>
-            @_set(@persistentKey, persistentValues) if persistentValues
-            result.resolve()
+            futures = []
+            futures.push(@_set(@persistentKey, persistentValues)) if persistentValues
+            Future.all(futures).then ->
+              result.resolve()
       .catch =>
         # this is ok, just clear and resolve
-        @storage.clear()
-        result.resolve()
+        @storage.clear() ->
+          result.resolve()
 
       result
 
