@@ -103,7 +103,7 @@ define [
 
         @_initPromise = Future.resolved() # memory optimization
         return
-      .failAloud() # Otherwise it would devour silently
+      .failOk() # the error is handled properly in Widget.initBehaviour
 
       @_callbacks = []
 
