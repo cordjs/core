@@ -110,7 +110,7 @@ define [
               result.resolve()
       .catch =>
         # this is ok, just clear and resolve
-        @storage.clear() ->
+        @storage.clear ->
           result.resolve()
 
       result
