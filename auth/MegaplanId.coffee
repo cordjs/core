@@ -41,11 +41,12 @@ define [
       ###
       This one is used exclusevely for MegaId via backend (for security reasons)
       ###
-      @getAuthCodeWithoutPassword(@getScope()).nameSuffix('Api::getAccessTokenByMegaId')
+      scope = @generateScope()
+      @getAuthCodeWithoutPassword(scope).nameSuffix('Api::getAccessTokenByMegaId')
         .then (code) =>
-          @grantAccessTokenByMegaId(code, @getScope())
+          @grantAccessTokenByMegaId(code, scope)
         .spread (accessToken, refreshToken, code) =>
-          @_storeTokens(accessToken, refreshToken)
+          @_storeTokens(accessToken, refreshToken, scope)
           code
 
 
@@ -74,11 +75,12 @@ define [
       ###
       Grant access token via megaplan backend inviteCode
       ###
-      @getAuthCodeWithoutPassword(@getScope()).nameSuffix('Api::getAccessTokenByMegaId')
+      scope = @generateScope()
+      @getAuthCodeWithoutPassword(scope).nameSuffix('Api::getAccessTokenByMegaId')
         .then (code) =>
-          @grantAccessTokenByInviteCode(inviteCode, code, @getScope())
+          @grantAccessTokenByInviteCode(inviteCode, code, scope)
         .spread (accessToken, refreshToken, code) =>
-          @_storeTokens(accessToken, refreshToken)
+          @_storeTokens(accessToken, refreshToken, scope)
           code
 
 

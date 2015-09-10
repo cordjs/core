@@ -31,10 +31,13 @@ define  ->
               # reconfigure on event emitted
               resolver = get('runtimeConfigResolver')
               resolver.on('setParameter', -> api.configure(resolver.resolveConfig(get('config').api)))
-              api.on 'host.changed', (host) ->
+              api.on 'target.host.changed', (host) ->
                 if host != resolver.getParameter('BACKEND_HOST')
                   get('logger').log('BACKEND_HOST has been changed to:', host)
-                  resolver.setParameter('BACKEND_HOST', host)
+                  # do not propagate event 'parameter changed'
+                  resolver.setParameter('BACKEND_HOST', host, false)
+                  # reconfigure api without creating a new auth module
+                  api.configure(resolver.resolveConfig(get('config').api), false)
               api
             .then (api) ->
               postal.publish('api.available')

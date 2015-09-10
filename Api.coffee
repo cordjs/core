@@ -48,7 +48,7 @@ define [
         @fallbackErrors = appConfig.fallbackApiErrors
 
 
-    configure: (config) ->
+    configure: (config, createNewAuth = true) ->
       ###
       Updates API endpoint options, like host, protocol etc.
       This method is need to be called when configuration is changed.
@@ -59,16 +59,12 @@ define [
         urlPrefix: ''
         params: {}
         authenticateUserCallback: -> false # @see authenticateUser() method
+        cookiePrefix: null
 
       @options = _.extend(defaultOptions, @options, config)
       @defaultAuthModule = @options.defaultAuthModule if @options.defaultAuthModule
 
-      @setupAuthModule()
-
-      # если в конфиге у нас заданы параметры автовхода, то надо логиниться по ним
-      if @options.autoLogin? and @options.autoPassword?
-        @options.authenticateUserCallback = =>
-          @getTokensByUsernamePassword @options.autoLogin, @options.autoPassword
+      @setupAuthModule(createNewAuth)
 
 
     getBackendHost: ->
@@ -78,7 +74,7 @@ define [
       @options.host
 
 
-    setupAuthModule: ->
+    setupAuthModule: (createNewAuth = true) ->
       ###
       Initializer. Should be called after injecting @inject services
       ###
@@ -89,7 +85,8 @@ define [
       else
         module = @defaultAuthModule
 
-      @setAuthModule(module).catch =>
+      @setAuthModule(module, createNewAuth).catch (e) =>
+        _console.error(e)
         module = @defaultAuthModule
         if not module
           throw new Error('Api unable to determine auth module name. Please check out config.api.defaultAuthModule')
@@ -97,7 +94,7 @@ define [
         @setAuthModule(module)
 
 
-    setAuthModule: (modulePath) ->
+    setAuthModule: (modulePath, createNewAuth = true) ->
       ###
       Sets or replaces current authentication module.
       The method can be called consequently, it guarantees, that @authPromise will be resolved with latest module
@@ -110,7 +107,7 @@ define [
       modulePath = "/cord/core/auth/#{ modulePath }"  if modulePath.charAt(0) != '/'
 
       # Ignore double call of this method with same module
-      return @authPromise if modulePath == @lastModulePath and not @authPromise.completed()
+      return @authPromise if modulePath == @lastModulePath and @authPromise and (not @authPromise.completed() or not createNewAuth)
 
       @logger.log "Loading auth module: #{modulePath}"  if global.config.debug.oauth
 
@@ -122,10 +119,11 @@ define [
         throw new Error("Failed to load auth module #{modulePath}!")  if not Module
         if @lastModulePath == modulePath # To check that we resolve @authPromise with the latest modulePath
           @cookie.set(Api.authModuleCookieName, originalModule, expires: 365)
-          module = new Module(@options[Module.configKey], @cookie, @request, @tabSync)
+          module = new Module(@options[Module.configKey], @cookie, @request, @tabSync, @options.cookiePrefix)
           localAuthPromise.resolve(module)
           # bypass module event
           module.on('auth.available', => @emit('auth.available'))
+          module
 
       .catch (error) =>
         if @lastModulePath == modulePath # To check that we resolve @authPromise with the latest modulePath
@@ -192,7 +190,7 @@ define [
       Tries to authenticate by username and password
       @param {String} username
       @param {String} password
-      @return {Future} resolves when auth suceeded, fails in otherwa
+      @return {Future} resolves when auth succeeded, fails otherwise
       ###
       @authPromise.then (authModule) ->
         authModule.grantAccessByUsernamePassword(username, password)
@@ -209,12 +207,12 @@ define [
       ###
       @authPromise.then (authModule) =>
         # Clear Cookies
-        authModule.clearAuth()
-        authModule.tryToAuth().catch (e) =>
-          if @options.authenticateUserCallback()
-            @authTokensReady()
-          else
-            Future.rejected(e)
+        authModule.clearAuth().then =>
+          authModule.tryToAuth().catch (e) =>
+            if @options.authenticateUserCallback()
+              @authTokensReady()
+            else
+              Future.rejected(e)
 
 
     get: (url, params, callback) ->
@@ -328,7 +326,7 @@ define [
           # If backend want to change host, override it
           # Event should be handler by api service factory
           if response.headers.has('X-Target-Host') and response.headers.get('X-Target-Host') != '127.0.0.1'
-            @emit('host.changed', response.headers.get('X-Target-Host'))
+            @emit('target.host.changed', response.headers.get('X-Target-Host'))
           response
 
         .catchIf httpErrors.Network, (e) =>
@@ -395,3 +393,9 @@ define [
               e.statusText = response.statusText
               throw e
       .rename("Api::_doRequest(#{method}, #{url})")
+
+
+    clearAuth: ->
+      Future.try =>
+        @authPromise?.then (authModule) ->
+          authModule.clearAuth()

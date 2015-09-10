@@ -36,7 +36,7 @@ define [
     _maxExtRefreshWaitTime: 30
 
 
-    constructor: (@options, @cookie, @request, @tabSync) ->
+    constructor: (@options, @cookie, @request, @tabSync, @cookiePrefix = '') ->
       @logger = @request.logger
       @endpoints = @options.endpoints
       if not @endpoints or not @endpoints.accessToken
@@ -74,10 +74,12 @@ define [
       @accessToken = null
       @refresToken = null
       @scope  = null
-      @cookie.set('accessToken')
-      @cookie.set('refreshToken')
-      @cookie.set('oauthScope')
-      @emit('auth.unavailable')
+      Future.all([
+        @cookie.set(@cookiePrefix + 'accessToken')
+        @cookie.set(@cookiePrefix + 'refreshToken')
+        @cookie.set(@cookiePrefix + 'oauthScope')
+      ]).then =>
+        @emit('auth.unavailable')
 
 
     injectAuthParams: (url, params, tryLuck = false) ->
@@ -137,12 +139,12 @@ define [
 
     _invalidateAccessToken: ->
       @accessToken = null
-      @cookie.set('accessToken')
+      Future.try => @cookie.set(@cookiePrefix + 'accessToken')
 
 
     _invalidateRefreshToken: ->
       @refreshToken = null
-      @cookie.set('refreshToken')
+      Future.try => @cookie.set(@cookiePrefix + 'refreshToken')
 
 
     _restoreTokens: ->
@@ -151,42 +153,45 @@ define [
       ###
 
       # Never ever uncomment this line. Otherwise you'll face spoiling tokens in different browser tabs
-      @accessToken  = @cookie.get('accessToken')
-      @refreshToken = @cookie.get('refreshToken')
-      @scope        = @cookie.get('oauthScope')
+      @accessToken  = @cookie.get(@cookiePrefix + 'accessToken')
+      @refreshToken = @cookie.get(@cookiePrefix + 'refreshToken')
+      @scope        = @cookie.get(@cookiePrefix + 'oauthScope')
 
       return
 
 
-    _storeTokens: (accessToken, refreshToken) ->
+    _storeTokens: (accessToken, refreshToken, scope) ->
       ###
       Stores oauth tokens to cookies to be available after page refresh.
       @param {String} accessToken
       @param {String} refreshToken
       ###
-      return if @accessToken == accessToken and @refreshToken == refreshToken
+      return Future.resolved() if @accessToken == accessToken and @refreshToken == refreshToken
 
       @accessToken = accessToken
       @refreshToken = refreshToken
-      @scope = @getScope()
-
-      @cookie.set('accessToken', @accessToken, expires: 15)
-      @cookie.set('refreshToken', @refreshToken, expires: 15)
-      @cookie.set('oauthScope', @scope, expires: 15)
+      @scope = scope
 
       @emit('auth.available')
-      @logger.log "Store tokens: #{accessToken}, #{refreshToken}"  if global.config.debug.oauth
+
+      Future.all([
+        @cookie.set(@cookiePrefix + 'accessToken', @accessToken, expires: 15)
+        @cookie.set(@cookiePrefix + 'refreshToken', @refreshToken, expires: 15)
+        @cookie.set(@cookiePrefix + 'oauthScope', @scope, expires: 15)
+      ]).then =>
+        @logger.log "Store tokens: #{accessToken}, #{refreshToken}"  if global.config.debug.oauth
+        return
 
 
-    getScope: ->
+    generateScope: ->
       ###
       Generates random scope for every browser (client) to prevent access-token auto-deletion when someone logging in
       from another computers (browsers)
+
+      The scope should be stored only in particular auth method callback.
       @return {String}
       ###
-      if not @scope
-        @scope = Math.round(Math.random() * 10000000)
-      @scope
+      Math.round(Math.random() * 10000000)
 
 
     grantAccessByUsernamePassword: (username, password) ->
@@ -194,16 +199,15 @@ define [
       Tries to authenticate by username and password
       @param {String} username
       @param {String} password
-      @return {Future} resolves when auth suceeded, fails in otherway
+      @return {Future} resolves when auth succeeded, fails otherwise
       ###
-      @grantAccessTokenByPassword(username, password, @getScope()).spread (accessToken, refreshToken) =>
-        @_onAccessTokenGranted(accessToken, refreshToken)
-        return
+      scope = @generateScope()
+      @grantAccessTokenByPassword(username, password, scope).spread (accessToken, refreshToken) =>
+        @_onAccessTokenGranted(accessToken, refreshToken, scope)
 
 
-    _onAccessTokenGranted: (accessToken, refreshToken) ->
-      @_storeTokens(accessToken, refreshToken)
-      @emit 'auth.available'
+    _onAccessTokenGranted: (accessToken, refreshToken, scope) ->
+      @_storeTokens(accessToken, refreshToken, scope)
 
 
     #-----------------------------------------------------------------------------------------------------------------
@@ -211,10 +215,11 @@ define [
 
     grantAccessByExtensions: (url, params) ->
       ###
-      Tries to grant accees by grant_type = extension (oneTimeKey, for instance)
+      Tries to grant access by grant_type = extension (oneTimeKey, for instance)
       ###
-      @_grantAccessTokenByExtensions(url, params, @getScope()).spread (accessToken, refreshToken) =>
-        @_onAccessTokenGranted(accessToken, refreshToken)
+      scope = @generateScope()
+      @_grantAccessTokenByExtensions(url, params, scope).spread (accessToken, refreshToken) =>
+        @_onAccessTokenGranted(accessToken, refreshToken, scope)
         return
 
 
@@ -229,7 +234,7 @@ define [
         .rename('Oauth2::_grantAccessTokenByExtensions')
         .then (response) ->
           result = response.body
-          [result.access_token, result.refresh_token]
+          [result.access_token, result.refresh_token, scope]
         .catchIf(
           (e) -> e instanceof httpErrors.InvalidResponse and e.response.statusCode == 400
           -> throw new cordErrors.AuthError()
@@ -297,7 +302,7 @@ define [
             # Clear refresh lock, to let other tabs know we have new tokens
             @tabSync.set(@_extRefreshName)
 
-            [result.access_token, result.refresh_token]
+            [result.access_token, result.refresh_token, scope]
 
           .catch (err) =>
             if err instanceof httpErrors.InvalidResponse
@@ -336,11 +341,12 @@ define [
       @return {Future[Tuple[String, String]]} new access and refresh tokens
       ###
       return @_refreshPromise if @_refreshPromise
-      @_refreshPromise = @grantAccessTokenByRefreshToken(@refreshToken, @getScope()).spread (grantedAccessToken, grantedRefreshToken) =>
+      scope = @scope ? @generateScope()
+      @_refreshPromise = @grantAccessTokenByRefreshToken(@refreshToken, scope).spread (grantedAccessToken, grantedRefreshToken, scope) =>
         @_refreshPromise = null
         if grantedAccessToken and grantedRefreshToken
-          @_storeTokens(grantedAccessToken, grantedRefreshToken)
-          [grantedAccessToken, grantedRefreshToken]
+          @_storeTokens(grantedAccessToken, grantedRefreshToken, scope).then ->
+            [grantedAccessToken, grantedRefreshToken, scope]
         else
           throw new cordError.AuthError('Failed to get auth token by refresh token: refresh token could be outdated!')
       @_refreshPromise
@@ -431,11 +437,12 @@ define [
       ###
       This one use two-step auth process, to accuire OAuth2 code and then tokens
       ###
-      @getAuthCodeByPassword(login, password, @getScope()).nameSuffix('Oauth2::doAuthCodeLoginByPassword')
+      scope = @generateScope()
+      @getAuthCodeByPassword(login, password, scope).nameSuffix('Oauth2::doAuthCodeLoginByPassword')
         .then (code) =>
-          @grantAccessTokenByAuhorizationCode(code, @getScope())
+          @grantAccessTokenByAuhorizationCode(code, scope)
         .spread (accessToken, refreshToken, code) =>
-          @_onAccessTokenGranted(accessToken, refreshToken)
+          @_onAccessTokenGranted(accessToken, refreshToken, scope)
           code
 
 
@@ -443,11 +450,12 @@ define [
       ###
       This one is used for normal Auth2 procedure, not MegaId
       ###
-      @getAuthCodeWithoutPassword(@getScope()).nameSuffix('Api::doAuthCodeLoginWithoutPassword')
+      scope = @generateScope()
+      @getAuthCodeWithoutPassword(scope).nameSuffix('Api::doAuthCodeLoginWithoutPassword')
         .then (code) =>
-          @grantAccessTokenByAuhorizationCode(code)
+          @grantAccessTokenByAuhorizationCode(code, scope)
         .spread (accessToken, refreshToken, code) =>
-          @_onAccessTokenGranted(accessToken, refreshToken)
+          @_onAccessTokenGranted(accessToken, refreshToken, scope)
           code
 
 
@@ -464,8 +472,9 @@ define [
       .then (response) =>
         result = response.body
         if result and result.status == 'success'
-          @_invalidateAccessToken()
-          @_invalidateRefreshToken()
-          return
+          Future.all [
+            @_invalidateAccessToken()
+            @_invalidateRefreshToken()
+          ]
         else
-          throw new Error("Bad response from authorization server: #{JSON.stringirfy(response)}")
+          throw new Error("Bad response from authorization server: #{JSON.stringify(response)}")
