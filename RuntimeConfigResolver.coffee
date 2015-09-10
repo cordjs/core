@@ -26,7 +26,7 @@ define [
       @_loadParameters()
 
 
-    setParameter: (nameOrObject, value) ->
+    setParameter: (nameOrObject, value, emitEvent = true) ->
       ###
       Sets a parameter's value by it's name.
       Or sets parameters object value
@@ -41,7 +41,11 @@ define [
       Future.try =>
         @_saveParameters()
       .then =>
-        @emit('setParameter', _.clone(@parameters))
+        if emitEvent
+          @emit('setParameter',
+            name: nameOrObject,
+            value: value
+          )
 
 
     getParameter: (name, defaultValue) ->
