@@ -11,7 +11,6 @@ define [
 
 
     constructor: (@_cookies, @storage) ->
-      @cookiesReady = new Future('LocalCookie::set')
 
 
     get: (name, defaultValue) ->
