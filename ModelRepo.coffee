@@ -896,7 +896,7 @@ define [
         .then (models) =>
           result = []
           for m, index in models
-            result[index] = @buildModel(m) if m
+            result[index] = @buildModel(m) if m?.id
           result
       else
         Future.rejected(new Error('ModelRepo::getCachedCollectionModels is not applicable on server-side!'))
