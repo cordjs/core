@@ -1620,7 +1620,10 @@ define [
     getBehaviourClass: ->
       if not @behaviourClass?
         foundBehaviour = @_getClosestConstructorWithOwnBehaviour()
-        @behaviourClass = if foundBehaviour then "/#{foundBehaviour.relativeDirPath}/#{ foundBehaviour.__name }Behaviour" else null
+        @behaviourClass = if foundBehaviour and foundBehaviour.relativeDirPath and foundBehaviour.__name
+            "/#{foundBehaviour.relativeDirPath}/#{ foundBehaviour.__name }Behaviour"
+        else
+          null
       if @behaviourClass == false
         null
       else
