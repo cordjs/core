@@ -103,7 +103,7 @@ define [
 
     @getNameInitials = (name) ->
       if not name
-        return ''
+        return '?'
       nameSplited = name.split(' ')
 
       nameInitials = nameSplited[0].charAt(0).toUpperCase() + '.'
@@ -170,7 +170,7 @@ define [
 
     @getIconColorById = (id) ->
       id = parseInt(id)
-      id = 0 if isNaN(id)
+      return '#DDD' if isNaN(id)
 
       colors = ['#A6E8C7', '#FFDE8F', '#A9E1F2', '#F1B8C9', '#C7C9FA', '#C3EDAE']
 
