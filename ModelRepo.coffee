@@ -130,29 +130,6 @@ define [
           collection
 
 
-    buildCollection: (options, syncMode, callback) ->
-      ###
-      Creates, syncs and returns in callback a new collection of this model type by the given options.
-       If collection with the same options is already registered than this collection is returned
-       instead of creating the new one.
-
-      @see Collection::constructor()
-
-      @param Object options should contain options accepted by collection constructor
-      @param (optional)String syncMode desired sync and return mode, defaults to :sync
-      @param Function(Collection) callback
-      @return Collection
-      ###
-
-      if _.isFunction(syncMode)
-        callback = syncMode
-        syncMode = ':sync'
-
-      collection = @createCollection(options)
-      collection.sync(syncMode, callback)
-      collection
-
-
     createSingleModel: (id, fields, extraOptions = {}) ->
       ###
       Creates single-model collection by id and field list.
