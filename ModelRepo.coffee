@@ -144,7 +144,6 @@ define [
       options = _.extend {}, extraOptions,
         id: id
         fields: fields
-        reconnect: false
 
       @createCollection(options)
 
@@ -349,7 +348,6 @@ define [
     query: (params, callback) ->
       if @serviceContainer
         apiParams = {}
-        apiParams.reconnect = true if params.reconnect == true
         url = @_buildApiRequestUrl(params)
 
         @api.get(url, apiParams).then (response) =>

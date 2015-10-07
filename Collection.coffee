@@ -211,7 +211,6 @@ define [
       @_byId = {}
       @_filterType = options.filterType ? ':backend'
       @_fields = options.fields ? []
-      @_reconnect = options.reconnect ? false
       @_emitChangeOnAny = options.emitChangeOnAny ? false
 
       if options.model
@@ -1388,7 +1387,6 @@ define [
         queryPromise = prevQueryPromise.then =>
           queryParams =
             fields: @_fields
-            reconnect: @_reconnect
 
           queryParams.orderBy = @_orderBy
 
