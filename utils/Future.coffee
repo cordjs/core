@@ -572,6 +572,29 @@ define [
       Future.all(those, "#{@_name} -> zip").then (result) -> result
 
 
+    get: (propertyName) ->
+      ###
+      This is a convenience method for doing:
+        promise.then(function(data) {
+            return data[propertyName];
+        });
+      If propertyName is number and is negative, the indexed load will become data.length + propertyName.
+      So that -1 can be used to read last item in the array, -2 to read the second last and so on.
+      If the propertyName is still negative after data.length + propertyName, it will be clamped to 0
+      @param String|Number property name for object or index for array
+      @return Future
+      ###
+      @then (data) ->
+        if data == undefined
+          return undefined
+
+        if Array.isArray(data) and typeof propertyName == 'number' and propertyName < 0
+          length = data.length + propertyName
+          propertyName = if length < 0 then 0 else length
+
+        data[propertyName]
+
+
     isResolved: ->
       ###
       Part of the FutureInspection interface
