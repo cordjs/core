@@ -589,8 +589,7 @@ define [
           return undefined
 
         if Array.isArray(data) and typeof propertyName == 'number' and propertyName < 0
-          length = data.length + propertyName
-          propertyName = if length < 0 then 0 else length
+          propertyName = Math.max(0, data.length + propertyName)
 
         data[propertyName]
 
