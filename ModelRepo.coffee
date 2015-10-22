@@ -10,6 +10,7 @@ define [
 ], (Collection, Model, Module, isBrowser, Defer, Future, _, Monologue) ->
 
   class ModelRepo extends Module
+
     @include Monologue.prototype
 
     model: Model
@@ -739,7 +740,9 @@ define [
       Invalidates cache for all collections
       @return {Future<undefined>}
       ###
-      @_collections = {}
+      for key, collection of @_collections
+        @_collections[key].euthanize()
+
       if isBrowser
         @serviceContainer.getService('localStorage').then (storage) =>
           storage._invalidateAllCollections(@constructor.__name) #Invalidate All
@@ -754,7 +757,7 @@ define [
       ###
       for key, collection of @_collections
         if collection._fields.indexOf(fieldName) >= 0
-          delete @_collections[key]
+          @_collections[key].euthanize()
 
       if isBrowser
         @serviceContainer.getService('localStorage').then (storage) =>
@@ -773,7 +776,7 @@ define [
         if collection._filter[fieldName] == filterValue
           if isBrowser
             result.when(collection.invalidateCache())
-          delete @_collections[key]
+          @_collections[key].euthanize()
 
       result
 

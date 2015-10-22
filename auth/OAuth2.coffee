@@ -269,7 +269,7 @@ define [
         )
 
 
-    grantAccessTokenByRefreshToken: (refreshToken, scope, retries = 1) ->
+    grantAccessTokenByRefreshToken: (refreshToken, scope, retries = 15, retryTimeout = 500) ->
       ###
       Requests access_token by refresh_token
       @param {String} refreshToken
@@ -315,9 +315,9 @@ define [
 
             if retries > 0
               @logger.warn('Error while refreshing oauth token! Will retry after pause... Error:', JSON.stringify(err))
-              Future.timeout(500).then =>
+              Future.timeout(retryTimeout).then =>
                 @_refreshTokenRequestPromise = null
-                @grantAccessTokenByRefreshToken(refreshToken, scope, retries - 1)
+                @grantAccessTokenByRefreshToken(refreshToken, scope, retries - 1, retryTimeout * 2)
             else
               throw new Error("Failed to refresh oauth token! No retries left. Reason: #{JSON.stringify(err)}")
 
