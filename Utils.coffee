@@ -273,3 +273,11 @@ define [
           value: _.uniqueId('objectHashCode_')
         )
       object[':__hash_code__:']
+
+
+    @replaceHashTags: (text) ->
+      text = text.replace /\[\!\!(.+)\]/g, '<span class="marked-text error">$1</span>'
+      text = text.replace /\[\!(.+)\]/g, '<span class="marked-text warning">$1</span>'
+      text = text.replace /\[(.+)\]/g, '<span class="marked-text">$1</span>'
+      text.replace /\#(\w+)/g, '<span class="marked-text">$1</span>'
+
