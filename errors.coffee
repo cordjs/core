@@ -31,8 +31,8 @@ define ->
       Error.captureStackTrace?(this, arguments.callee)
 
 
-  TranslatableError: class TranslatableError extends CordError
-    name: 'TranslatableError'
+  TranslatedError: class TranslatedError extends CordError
+    name: 'TranslatedError'
 
 
   WidgetDropped: class WidgetDropped extends CordError
@@ -92,5 +92,5 @@ define ->
     name: 'ItemNotFound'
 
 
-  ValidationError: class ValidationError extends TranslatableError
+  ValidationError: class ValidationError extends TranslatedError
     name: 'ValidationError'

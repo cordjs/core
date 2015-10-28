@@ -11,7 +11,7 @@ define [
       switch
         when error instanceof httpErrors.InvalidResponse
           message = @_getMessageHrFromInvalidResponse(error)
-        when error instanceof errors.TranslatableError
+        when error instanceof errors.TranslatedError
           message = error.message
         else
           message = @translator.translate2(
