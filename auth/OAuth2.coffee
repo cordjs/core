@@ -26,6 +26,8 @@ define [
     accessToken: null
     refreshToken: null
 
+    cookiePath: '/'
+
     # default values are patterns for XDRS replacement
     _clientId: '#{clientId}'
     _clientSecret: '#{clientSecret}'
@@ -72,7 +74,7 @@ define [
 
     clearAuth: ->
       @accessToken = null
-      @refresToken = null
+      @refreshToken = null
       @scope  = null
       Future.all([
         @cookie.set(@cookiePrefix + 'accessToken')
@@ -175,9 +177,9 @@ define [
       @emit('auth.available')
 
       Future.all([
-        @cookie.set(@cookiePrefix + 'accessToken', @accessToken, expires: 15)
-        @cookie.set(@cookiePrefix + 'refreshToken', @refreshToken, expires: 15)
-        @cookie.set(@cookiePrefix + 'oauthScope', @scope, expires: 15)
+        @cookie.set(@cookiePrefix + 'accessToken', @accessToken, expires: 15, path: @cookiePath)
+        @cookie.set(@cookiePrefix + 'refreshToken', @refreshToken, expires: 15, path: @cookiePath)
+        @cookie.set(@cookiePrefix + 'oauthScope', @scope, expires: 15, path: @cookiePath)
       ]).then =>
         @logger.log "Store tokens: #{accessToken}, #{refreshToken}"  if global.config.debug.oauth
         return
@@ -343,9 +345,9 @@ define [
       return @_refreshPromise if @_refreshPromise
       scope = @scope ? @generateScope()
       @_refreshPromise = @grantAccessTokenByRefreshToken(@refreshToken, scope).spread (grantedAccessToken, grantedRefreshToken, scope) =>
-        @_refreshPromise = null
         if grantedAccessToken and grantedRefreshToken
-          @_storeTokens(grantedAccessToken, grantedRefreshToken, scope).then ->
+          @_storeTokens(grantedAccessToken, grantedRefreshToken, scope).then =>
+            @_refreshPromise = null
             [grantedAccessToken, grantedRefreshToken, scope]
         else
           throw new cordError.AuthError('Failed to get auth token by refresh token: refresh token could be outdated!')
