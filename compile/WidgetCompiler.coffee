@@ -474,3 +474,6 @@ define [
               .failAloud("WidgetCompiler::#deferred:#{@widget.debug()}")
           else
             console.warn "WARNING: empty deferred block in widget #{ @widget.constructor.name }(#{ @widget.ctx.id })"
+
+        true: true
+        false: false
