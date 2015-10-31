@@ -15,6 +15,8 @@ define [
   'monologue' + (if CORD_IS_BROWSER then '' else '.js')
 ], (AppConfigLoader, errors, Router, ServiceContainer, Utils, DomInfo, Future, pr, sha1, fs, mkdirp, _, url, Monologue) ->
 
+  urlExp = /^\/|\/$/g
+
   class ServerSideFallback
 
     constructor: (@eventEmitter, @serviceContainer, @logger, @router) ->
@@ -85,13 +87,17 @@ define [
             Future.all [
               serviceContainer.getService('loginUrl')
               serviceContainer.getService('logoutUrl')
+              serviceContainer.getService('authUrls')
             ]
-            .spread (loginUrl, logoutUrl) =>
+            .spread (loginUrl, logoutUrl, authUrls) =>
+              authUrls = _.clone(authUrls)
+              authUrls.push(loginUrl)
+              authPages = authUrls.map (url) -> url.replace(urlExp, "")
+              baseLoginUrl = authPages[authPages.length - 1]
               response = serviceContainer.get('serverResponse')
               request = serviceContainer.get('serverRequest')
-              if not (request.url.indexOf(loginUrl) >= 0)
-                loginUrl = loginUrl.replace(/^\/|\/$/g, "")
-                @redirect("/#{loginUrl}/?back=#{if request.url.indexOf(logoutUrl) >= 0 then '' else request.url}", response)
+              if not (_.find(authPages, (url) -> request.url.indexOf(url) >= 0))
+                @redirect("/#{baseLoginUrl}/?back=#{if request.url.indexOf(logoutUrl) >= 0 then '' else request.url}", response)
                 clear()
             .catch (error) ->
               logger.error('Unable to obtain loginUrl or logoutUrl, please, check configs:' + error.trace())

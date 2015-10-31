@@ -12,6 +12,8 @@ define [
 ], (AppConfigLoader, _console, errors, cssManager,
     clientSideRouter, PageTransition, ServiceContainer, Future, Monologue, $) ->
 
+  urlExp = /^\/|\/$/g
+
   class ClientFallback
 
     constructor: (@router, @logger) ->
@@ -75,15 +77,19 @@ define [
         Future.all [
           serviceContainer.getService('loginUrl')
           serviceContainer.getService('logoutUrl')
+          serviceContainer.getService('authUrls')
         ]
-        .spread (loginUrl, logoutUrl) ->
-          loginUrl = loginUrl.replace(/^\/|\/$/g, "")
-          logoutUrl = logoutUrl.replace(/^\/|\/$/g, "")
+        .spread (loginUrl, logoutUrl, authUrls) ->
+          authUrls = _.clone(authUrls)
+          authUrls.push(loginUrl)
+          authPages = authUrls.map (url) -> url.replace(urlExp, "")
+          baseLoginUrl = authPages[authPages.length - 1]
+          logoutUrl = logoutUrl.replace(urlExp, "")
           backPath = clientSideRouter.getCurrentPath()
-          if not (backPath.indexOf(loginUrl) >= 0 or backPath.indexOf(logoutUrl) >= 0)
+          if not (_.find(authPages, (url) -> backPath.indexOf(url) >= 0) or backPath.indexOf(logoutUrl) >= 0)
             # in SPA mode window.location doesn't make sense
             backUrl = clientSideRouter.getCurrentPath() or window.location.pathname
-            clientSideRouter.redirect("#{loginUrl}/?back=#{backUrl}").failAloud('Auth redirect failed!')
+            clientSideRouter.redirect("#{baseLoginUrl}/?back=#{backUrl}").failAloud('Auth redirect failed!')
         .catch (error) ->
           logger.error('Unable to obtain loginUrl or logoutUrl, please, check configs:' + error)
         false
