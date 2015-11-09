@@ -37,18 +37,37 @@ define [
       _(@_definitions).has(name) or _(@_instances).has(name)
 
 
-    reset: (name) ->
+    reset: (name, resetDependants = true) ->
       ###
       Reset service.
       @return {Future<undefined>}
       ###
+      if @_instances[name] instanceof ServiceContainer
+        return
+
       # reset pending service only after instantiation
       if _(@_pendingFactories).has(name)
         @_pendingFactories[name].clear()
         delete @_pendingFactories[name]
 
       delete @_instances[name]
+
+      @resetDependants(name) if resetDependants
       Future.resolved()
+
+
+    resetDependants: (name) ->
+      ###
+      Reset those who are dependant on this service
+      @param string name - service name
+      ###
+      if not @_definitions[name]
+        return
+
+      for key, definition of @_definitions when name in definition.deps
+        @reset(key)
+
+      return
 
 
     clearServices: ->
