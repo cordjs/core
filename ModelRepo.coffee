@@ -825,8 +825,11 @@ define [
       if isBrowser
         @serviceContainer.getService('localStorage').then (storage) =>
           # prepare models for cache
+          collectionModels = collection.toArray()
+          return false if not collection.isConsistent(collectionModels)
+
           models = []
-          models[i] = model.toJSON() for model, i in collection.toArray()
+          models[i] = model.toJSON() for model, i in collectionModels
 
           saveInfoPromise = storage.saveCollectionInfo @constructor.__name, name, collection.getTtl(),
             totalCount: collection._totalCount
