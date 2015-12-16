@@ -1193,7 +1193,7 @@ define [
 
           widgetId = info.widget
           widget = @widgetRepo.getById(widgetId)
-          widget.setModifierClass(info.class) if info.type != 'inline'
+          widget.setModifierClass(info.class) if info.type not in ['inline', 'placeholder']
 
           timeoutTemplateOwner = info.timeoutTemplateOwner
           delete info.timeoutTemplateOwner
