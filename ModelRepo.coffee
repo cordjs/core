@@ -30,6 +30,8 @@ define [
 
     fieldTags: null
 
+    ignoreFieldTags: false
+
     # key-value of available additional REST-API action names to inject into model instances as methods
     # key - action name
     # value - HTTP-method name in lower-case (get, post, put, delete)
@@ -400,7 +402,7 @@ define [
       calcFields = []
       for field in params.fields
         if @_fieldHasTag(field, ':backendCalc')
-          calcFields.push(field)
+          calcFields.push(field) if not @ignoreFieldTags
         else
           commonFields.push(field)
       if commonFields.length > 0
