@@ -402,7 +402,7 @@ define [
       calcFields = []
       for field in params.fields
         if @_fieldHasTag(field, ':backendCalc')
-          calcFields.push(field) if not @ignoreFieldTags
+          calcFields.push(field)
         else
           commonFields.push(field)
       if commonFields.length > 0
