@@ -867,7 +867,9 @@ define [
         @_hasLimits = false
         @_totalCount = models.length
 
-        model.setCollection(this) for model in @_models
+        for model in @_models
+          if model
+            model.setCollection(this)
 
       @_reindexModels()
       @_initialized = true
